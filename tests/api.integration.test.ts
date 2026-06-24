@@ -1,0 +1,254 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import type { PrismaClient } from "@/generated/prisma/client";
+import {
+  clearMockCookie,
+  setMockSession,
+} from "./helpers/mock-cookies";
+import {
+  migrateTestDb,
+  resetTestDb,
+  seedAdmin,
+  seedClientWithStore,
+  seedUserWithAccess,
+  setupTestEnv,
+} from "./helpers/db";
+
+setupTestEnv();
+migrateTestDb();
+
+let db: PrismaClient;
+let loginUser: typeof import("../src/lib/auth").loginUser;
+let registerPost: (request: Request) => Promise<Response>;
+let loginPost: (request: Request) => Promise<Response>;
+let productsGet: (request: Request) => Promise<Response>;
+let productsPost: (request: Request) => Promise<Response>;
+let inventoryPost: (request: Request) => Promise<Response>;
+let inventoryGet: (request: Request) => Promise<Response>;
+let inventoryPatch: (request: Request) => Promise<Response>;
+let cronPost: (request: Request) => Promise<Response>;
+let clientsGet: (request: Request) => Promise<Response>;
+let clientsPost: (request: Request) => Promise<Response>;
+let usersPatch: (request: Request) => Promise<Response>;
+let paymentsPost: (request: Request) => Promise<Response>;
+let calendarGet: (request: Request) => Promise<Response>;
+
+async function jsonRequest(
+  handler: (request: Request) => Promise<Response>,
+  init: RequestInit & { url?: string } = {},
+) {
+  const response = await handler(
+    new Request(init.url ?? "http://localhost/api", init),
+  );
+  const data = await response.json();
+  return { response, data };
+}
+
+test.before(async () => {
+  ({ db } = await import("../src/lib/db"));
+  ({ loginUser } = await import("../src/lib/auth"));
+  ({ POST: registerPost } = await import("../src/app/api/auth/register/route"));
+  ({ POST: loginPost } = await import("../src/app/api/auth/login/route"));
+  ({ GET: productsGet, POST: productsPost } = await import(
+    "../src/app/api/products/route"
+  ));
+  ({ POST: inventoryPost, GET: inventoryGet, PATCH: inventoryPatch } =
+    await import("../src/app/api/inventory/route"));
+  ({ POST: cronPost } = await import("../src/app/api/cron/purge-inventory/route"));
+  ({ GET: clientsGet, POST: clientsPost } = await import(
+    "../src/app/api/admin/clients/route"
+  ));
+  ({ PATCH: usersPatch } = await import("../src/app/api/admin/users/route"));
+  ({ POST: paymentsPost } = await import("../src/app/api/admin/payments/route"));
+  ({ GET: calendarGet } = await import(
+    "../src/app/api/admin/payments/calendar/route"
+  ));
+});
+
+test.beforeEach(async () => {
+  clearMockCookie();
+  await resetTestDb(db);
+  await seedAdmin(db);
+});
+
+test("POST /api/auth/register creates user and returns English message", async () => {
+  const { response, data } = await jsonRequest(registerPost, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username: "newbie", password: "password123" }),
+  });
+
+  assert.equal(response.status, 200);
+  assert.equal(data.user.username, "newbie");
+  assert.match(data.message, /administrator/i);
+});
+
+test("POST /api/auth/login sets session for admin", async () => {
+  const { response, data } = await jsonRequest(loginPost, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username: "admin", password: "admin123" }),
+  });
+
+  assert.equal(response.status, 200);
+  assert.equal(data.user.role, "ADMIN");
+});
+
+test("products API requires authentication", async () => {
+  const { response } = await jsonRequest(productsGet, {
+    url: "http://localhost/api/products?barcode=123",
+  });
+  assert.equal(response.status, 401);
+});
+
+test("full inventory flow via APIs", async () => {
+  const client = await seedClientWithStore(db);
+  const store = client.stores[0];
+  const user = await seedUserWithAccess(db, client.id, store.id);
+
+  const login = await loginUser(user.username, "password123");
+  assert.equal(login.ok, true);
+  if (!login.ok) return;
+  await setMockSession(login.token);
+
+  const createProduct = await jsonRequest(productsPost, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ barcode: "999", name: "Yogurt" }),
+  });
+  assert.equal(createProduct.response.status, 201);
+
+  const expiry = new Date();
+  expiry.setMonth(expiry.getMonth() + 1);
+
+  const createEntry = await jsonRequest(inventoryPost, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      storeId: store.id,
+      barcode: "999",
+      productId: createProduct.data.product.id,
+      quantity: 2,
+      expiryDate: expiry.toISOString(),
+    }),
+  });
+  assert.equal(createEntry.response.status, 201);
+
+  const list = await jsonRequest(inventoryGet, {
+    url: `http://localhost/api/inventory?storeId=${store.id}`,
+  });
+  assert.equal(list.response.status, 200);
+  assert.equal(list.data.entries.length, 1);
+
+  const remove = await jsonRequest(inventoryPatch, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      entryId: list.data.entries[0].id,
+      storeId: store.id,
+    }),
+  });
+  assert.equal(remove.response.status, 200);
+
+  const afterRemove = await jsonRequest(inventoryGet, {
+    url: `http://localhost/api/inventory?storeId=${store.id}`,
+  });
+  assert.equal(afterRemove.data.entries.length, 0);
+});
+
+test("admin clients and user assignment APIs", async () => {
+  const adminLogin = await loginUser("admin", "admin123");
+  assert.equal(adminLogin.ok, true);
+  if (!adminLogin.ok) return;
+  await setMockSession(adminLogin.token);
+
+  const createClient = await jsonRequest(clientsPost, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name: "Acme",
+      monthlyFeePerStore: 15,
+    }),
+  });
+  assert.equal(createClient.response.status, 201);
+
+  await registerPost(
+    new Request("http://localhost/api/auth/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: "staff", password: "password123" }),
+    }),
+  );
+
+  const registeredUser = await db.user.findUnique({ where: { username: "staff" } });
+  assert.ok(registeredUser);
+
+  const client = createClient.data.client;
+  const store = await db.store.create({
+    data: { clientId: client.id, name: "Downtown" },
+  });
+
+  const assign = await jsonRequest(usersPatch, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      userId: registeredUser!.id,
+      clientId: client.id,
+      storeIds: [store.id],
+      active: true,
+    }),
+  });
+  assert.equal(assign.response.status, 200);
+
+  const list = await jsonRequest(clientsGet, {
+    url: "http://localhost/api/admin/clients",
+  });
+  assert.equal(list.response.status, 200);
+  assert.equal(list.data.clients.length, 1);
+});
+
+test("payments calendar and mark paid APIs", async () => {
+  const adminLogin = await loginUser("admin", "admin123");
+  assert.equal(adminLogin.ok, true);
+  if (!adminLogin.ok) return;
+  await setMockSession(adminLogin.token);
+
+  const client = await seedClientWithStore(db);
+  const now = new Date();
+
+  const calendar = await jsonRequest(calendarGet, {
+    url: `http://localhost/api/admin/payments/calendar?year=${now.getFullYear()}&month=${now.getMonth() + 1}&calendar=1`,
+  });
+  assert.equal(calendar.response.status, 200);
+  assert.equal(calendar.data.rows.length, 1);
+  assert.equal(calendar.data.rows[0].paid, false);
+
+  const markPaid = await jsonRequest(paymentsPost, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      clientId: client.id,
+      year: now.getFullYear(),
+      month: now.getMonth() + 1,
+      discount: 0,
+    }),
+  });
+  assert.equal(markPaid.response.status, 201);
+  assert.equal(markPaid.data.payment.amountPaid, 10);
+});
+
+test("cron purge endpoint requires secret", async () => {
+  const forbidden = await jsonRequest(cronPost, { method: "POST" });
+  assert.equal(forbidden.response.status, 403);
+
+  const allowed = await jsonRequest(cronPost, {
+    method: "POST",
+    headers: { "x-cron-secret": "test-cron-secret" },
+  });
+  assert.equal(allowed.response.status, 200);
+  assert.equal(typeof allowed.data.purged, "number");
+});
+
+test.after(async () => {
+  await db.$disconnect();
+});

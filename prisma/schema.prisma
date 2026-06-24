@@ -1,0 +1,107 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+enum Role {
+  ADMIN
+  USER
+}
+
+model User {
+  id           String      @id @default(cuid())
+  username     String      @unique
+  passwordHash String
+  role         Role        @default(USER)
+  active       Boolean     @default(true)
+  clientId     String?
+  client       Client?     @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  storeLinks   UserStore[]
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+}
+
+model Client {
+  id                 String    @id @default(cuid())
+  name               String
+  phone              String?
+  additionalInfo     String?
+  active             Boolean   @default(true)
+  monthlyFeePerStore Float     @default(0)
+  users              User[]
+  stores             Store[]
+  payments           Payment[]
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+}
+
+model Store {
+  id             String           @id @default(cuid())
+  clientId       String
+  client         Client           @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  name           String
+  address        String?
+  phone          String?
+  additionalInfo String?
+  active         Boolean          @default(true)
+  userLinks      UserStore[]
+  inventory      InventoryEntry[]
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+}
+
+model UserStore {
+  userId  String
+  storeId String
+  user    User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  store   Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@id([userId, storeId])
+}
+
+model Product {
+  id        String           @id @default(cuid())
+  barcode   String           @unique
+  name      String
+  imagePath String?
+  inventory InventoryEntry[]
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+}
+
+model InventoryEntry {
+  id         String    @id @default(cuid())
+  storeId    String
+  store      Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  productId  String
+  product    Product   @relation(fields: [productId], references: [id])
+  barcode    String
+  quantity   Int
+  expiryDate DateTime
+  enteredAt  DateTime  @default(now())
+  removedAt  DateTime?
+  deletedAt  DateTime?
+
+  @@index([storeId, expiryDate])
+  @@index([storeId, removedAt, deletedAt])
+}
+
+model Payment {
+  id               String   @id @default(cuid())
+  clientId         String
+  client           Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  year             Int
+  month            Int
+  activeStoreCount Int
+  feePerStore      Float
+  discount         Float    @default(0)
+  amountPaid       Float
+  paidAt           DateTime @default(now())
+  notes            String?
+
+  @@unique([clientId, year, month])
+}

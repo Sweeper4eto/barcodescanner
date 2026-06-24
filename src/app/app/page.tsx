@@ -1,0 +1,116 @@
+"use client";
+
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useT } from "@/components/i18n-provider";
+import { getStoredStoreId, setStoredStoreId } from "@/lib/store-selection";
+
+type Store = { id: string; name: string; active: boolean };
+
+export default function AppHomePage() {
+  const router = useRouter();
+  const { t } = useT();
+  const [stores, setStores] = useState<Store[]>([]);
+  const [storeId, setStoreId] = useState("");
+  const [username, setUsername] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      const response = await fetch("/api/auth/me");
+      const data = await response.json();
+      if (cancelled) return;
+      if (!data.user) {
+        router.push("/login");
+        return;
+      }
+      setUsername(data.user.username);
+      const list: Store[] = data.user.stores ?? [];
+      setStores(list);
+      const stored = getStoredStoreId();
+      const valid = list.find((store) => store.id === stored);
+      const nextId = valid?.id ?? list[0]?.id ?? "";
+      setStoreId(nextId);
+      if (nextId) setStoredStoreId(nextId);
+    }
+
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
+
+  function onStoreChange(nextId: string) {
+    setStoreId(nextId);
+    setStoredStoreId(nextId);
+  }
+
+  async function logout() {
+    await fetch("/api/auth/logout", { method: "POST" });
+    router.push("/login");
+    router.refresh();
+  }
+
+  return (
+    <div className="mx-auto min-h-full max-w-lg px-4 py-6">
+      <header className="mb-6 flex items-center justify-between">
+        <div>
+          <p className="text-sm text-muted">
+            {t("app.greeting", { username })}
+          </p>
+          <h1 className="text-2xl font-semibold">{t("app.workingStore")}</h1>
+        </div>
+        <button
+          onClick={() => void logout()}
+          className="rounded-lg border border-input-border bg-card px-3 py-2 text-sm text-foreground"
+        >
+          {t("common.logout")}
+        </button>
+      </header>
+
+      <label className="block text-sm font-medium text-foreground">
+        {t("app.selectStore")}
+        <select
+          className="mt-1 w-full rounded-xl border border-input-border bg-input px-3 py-3 text-base text-foreground"
+          value={storeId}
+          onChange={(event) => onStoreChange(event.target.value)}
+        >
+          {stores.map((store) => (
+            <option key={store.id} value={store.id}>
+              {store.name}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      {stores.length === 0 ? (
+        <p className="mt-6 rounded-xl bg-warning-bg p-4 text-sm text-warning-fg">
+          {t("app.noStores")}
+        </p>
+      ) : (
+        <div className="mt-6 grid gap-3">
+          <Link
+            href={`/app/scan?storeId=${storeId}`}
+            className="rounded-xl bg-primary px-4 py-4 text-center text-lg font-medium text-primary-fg"
+          >
+            {t("app.scanStock")}
+          </Link>
+          <Link
+            href={`/app/add-product?storeId=${storeId}`}
+            className="rounded-xl bg-invert px-4 py-4 text-center text-lg font-medium text-invert-fg"
+          >
+            {t("app.addStock")}
+          </Link>
+          <Link
+            href={`/app/expiry?storeId=${storeId}`}
+            className="rounded-xl border border-input-border bg-card px-4 py-4 text-center text-lg font-medium text-foreground"
+          >
+            {t("app.expiry")}
+          </Link>
+        </div>
+      )}
+    </div>
+  );
+}
