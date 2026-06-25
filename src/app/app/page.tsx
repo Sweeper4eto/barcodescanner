@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useT } from "@/components/i18n-provider";
+import { LanguageSwitch } from "@/components/language-switch";
+import { PushNotifications } from "@/components/push-notifications";
 import { getStoredStoreId, setStoredStoreId } from "@/lib/store-selection";
 
 type Store = { id: string; name: string; active: boolean };
@@ -55,19 +57,22 @@ export default function AppHomePage() {
 
   return (
     <div className="mx-auto min-h-full max-w-lg px-4 py-6">
-      <header className="mb-6 flex items-center justify-between">
+      <header className="mb-6 flex items-start justify-between gap-2">
         <div>
           <p className="text-sm text-muted">
             {t("app.greeting", { username })}
           </p>
           <h1 className="text-2xl font-semibold">{t("app.workingStore")}</h1>
         </div>
-        <button
-          onClick={() => void logout()}
-          className="rounded-lg border border-input-border bg-card px-3 py-2 text-sm text-foreground"
-        >
-          {t("common.logout")}
-        </button>
+        <div className="flex shrink-0 items-center gap-2">
+          <LanguageSwitch />
+          <button
+            onClick={() => void logout()}
+            className="rounded-lg border border-input-border bg-card px-3 py-2 text-sm text-foreground"
+          >
+            {t("common.logout")}
+          </button>
+        </div>
       </header>
 
       <label className="block text-sm font-medium text-foreground">
@@ -111,6 +116,8 @@ export default function AppHomePage() {
           </Link>
         </div>
       )}
+
+      <PushNotifications />
     </div>
   );
 }

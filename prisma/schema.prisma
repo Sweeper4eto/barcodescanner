@@ -21,6 +21,7 @@ model User {
   clientId     String?
   client       Client?     @relation(fields: [clientId], references: [id], onDelete: SetNull)
   storeLinks   UserStore[]
+  pushSubscriptions PushSubscription[]
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
 }
@@ -104,4 +105,27 @@ model Payment {
   notes            String?
 
   @@unique([clientId, year, month])
+}
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  locale    String   @default("en")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model PushNotificationLog {
+  id     String   @id @default(cuid())
+  userId String
+  kind   String
+  sentAt DateTime @default(now())
+
+  @@index([userId, kind, sentAt])
 }

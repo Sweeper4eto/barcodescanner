@@ -6,6 +6,7 @@ import { Suspense, useCallback, useState } from "react";
 import { PrimaryButton, SecondaryButton } from "@/components/auth-forms";
 import { BarcodeScanner } from "@/components/barcode-scanner";
 import { CameraCapture, uploadImage } from "@/components/camera-capture";
+import { MobilePageHeader } from "@/components/mobile-page-header";
 import { useT } from "@/components/i18n-provider";
 
 function AddProductFlow() {
@@ -73,12 +74,14 @@ function AddProductFlow() {
 
   return (
     <div className="mx-auto max-w-lg px-4 py-6">
-      <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">{t("addProduct.title")}</h1>
-        <Link href="/app" className="text-sm text-accent">
-          {t("common.cancel")}
-        </Link>
-      </div>
+      <MobilePageHeader
+        title={t("addProduct.title")}
+        action={
+          <Link href="/app" className="text-sm text-accent">
+            {t("common.cancel")}
+          </Link>
+        }
+      />
 
       {step === "scan" ? (
         <div className="rounded-2xl border border-card-border p-4">

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { purgeExpiredInventory } from "@/lib/inventory-purge";
+import { sendExpiryDigests } from "@/lib/push-expiry";
 import { apiT } from "@/i18n";
 
 export async function POST(request: Request) {
@@ -12,7 +13,8 @@ export async function POST(request: Request) {
   }
 
   const purged = await purgeExpiredInventory();
-  return NextResponse.json({ purged });
+  const push = await sendExpiryDigests();
+  return NextResponse.json({ purged, push });
 }
 
 export async function GET(request: Request) {

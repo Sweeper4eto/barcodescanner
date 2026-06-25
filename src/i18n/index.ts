@@ -1,12 +1,14 @@
 import { en, type Messages } from "./messages/en";
+import { bg } from "./messages/bg";
 
-export type Locale = "en";
+export type Locale = "en" | "bg";
 
-export const locales: Locale[] = ["en"];
+export const locales: Locale[] = ["en", "bg"];
+export const mobileLocales: Locale[] = ["en", "bg"];
 export const defaultLocale: Locale =
   (process.env.NEXT_PUBLIC_LOCALE as Locale | undefined) ?? "en";
 
-const catalogs: Record<Locale, Messages> = { en };
+const catalogs: Record<Locale, Messages> = { en, bg };
 
 type NestedKeyOf<T, Prefix extends string = ""> = T extends object
   ? {
@@ -46,7 +48,18 @@ export function t(
   );
 }
 
+function localeFromCookie(cookieHeader: string): Locale | null {
+  const match = cookieHeader.match(/(?:^|;\s*)magazin-locale=(en|bg)(?:;|$)/);
+  if (match?.[1] && locales.includes(match[1] as Locale)) {
+    return match[1] as Locale;
+  }
+  return null;
+}
+
 export function getLocaleFromRequest(request: Request): Locale {
+  const cookieLocale = localeFromCookie(request.headers.get("cookie") ?? "");
+  if (cookieLocale) return cookieLocale;
+
   const header = request.headers.get("accept-language") ?? "";
   const preferred = header.split(",")[0]?.trim().slice(0, 2).toLowerCase();
   if (preferred && locales.includes(preferred as Locale)) {
@@ -82,5 +95,6 @@ export function monthName(month: number, locale: Locale = defaultLocale): string
 }
 
 export function dateLocale(locale: Locale = defaultLocale): string {
-  return locale === "en" ? "en-US" : locale;
+  if (locale === "bg") return "bg-BG";
+  return "en-US";
 }

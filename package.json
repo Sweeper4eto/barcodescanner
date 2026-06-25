@@ -12,6 +12,7 @@
     "db:migrate": "prisma migrate dev",
     "db:seed": "tsx prisma/seed.ts",
     "icons": "node scripts/generate-pwa-icons.mjs",
+    "vapid": "node scripts/generate-vapid-keys.mjs",
     "postinstall": "node scripts/generate-pwa-icons.mjs",
     "db:reset": "prisma migrate reset --force",
     "test": "tsx --test --test-concurrency=1 tests/**/*.test.ts",
@@ -34,6 +35,7 @@
     "prisma": "^7.8.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
+    "web-push": "^3.6.7",
     "zod": "^4.4.3"
   },
   "devDependencies": {
@@ -45,6 +47,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/web-push": "^3.6.4",
     "babel-plugin-react-compiler": "1.0.0",
     "eslint": "^9",
     "eslint-config-next": "16.2.9",

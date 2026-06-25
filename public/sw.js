@@ -1,4 +1,4 @@
-const CACHE_NAME = "magazin-v2";
+const CACHE_NAME = "magazin-v3";
 const PRECACHE_URLS = ["/", "/login", "/register", "/app"];
 
 self.addEventListener("install", (event) => {
@@ -38,5 +38,39 @@ self.addEventListener("fetch", (event) => {
         return response;
       });
     }),
+  );
+});
+
+self.addEventListener("push", (event) => {
+  const fallback = { title: "Magazin", body: "", url: "/app" };
+  const data = event.data?.json() ?? fallback;
+
+  event.waitUntil(
+    self.registration.showNotification(data.title ?? fallback.title, {
+      body: data.body ?? "",
+      icon: "/icons/icon-192.png",
+      badge: "/icons/icon-192.png",
+      data: { url: data.url ?? fallback.url },
+    }),
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const targetUrl = event.notification.data?.url ?? "/app";
+
+  event.waitUntil(
+    clients
+      .matchAll({ type: "window", includeUncontrolled: true })
+      .then((windowClients) => {
+        for (const client of windowClients) {
+          if (client.url.includes(targetUrl) && "focus" in client) {
+            return client.focus();
+          }
+        }
+        if (clients.openWindow) {
+          return clients.openWindow(targetUrl);
+        }
+      }),
   );
 });

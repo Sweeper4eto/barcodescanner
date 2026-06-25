@@ -87,6 +87,7 @@ export const en = {
     invalidImage: "Invalid image",
     invalidFileFormat: "Invalid file format",
     fileTooLarge: "File is too large (max 5 MB)",
+    pushNotConfigured: "Push notifications are not configured on the server",
   },
   app: {
     greeting: "Hello, {username}",
@@ -97,6 +98,25 @@ export const en = {
     expiry: "Expiry",
     noStores:
       "You have no assigned stores. Contact an administrator.",
+  },
+  push: {
+    title: "Expiry alerts",
+    description:
+      "Get notified when products in your stores are close to expiring. Requires the app to be installed on your home screen (iOS) or allowed notifications in the browser.",
+    enable: "Enable notifications",
+    disable: "Turn off",
+    enabled: "Notifications are on",
+    denied:
+      "Notifications are blocked. Allow them in your browser or phone settings.",
+    subscribeError: "Could not enable notifications. Try again.",
+    unsubscribeError: "Could not turn off notifications. Try again.",
+    digestCriticalSingle: "{productName} expires soon",
+    digestCriticalSingleBody:
+      "{quantity} at {storeName} · {days} day(s) left",
+    digestCriticalMany: "{count} products expire within 7 days",
+    digestCriticalManyBody: "Includes {productName} at {storeName}",
+    digestSoonTitle: "{count} products expiring soon",
+    digestSoonBody: "Next: {productName} at {storeName}",
   },
   scan: {
     title: "Scan stock",
@@ -197,4 +217,8 @@ export const en = {
   },
 } as const;
 
-export type Messages = typeof en;
+type StringMessages<T> = {
+  [K in keyof T]: T[K] extends object ? StringMessages<T[K]> : string;
+};
+
+export type Messages = StringMessages<typeof en>;

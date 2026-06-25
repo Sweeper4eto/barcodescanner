@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
+import { MobilePageHeader } from "@/components/mobile-page-header";
 import { useT } from "@/components/i18n-provider";
 import { expiryUrgencyClass } from "@/lib/expiry";
 
@@ -59,12 +60,14 @@ function ExpiryList() {
 
   return (
     <div className="mx-auto max-w-lg px-4 py-6">
-      <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">{t("expiry.title")}</h1>
-        <Link href="/app" className="text-sm text-accent">
-          {t("common.back")}
-        </Link>
-      </div>
+      <MobilePageHeader
+        title={t("expiry.title")}
+        action={
+          <Link href="/app" className="text-sm text-accent">
+            {t("common.back")}
+          </Link>
+        }
+      />
 
       <div className="space-y-3">
         {entries.length === 0 ? (
