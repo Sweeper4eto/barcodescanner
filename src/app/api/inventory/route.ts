@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireSession } from "@/lib/auth";
 import { purgeExpiredInventory } from "@/lib/inventory-purge";
-import { expiryListVisible } from "@/lib/expiry";
+import { expiryListDateBounds } from "@/lib/expiry";
 import { db } from "@/lib/db";
 import { apiT } from "@/i18n";
 
@@ -105,19 +105,78 @@ export async function GET(request: Request) {
   const now = new Date();
   await purgeExpiredInventory();
 
-  const entries = await db.inventoryEntry.findMany({
-    where: {
-      storeId,
-      removedAt: null,
-      deletedAt: null,
+  const { maxFuture, maxPast } = expiryListDateBounds(now);
+  const q = searchParams.get("q")?.trim() ?? "";
+  const page = Math.max(1, Number.parseInt(searchParams.get("page") ?? "1", 10) || 1);
+  const limit = Math.min(
+    50,
+    Math.max(1, Number.parseInt(searchParams.get("limit") ?? "20", 10) || 20),
+  );
+
+  const baseWhere = {
+    storeId,
+    removedAt: null,
+    deletedAt: null,
+    expiryDate: {
+      gte: maxPast,
+      lte: maxFuture,
     },
-    include: { product: true },
-    orderBy: { expiryDate: "asc" },
+  };
+
+  const where = q
+    ? {
+        ...baseWhere,
+        OR: [
+          { barcode: q },
+          { barcode: { contains: q } },
+          { product: { name: { contains: q } } },
+        ],
+      }
+    : baseWhere;
+
+  const orderBy = { expiryDate: "asc" as const };
+
+  if (q) {
+    const entries = await db.inventoryEntry.findMany({
+      where,
+      include: { product: true },
+      orderBy,
+      take: 100,
+    });
+
+    return NextResponse.json({
+      entries,
+      pagination: {
+        page: 1,
+        limit: entries.length,
+        total: entries.length,
+        totalPages: 1,
+      },
+    });
+  }
+
+  const [entries, total] = await Promise.all([
+    db.inventoryEntry.findMany({
+      where,
+      include: { product: true },
+      orderBy,
+      skip: (page - 1) * limit,
+      take: limit,
+    }),
+    db.inventoryEntry.count({ where }),
+  ]);
+
+  const totalPages = Math.max(1, Math.ceil(total / limit));
+
+  return NextResponse.json({
+    entries,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages,
+    },
   });
-
-  const visible = entries.filter((entry) => expiryListVisible(entry.expiryDate, now));
-
-  return NextResponse.json({ entries: visible });
 }
 
 const removeSchema = z.object({

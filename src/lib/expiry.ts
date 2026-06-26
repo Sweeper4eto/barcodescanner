@@ -1,10 +1,20 @@
+export const EXPIRY_LIST_MAX_FUTURE_DAYS = 28;
+export const EXPIRY_LIST_MAX_PAST_DAYS = 183;
+
+export function expiryListDateBounds(now = new Date()) {
+  const maxFuture = new Date(
+    now.getTime() + EXPIRY_LIST_MAX_FUTURE_DAYS * 24 * 60 * 60 * 1000,
+  );
+  const maxPast = new Date(
+    now.getTime() - EXPIRY_LIST_MAX_PAST_DAYS * 24 * 60 * 60 * 1000,
+  );
+  return { maxFuture, maxPast };
+}
+
 export function expiryListVisible(expiryDate: Date, now = new Date()): boolean {
-  const threeMonthsMs = 1000 * 60 * 60 * 24 * 91;
-  const sixMonthsMs = 1000 * 60 * 60 * 24 * 183;
-  const diff = expiryDate.getTime() - now.getTime();
-  if (diff > threeMonthsMs) return false;
-  if (diff < -sixMonthsMs) return false;
-  return true;
+  const { maxFuture, maxPast } = expiryListDateBounds(now);
+  const time = expiryDate.getTime();
+  return time <= maxFuture.getTime() && time >= maxPast.getTime();
 }
 
 export function expiryUrgencyClass(expiryDate: Date, now = new Date()): string {
