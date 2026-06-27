@@ -13,6 +13,7 @@
     "db:seed": "tsx prisma/seed.ts",
     "icons": "node scripts/generate-pwa-icons.mjs",
     "vapid": "node scripts/generate-vapid-keys.mjs",
+    "admin:password": "tsx scripts/set-admin-password.ts",
     "postinstall": "node scripts/generate-pwa-icons.mjs",
     "db:reset": "prisma migrate reset --force",
     "test": "tsx --test --test-concurrency=1 tests/**/*.test.ts",
