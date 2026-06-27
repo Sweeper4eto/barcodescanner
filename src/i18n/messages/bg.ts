@@ -47,6 +47,8 @@ export const bg = {
     registering: "Регистрация...",
     username: "Потребителско име",
     password: "Парола",
+    confirmPassword: "Потвърди паролата",
+    passwordMismatch: "Паролите не съвпадат",
     loginSubtitle: "Мобилен достъп до вашите магазини",
     registerSubtitle:
       "След регистрация администратор трябва да ви назначи към клиент",

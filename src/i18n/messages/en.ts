@@ -45,6 +45,8 @@ export const en = {
     registering: "Registering...",
     username: "Username",
     password: "Password",
+    confirmPassword: "Confirm password",
+    passwordMismatch: "Passwords do not match",
     loginSubtitle: "Mobile-optimized web access to your stores",
     registerSubtitle:
       "After registration, an administrator must assign you to a client",

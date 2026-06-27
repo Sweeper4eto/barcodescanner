@@ -158,6 +158,7 @@ export function RegisterForm() {
   const { t } = useT();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
@@ -167,6 +168,12 @@ export function RegisterForm() {
     setLoading(true);
     setError("");
     setSuccess("");
+
+    if (password !== confirmPassword) {
+      setError(t("auth.passwordMismatch"));
+      setLoading(false);
+      return;
+    }
 
     const response = await fetch("/api/auth/register", {
       method: "POST",
@@ -198,6 +205,13 @@ export function RegisterForm() {
         value={password}
         autoComplete="new-password"
         onChange={setPassword}
+      />
+      <TextField
+        label={t("auth.confirmPassword")}
+        type="password"
+        value={confirmPassword}
+        autoComplete="new-password"
+        onChange={setConfirmPassword}
       />
       {error ? <p className="text-sm text-error">{error}</p> : null}
       {success ? (
