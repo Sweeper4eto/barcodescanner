@@ -3,14 +3,14 @@ import { db } from "../src/lib/db";
 import { hashPassword } from "../src/lib/password";
 
 const username = process.env.ADMIN_USERNAME ?? "admin";
-const password = process.env.ADMIN_PASSWORD;
-
-if (!password || password.length < 6) {
-  console.error("Set ADMIN_PASSWORD (at least 6 characters).");
-  process.exit(1);
-}
 
 async function main() {
+  const password = process.env.ADMIN_PASSWORD;
+  if (!password || password.length < 6) {
+    console.error("Set ADMIN_PASSWORD (at least 6 characters).");
+    process.exit(1);
+  }
+
   const user = await db.user.findUnique({ where: { username } });
 
   if (!user || user.role !== "ADMIN") {
