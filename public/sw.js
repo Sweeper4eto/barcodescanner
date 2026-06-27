@@ -1,4 +1,4 @@
-const CACHE_NAME = "magazin-v3";
+const CACHE_NAME = "magazin-v4";
 const PRECACHE_URLS = ["/", "/login", "/register", "/app"];
 
 self.addEventListener("install", (event) => {
@@ -27,6 +27,25 @@ self.addEventListener("fetch", (event) => {
   if (url.origin !== self.location.origin) return;
   if (url.pathname.startsWith("/api/")) return;
   if (url.pathname.startsWith("/uploads/")) return;
+
+  const isDocument =
+    request.mode === "navigate" ||
+    request.headers.get("accept")?.includes("text/html");
+
+  if (isDocument) {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          if (response.ok && response.type === "basic") {
+            const copy = response.clone();
+            void caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+          }
+          return response;
+        })
+        .catch(() => caches.match(request)),
+    );
+    return;
+  }
 
   event.respondWith(
     caches.match(request).then((cached) => {
