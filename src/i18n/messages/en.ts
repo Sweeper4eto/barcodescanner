@@ -1,6 +1,6 @@
 export const en = {
   common: {
-    appName: "Magazin",
+    appName: "expire365",
     cancel: "Cancel",
     save: "Save",
     delete: "Delete",
@@ -26,13 +26,13 @@ export const en = {
     currency: "BGN",
   },
   metadata: {
-    title: "Magazin",
+    title: "expire365",
     description: "Inventory, expiry tracking, and client management",
-    manifestName: "Magazin — inventory & expiry",
-    manifestDescription: "Inventory management, expiry dates, and stores",
+    manifestName: "expire365 — inventory & expiry",
+    manifestDescription: "Track stock and expiry dates across your stores",
   },
   home: {
-    tagline: "Inventory & expiry management",
+    tagline: "Track expiry before it costs you",
     description:
       "Mobile-optimized web app: barcode scanning, stock entry, expiry tracking, and an admin panel for clients, stores, and payments.",
     login: "Log in",

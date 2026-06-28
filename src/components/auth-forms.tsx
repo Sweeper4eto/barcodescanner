@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
+import { AppLogo } from "@/components/app-logo";
 import { useT } from "@/components/i18n-provider";
 
 export function AuthShell({
@@ -14,11 +15,19 @@ export function AuthShell({
   subtitle?: string;
   children: React.ReactNode;
 }) {
+  const { t } = useT();
+
   return (
     <div className="mx-auto flex min-h-full w-full max-w-md flex-col justify-center px-4 py-10">
       <div className="rounded-2xl border border-card-border bg-card p-6 shadow-sm">
-        <h1 className="text-2xl font-semibold text-foreground">{title}</h1>
-        {subtitle ? <p className="mt-2 text-sm text-muted">{subtitle}</p> : null}
+        <div className="flex flex-col items-center text-center">
+          <AppLogo size={56} />
+          <p className="mt-3 text-sm font-semibold uppercase tracking-wide text-accent">
+            {t("common.appName")}
+          </p>
+        </div>
+        <h1 className="mt-4 text-center text-2xl font-semibold text-foreground">{title}</h1>
+        {subtitle ? <p className="mt-2 text-center text-sm text-muted">{subtitle}</p> : null}
         <div className="mt-6">{children}</div>
       </div>
     </div>

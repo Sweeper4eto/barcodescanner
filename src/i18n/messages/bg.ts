@@ -2,7 +2,7 @@ import type { Messages } from "./en";
 
 export const bg = {
   common: {
-    appName: "Магазин",
+    appName: "expire365",
     cancel: "Отказ",
     save: "Запази",
     delete: "Изтрий",
@@ -28,13 +28,13 @@ export const bg = {
     currency: "лв.",
   },
   metadata: {
-    title: "Магазин",
+    title: "expire365",
     description: "Управление на стока, срок на годност и клиенти",
-    manifestName: "Магазин — стока и годност",
-    manifestDescription: "Управление на стока, срокове на годност и магазини",
+    manifestName: "expire365 — стока и годност",
+    manifestDescription: "Проследявайте стока и срокове на годност в магазините си",
   },
   home: {
-    tagline: "Управление на стока и срок на годност",
+    tagline: "Следете годността, преди да е късно",
     description:
       "Уеб приложение за телефон: сканиране на баркод, въвеждане на стока, проследяване на годност и админ панел за клиенти, магазини и плащания.",
     login: "Вход",

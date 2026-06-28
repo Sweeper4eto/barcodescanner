@@ -1,4 +1,4 @@
-const CACHE_NAME = "magazin-v4";
+const CACHE_NAME = "expire365-v1";
 const PRECACHE_URLS = ["/", "/login", "/register", "/app"];
 
 self.addEventListener("install", (event) => {
@@ -61,7 +61,7 @@ self.addEventListener("fetch", (event) => {
 });
 
 self.addEventListener("push", (event) => {
-  const fallback = { title: "Magazin", body: "", url: "/app" };
+  const fallback = { title: "expire365", body: "", url: "/app" };
   const data = event.data?.json() ?? fallback;
 
   event.waitUntil(

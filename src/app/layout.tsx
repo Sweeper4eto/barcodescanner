@@ -18,11 +18,11 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: t("metadata.title"),
   description: t("metadata.description"),
-  applicationName: "Magazin",
+  applicationName: t("common.appName"),
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Magazin",
+    title: t("common.appName"),
   },
   icons: {
     icon: [
@@ -37,7 +37,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#2563eb",
+  themeColor: "#0d9488",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
