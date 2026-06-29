@@ -1,26 +1,62 @@
 "use client";
 
-import { Html5Qrcode, type CameraDevice } from "html5-qrcode";
+import {
+  Html5Qrcode,
+  Html5QrcodeSupportedFormats,
+  type CameraDevice,
+  type Html5QrcodeCameraScanConfig,
+} from "html5-qrcode";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { PrimaryButton, SecondaryButton } from "@/components/auth-forms";
 import { useT } from "@/components/i18n-provider";
+import {
+  optimizeBarcodeCamera,
+  refocusBarcodeCamera,
+  toggleBarcodeTorch,
+} from "@/lib/barcode-camera";
+import { BarcodeReadConsensus } from "@/lib/barcode";
 
 type Props = {
   onScan: (barcode: string) => void | Promise<void>;
   onCancel?: () => void;
 };
 
-const SCAN_CONFIG = {
-  fps: 15,
-  qrbox: (width: number, height: number) => {
-    const edge = Math.min(width, height) * 0.75;
-    return { width: Math.floor(edge), height: Math.floor(edge * 0.55) };
+const PRODUCT_BARCODE_FORMATS = [
+  Html5QrcodeSupportedFormats.EAN_13,
+  Html5QrcodeSupportedFormats.EAN_8,
+  Html5QrcodeSupportedFormats.UPC_A,
+  Html5QrcodeSupportedFormats.UPC_E,
+  Html5QrcodeSupportedFormats.CODE_128,
+  Html5QrcodeSupportedFormats.CODE_39,
+  Html5QrcodeSupportedFormats.ITF,
+];
+
+const BARCODE_VIDEO_CONSTRAINTS = {
+  facingMode: { ideal: "environment" },
+  width: { ideal: 1920, min: 640 },
+  height: { ideal: 1080, min: 480 },
+  focusMode: { ideal: "continuous" },
+  advanced: [{ focusMode: "continuous" }],
+} as unknown as MediaTrackConstraints;
+
+const SCAN_CONFIG: Html5QrcodeCameraScanConfig = {
+  fps: 10,
+  disableFlip: false,
+  aspectRatio: 1.7777778,
+  qrbox: (width, height) => {
+    const base = Math.min(width, height);
+    return {
+      width: Math.floor(base * 0.92),
+      height: Math.max(Math.floor(base * 0.3), 72),
+    };
   },
+  videoConstraints: BARCODE_VIDEO_CONSTRAINTS,
 };
 
-const FAST_CAMERA_ATTEMPTS: MediaTrackConstraints[] = [
-  { facingMode: "environment" },
+const CAMERA_ATTEMPTS: MediaTrackConstraints[] = [
+  BARCODE_VIDEO_CONSTRAINTS,
   { facingMode: { ideal: "environment" } },
+  { facingMode: "environment" },
   { facingMode: "user" },
 ];
 
@@ -42,21 +78,27 @@ async function startScanner(
   onDecoded: (value: string) => void | Promise<void>,
 ): Promise<void> {
   let lastError: unknown;
+  const consensus = new BarcodeReadConsensus(3);
 
   const onScanSuccess = (decoded: string) => {
+    const accepted = consensus.add(decoded);
+    if (!accepted) return;
+
     void (async () => {
       scanner.pause(true);
       try {
-        await onDecoded(decoded);
+        await onDecoded(accepted);
       } catch {
+        consensus.reset();
         scanner.resume();
       }
     })();
   };
 
-  for (const camera of FAST_CAMERA_ATTEMPTS) {
+  for (const camera of CAMERA_ATTEMPTS) {
     try {
       await scanner.start(camera, SCAN_CONFIG, onScanSuccess, () => undefined);
+      await optimizeBarcodeCamera(scanner);
       return;
     } catch (error) {
       lastError = error;
@@ -74,6 +116,7 @@ async function startScanner(
     for (const cameraId of cameraIds) {
       try {
         await scanner.start(cameraId, SCAN_CONFIG, onScanSuccess, () => undefined);
+        await optimizeBarcodeCamera(scanner);
         return;
       } catch (error) {
         lastError = error;
@@ -128,6 +171,9 @@ export function BarcodeScanner({ onScan, onCancel }: Props) {
   const [error, setError] = useState("");
   const [scanning, setScanning] = useState(false);
   const [starting, setStarting] = useState(false);
+  const [refocusing, setRefocusing] = useState(false);
+  const [torchOn, setTorchOn] = useState(false);
+  const [torchAvailable, setTorchAvailable] = useState(false);
 
   useEffect(() => {
     onScanRef.current = onScan;
@@ -152,24 +198,38 @@ export function BarcodeScanner({ onScan, onCancel }: Props) {
     setStarting(true);
     setError("");
     setScanning(true);
+    setTorchOn(false);
 
     try {
       if (scannerRef.current) {
         await resetScanner(scannerRef.current);
       } else {
-        scannerRef.current = new Html5Qrcode(elementId, { verbose: false });
+        scannerRef.current = new Html5Qrcode(elementId, {
+          verbose: false,
+          formatsToSupport: PRODUCT_BARCODE_FORMATS,
+          useBarCodeDetectorIfSupported: true,
+          experimentalFeatures: {
+            useBarCodeDetectorIfSupported: true,
+          },
+        });
       }
 
       await startScanner(scannerRef.current, async (value) => {
         if (handledRef.current) return;
         handledRef.current = true;
-        const barcode = value.trim();
-        if (!barcode) {
+        if (!value) {
           handledRef.current = false;
           throw new Error("EMPTY_BARCODE");
         }
-        await onScanRef.current(barcode);
+        await onScanRef.current(value);
       });
+
+      try {
+        const torch = scannerRef.current.getRunningTrackCameraCapabilities().torchFeature();
+        setTorchAvailable(torch.isSupported());
+      } catch {
+        setTorchAvailable(false);
+      }
     } catch (caught) {
       setScanning(false);
       setError(t(scannerErrorKey(caught)));
@@ -177,6 +237,23 @@ export function BarcodeScanner({ onScan, onCancel }: Props) {
       setStarting(false);
     }
   }, [elementId, scanning, starting, t]);
+
+  const onRefocus = useCallback(async () => {
+    if (!scannerRef.current || refocusing) return;
+    setRefocusing(true);
+    try {
+      await refocusBarcodeCamera(scannerRef.current);
+    } finally {
+      setRefocusing(false);
+    }
+  }, [refocusing]);
+
+  const onTorchToggle = useCallback(async () => {
+    if (!scannerRef.current) return;
+    const next = !torchOn;
+    const applied = await toggleBarcodeTorch(scannerRef.current, next);
+    if (applied) setTorchOn(next);
+  }, [torchOn]);
 
   return (
     <div className="space-y-4">
@@ -189,11 +266,27 @@ export function BarcodeScanner({ onScan, onCancel }: Props) {
       >
         <div id={elementId} />
       </div>
+      {scanning ? (
+        <p className="text-sm text-muted">{t("scanner.tips")}</p>
+      ) : null}
       {!scanning ? (
         <PrimaryButton onClick={() => void startCamera()} disabled={starting}>
           {starting ? t("scanner.starting") : t("scanner.startCamera")}
         </PrimaryButton>
-      ) : null}
+      ) : (
+        <div className="grid grid-cols-2 gap-2">
+          <SecondaryButton onClick={() => void onRefocus()}>
+            {refocusing ? t("scanner.refocusing") : t("scanner.refocus")}
+          </SecondaryButton>
+          {torchAvailable ? (
+            <SecondaryButton onClick={() => void onTorchToggle()}>
+              {torchOn ? t("scanner.torchOff") : t("scanner.torchOn")}
+            </SecondaryButton>
+          ) : (
+            <div />
+          )}
+        </div>
+      )}
       {error ? <p className="text-sm text-warning-fg">{error}</p> : null}
       <input
         className="w-full rounded-xl border border-input-border bg-input px-3 py-3 text-foreground"

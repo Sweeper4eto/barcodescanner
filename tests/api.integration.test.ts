@@ -156,6 +156,122 @@ test("full inventory flow via APIs", async () => {
   assert.equal(afterRemove.data.entries.length, 0);
 });
 
+test("POST /api/inventory merges quantity for active same product and expiry day", async () => {
+  const client = await seedClientWithStore(db);
+  const store = client.stores[0];
+  const user = await seedUserWithAccess(db, client.id, store.id);
+
+  const login = await loginUser(user.username, "password123");
+  assert.equal(login.ok, true);
+  if (!login.ok) return;
+  await setMockSession(login.token);
+
+  const createProduct = await jsonRequest(productsPost, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ barcode: "555", name: "Bread" }),
+  });
+  assert.equal(createProduct.response.status, 201);
+
+  const expiry = new Date();
+  expiry.setUTCDate(expiry.getUTCDate() + 14);
+  expiry.setUTCHours(0, 0, 0, 0);
+
+  const first = await jsonRequest(inventoryPost, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      storeId: store.id,
+      barcode: "555",
+      productId: createProduct.data.product.id,
+      quantity: 2,
+      expiryDate: expiry.toISOString(),
+    }),
+  });
+  assert.equal(first.response.status, 201);
+  assert.equal(first.data.merged, false);
+  assert.equal(first.data.entry.quantity, 2);
+
+  const second = await jsonRequest(inventoryPost, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      storeId: store.id,
+      barcode: "555",
+      productId: createProduct.data.product.id,
+      quantity: 3,
+      expiryDate: expiry.toISOString(),
+    }),
+  });
+  assert.equal(second.response.status, 200);
+  assert.equal(second.data.merged, true);
+  assert.equal(second.data.entry.id, first.data.entry.id);
+  assert.equal(second.data.entry.quantity, 5);
+
+  const list = await jsonRequest(inventoryGet, {
+    url: `http://localhost/api/inventory?storeId=${store.id}`,
+  });
+  assert.equal(list.data.entries.length, 1);
+  assert.equal(list.data.entries[0].quantity, 5);
+});
+
+test("POST /api/inventory does not merge removed entries with same expiry", async () => {
+  const client = await seedClientWithStore(db);
+  const store = client.stores[0];
+  const user = await seedUserWithAccess(db, client.id, store.id);
+
+  const login = await loginUser(user.username, "password123");
+  assert.equal(login.ok, true);
+  if (!login.ok) return;
+  await setMockSession(login.token);
+
+  const createProduct = await jsonRequest(productsPost, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ barcode: "777", name: "Cheese" }),
+  });
+
+  const expiry = new Date();
+  expiry.setDate(expiry.getDate() + 10);
+
+  const created = await jsonRequest(inventoryPost, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      storeId: store.id,
+      barcode: "777",
+      productId: createProduct.data.product.id,
+      quantity: 1,
+      expiryDate: expiry.toISOString(),
+    }),
+  });
+
+  await jsonRequest(inventoryPatch, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      entryId: created.data.entry.id,
+      storeId: store.id,
+    }),
+  });
+
+  const recreated = await jsonRequest(inventoryPost, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      storeId: store.id,
+      barcode: "777",
+      productId: createProduct.data.product.id,
+      quantity: 4,
+      expiryDate: expiry.toISOString(),
+    }),
+  });
+  assert.equal(recreated.response.status, 201);
+  assert.equal(recreated.data.merged, false);
+  assert.notEqual(recreated.data.entry.id, created.data.entry.id);
+  assert.equal(recreated.data.entry.quantity, 4);
+});
+
 test("inventory list filters expiry window, search, and pagination", async () => {
   const client = await seedClientWithStore(db);
   const store = client.stores[0];
@@ -212,9 +328,10 @@ test("inventory list filters expiry window, search, and pagination", async () =>
     url: `http://localhost/api/inventory?storeId=${store.id}&page=1&limit=2`,
   });
   assert.equal(list.response.status, 200);
-  assert.equal(list.data.entries.length, 2);
-  assert.equal(list.data.pagination.total, 3);
-  assert.equal(list.data.pagination.totalPages, 2);
+  assert.equal(list.data.entries.length, 1);
+  assert.equal(list.data.entries[0].quantity, 3);
+  assert.equal(list.data.pagination.total, 1);
+  assert.equal(list.data.pagination.totalPages, 1);
 
   const search = await jsonRequest(inventoryGet, {
     url: `http://localhost/api/inventory?storeId=${store.id}&q=Milk`,
@@ -225,7 +342,8 @@ test("inventory list filters expiry window, search, and pagination", async () =>
   const barcodeSearch = await jsonRequest(inventoryGet, {
     url: `http://localhost/api/inventory?storeId=${store.id}&q=111`,
   });
-  assert.equal(barcodeSearch.data.entries.length, 3);
+  assert.equal(barcodeSearch.data.entries.length, 1);
+  assert.equal(barcodeSearch.data.entries[0].quantity, 3);
 });
 
 test("admin clients and user assignment APIs", async () => {

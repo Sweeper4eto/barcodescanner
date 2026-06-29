@@ -3,6 +3,11 @@ import { z } from "zod";
 import { requireSession } from "@/lib/auth";
 import { purgeExpiredInventory } from "@/lib/inventory-purge";
 import { expiryListDateBounds } from "@/lib/expiry";
+import {
+  activeInventoryWhere,
+  expiryDateDayBounds,
+  normalizeExpiryDate,
+} from "@/lib/inventory";
 import { db } from "@/lib/db";
 import { apiT } from "@/i18n";
 
@@ -60,18 +65,44 @@ export async function POST(request: Request) {
     );
   }
 
+  const expiryDate = normalizeExpiryDate(new Date(parsed.data.expiryDate));
+  const { start, end } = expiryDateDayBounds(expiryDate);
+
+  const existing = await db.inventoryEntry.findFirst({
+    where: {
+      storeId: parsed.data.storeId,
+      productId: product.id,
+      ...activeInventoryWhere,
+      expiryDate: { gte: start, lt: end },
+    },
+    orderBy: { enteredAt: "asc" },
+  });
+
+  if (existing) {
+    const entry = await db.inventoryEntry.update({
+      where: { id: existing.id },
+      data: {
+        quantity: existing.quantity + parsed.data.quantity,
+        expiryDate,
+      },
+      include: { product: true },
+    });
+
+    return NextResponse.json({ entry, merged: true });
+  }
+
   const entry = await db.inventoryEntry.create({
     data: {
       storeId: parsed.data.storeId,
       productId: product.id,
       barcode: parsed.data.barcode,
       quantity: parsed.data.quantity,
-      expiryDate: new Date(parsed.data.expiryDate),
+      expiryDate,
     },
     include: { product: true },
   });
 
-  return NextResponse.json({ entry }, { status: 201 });
+  return NextResponse.json({ entry, merged: false }, { status: 201 });
 }
 
 export async function GET(request: Request) {
@@ -115,8 +146,7 @@ export async function GET(request: Request) {
 
   const baseWhere = {
     storeId,
-    removedAt: null,
-    deletedAt: null,
+    ...activeInventoryWhere,
     expiryDate: {
       gte: maxPast,
       lte: maxFuture,
@@ -216,8 +246,7 @@ export async function PATCH(request: Request) {
     where: {
       id: parsed.data.entryId,
       storeId: parsed.data.storeId,
-      removedAt: null,
-      deletedAt: null,
+      ...activeInventoryWhere,
     },
     data: { removedAt: new Date() },
   });

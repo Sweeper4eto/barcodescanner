@@ -162,6 +162,11 @@ export const en = {
     noCamera: "No camera found on this device. Enter the barcode manually.",
     manualPlaceholder: "Or enter barcode manually",
     confirmBarcode: "Confirm barcode",
+    tips: "Hold steady, keep the barcode flat inside the frame, and move slightly closer or farther until it looks sharp. Tap Refocus if blurry.",
+    refocus: "Refocus",
+    refocusing: "Refocusing...",
+    torchOn: "Light on",
+    torchOff: "Light off",
   },
   camera: {
     unavailable: "Camera unavailable.",
