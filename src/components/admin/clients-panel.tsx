@@ -1,6 +1,13 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
+import {
+  AdminEmptyState,
+  AdminField,
+  AdminSection,
+  AdminTabBar,
+  adminInputClass,
+} from "@/components/admin/admin-ui";
 import { PrimaryButton } from "@/components/auth-forms";
 import { useT } from "@/components/i18n-provider";
 
@@ -23,12 +30,15 @@ type Store = {
   active: boolean;
 };
 
+type ClientsSubview = "current" | "new";
+
 type Props = {
   onRefresh: () => void;
 };
 
 export function ClientsPanel({ onRefresh }: Props) {
   const { t } = useT();
+  const [subview, setSubview] = useState<ClientsSubview>("current");
   const [query, setQuery] = useState("");
   const [clients, setClients] = useState<Client[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -107,6 +117,7 @@ export function ClientsPanel({ onRefresh }: Props) {
     setNewClient({ name: "", phone: "", additionalInfo: "", monthlyFeePerStore: "10" });
     await loadClients();
     onRefresh();
+    setSubview("current");
   }
 
   async function saveClient() {
@@ -167,101 +178,260 @@ export function ClientsPanel({ onRefresh }: Props) {
     onRefresh();
   }
 
+  const selectedClient = clients.find((client) => client.id === selectedId);
+
   return (
-    <div className="grid gap-6 lg:grid-cols-3">
-      <section className="rounded-2xl border border-card-border p-4 lg:col-span-1">
-        <h2 className="font-medium">{t("admin.clientsTitle")}</h2>
-        <div className="mt-3 flex gap-2">
-          <input
-            className="flex-1 rounded-xl border border-input-border bg-input px-3 py-2 text-foreground"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder={t("admin.searchPlaceholder")}
-          />
-          <button
-            className="rounded-xl bg-invert px-3 py-2 text-sm text-invert-fg"
-            onClick={() => void loadClients()}
+    <div className="space-y-5">
+      <AdminTabBar
+        tabs={[
+          { id: "current" as const, label: t("admin.currentClients") },
+          { id: "new" as const, label: t("admin.newClient") },
+        ]}
+        active={subview}
+        onChange={setSubview}
+      />
+
+      {subview === "new" ? (
+        <AdminSection
+          title={t("admin.newClient")}
+          description={t("admin.newClientHint")}
+          className="mx-auto max-w-xl"
+        >
+          <form className="space-y-4" onSubmit={createClient}>
+            <AdminField label={t("common.name")}>
+              <input
+                className={adminInputClass}
+                value={newClient.name}
+                onChange={(event) =>
+                  setNewClient({ ...newClient, name: event.target.value })
+                }
+                required
+              />
+            </AdminField>
+            <AdminField label={t("common.phone")}>
+              <input
+                className={adminInputClass}
+                value={newClient.phone}
+                onChange={(event) =>
+                  setNewClient({ ...newClient, phone: event.target.value })
+                }
+              />
+            </AdminField>
+            <AdminField label={t("common.additionalInfo")}>
+              <textarea
+                className={`${adminInputClass} min-h-24`}
+                value={newClient.additionalInfo}
+                onChange={(event) =>
+                  setNewClient({ ...newClient, additionalInfo: event.target.value })
+                }
+              />
+            </AdminField>
+            <AdminField label={t("admin.feePerStore")}>
+              <input
+                className={adminInputClass}
+                inputMode="decimal"
+                value={newClient.monthlyFeePerStore}
+                onChange={(event) =>
+                  setNewClient({ ...newClient, monthlyFeePerStore: event.target.value })
+                }
+              />
+            </AdminField>
+            <PrimaryButton type="submit">{t("common.create")}</PrimaryButton>
+          </form>
+        </AdminSection>
+      ) : (
+        <div className="grid gap-5 lg:grid-cols-[minmax(280px,320px)_1fr]">
+          <AdminSection
+            title={t("admin.currentClients")}
+            description={t("admin.currentClientsHint")}
           >
-            {t("common.search")}
-          </button>
-        </div>
-        <div className="mt-3 max-h-[28rem] space-y-2 overflow-y-auto">
-          {clients.map((client) => (
-            <button
-              key={client.id}
-              type="button"
-              onClick={() => selectClient(client)}
-              className={`w-full rounded-xl border p-3 text-left ${selectedId === client.id ? "border-primary bg-selected" : "border-card-border"} ${!client.active ? "opacity-60" : ""}`}
+            <form
+              className="flex gap-2"
+              onSubmit={(event) => {
+                event.preventDefault();
+                void loadClients();
+              }}
             >
-              <p className="font-medium">{client.name}</p>
-              <p className="text-xs text-muted">{client.phone}</p>
-              <p className="text-xs text-muted">
-                {t("admin.storesCount", {
-                  stores: client._count.stores,
-                  users: client._count.users,
-                })}
-              </p>
-            </button>
-          ))}
-        </div>
-      </section>
-
-      <section className="rounded-2xl border border-card-border p-4 lg:col-span-1">
-        <h2 className="font-medium">{t("admin.newClient")}</h2>
-        <form className="mt-3 space-y-2" onSubmit={createClient}>
-          <input className="w-full rounded-xl border border-input-border bg-input text-foreground px-3 py-2" placeholder={t("common.name")} value={newClient.name} onChange={(e) => setNewClient({ ...newClient, name: e.target.value })} required />
-          <input className="w-full rounded-xl border border-input-border bg-input text-foreground px-3 py-2" placeholder={t("common.phone")} value={newClient.phone} onChange={(e) => setNewClient({ ...newClient, phone: e.target.value })} />
-          <textarea className="w-full rounded-xl border border-input-border bg-input text-foreground px-3 py-2" placeholder={t("common.additionalInfo")} value={newClient.additionalInfo} onChange={(e) => setNewClient({ ...newClient, additionalInfo: e.target.value })} />
-          <input className="w-full rounded-xl border border-input-border bg-input text-foreground px-3 py-2" placeholder={t("admin.feePerStore")} value={newClient.monthlyFeePerStore} onChange={(e) => setNewClient({ ...newClient, monthlyFeePerStore: e.target.value })} />
-          <PrimaryButton type="submit">{t("common.create")}</PrimaryButton>
-        </form>
-
-        {selectedId ? (
-          <div className="mt-6 space-y-2 border-t pt-4">
-            <h3 className="font-medium">{t("admin.editClient")}</h3>
-            <input className="w-full rounded-xl border border-input-border bg-input text-foreground px-3 py-2" value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} />
-            <input className="w-full rounded-xl border border-input-border bg-input text-foreground px-3 py-2" value={edit.phone} onChange={(e) => setEdit({ ...edit, phone: e.target.value })} />
-            <textarea className="w-full rounded-xl border border-input-border bg-input text-foreground px-3 py-2" value={edit.additionalInfo} onChange={(e) => setEdit({ ...edit, additionalInfo: e.target.value })} />
-            <input className="w-full rounded-xl border border-input-border bg-input text-foreground px-3 py-2" value={edit.monthlyFeePerStore} onChange={(e) => setEdit({ ...edit, monthlyFeePerStore: e.target.value })} />
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={edit.active} onChange={(e) => setEdit({ ...edit, active: e.target.checked })} />
-              {t("admin.activeClient")}
-            </label>
-            <div className="grid grid-cols-2 gap-2">
-              <PrimaryButton onClick={() => void saveClient()}>{t("common.save")}</PrimaryButton>
-              <button type="button" className="rounded-xl border border-danger-border px-3 py-3 text-error" onClick={() => void deleteClient()}>{t("common.delete")}</button>
-            </div>
-          </div>
-        ) : null}
-      </section>
-
-      <section className="rounded-2xl border border-card-border p-4 lg:col-span-1">
-        <h2 className="font-medium">{t("admin.clientStores")}</h2>
-        {!selectedId ? (
-          <p className="mt-3 text-sm text-muted">{t("admin.selectClient")}</p>
-        ) : (
-          <>
-            <form className="mt-3 space-y-2" onSubmit={createStore}>
-              <input className="w-full rounded-xl border border-input-border bg-input text-foreground px-3 py-2" placeholder={t("admin.storeName")} value={newStore.name} onChange={(e) => setNewStore({ ...newStore, name: e.target.value })} required />
-              <input className="w-full rounded-xl border border-input-border bg-input text-foreground px-3 py-2" placeholder={t("common.address")} value={newStore.address} onChange={(e) => setNewStore({ ...newStore, address: e.target.value })} />
-              <input className="w-full rounded-xl border border-input-border bg-input text-foreground px-3 py-2" placeholder={t("common.phone")} value={newStore.phone} onChange={(e) => setNewStore({ ...newStore, phone: e.target.value })} />
-              <textarea className="w-full rounded-xl border border-input-border bg-input text-foreground px-3 py-2" placeholder={t("common.additionalInfo")} value={newStore.additionalInfo} onChange={(e) => setNewStore({ ...newStore, additionalInfo: e.target.value })} />
-              <PrimaryButton type="submit">{t("admin.addStore")}</PrimaryButton>
+              <input
+                className={`${adminInputClass} flex-1`}
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder={t("admin.searchPlaceholder")}
+              />
+              <button
+                type="submit"
+                className="shrink-0 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-fg"
+              >
+                {t("common.search")}
+              </button>
             </form>
-            <div className="mt-4 space-y-2">
-              {stores.map((store) => (
-                <StoreCard
-                  key={store.id}
-                  store={store}
-                  onToggle={() => void toggleStore(store)}
-                  onDelete={() => void deleteStore(store.id)}
-                  onSaved={() => selectedId && void loadStores(selectedId)}
-                />
-              ))}
+            <div className="mt-4 max-h-[32rem] space-y-2 overflow-y-auto pr-1">
+              {clients.length === 0 ? (
+                <AdminEmptyState message={t("admin.noClientsFound")} />
+              ) : (
+                clients.map((client) => (
+                  <button
+                    key={client.id}
+                    type="button"
+                    onClick={() => selectClient(client)}
+                    className={`w-full rounded-xl border p-3 text-left transition-colors ${
+                      selectedId === client.id
+                        ? "border-primary bg-selected shadow-sm"
+                        : "border-card-border hover:border-primary/40 hover:bg-subtle"
+                    } ${!client.active ? "opacity-60" : ""}`}
+                  >
+                    <p className="font-medium text-foreground">{client.name}</p>
+                    {client.phone ? (
+                      <p className="mt-1 text-xs text-muted">{client.phone}</p>
+                    ) : null}
+                    <p className="mt-1 text-xs text-muted">
+                      {t("admin.storesCount", {
+                        stores: client._count.stores,
+                        users: client._count.users,
+                      })}
+                    </p>
+                  </button>
+                ))
+              )}
             </div>
-          </>
-        )}
-      </section>
+          </AdminSection>
+
+          <div className="grid gap-5 xl:grid-cols-2">
+            {!selectedId ? (
+              <div className="xl:col-span-2">
+                <AdminEmptyState message={t("admin.selectClient")} />
+              </div>
+            ) : (
+              <>
+                <AdminSection
+                  title={t("admin.editClient")}
+                  description={selectedClient?.name}
+                >
+                  <div className="space-y-4">
+                    <AdminField label={t("common.name")}>
+                      <input
+                        className={adminInputClass}
+                        value={edit.name}
+                        onChange={(event) =>
+                          setEdit({ ...edit, name: event.target.value })
+                        }
+                      />
+                    </AdminField>
+                    <AdminField label={t("common.phone")}>
+                      <input
+                        className={adminInputClass}
+                        value={edit.phone}
+                        onChange={(event) =>
+                          setEdit({ ...edit, phone: event.target.value })
+                        }
+                      />
+                    </AdminField>
+                    <AdminField label={t("common.additionalInfo")}>
+                      <textarea
+                        className={`${adminInputClass} min-h-20`}
+                        value={edit.additionalInfo}
+                        onChange={(event) =>
+                          setEdit({ ...edit, additionalInfo: event.target.value })
+                        }
+                      />
+                    </AdminField>
+                    <AdminField label={t("admin.feePerStore")}>
+                      <input
+                        className={adminInputClass}
+                        inputMode="decimal"
+                        value={edit.monthlyFeePerStore}
+                        onChange={(event) =>
+                          setEdit({ ...edit, monthlyFeePerStore: event.target.value })
+                        }
+                      />
+                    </AdminField>
+                    <label className="flex items-center gap-2 text-sm text-foreground">
+                      <input
+                        type="checkbox"
+                        checked={edit.active}
+                        onChange={(event) =>
+                          setEdit({ ...edit, active: event.target.checked })
+                        }
+                      />
+                      {t("admin.activeClient")}
+                    </label>
+                    <div className="grid grid-cols-2 gap-2 pt-1">
+                      <PrimaryButton onClick={() => void saveClient()}>
+                        {t("common.save")}
+                      </PrimaryButton>
+                      <button
+                        type="button"
+                        className="rounded-xl border border-danger-border px-3 py-3 text-sm font-medium text-error"
+                        onClick={() => void deleteClient()}
+                      >
+                        {t("common.delete")}
+                      </button>
+                    </div>
+                  </div>
+                </AdminSection>
+
+                <AdminSection title={t("admin.clientStores")}>
+                  <form className="space-y-3" onSubmit={createStore}>
+                    <AdminField label={t("admin.storeName")}>
+                      <input
+                        className={adminInputClass}
+                        value={newStore.name}
+                        onChange={(event) =>
+                          setNewStore({ ...newStore, name: event.target.value })
+                        }
+                        required
+                      />
+                    </AdminField>
+                    <AdminField label={t("common.address")}>
+                      <input
+                        className={adminInputClass}
+                        value={newStore.address}
+                        onChange={(event) =>
+                          setNewStore({ ...newStore, address: event.target.value })
+                        }
+                      />
+                    </AdminField>
+                    <AdminField label={t("common.phone")}>
+                      <input
+                        className={adminInputClass}
+                        value={newStore.phone}
+                        onChange={(event) =>
+                          setNewStore({ ...newStore, phone: event.target.value })
+                        }
+                      />
+                    </AdminField>
+                    <AdminField label={t("common.additionalInfo")}>
+                      <textarea
+                        className={`${adminInputClass} min-h-16`}
+                        value={newStore.additionalInfo}
+                        onChange={(event) =>
+                          setNewStore({ ...newStore, additionalInfo: event.target.value })
+                        }
+                      />
+                    </AdminField>
+                    <PrimaryButton type="submit">{t("admin.addStore")}</PrimaryButton>
+                  </form>
+                  <div className="mt-4 space-y-2">
+                    {stores.length === 0 ? (
+                      <p className="text-sm text-muted">{t("admin.noStoresYet")}</p>
+                    ) : (
+                      stores.map((store) => (
+                        <StoreCard
+                          key={store.id}
+                          store={store}
+                          onToggle={() => void toggleStore(store)}
+                          onDelete={() => void deleteStore(store.id)}
+                          onSaved={() => selectedId && void loadStores(selectedId)}
+                        />
+                      ))
+                    )}
+                  </div>
+                </AdminSection>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -303,16 +473,51 @@ function StoreCard({
   }
 
   return (
-    <div className={`rounded-xl border border-card-border p-3 ${!store.active ? "opacity-60" : ""}`}>
+    <div
+      className={`rounded-xl border border-card-border bg-subtle/60 p-3 ${!store.active ? "opacity-60" : ""}`}
+    >
       {editing ? (
         <div className="space-y-2">
-          <input className="w-full rounded-lg border border-input-border bg-card text-foreground px-2 py-1 text-sm" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-          <input className="w-full rounded-lg border border-input-border bg-card text-foreground px-2 py-1 text-sm" placeholder={t("common.address")} value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
-          <input className="w-full rounded-lg border border-input-border bg-card text-foreground px-2 py-1 text-sm" placeholder={t("common.phone")} value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
-          <textarea className="w-full rounded-lg border border-input-border bg-card text-foreground px-2 py-1 text-sm" placeholder={t("common.additionalInfo")} value={form.additionalInfo} onChange={(e) => setForm({ ...form, additionalInfo: e.target.value })} />
+          <input
+            className="w-full rounded-lg border border-input-border bg-card px-2 py-1 text-sm text-foreground"
+            value={form.name}
+            onChange={(event) => setForm({ ...form, name: event.target.value })}
+          />
+          <input
+            className="w-full rounded-lg border border-input-border bg-card px-2 py-1 text-sm text-foreground"
+            placeholder={t("common.address")}
+            value={form.address}
+            onChange={(event) => setForm({ ...form, address: event.target.value })}
+          />
+          <input
+            className="w-full rounded-lg border border-input-border bg-card px-2 py-1 text-sm text-foreground"
+            placeholder={t("common.phone")}
+            value={form.phone}
+            onChange={(event) => setForm({ ...form, phone: event.target.value })}
+          />
+          <textarea
+            className="w-full rounded-lg border border-input-border bg-card px-2 py-1 text-sm text-foreground"
+            placeholder={t("common.additionalInfo")}
+            value={form.additionalInfo}
+            onChange={(event) =>
+              setForm({ ...form, additionalInfo: event.target.value })
+            }
+          />
           <div className="flex gap-2">
-            <button className="rounded-lg bg-primary px-2 py-1 text-xs text-primary-fg" onClick={() => void save()}>{t("common.save")}</button>
-            <button className="rounded-lg border border-input-border bg-card text-foreground px-2 py-1 text-xs" onClick={() => setEditing(false)}>{t("common.cancel")}</button>
+            <button
+              type="button"
+              className="rounded-lg bg-primary px-2 py-1 text-xs text-primary-fg"
+              onClick={() => void save()}
+            >
+              {t("common.save")}
+            </button>
+            <button
+              type="button"
+              className="rounded-lg border border-input-border bg-card px-2 py-1 text-xs text-foreground"
+              onClick={() => setEditing(false)}
+            >
+              {t("common.cancel")}
+            </button>
           </div>
         </div>
       ) : (
@@ -322,11 +527,25 @@ function StoreCard({
           <p className="text-xs text-muted">{store.phone}</p>
           <p className="text-xs text-muted">{store.additionalInfo}</p>
           <div className="mt-2 flex flex-wrap gap-2">
-            <button className="rounded-lg border border-input-border bg-card text-foreground px-2 py-1 text-xs" onClick={() => setEditing(true)}>{t("common.edit")}</button>
-            <button className="rounded-lg border border-input-border bg-card text-foreground px-2 py-1 text-xs" onClick={onToggle}>
+            <button
+              type="button"
+              className="rounded-lg border border-input-border bg-card px-2 py-1 text-xs text-foreground"
+              onClick={() => setEditing(true)}
+            >
+              {t("common.edit")}
+            </button>
+            <button
+              type="button"
+              className="rounded-lg border border-input-border bg-card px-2 py-1 text-xs text-foreground"
+              onClick={onToggle}
+            >
               {store.active ? t("common.deactivate") : t("common.activate")}
             </button>
-            <button className="rounded-lg border border-danger-border px-2 py-1 text-xs text-error" onClick={onDelete}>
+            <button
+              type="button"
+              className="rounded-lg border border-danger-border px-2 py-1 text-xs text-error"
+              onClick={onDelete}
+            >
               {t("common.delete")}
             </button>
           </div>

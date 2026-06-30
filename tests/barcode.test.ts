@@ -17,15 +17,14 @@ test("isPlausibleBarcode validates UPC-A checksum", () => {
 });
 
 test("BarcodeReadConsensus requires repeated identical reads", () => {
-  const consensus = new BarcodeReadConsensus(3);
-  assert.equal(consensus.add("4006381333931"), null);
+  const consensus = new BarcodeReadConsensus();
   assert.equal(consensus.add("4006381333931"), null);
   assert.equal(consensus.add("4006381333931"), "4006381333931");
   assert.equal(consensus.add("4006381333931"), null);
 });
 
 test("BarcodeReadConsensus rejects invalid checksum immediately", () => {
-  const consensus = new BarcodeReadConsensus(2);
+  const consensus = new BarcodeReadConsensus();
   assert.equal(consensus.add("4006381333930"), null);
   assert.equal(consensus.add("4006381333930"), null);
 });

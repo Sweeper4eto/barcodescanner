@@ -59,7 +59,12 @@ export class BarcodeReadConsensus {
   private lastCode: string | null = null;
   private streak = 0;
 
-  constructor(private readonly requiredMatches = 3) {}
+  private requiredMatches(code: string): number {
+    if (/^\d{8}$/.test(code) || /^\d{12}$/.test(code) || /^\d{13}$/.test(code)) {
+      return 2;
+    }
+    return 3;
+  }
 
   reset(): void {
     this.lastCode = null;
@@ -80,7 +85,7 @@ export class BarcodeReadConsensus {
       this.streak = 1;
     }
 
-    if (this.streak >= this.requiredMatches) {
+    if (this.streak >= this.requiredMatches(code)) {
       this.reset();
       return code;
     }

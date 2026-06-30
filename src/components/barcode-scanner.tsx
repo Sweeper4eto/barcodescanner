@@ -10,8 +10,8 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { PrimaryButton, SecondaryButton } from "@/components/auth-forms";
 import { useT } from "@/components/i18n-provider";
 import {
-  optimizeBarcodeCamera,
   refocusBarcodeCamera,
+  startEnhancedAutoScan,
   toggleBarcodeTorch,
 } from "@/lib/barcode-camera";
 import { BarcodeReadConsensus } from "@/lib/barcode";
@@ -31,30 +31,12 @@ const PRODUCT_BARCODE_FORMATS = [
   Html5QrcodeSupportedFormats.ITF,
 ];
 
-const BARCODE_VIDEO_CONSTRAINTS = {
-  facingMode: { ideal: "environment" },
-  width: { ideal: 1920, min: 640 },
-  height: { ideal: 1080, min: 480 },
-  focusMode: { ideal: "continuous" },
-  advanced: [{ focusMode: "continuous" }],
-} as unknown as MediaTrackConstraints;
-
 const SCAN_CONFIG: Html5QrcodeCameraScanConfig = {
-  fps: 10,
+  fps: 8,
   disableFlip: false,
-  aspectRatio: 1.7777778,
-  qrbox: (width, height) => {
-    const base = Math.min(width, height);
-    return {
-      width: Math.floor(base * 0.92),
-      height: Math.max(Math.floor(base * 0.3), 72),
-    };
-  },
-  videoConstraints: BARCODE_VIDEO_CONSTRAINTS,
 };
 
 const CAMERA_ATTEMPTS: MediaTrackConstraints[] = [
-  BARCODE_VIDEO_CONSTRAINTS,
   { facingMode: { ideal: "environment" } },
   { facingMode: "environment" },
   { facingMode: "user" },
@@ -75,31 +57,45 @@ async function resetScanner(scanner: Html5Qrcode): Promise<void> {
 
 async function startScanner(
   scanner: Html5Qrcode,
+  fileDecoder: Html5Qrcode,
+  containerId: string,
   onDecoded: (value: string) => void | Promise<void>,
-): Promise<void> {
+): Promise<() => void> {
   let lastError: unknown;
-  const consensus = new BarcodeReadConsensus(3);
+  const consensus = new BarcodeReadConsensus();
+  let stopEnhanced: () => void = () => {};
 
-  const onScanSuccess = (decoded: string) => {
-    const accepted = consensus.add(decoded);
-    if (!accepted) return;
-
+  const deliver = (accepted: string) => {
     void (async () => {
+      stopEnhanced();
       scanner.pause(true);
       try {
         await onDecoded(accepted);
       } catch {
         consensus.reset();
         scanner.resume();
+        stopEnhanced = startEnhancedAutoScan(fileDecoder, containerId, consider);
       }
     })();
+  };
+
+  const consider = (decoded: string) => {
+    const accepted = consensus.add(decoded);
+    if (accepted) deliver(accepted);
+  };
+
+  const onScanSuccess = (decoded: string) => consider(decoded);
+
+  const beginEnhancedScan = () => {
+    stopEnhanced();
+    stopEnhanced = startEnhancedAutoScan(fileDecoder, containerId, consider);
   };
 
   for (const camera of CAMERA_ATTEMPTS) {
     try {
       await scanner.start(camera, SCAN_CONFIG, onScanSuccess, () => undefined);
-      await optimizeBarcodeCamera(scanner);
-      return;
+      beginEnhancedScan();
+      return () => stopEnhanced();
     } catch (error) {
       lastError = error;
       await resetScanner(scanner);
@@ -116,8 +112,8 @@ async function startScanner(
     for (const cameraId of cameraIds) {
       try {
         await scanner.start(cameraId, SCAN_CONFIG, onScanSuccess, () => undefined);
-        await optimizeBarcodeCamera(scanner);
-        return;
+        beginEnhancedScan();
+        return () => stopEnhanced();
       } catch (error) {
         lastError = error;
         await resetScanner(scanner);
@@ -164,7 +160,10 @@ function scannerErrorKey(
 export function BarcodeScanner({ onScan, onCancel }: Props) {
   const { t } = useT();
   const elementId = useId().replace(/:/g, "");
+  const fileDecoderId = `${elementId}-decoder`;
   const scannerRef = useRef<Html5Qrcode | null>(null);
+  const fileDecoderRef = useRef<Html5Qrcode | null>(null);
+  const scanCleanupRef = useRef<(() => void) | null>(null);
   const onScanRef = useRef(onScan);
   const handledRef = useRef(false);
   const [manual, setManual] = useState("");
@@ -181,9 +180,23 @@ export function BarcodeScanner({ onScan, onCancel }: Props) {
 
   useEffect(() => {
     return () => {
+      scanCleanupRef.current?.();
+      scanCleanupRef.current = null;
       void scannerRef.current?.stop().catch(() => undefined);
       scannerRef.current = null;
+      fileDecoderRef.current?.clear();
+      fileDecoderRef.current = null;
     };
+  }, []);
+
+  const deliverBarcode = useCallback(async (value: string) => {
+    if (handledRef.current) return;
+    handledRef.current = true;
+    if (!value) {
+      handledRef.current = false;
+      throw new Error("EMPTY_BARCODE");
+    }
+    await onScanRef.current(value);
   }, []);
 
   const startCamera = useCallback(async () => {
@@ -199,6 +212,8 @@ export function BarcodeScanner({ onScan, onCancel }: Props) {
     setError("");
     setScanning(true);
     setTorchOn(false);
+    scanCleanupRef.current?.();
+    scanCleanupRef.current = null;
 
     try {
       if (scannerRef.current) {
@@ -214,15 +229,23 @@ export function BarcodeScanner({ onScan, onCancel }: Props) {
         });
       }
 
-      await startScanner(scannerRef.current, async (value) => {
-        if (handledRef.current) return;
-        handledRef.current = true;
-        if (!value) {
-          handledRef.current = false;
-          throw new Error("EMPTY_BARCODE");
-        }
-        await onScanRef.current(value);
-      });
+      if (!fileDecoderRef.current) {
+        fileDecoderRef.current = new Html5Qrcode(fileDecoderId, {
+          verbose: false,
+          formatsToSupport: PRODUCT_BARCODE_FORMATS,
+          useBarCodeDetectorIfSupported: true,
+          experimentalFeatures: {
+            useBarCodeDetectorIfSupported: true,
+          },
+        });
+      }
+
+      scanCleanupRef.current = await startScanner(
+        scannerRef.current,
+        fileDecoderRef.current,
+        elementId,
+        deliverBarcode,
+      );
 
       try {
         const torch = scannerRef.current.getRunningTrackCameraCapabilities().torchFeature();
@@ -236,11 +259,12 @@ export function BarcodeScanner({ onScan, onCancel }: Props) {
     } finally {
       setStarting(false);
     }
-  }, [elementId, scanning, starting, t]);
+  }, [deliverBarcode, elementId, fileDecoderId, scanning, starting, t]);
 
   const onRefocus = useCallback(async () => {
     if (!scannerRef.current || refocusing) return;
     setRefocusing(true);
+    setError("");
     try {
       await refocusBarcodeCamera(scannerRef.current);
     } finally {
@@ -266,6 +290,7 @@ export function BarcodeScanner({ onScan, onCancel }: Props) {
       >
         <div id={elementId} />
       </div>
+      <div id={fileDecoderId} className="hidden" aria-hidden />
       {scanning ? (
         <p className="text-sm text-muted">{t("scanner.tips")}</p>
       ) : null}
