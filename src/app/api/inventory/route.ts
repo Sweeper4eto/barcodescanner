@@ -1,5 +1,11 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import {
+  auditInventoryAdded,
+  auditInventoryMerged,
+  auditInventoryRemoved,
+} from "@/lib/audit-details";
+import { logAuditEvent } from "@/lib/audit-log";
 import { requireSession } from "@/lib/auth";
 import { purgeExpiredInventory } from "@/lib/inventory-purge";
 import { expiryListDateBounds } from "@/lib/expiry";
@@ -88,6 +94,20 @@ export async function POST(request: Request) {
       include: { product: true },
     });
 
+    await logAuditEvent(
+      request,
+      session,
+      "inventory_merged",
+      auditInventoryMerged({
+        productName: product.name,
+        barcode: product.barcode,
+        addedQty: parsed.data.quantity,
+        totalQty: entry.quantity,
+        storeName: store.name,
+        expiryDate,
+      }),
+    );
+
     return NextResponse.json({ entry, merged: true });
   }
 
@@ -101,6 +121,19 @@ export async function POST(request: Request) {
     },
     include: { product: true },
   });
+
+  await logAuditEvent(
+    request,
+    session,
+    "inventory_added",
+    auditInventoryAdded({
+      productName: product.name,
+      barcode: product.barcode,
+      quantity: parsed.data.quantity,
+      storeName: store.name,
+      expiryDate,
+    }),
+  );
 
   return NextResponse.json({ entry, merged: false }, { status: 201 });
 }
@@ -242,6 +275,15 @@ export async function PATCH(request: Request) {
     );
   }
 
+  const removed = await db.inventoryEntry.findFirst({
+    where: {
+      id: parsed.data.entryId,
+      storeId: parsed.data.storeId,
+      ...activeInventoryWhere,
+    },
+    include: { product: true },
+  });
+
   const entry = await db.inventoryEntry.updateMany({
     where: {
       id: parsed.data.entryId,
@@ -255,6 +297,21 @@ export async function PATCH(request: Request) {
     return NextResponse.json(
       { error: apiT(request, "errors.entryNotFound") },
       { status: 404 },
+    );
+  }
+
+  if (removed) {
+    await logAuditEvent(
+      request,
+      session,
+      "inventory_removed",
+      auditInventoryRemoved({
+        productName: removed.product.name,
+        barcode: removed.barcode,
+        quantity: removed.quantity,
+        storeName: store.name,
+        expiryDate: removed.expiryDate,
+      }),
     );
   }
 

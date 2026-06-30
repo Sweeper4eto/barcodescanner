@@ -13,6 +13,7 @@ type CalendarRow = {
     discount: number;
     amountPaid: number;
     activeStoreCount: number;
+    notes: string | null;
   } | null;
 };
 
@@ -25,6 +26,9 @@ export function PaymentsPanel() {
   const [selectedClientId, setSelectedClientId] = useState("");
   const [discount, setDiscount] = useState("0");
   const [notes, setNotes] = useState("");
+  const [savedPayment, setSavedPayment] = useState({ discount: "0", notes: "" });
+  const [saving, setSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState("");
 
   async function loadCalendar(y = year, m = month) {
     const response = await fetch(
@@ -55,26 +59,53 @@ export function PaymentsPanel() {
     setMonth(date.getMonth() + 1);
   }
 
-  async function markPaid() {
-    if (!selectedClientId) return;
-    await fetch("/api/admin/payments", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        clientId: selectedClientId,
-        year,
-        month,
-        discount: Number(discount) || 0,
-        notes: notes || undefined,
-      }),
-    });
-    setSelectedClientId("");
-    setDiscount("0");
-    setNotes("");
-    await loadCalendar();
+  function selectClient(id: string) {
+    const row = rows.find((entry) => entry.client.id === id);
+    const nextDiscount = String(row?.payment?.discount ?? 0);
+    const nextNotes = row?.payment?.notes ?? "";
+    setSelectedClientId(id);
+    setDiscount(nextDiscount);
+    setNotes(nextNotes);
+    setSavedPayment({ discount: nextDiscount, notes: nextNotes });
+    setSaveMessage("");
   }
 
   const selected = rows.find((row) => row.client.id === selectedClientId);
+  const paymentDirty =
+    Boolean(selected) &&
+    (!selected?.paid ||
+      discount !== savedPayment.discount ||
+      notes !== savedPayment.notes);
+
+  async function markPaid() {
+    if (!selectedClientId || !selected || !paymentDirty) return;
+    setSaving(true);
+    setSaveMessage("");
+    try {
+      const response = await fetch("/api/admin/payments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clientId: selectedClientId,
+          year,
+          month,
+          discount: Number(discount) || 0,
+          notes: notes || undefined,
+        }),
+      });
+      if (!response.ok) {
+        setSaveMessage(t("errors.saveFailed"));
+        return;
+      }
+      await loadCalendar();
+      const nextDiscount = discount;
+      const nextNotes = notes;
+      setSavedPayment({ discount: nextDiscount, notes: nextNotes });
+      setSaveMessage(t("admin.saveSuccess"));
+    } finally {
+      setSaving(false);
+    }
+  }
   const currency = t("common.currency");
 
   return (
@@ -98,7 +129,7 @@ export function PaymentsPanel() {
             <button
               key={row.client.id}
               type="button"
-              onClick={() => setSelectedClientId(row.client.id)}
+              onClick={() => selectClient(row.client.id)}
               className={`rounded-xl border p-3 text-left ${row.paid ? "border-success-border bg-success-bg" : "border-card-border"} ${selectedClientId === row.client.id ? "ring-2 ring-primary" : ""}`}
             >
               <p className="font-medium">{row.client.name}</p>
@@ -158,8 +189,24 @@ export function PaymentsPanel() {
               currency,
             })}
           </p>
+          {saveMessage ? (
+            <p
+              className={`mt-2 text-sm ${
+                saveMessage === t("admin.saveSuccess")
+                  ? "text-emerald-700"
+                  : "text-error"
+              }`}
+            >
+              {saveMessage}
+            </p>
+          ) : null}
           <div className="mt-3">
-            <PrimaryButton onClick={() => void markPaid()}>{t("admin.markAsPaid")}</PrimaryButton>
+            <PrimaryButton
+              disabled={!paymentDirty || saving}
+              onClick={() => void markPaid()}
+            >
+              {saving ? t("admin.saving") : t("admin.markAsPaid")}
+            </PrimaryButton>
           </div>
         </section>
       ) : null}

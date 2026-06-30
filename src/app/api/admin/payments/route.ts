@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { auditPaymentRecorded } from "@/lib/audit-details";
+import { logAuditEvent } from "@/lib/audit-log";
 import { requireAdmin } from "@/lib/auth";
 import { paymentAmount } from "@/lib/expiry";
 import { db } from "@/lib/db";
@@ -103,6 +105,22 @@ export async function POST(request: Request) {
       paidAt: new Date(),
     },
   });
+
+  await logAuditEvent(
+    request,
+    admin,
+    "payment_recorded",
+    auditPaymentRecorded({
+      clientName: client.name,
+      year: parsed.data.year,
+      month: parsed.data.month,
+      activeStoreCount,
+      feePerStore,
+      discount: parsed.data.discount,
+      amountPaid,
+      notes: parsed.data.notes,
+    }),
+  );
 
   return NextResponse.json({ payment }, { status: 201 });
 }

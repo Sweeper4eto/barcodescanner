@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { auditAuthRegister } from "@/lib/audit-details";
+import { logAuditEvent } from "@/lib/audit-log";
 import { registerUser } from "@/lib/auth";
 import { apiT } from "@/i18n";
 
@@ -25,6 +27,13 @@ export async function POST(request: Request) {
       { status: 400 },
     );
   }
+
+  await logAuditEvent(
+    request,
+    result.user,
+    "register",
+    auditAuthRegister(result.user.username),
+  );
 
   return NextResponse.json({
     user: result.user,

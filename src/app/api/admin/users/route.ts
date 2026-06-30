@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { auditUserUpdated } from "@/lib/audit-details";
+import { logAuditEvent } from "@/lib/audit-log";
 import { requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { apiT } from "@/i18n";
@@ -63,7 +65,13 @@ export async function PATCH(request: Request) {
     );
   }
 
-  const user = await db.user.findUnique({ where: { id: parsed.data.userId } });
+  const user = await db.user.findUnique({
+    where: { id: parsed.data.userId },
+    include: {
+      client: { select: { name: true } },
+      storeLinks: { include: { store: { select: { name: true } } } },
+    },
+  });
   if (!user) {
     return NextResponse.json(
       { error: apiT(request, "errors.userNotFound") },
@@ -82,6 +90,13 @@ export async function PATCH(request: Request) {
       );
     }
   }
+
+  const beforeAssignment = {
+    username: user.username,
+    active: user.active,
+    clientName: user.client?.name ?? null,
+    storeNames: user.storeLinks.map((link) => link.store.name).sort(),
+  };
 
   const updated = await db.$transaction(async (tx) => {
     const nextUser = await tx.user.update({
@@ -116,6 +131,28 @@ export async function PATCH(request: Request) {
 
     return nextUser;
   });
+
+  const afterUser = await db.user.findUnique({
+    where: { id: parsed.data.userId },
+    include: {
+      client: { select: { name: true } },
+      storeLinks: { include: { store: { select: { name: true } } } },
+    },
+  });
+
+  if (afterUser) {
+    await logAuditEvent(
+      request,
+      admin,
+      "user_updated",
+      auditUserUpdated(beforeAssignment, {
+        username: afterUser.username,
+        active: afterUser.active,
+        clientName: afterUser.client?.name ?? null,
+        storeNames: afterUser.storeLinks.map((link) => link.store.name).sort(),
+      }),
+    );
+  }
 
   return NextResponse.json({ user: updated });
 }

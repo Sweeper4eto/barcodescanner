@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { auditAuthLogin } from "@/lib/audit-details";
+import { logAuditEvent } from "@/lib/audit-log";
 import { loginUser } from "@/lib/auth";
+import { db } from "@/lib/db";
 import { setSessionCookie } from "@/lib/session";
 import { apiT } from "@/i18n";
 
@@ -28,5 +31,20 @@ export async function POST(request: Request) {
   }
 
   await setSessionCookie(result.token);
+  const clientName =
+    result.user.clientId
+      ? (
+          await db.client.findUnique({
+            where: { id: result.user.clientId },
+            select: { name: true },
+          })
+        )?.name
+      : null;
+  await logAuditEvent(
+    request,
+    result.user,
+    "login",
+    auditAuthLogin(result.user.role, clientName),
+  );
   return NextResponse.json({ user: result.user });
 }

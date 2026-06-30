@@ -7,7 +7,9 @@ import {
   AdminPanelBody,
   AdminTabBar,
 } from "@/components/admin/admin-ui";
+import { AuditLogPanel } from "@/components/admin/audit-log-panel";
 import { ClientsPanel, type Client } from "@/components/admin/clients-panel";
+import { ItemsPanel } from "@/components/admin/items-panel";
 import { PaymentsPanel } from "@/components/admin/payments-panel";
 import { UsersPanel } from "@/components/admin/users-panel";
 import { AppLogo } from "@/components/app-logo";
@@ -16,15 +18,15 @@ import { useT } from "@/components/i18n-provider";
 export default function AdminPage() {
   const router = useRouter();
   const { t } = useT();
-  const [tab, setTab] = useState<"clients" | "users" | "payments">("clients");
+  const [tab, setTab] = useState<
+    "clients" | "users" | "payments" | "items" | "audit"
+  >("clients");
   const [clients, setClients] = useState<Client[]>([]);
-  const [refreshKey, setRefreshKey] = useState(0);
 
   const refreshClients = useCallback(async () => {
     const response = await fetch("/api/admin/clients");
     const data = await response.json();
     setClients(data.clients ?? []);
-    setRefreshKey((value) => value + 1);
   }, []);
 
   useEffect(() => {
@@ -75,6 +77,8 @@ export default function AdminPage() {
                 { id: "clients" as const, label: t("admin.clients") },
                 { id: "users" as const, label: t("admin.users") },
                 { id: "payments" as const, label: t("admin.payments") },
+                { id: "items" as const, label: t("admin.items") },
+                { id: "audit" as const, label: t("admin.auditLog") },
               ]}
               active={tab}
               onChange={setTab}
@@ -87,12 +91,13 @@ export default function AdminPage() {
             ) : null}
             {tab === "users" ? (
               <UsersPanel
-                key={refreshKey}
                 clients={clients}
                 onRefresh={() => void refreshClients()}
               />
             ) : null}
             {tab === "payments" ? <PaymentsPanel /> : null}
+            {tab === "items" ? <ItemsPanel /> : null}
+            {tab === "audit" ? <AuditLogPanel /> : null}
           </AdminPanelBody>
         </AdminPanel>
       </div>

@@ -1,0 +1,238 @@
+export const AUDIT_DETAILS_MAX = 900;
+
+export function formatAuditValue(value: unknown): string {
+  if (value === null || value === undefined || value === "") return "—";
+  if (typeof value === "boolean") return value ? "active" : "inactive";
+  if (value instanceof Date) return value.toISOString().slice(0, 10);
+  return String(value);
+}
+
+export function auditFieldChange(
+  label: string,
+  before: unknown,
+  after: unknown,
+): string | null {
+  const from = formatAuditValue(before);
+  const to = formatAuditValue(after);
+  if (from === to) return null;
+  return `${label} ${from} → ${to}`;
+}
+
+export function auditJoin(parts: Array<string | null | undefined>): string {
+  return parts
+    .filter((part): part is string => Boolean(part?.trim()))
+    .join(" · ")
+    .slice(0, AUDIT_DETAILS_MAX);
+}
+
+export function auditSubjectWithChanges(
+  subject: string,
+  changes: Array<string | null>,
+): string {
+  const changed = changes.filter((part): part is string => Boolean(part));
+  if (!changed.length) return auditJoin([subject]);
+  return auditJoin([subject, `changes: ${changed.join("; ")}`]);
+}
+
+type ClientLike = {
+  name: string;
+  phone: string | null;
+  additionalInfo: string | null;
+  monthlyFeePerStore: number;
+  active: boolean;
+};
+
+export function auditClientCreated(client: ClientLike): string {
+  return auditJoin([
+    `client "${client.name}"`,
+    `fee ${client.monthlyFeePerStore} BGN/store`,
+    client.phone ? `phone ${client.phone}` : null,
+    client.additionalInfo ? `info: ${client.additionalInfo}` : null,
+    formatAuditValue(client.active),
+  ]);
+}
+
+export function auditClientUpdated(before: ClientLike, after: ClientLike): string {
+  return auditSubjectWithChanges(`client "${after.name}"`, [
+    auditFieldChange("name", before.name, after.name),
+    auditFieldChange("phone", before.phone, after.phone),
+    auditFieldChange("info", before.additionalInfo, after.additionalInfo),
+    auditFieldChange("fee/store", before.monthlyFeePerStore, after.monthlyFeePerStore),
+    auditFieldChange("status", before.active, after.active),
+  ]);
+}
+
+export function auditClientDeleted(client: ClientLike): string {
+  return auditJoin([
+    `client "${client.name}"`,
+    client.phone ? `phone ${client.phone}` : null,
+    `fee ${client.monthlyFeePerStore} BGN/store`,
+  ]);
+}
+
+type StoreLike = {
+  name: string;
+  address: string | null;
+  phone: string | null;
+  additionalInfo: string | null;
+  active: boolean;
+};
+
+export function auditStoreCreated(store: StoreLike, clientName: string): string {
+  return auditJoin([
+    `store "${store.name}"`,
+    `client "${clientName}"`,
+    store.address ? `address ${store.address}` : null,
+    store.phone ? `phone ${store.phone}` : null,
+    formatAuditValue(store.active),
+  ]);
+}
+
+export function auditStoreUpdated(
+  before: StoreLike,
+  after: StoreLike,
+  clientName: string,
+): string {
+  return auditSubjectWithChanges(`store "${after.name}" · client "${clientName}"`, [
+    auditFieldChange("name", before.name, after.name),
+    auditFieldChange("address", before.address, after.address),
+    auditFieldChange("phone", before.phone, after.phone),
+    auditFieldChange("info", before.additionalInfo, after.additionalInfo),
+    auditFieldChange("status", before.active, after.active),
+  ]);
+}
+
+export function auditStoreDeleted(store: StoreLike, clientName: string): string {
+  return auditJoin([
+    `store "${store.name}"`,
+    `client "${clientName}"`,
+    store.address ? `address ${store.address}` : null,
+  ]);
+}
+
+export function auditPaymentRecorded(input: {
+  clientName: string;
+  year: number;
+  month: number;
+  activeStoreCount: number;
+  feePerStore: number;
+  discount: number;
+  amountPaid: number;
+  notes?: string | null;
+}): string {
+  const period = `${input.year}-${String(input.month).padStart(2, "0")}`;
+  return auditJoin([
+    `client "${input.clientName}"`,
+    `period ${period}`,
+    `${input.activeStoreCount} stores × ${input.feePerStore} BGN`,
+    input.discount > 0 ? `discount ${input.discount} BGN` : null,
+    `paid ${input.amountPaid} BGN`,
+    input.notes?.trim() ? `notes: ${input.notes.trim()}` : null,
+  ]);
+}
+
+type UserAssignmentLike = {
+  username: string;
+  active: boolean;
+  clientName: string | null;
+  storeNames: string[];
+};
+
+export function auditUserUpdated(before: UserAssignmentLike, after: UserAssignmentLike): string {
+  const beforeStores = before.storeNames.length
+    ? before.storeNames.join(", ")
+    : "—";
+  const afterStores = after.storeNames.length ? after.storeNames.join(", ") : "—";
+
+  return auditSubjectWithChanges(`user "${after.username}"`, [
+    auditFieldChange("client", before.clientName, after.clientName),
+    beforeStores !== afterStores ? `stores ${beforeStores} → ${afterStores}` : null,
+    auditFieldChange("status", before.active, after.active),
+  ]);
+}
+
+type ProductLike = {
+  name: string;
+  barcode: string;
+  imagePath: string | null;
+};
+
+export function auditProductCreated(product: ProductLike): string {
+  return auditJoin([
+    `product "${product.name}"`,
+    `barcode ${product.barcode}`,
+    product.imagePath ? "with image" : "no image",
+  ]);
+}
+
+export function auditProductUpdated(before: ProductLike, after: ProductLike): string {
+  return auditSubjectWithChanges(`product "${after.name}"`, [
+    auditFieldChange("name", before.name, after.name),
+    auditFieldChange("barcode", before.barcode, after.barcode),
+    before.imagePath !== after.imagePath ? "image updated" : null,
+  ]);
+}
+
+export function auditProductDeleted(product: ProductLike): string {
+  return auditJoin([`product "${product.name}"`, `barcode ${product.barcode}`]);
+}
+
+export function auditInventoryAdded(input: {
+  productName: string;
+  barcode: string;
+  quantity: number;
+  storeName: string;
+  expiryDate: Date;
+}): string {
+  return auditJoin([
+    `product "${input.productName}"`,
+    `barcode ${input.barcode}`,
+    `qty ${input.quantity}`,
+    `store "${input.storeName}"`,
+    `expires ${input.expiryDate.toISOString().slice(0, 10)}`,
+  ]);
+}
+
+export function auditInventoryMerged(input: {
+  productName: string;
+  barcode: string;
+  addedQty: number;
+  totalQty: number;
+  storeName: string;
+  expiryDate: Date;
+}): string {
+  return auditJoin([
+    `product "${input.productName}"`,
+    `barcode ${input.barcode}`,
+    `added ${input.addedQty} → total ${input.totalQty}`,
+    `store "${input.storeName}"`,
+    `expires ${input.expiryDate.toISOString().slice(0, 10)}`,
+  ]);
+}
+
+export function auditInventoryRemoved(input: {
+  productName: string;
+  barcode: string;
+  quantity: number;
+  storeName: string;
+  expiryDate: Date;
+}): string {
+  return auditJoin([
+    `removed "${input.productName}"`,
+    `barcode ${input.barcode}`,
+    `qty ${input.quantity}`,
+    `store "${input.storeName}"`,
+    `expires ${input.expiryDate.toISOString().slice(0, 10)}`,
+  ]);
+}
+
+export function auditAuthLogin(role: string, clientName?: string | null): string {
+  return auditJoin([
+    `role ${role}`,
+    clientName ? `client "${clientName}"` : null,
+  ]);
+}
+
+export function auditAuthRegister(username: string): string {
+  return `new account "${username}"`;
+}

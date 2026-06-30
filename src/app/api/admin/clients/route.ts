@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { logAuditEvent } from "@/lib/audit-log";
+import { auditClientCreated, auditClientDeleted, auditClientUpdated } from "@/lib/audit-details";
 import { requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { apiT } from "@/i18n";
@@ -63,6 +65,7 @@ export async function POST(request: Request) {
   }
 
   const client = await db.client.create({ data: parsed.data });
+  await logAuditEvent(request, admin, "client_created", auditClientCreated(client));
   return NextResponse.json({ client }, { status: 201 });
 }
 
@@ -89,7 +92,15 @@ export async function PATCH(request: Request) {
   }
 
   const { id, ...data } = parsed.data;
+  const before = await db.client.findUnique({ where: { id } });
+  if (!before) {
+    return NextResponse.json(
+      { error: apiT(request, "errors.clientNotFound") },
+      { status: 404 },
+    );
+  }
   const client = await db.client.update({ where: { id }, data });
+  await logAuditEvent(request, admin, "client_updated", auditClientUpdated(before, client));
   return NextResponse.json({ client });
 }
 
@@ -106,6 +117,15 @@ export async function DELETE(request: Request) {
     );
   }
 
+  const existing = await db.client.findUnique({ where: { id } });
+  if (!existing) {
+    return NextResponse.json(
+      { error: apiT(request, "errors.clientNotFound") },
+      { status: 404 },
+    );
+  }
+
   await db.client.delete({ where: { id } });
+  await logAuditEvent(request, admin, "client_deleted", auditClientDeleted(existing));
   return NextResponse.json({ ok: true });
 }

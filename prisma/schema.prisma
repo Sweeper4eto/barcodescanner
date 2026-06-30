@@ -22,6 +22,7 @@ model User {
   client       Client?     @relation(fields: [clientId], references: [id], onDelete: SetNull)
   storeLinks   UserStore[]
   pushSubscriptions PushSubscription[]
+  auditLogs         AuditLog[]
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
 }
@@ -128,4 +129,20 @@ model PushNotificationLog {
   sentAt DateTime @default(now())
 
   @@index([userId, kind, sentAt])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  username   String
+  event      String
+  ipAddress  String   @default("")
+  deviceInfo String   @default("")
+  details    String   @default("")
+  occurredAt DateTime @default(now())
+
+  @@index([occurredAt])
+  @@index([event])
+  @@index([username])
 }

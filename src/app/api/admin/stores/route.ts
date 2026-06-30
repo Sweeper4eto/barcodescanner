@@ -1,5 +1,12 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import {
+  auditPaymentRecorded,
+  auditStoreCreated,
+  auditStoreDeleted,
+  auditStoreUpdated,
+} from "@/lib/audit-details";
+import { logAuditEvent } from "@/lib/audit-log";
 import { requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { apiT } from "@/i18n";
@@ -59,6 +66,16 @@ export async function POST(request: Request) {
   }
 
   const store = await db.store.create({ data: parsed.data });
+  const client = await db.client.findUnique({
+    where: { id: parsed.data.clientId },
+    select: { name: true },
+  });
+  await logAuditEvent(
+    request,
+    admin,
+    "store_created",
+    auditStoreCreated(store, client?.name ?? parsed.data.clientId),
+  );
   return NextResponse.json({ store }, { status: 201 });
 }
 
@@ -85,7 +102,23 @@ export async function PATCH(request: Request) {
   }
 
   const { id, ...data } = parsed.data;
+  const before = await db.store.findUnique({
+    where: { id },
+    include: { client: { select: { name: true } } },
+  });
+  if (!before) {
+    return NextResponse.json(
+      { error: apiT(request, "errors.missingId") },
+      { status: 404 },
+    );
+  }
   const store = await db.store.update({ where: { id }, data });
+  await logAuditEvent(
+    request,
+    admin,
+    "store_updated",
+    auditStoreUpdated(before, store, before.client.name),
+  );
   return NextResponse.json({ store });
 }
 
@@ -102,6 +135,23 @@ export async function DELETE(request: Request) {
     );
   }
 
+  const existing = await db.store.findUnique({
+    where: { id },
+    include: { client: { select: { name: true } } },
+  });
+  if (!existing) {
+    return NextResponse.json(
+      { error: apiT(request, "errors.missingId") },
+      { status: 404 },
+    );
+  }
+
   await db.store.delete({ where: { id } });
+  await logAuditEvent(
+    request,
+    admin,
+    "store_deleted",
+    auditStoreDeleted(existing, existing.client.name),
+  );
   return NextResponse.json({ ok: true });
 }

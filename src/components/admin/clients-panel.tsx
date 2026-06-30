@@ -35,6 +35,35 @@ type ClientDetailTab = "edit" | "stores" | "newStore";
 
 const STORES_PER_PAGE = 5;
 
+type EditState = {
+  name: string;
+  phone: string;
+  additionalInfo: string;
+  monthlyFeePerStore: string;
+  active: boolean;
+};
+
+function clientEditState(client: Client): EditState {
+  return {
+    name: client.name,
+    phone: client.phone ?? "",
+    additionalInfo: client.additionalInfo ?? "",
+    monthlyFeePerStore: String(client.monthlyFeePerStore),
+    active: client.active,
+  };
+}
+
+function editIsDirty(current: EditState, saved: EditState | null) {
+  if (!saved) return false;
+  return (
+    current.name !== saved.name ||
+    current.phone !== saved.phone ||
+    current.additionalInfo !== saved.additionalInfo ||
+    current.monthlyFeePerStore !== saved.monthlyFeePerStore ||
+    current.active !== saved.active
+  );
+}
+
 type Props = {
   onRefresh: () => void;
 };
@@ -48,13 +77,16 @@ export function ClientsPanel({ onRefresh }: Props) {
   const [clients, setClients] = useState<Client[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [stores, setStores] = useState<Store[]>([]);
-  const [edit, setEdit] = useState({
+  const [edit, setEdit] = useState<EditState>({
     name: "",
     phone: "",
     additionalInfo: "",
     monthlyFeePerStore: "0",
     active: true,
   });
+  const [savedEdit, setSavedEdit] = useState<EditState | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState("");
   const [newClient, setNewClient] = useState({
     name: "",
     phone: "",
@@ -101,13 +133,10 @@ export function ClientsPanel({ onRefresh }: Props) {
     setSelectedId(client.id);
     setDetailTab("edit");
     setStorePage(1);
-    setEdit({
-      name: client.name,
-      phone: client.phone ?? "",
-      additionalInfo: client.additionalInfo ?? "",
-      monthlyFeePerStore: String(client.monthlyFeePerStore),
-      active: client.active,
-    });
+    const snapshot = clientEditState(client);
+    setEdit(snapshot);
+    setSavedEdit(snapshot);
+    setSaveMessage("");
     void loadStores(client.id);
   }
 
@@ -130,21 +159,34 @@ export function ClientsPanel({ onRefresh }: Props) {
   }
 
   async function saveClient() {
-    if (!selectedId) return;
-    await fetch("/api/admin/clients", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        id: selectedId,
-        name: edit.name,
-        phone: edit.phone || undefined,
-        additionalInfo: edit.additionalInfo || undefined,
-        monthlyFeePerStore: Number(edit.monthlyFeePerStore),
-        active: edit.active,
-      }),
-    });
-    await loadClients();
-    onRefresh();
+    if (!selectedId || !editIsDirty(edit, savedEdit)) return;
+    setSaving(true);
+    setSaveMessage("");
+    try {
+      const response = await fetch("/api/admin/clients", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: selectedId,
+          name: edit.name,
+          phone: edit.phone || undefined,
+          additionalInfo: edit.additionalInfo || undefined,
+          monthlyFeePerStore: Number(edit.monthlyFeePerStore),
+          active: edit.active,
+        }),
+      });
+      if (!response.ok) {
+        setSaveMessage(t("errors.saveFailed"));
+        return;
+      }
+      const snapshot = { ...edit };
+      setSavedEdit(snapshot);
+      setSaveMessage(t("admin.saveSuccess"));
+      await loadClients();
+      onRefresh();
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function deleteClient() {
@@ -190,6 +232,7 @@ export function ClientsPanel({ onRefresh }: Props) {
   }
 
   const selectedClient = clients.find((client) => client.id === selectedId);
+  const clientDirty = editIsDirty(edit, savedEdit);
   const storeTotalPages = Math.max(1, Math.ceil(stores.length / STORES_PER_PAGE));
   const safeStorePage = Math.min(storePage, storeTotalPages);
   const pagedStores = stores.slice(
@@ -202,6 +245,12 @@ export function ClientsPanel({ onRefresh }: Props) {
       setStorePage(storeTotalPages);
     }
   }, [storePage, storeTotalPages]);
+
+  useEffect(() => {
+    if (clientDirty && saveMessage === t("admin.saveSuccess")) {
+      setSaveMessage("");
+    }
+  }, [clientDirty, saveMessage, t]);
 
   return (
     <div>
@@ -386,9 +435,23 @@ export function ClientsPanel({ onRefresh }: Props) {
                         />
                         {t("admin.activeClient")}
                       </label>
+                      {saveMessage ? (
+                        <p
+                          className={`text-sm ${
+                            saveMessage === t("admin.saveSuccess")
+                              ? "text-emerald-700"
+                              : "text-error"
+                          }`}
+                        >
+                          {saveMessage}
+                        </p>
+                      ) : null}
                       <div className="grid grid-cols-2 gap-2">
-                        <PrimaryButton onClick={() => void saveClient()}>
-                          {t("common.save")}
+                        <PrimaryButton
+                          disabled={!clientDirty || saving}
+                          onClick={() => void saveClient()}
+                        >
+                          {saving ? t("admin.saving") : t("common.save")}
                         </PrimaryButton>
                         <button
                           type="button"
@@ -529,21 +592,62 @@ function StoreCard({
     phone: store.phone ?? "",
     additionalInfo: store.additionalInfo ?? "",
   });
+  const [savedForm, setSavedForm] = useState(form);
+  const [saving, setSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState("");
+
+  const storeDirty =
+    editing &&
+    (form.name !== savedForm.name ||
+      form.address !== savedForm.address ||
+      form.phone !== savedForm.phone ||
+      form.additionalInfo !== savedForm.additionalInfo);
+
+  function openEdit() {
+    const snapshot = {
+      name: store.name,
+      address: store.address ?? "",
+      phone: store.phone ?? "",
+      additionalInfo: store.additionalInfo ?? "",
+    };
+    setForm(snapshot);
+    setSavedForm(snapshot);
+    setSaveMessage("");
+    setEditing(true);
+  }
+
+  function cancelEdit() {
+    setEditing(false);
+    setSaveMessage("");
+  }
 
   async function save() {
-    await fetch("/api/admin/stores", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        id: store.id,
-        name: form.name,
-        address: form.address || undefined,
-        phone: form.phone || undefined,
-        additionalInfo: form.additionalInfo || undefined,
-      }),
-    });
-    setEditing(false);
-    onSaved();
+    if (!storeDirty) return;
+    setSaving(true);
+    setSaveMessage("");
+    try {
+      const response = await fetch("/api/admin/stores", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: store.id,
+          name: form.name,
+          address: form.address || undefined,
+          phone: form.phone || undefined,
+          additionalInfo: form.additionalInfo || undefined,
+        }),
+      });
+      if (!response.ok) {
+        setSaveMessage(t("errors.saveFailed"));
+        return;
+      }
+      setSavedForm({ ...form });
+      setSaveMessage(t("admin.saveSuccess"));
+      setEditing(false);
+      onSaved();
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -580,15 +684,16 @@ function StoreCard({
           <div className="flex gap-2">
             <button
               type="button"
-              className="rounded-lg bg-primary px-2 py-1 text-xs text-primary-fg"
+              disabled={!storeDirty || saving}
+              className="rounded-lg bg-primary px-2 py-1 text-xs text-primary-fg disabled:opacity-50"
               onClick={() => void save()}
             >
-              {t("common.save")}
+              {saving ? t("admin.saving") : t("common.save")}
             </button>
             <button
               type="button"
               className="rounded-lg border border-input-border bg-card px-2 py-1 text-xs text-foreground"
-              onClick={() => setEditing(false)}
+              onClick={cancelEdit}
             >
               {t("common.cancel")}
             </button>
@@ -600,11 +705,22 @@ function StoreCard({
           <p className="text-xs text-muted">{store.address}</p>
           <p className="text-xs text-muted">{store.phone}</p>
           <p className="text-xs text-muted">{store.additionalInfo}</p>
+          {saveMessage ? (
+            <p
+              className={`mt-2 text-xs ${
+                saveMessage === t("admin.saveSuccess")
+                  ? "text-emerald-700"
+                  : "text-error"
+              }`}
+            >
+              {saveMessage}
+            </p>
+          ) : null}
           <div className="mt-2 flex flex-wrap gap-2">
             <button
               type="button"
               className="rounded-lg border border-input-border bg-card px-2 py-1 text-xs text-foreground"
-              onClick={() => setEditing(true)}
+              onClick={openEdit}
             >
               {t("common.edit")}
             </button>

@@ -16,10 +16,33 @@ type UserRow = {
 
 type Store = { id: string; name: string };
 
+type AssignmentState = {
+  clientId: string;
+  storeIds: string[];
+  active: boolean;
+};
+
 type Props = {
   clients: Client[];
   onRefresh: () => void;
 };
+
+function assignmentFromUser(user: UserRow): AssignmentState {
+  return {
+    clientId: user.clientId ?? "",
+    storeIds: user.stores.map((store) => store.id).sort(),
+    active: user.active,
+  };
+}
+
+function assignmentIsDirty(current: AssignmentState, saved: AssignmentState | null) {
+  if (!saved) return false;
+  return (
+    current.clientId !== saved.clientId ||
+    current.active !== saved.active ||
+    current.storeIds.join(",") !== saved.storeIds.join(",")
+  );
+}
 
 export function UsersPanel({ clients, onRefresh }: Props) {
   const { t } = useT();
@@ -29,11 +52,16 @@ export function UsersPanel({ clients, onRefresh }: Props) {
   const [storeIds, setStoreIds] = useState<string[]>([]);
   const [active, setActive] = useState(true);
   const [clientStores, setClientStores] = useState<Store[]>([]);
+  const [savedAssignment, setSavedAssignment] = useState<AssignmentState | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState("");
 
   async function loadUsers() {
     const response = await fetch("/api/admin/users");
     const data = await response.json();
-    setUsers(data.users ?? []);
+    const list = (data.users ?? []) as UserRow[];
+    setUsers(list);
+    return list;
   }
 
   useEffect(() => {
@@ -49,23 +77,7 @@ export function UsersPanel({ clients, onRefresh }: Props) {
     };
   }, []);
 
-  function selectUser(user: UserRow) {
-    setSelectedUserId(user.id);
-    setClientId(user.clientId ?? "");
-    setStoreIds(user.stores.map((store) => store.id));
-    setActive(user.active);
-    if (user.clientId) {
-      void fetch(`/api/admin/stores?clientId=${user.clientId}`)
-        .then((response) => response.json())
-        .then((data) => setClientStores(data.stores ?? []));
-    } else {
-      setClientStores([]);
-    }
-  }
-
-  async function onClientChange(nextClientId: string) {
-    setClientId(nextClientId);
-    setStoreIds([]);
+  async function loadClientStores(nextClientId: string) {
     if (!nextClientId) {
       setClientStores([]);
       return;
@@ -75,20 +87,70 @@ export function UsersPanel({ clients, onRefresh }: Props) {
     setClientStores(data.stores ?? []);
   }
 
+  function selectUser(user: UserRow) {
+    const snapshot = assignmentFromUser(user);
+    setSelectedUserId(user.id);
+    setClientId(snapshot.clientId);
+    setStoreIds(snapshot.storeIds);
+    setActive(snapshot.active);
+    setSavedAssignment(snapshot);
+    setSaveMessage("");
+    void loadClientStores(snapshot.clientId);
+  }
+
+  async function onClientChange(nextClientId: string) {
+    setClientId(nextClientId);
+    setStoreIds([]);
+    await loadClientStores(nextClientId);
+  }
+
+  const currentAssignment: AssignmentState = {
+    clientId,
+    storeIds: [...storeIds].sort(),
+    active,
+  };
+  const assignmentDirty = assignmentIsDirty(currentAssignment, savedAssignment);
+
+  useEffect(() => {
+    if (assignmentDirty && saveMessage === t("admin.saveSuccess")) {
+      setSaveMessage("");
+    }
+  }, [assignmentDirty, saveMessage, t]);
+
   async function saveAssignment() {
-    if (!selectedUserId) return;
-    await fetch("/api/admin/users", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        userId: selectedUserId,
-        clientId: clientId || null,
-        storeIds,
-        active,
-      }),
-    });
-    await loadUsers();
-    onRefresh();
+    if (!selectedUserId || !assignmentDirty) return;
+    setSaving(true);
+    setSaveMessage("");
+    try {
+      const response = await fetch("/api/admin/users", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: selectedUserId,
+          clientId: clientId || null,
+          storeIds,
+          active,
+        }),
+      });
+      if (!response.ok) {
+        setSaveMessage(t("errors.saveFailed"));
+        return;
+      }
+      const list = await loadUsers();
+      const updated = list.find((user) => user.id === selectedUserId);
+      if (updated) {
+        const snapshot = assignmentFromUser(updated);
+        setClientId(snapshot.clientId);
+        setStoreIds(snapshot.storeIds);
+        setActive(snapshot.active);
+        setSavedAssignment(snapshot);
+        await loadClientStores(snapshot.clientId);
+      }
+      setSaveMessage(t("admin.saveSuccess"));
+      onRefresh();
+    } finally {
+      setSaving(false);
+    }
   }
 
   const selectedUser = users.find((user) => user.id === selectedUserId);
@@ -133,7 +195,7 @@ export function UsersPanel({ clients, onRefresh }: Props) {
             <label className="block text-sm">
               {t("admin.clientLabel")}
               <select
-                className="mt-1 w-full rounded-xl border border-input-border bg-input text-foreground px-3 py-2"
+                className="mt-1 w-full rounded-xl border border-input-border bg-input px-3 py-2 text-foreground"
                 value={clientId}
                 onChange={(event) => void onClientChange(event.target.value)}
               >
@@ -167,10 +229,30 @@ export function UsersPanel({ clients, onRefresh }: Props) {
               </div>
             </div>
             <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} />
+              <input
+                type="checkbox"
+                checked={active}
+                onChange={(event) => setActive(event.target.checked)}
+              />
               {t("admin.activeUser")}
             </label>
-            <PrimaryButton onClick={() => void saveAssignment()}>{t("common.save")}</PrimaryButton>
+            {saveMessage ? (
+              <p
+                className={`text-sm ${
+                  saveMessage === t("admin.saveSuccess")
+                    ? "text-emerald-700"
+                    : "text-error"
+                }`}
+              >
+                {saveMessage}
+              </p>
+            ) : null}
+            <PrimaryButton
+              disabled={!assignmentDirty || saving}
+              onClick={() => void saveAssignment()}
+            >
+              {saving ? t("admin.saving") : t("common.save")}
+            </PrimaryButton>
           </div>
         )}
       </section>

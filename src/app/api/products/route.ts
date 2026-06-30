@@ -1,5 +1,12 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import {
+  auditInventoryAdded,
+  auditInventoryMerged,
+  auditInventoryRemoved,
+  auditProductCreated,
+} from "@/lib/audit-details";
+import { logAuditEvent } from "@/lib/audit-log";
 import { requireSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { apiT } from "@/i18n";
@@ -34,8 +41,9 @@ const createSchema = z.object({
 });
 
 export async function POST(request: Request) {
+  let session;
   try {
-    await requireSession();
+    session = await requireSession();
   } catch {
     return NextResponse.json(
       { error: apiT(request, "errors.unauthorized") },
@@ -63,5 +71,11 @@ export async function POST(request: Request) {
   }
 
   const product = await db.product.create({ data: parsed.data });
+  await logAuditEvent(
+    request,
+    session,
+    "product_created",
+    auditProductCreated(product),
+  );
   return NextResponse.json({ product }, { status: 201 });
 }
