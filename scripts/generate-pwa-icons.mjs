@@ -61,11 +61,32 @@ const maskableSvg = `
 </svg>
 `;
 
+function pngToIco(pngBuffer) {
+  const header = Buffer.alloc(6);
+  header.writeUInt16LE(0, 0);
+  header.writeUInt16LE(1, 2);
+  header.writeUInt16LE(1, 4);
+
+  const entry = Buffer.alloc(16);
+  entry[0] = 32;
+  entry[1] = 32;
+  entry.writeUInt16LE(1, 4);
+  entry.writeUInt16LE(32, 6);
+  entry.writeUInt32LE(pngBuffer.length, 8);
+  entry.writeUInt32LE(22, 12);
+
+  return Buffer.concat([header, entry, pngBuffer]);
+}
+
 async function main() {
   const outDir = path.join(process.cwd(), "public", "icons");
+  const appDir = path.join(process.cwd(), "src", "app");
   await mkdir(outDir, { recursive: true });
+  await mkdir(appDir, { recursive: true });
 
   const sizes = [
+    { name: "icon-16.png", size: 16, svg: iconSvg },
+    { name: "icon-32.png", size: 32, svg: iconSvg },
     { name: "apple-touch-icon.png", size: 180, svg: iconSvg },
     { name: "icon-192.png", size: 192, svg: iconSvg },
     { name: "icon-512.png", size: 512, svg: iconSvg },
@@ -76,7 +97,14 @@ async function main() {
     await sharp(Buffer.from(svg)).resize(size, size).png().toFile(path.join(outDir, name));
   }
 
-  console.log("expire365 PWA icons generated in public/icons/");
+  const faviconPng = await sharp(Buffer.from(iconSvg)).resize(32, 32).png().toBuffer();
+  await sharp(faviconPng).toFile(path.join(appDir, "icon.png"));
+  await sharp(faviconPng).toFile(path.join(outDir, "favicon.png"));
+
+  const { writeFile } = await import("fs/promises");
+  await writeFile(path.join(process.cwd(), "public", "favicon.ico"), pngToIco(faviconPng));
+
+  console.log("expire365 PWA icons generated in public/icons/ and src/app/icon.png");
 }
 
 main().catch((error) => {

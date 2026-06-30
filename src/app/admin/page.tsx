@@ -2,7 +2,11 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { AdminTabBar } from "@/components/admin/admin-ui";
+import {
+  AdminPanel,
+  AdminPanelBody,
+  AdminTabBar,
+} from "@/components/admin/admin-ui";
 import { ClientsPanel, type Client } from "@/components/admin/clients-panel";
 import { PaymentsPanel } from "@/components/admin/payments-panel";
 import { UsersPanel } from "@/components/admin/users-panel";
@@ -43,11 +47,11 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="min-h-full bg-subtle/40">
-      <div className="mx-auto max-w-7xl px-4 py-6 lg:px-6">
-        <header className="mb-6 flex items-center justify-between gap-4 rounded-2xl border border-card-border bg-card p-5 shadow-sm">
-          <div className="flex items-center gap-4">
-            <AppLogo size={48} />
+    <div className="min-h-full bg-background">
+      <div className="mx-auto max-w-6xl px-4 py-6 md:px-6">
+        <header className="mb-8 flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <AppLogo size={44} />
             <div>
               <p className="text-sm text-muted">{t("admin.panel")}</p>
               <h1 className="text-2xl font-semibold text-foreground">
@@ -58,37 +62,39 @@ export default function AdminPage() {
           <button
             type="button"
             onClick={() => void logout()}
-            className="rounded-xl border border-input-border bg-card px-4 py-2 text-sm font-medium text-foreground hover:bg-subtle"
+            className="rounded-xl border border-input-border px-4 py-2 text-sm font-medium text-foreground hover:bg-subtle"
           >
             {t("common.logout")}
           </button>
         </header>
 
-        <div className="mb-5">
-          <AdminTabBar
-            tabs={[
-              { id: "clients" as const, label: t("admin.clients") },
-              { id: "users" as const, label: t("admin.users") },
-              { id: "payments" as const, label: t("admin.payments") },
-            ]}
-            active={tab}
-            onChange={setTab}
-          />
-        </div>
-
-        <div className="rounded-2xl">
-          {tab === "clients" ? (
-            <ClientsPanel onRefresh={() => void refreshClients()} />
-          ) : null}
-          {tab === "users" ? (
-            <UsersPanel
-              key={refreshKey}
-              clients={clients}
-              onRefresh={() => void refreshClients()}
+        <AdminPanel>
+          <AdminPanelBody className="pb-0">
+            <AdminTabBar
+              tabs={[
+                { id: "clients" as const, label: t("admin.clients") },
+                { id: "users" as const, label: t("admin.users") },
+                { id: "payments" as const, label: t("admin.payments") },
+              ]}
+              active={tab}
+              onChange={setTab}
             />
-          ) : null}
-          {tab === "payments" ? <PaymentsPanel /> : null}
-        </div>
+          </AdminPanelBody>
+
+          <AdminPanelBody className="border-t border-card-border pt-6">
+            {tab === "clients" ? (
+              <ClientsPanel onRefresh={() => void refreshClients()} />
+            ) : null}
+            {tab === "users" ? (
+              <UsersPanel
+                key={refreshKey}
+                clients={clients}
+                onRefresh={() => void refreshClients()}
+              />
+            ) : null}
+            {tab === "payments" ? <PaymentsPanel /> : null}
+          </AdminPanelBody>
+        </AdminPanel>
       </div>
     </div>
   );

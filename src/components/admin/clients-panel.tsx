@@ -31,6 +31,9 @@ type Store = {
 };
 
 type ClientsSubview = "current" | "new";
+type ClientDetailTab = "edit" | "stores" | "newStore";
+
+const STORES_PER_PAGE = 5;
 
 type Props = {
   onRefresh: () => void;
@@ -39,6 +42,8 @@ type Props = {
 export function ClientsPanel({ onRefresh }: Props) {
   const { t } = useT();
   const [subview, setSubview] = useState<ClientsSubview>("current");
+  const [detailTab, setDetailTab] = useState<ClientDetailTab>("edit");
+  const [storePage, setStorePage] = useState(1);
   const [query, setQuery] = useState("");
   const [clients, setClients] = useState<Client[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -74,7 +79,9 @@ export function ClientsPanel({ onRefresh }: Props) {
   const loadStores = useCallback(async (clientId: string) => {
     const response = await fetch(`/api/admin/stores?clientId=${clientId}`);
     const data = await response.json();
-    setStores(data.stores ?? []);
+    const list = (data.stores ?? []) as Store[];
+    setStores(list);
+    return list;
   }, []);
 
   useEffect(() => {
@@ -92,6 +99,8 @@ export function ClientsPanel({ onRefresh }: Props) {
 
   function selectClient(client: Client) {
     setSelectedId(client.id);
+    setDetailTab("edit");
+    setStorePage(1);
     setEdit({
       name: client.name,
       phone: client.phone ?? "",
@@ -155,9 +164,11 @@ export function ClientsPanel({ onRefresh }: Props) {
       body: JSON.stringify({ clientId: selectedId, ...newStore }),
     });
     setNewStore({ name: "", address: "", phone: "", additionalInfo: "" });
-    await loadStores(selectedId);
+    const list = await loadStores(selectedId);
     await loadClients();
     onRefresh();
+    setDetailTab("stores");
+    setStorePage(Math.max(1, Math.ceil(list.length / STORES_PER_PAGE)));
   }
 
   async function toggleStore(store: Store) {
@@ -179,255 +190,318 @@ export function ClientsPanel({ onRefresh }: Props) {
   }
 
   const selectedClient = clients.find((client) => client.id === selectedId);
+  const storeTotalPages = Math.max(1, Math.ceil(stores.length / STORES_PER_PAGE));
+  const safeStorePage = Math.min(storePage, storeTotalPages);
+  const pagedStores = stores.slice(
+    (safeStorePage - 1) * STORES_PER_PAGE,
+    safeStorePage * STORES_PER_PAGE,
+  );
+
+  useEffect(() => {
+    if (storePage > storeTotalPages) {
+      setStorePage(storeTotalPages);
+    }
+  }, [storePage, storeTotalPages]);
 
   return (
-    <div className="space-y-5">
-      <AdminTabBar
-        tabs={[
-          { id: "current" as const, label: t("admin.currentClients") },
-          { id: "new" as const, label: t("admin.newClient") },
-        ]}
-        active={subview}
-        onChange={setSubview}
-      />
+    <div>
+      <div className="mb-6">
+        <AdminTabBar
+          tabs={[
+            { id: "current" as const, label: t("admin.currentClients") },
+            { id: "new" as const, label: t("admin.newClient") },
+          ]}
+          active={subview}
+          onChange={setSubview}
+        />
+      </div>
 
       {subview === "new" ? (
-        <AdminSection
-          title={t("admin.newClient")}
-          description={t("admin.newClientHint")}
-          className="mx-auto max-w-xl"
-        >
-          <form className="space-y-4" onSubmit={createClient}>
-            <AdminField label={t("common.name")}>
-              <input
-                className={adminInputClass}
-                value={newClient.name}
-                onChange={(event) =>
-                  setNewClient({ ...newClient, name: event.target.value })
-                }
-                required
-              />
-            </AdminField>
-            <AdminField label={t("common.phone")}>
-              <input
-                className={adminInputClass}
-                value={newClient.phone}
-                onChange={(event) =>
-                  setNewClient({ ...newClient, phone: event.target.value })
-                }
-              />
-            </AdminField>
-            <AdminField label={t("common.additionalInfo")}>
-              <textarea
-                className={`${adminInputClass} min-h-24`}
-                value={newClient.additionalInfo}
-                onChange={(event) =>
-                  setNewClient({ ...newClient, additionalInfo: event.target.value })
-                }
-              />
-            </AdminField>
-            <AdminField label={t("admin.feePerStore")}>
-              <input
-                className={adminInputClass}
-                inputMode="decimal"
-                value={newClient.monthlyFeePerStore}
-                onChange={(event) =>
-                  setNewClient({ ...newClient, monthlyFeePerStore: event.target.value })
-                }
-              />
-            </AdminField>
-            <PrimaryButton type="submit">{t("common.create")}</PrimaryButton>
-          </form>
-        </AdminSection>
-      ) : (
-        <div className="grid gap-5 lg:grid-cols-[minmax(280px,320px)_1fr]">
-          <AdminSection
-            title={t("admin.currentClients")}
-            description={t("admin.currentClientsHint")}
-          >
-            <form
-              className="flex gap-2"
-              onSubmit={(event) => {
-                event.preventDefault();
-                void loadClients();
-              }}
-            >
-              <input
-                className={`${adminInputClass} flex-1`}
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder={t("admin.searchPlaceholder")}
-              />
-              <button
-                type="submit"
-                className="shrink-0 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-fg"
-              >
-                {t("common.search")}
-              </button>
+        <div className="mx-auto max-w-md">
+          <AdminSection title={t("admin.newClient")}>
+            <form className="space-y-4" onSubmit={createClient}>
+              <AdminField label={t("common.name")}>
+                <input
+                  className={adminInputClass}
+                  value={newClient.name}
+                  onChange={(event) =>
+                    setNewClient({ ...newClient, name: event.target.value })
+                  }
+                  required
+                />
+              </AdminField>
+              <AdminField label={t("common.phone")}>
+                <input
+                  className={adminInputClass}
+                  value={newClient.phone}
+                  onChange={(event) =>
+                    setNewClient({ ...newClient, phone: event.target.value })
+                  }
+                />
+              </AdminField>
+              <AdminField label={t("common.additionalInfo")}>
+                <textarea
+                  className={`${adminInputClass} min-h-24`}
+                  value={newClient.additionalInfo}
+                  onChange={(event) =>
+                    setNewClient({ ...newClient, additionalInfo: event.target.value })
+                  }
+                />
+              </AdminField>
+              <AdminField label={t("admin.feePerStore")}>
+                <input
+                  className={adminInputClass}
+                  inputMode="decimal"
+                  value={newClient.monthlyFeePerStore}
+                  onChange={(event) =>
+                    setNewClient({ ...newClient, monthlyFeePerStore: event.target.value })
+                  }
+                />
+              </AdminField>
+              <PrimaryButton type="submit">{t("common.create")}</PrimaryButton>
             </form>
-            <div className="mt-4 max-h-[32rem] space-y-2 overflow-y-auto pr-1">
-              {clients.length === 0 ? (
-                <AdminEmptyState message={t("admin.noClientsFound")} />
-              ) : (
-                clients.map((client) => (
-                  <button
-                    key={client.id}
-                    type="button"
-                    onClick={() => selectClient(client)}
-                    className={`w-full rounded-xl border p-3 text-left transition-colors ${
-                      selectedId === client.id
-                        ? "border-primary bg-selected shadow-sm"
-                        : "border-card-border hover:border-primary/40 hover:bg-subtle"
-                    } ${!client.active ? "opacity-60" : ""}`}
-                  >
-                    <p className="font-medium text-foreground">{client.name}</p>
-                    {client.phone ? (
-                      <p className="mt-1 text-xs text-muted">{client.phone}</p>
-                    ) : null}
-                    <p className="mt-1 text-xs text-muted">
-                      {t("admin.storesCount", {
-                        stores: client._count.stores,
-                        users: client._count.users,
-                      })}
-                    </p>
-                  </button>
-                ))
-              )}
-            </div>
           </AdminSection>
-
-          <div className="grid gap-5 xl:grid-cols-2">
-            {!selectedId ? (
-              <div className="xl:col-span-2">
-                <AdminEmptyState message={t("admin.selectClient")} />
-              </div>
-            ) : (
-              <>
-                <AdminSection
-                  title={t("admin.editClient")}
-                  description={selectedClient?.name}
+        </div>
+      ) : (
+        <div className="grid gap-6 md:grid-cols-12">
+          <div className="md:col-span-4">
+            <AdminSection title={t("admin.currentClients")}>
+              <form
+                className="mb-4 flex gap-2"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void loadClients();
+                }}
+              >
+                <input
+                  className={`${adminInputClass} min-w-0 flex-1`}
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder={t("admin.searchPlaceholder")}
+                />
+                <button
+                  type="submit"
+                  className="shrink-0 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-fg"
                 >
-                  <div className="space-y-4">
-                    <AdminField label={t("common.name")}>
-                      <input
-                        className={adminInputClass}
-                        value={edit.name}
-                        onChange={(event) =>
-                          setEdit({ ...edit, name: event.target.value })
-                        }
-                      />
-                    </AdminField>
-                    <AdminField label={t("common.phone")}>
-                      <input
-                        className={adminInputClass}
-                        value={edit.phone}
-                        onChange={(event) =>
-                          setEdit({ ...edit, phone: event.target.value })
-                        }
-                      />
-                    </AdminField>
-                    <AdminField label={t("common.additionalInfo")}>
-                      <textarea
-                        className={`${adminInputClass} min-h-20`}
-                        value={edit.additionalInfo}
-                        onChange={(event) =>
-                          setEdit({ ...edit, additionalInfo: event.target.value })
-                        }
-                      />
-                    </AdminField>
-                    <AdminField label={t("admin.feePerStore")}>
-                      <input
-                        className={adminInputClass}
-                        inputMode="decimal"
-                        value={edit.monthlyFeePerStore}
-                        onChange={(event) =>
-                          setEdit({ ...edit, monthlyFeePerStore: event.target.value })
-                        }
-                      />
-                    </AdminField>
-                    <label className="flex items-center gap-2 text-sm text-foreground">
-                      <input
-                        type="checkbox"
-                        checked={edit.active}
-                        onChange={(event) =>
-                          setEdit({ ...edit, active: event.target.checked })
-                        }
-                      />
-                      {t("admin.activeClient")}
-                    </label>
-                    <div className="grid grid-cols-2 gap-2 pt-1">
-                      <PrimaryButton onClick={() => void saveClient()}>
-                        {t("common.save")}
-                      </PrimaryButton>
-                      <button
-                        type="button"
-                        className="rounded-xl border border-danger-border px-3 py-3 text-sm font-medium text-error"
-                        onClick={() => void deleteClient()}
-                      >
-                        {t("common.delete")}
-                      </button>
-                    </div>
-                  </div>
-                </AdminSection>
+                  {t("common.search")}
+                </button>
+              </form>
+              <div className="max-h-[28rem] space-y-2 overflow-y-auto">
+                {clients.length === 0 ? (
+                  <AdminEmptyState message={t("admin.noClientsFound")} />
+                ) : (
+                  clients.map((client) => (
+                    <button
+                      key={client.id}
+                      type="button"
+                      onClick={() => selectClient(client)}
+                      className={`w-full rounded-xl border p-3 text-left transition-colors ${
+                        selectedId === client.id
+                          ? "border-primary bg-selected"
+                          : "border-card-border hover:bg-subtle"
+                      } ${!client.active ? "opacity-60" : ""}`}
+                    >
+                      <p className="font-medium text-foreground">{client.name}</p>
+                      {client.phone ? (
+                        <p className="mt-1 text-xs text-muted">{client.phone}</p>
+                      ) : null}
+                      <p className="mt-1 text-xs text-muted">
+                        {t("admin.storesCount", {
+                          stores: client._count.stores,
+                          users: client._count.users,
+                        })}
+                      </p>
+                    </button>
+                  ))
+                )}
+              </div>
+            </AdminSection>
+          </div>
 
-                <AdminSection title={t("admin.clientStores")}>
-                  <form className="space-y-3" onSubmit={createStore}>
-                    <AdminField label={t("admin.storeName")}>
-                      <input
-                        className={adminInputClass}
-                        value={newStore.name}
-                        onChange={(event) =>
-                          setNewStore({ ...newStore, name: event.target.value })
-                        }
-                        required
-                      />
-                    </AdminField>
-                    <AdminField label={t("common.address")}>
-                      <input
-                        className={adminInputClass}
-                        value={newStore.address}
-                        onChange={(event) =>
-                          setNewStore({ ...newStore, address: event.target.value })
-                        }
-                      />
-                    </AdminField>
-                    <AdminField label={t("common.phone")}>
-                      <input
-                        className={adminInputClass}
-                        value={newStore.phone}
-                        onChange={(event) =>
-                          setNewStore({ ...newStore, phone: event.target.value })
-                        }
-                      />
-                    </AdminField>
-                    <AdminField label={t("common.additionalInfo")}>
-                      <textarea
-                        className={`${adminInputClass} min-h-16`}
-                        value={newStore.additionalInfo}
-                        onChange={(event) =>
-                          setNewStore({ ...newStore, additionalInfo: event.target.value })
-                        }
-                      />
-                    </AdminField>
-                    <PrimaryButton type="submit">{t("admin.addStore")}</PrimaryButton>
-                  </form>
-                  <div className="mt-4 space-y-2">
-                    {stores.length === 0 ? (
-                      <p className="text-sm text-muted">{t("admin.noStoresYet")}</p>
-                    ) : (
-                      stores.map((store) => (
-                        <StoreCard
-                          key={store.id}
-                          store={store}
-                          onToggle={() => void toggleStore(store)}
-                          onDelete={() => void deleteStore(store.id)}
-                          onSaved={() => selectedId && void loadStores(selectedId)}
+          <div className="md:col-span-8">
+            {!selectedId ? (
+              <AdminEmptyState message={t("admin.selectClient")} />
+            ) : (
+              <div className="rounded-2xl border border-card-border bg-background p-5">
+                <p className="mb-4 text-lg font-semibold text-foreground">
+                  {selectedClient?.name}
+                </p>
+                <AdminTabBar
+                  tabs={[
+                    { id: "edit" as const, label: t("admin.editClient") },
+                    { id: "stores" as const, label: t("admin.clientStores") },
+                    { id: "newStore" as const, label: t("admin.newStore") },
+                  ]}
+                  active={detailTab}
+                  onChange={setDetailTab}
+                />
+
+                <div className="mt-6">
+                  {detailTab === "edit" ? (
+                    <div className="mx-auto max-w-md space-y-4">
+                      <AdminField label={t("common.name")}>
+                        <input
+                          className={adminInputClass}
+                          value={edit.name}
+                          onChange={(event) =>
+                            setEdit({ ...edit, name: event.target.value })
+                          }
                         />
-                      ))
-                    )}
-                  </div>
-                </AdminSection>
-              </>
+                      </AdminField>
+                      <AdminField label={t("common.phone")}>
+                        <input
+                          className={adminInputClass}
+                          value={edit.phone}
+                          onChange={(event) =>
+                            setEdit({ ...edit, phone: event.target.value })
+                          }
+                        />
+                      </AdminField>
+                      <AdminField label={t("common.additionalInfo")}>
+                        <textarea
+                          className={`${adminInputClass} min-h-20`}
+                          value={edit.additionalInfo}
+                          onChange={(event) =>
+                            setEdit({ ...edit, additionalInfo: event.target.value })
+                          }
+                        />
+                      </AdminField>
+                      <AdminField label={t("admin.feePerStore")}>
+                        <input
+                          className={adminInputClass}
+                          inputMode="decimal"
+                          value={edit.monthlyFeePerStore}
+                          onChange={(event) =>
+                            setEdit({ ...edit, monthlyFeePerStore: event.target.value })
+                          }
+                        />
+                      </AdminField>
+                      <label className="flex items-center gap-2 text-sm text-foreground">
+                        <input
+                          type="checkbox"
+                          checked={edit.active}
+                          onChange={(event) =>
+                            setEdit({ ...edit, active: event.target.checked })
+                          }
+                        />
+                        {t("admin.activeClient")}
+                      </label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <PrimaryButton onClick={() => void saveClient()}>
+                          {t("common.save")}
+                        </PrimaryButton>
+                        <button
+                          type="button"
+                          className="rounded-xl border border-danger-border px-3 py-3 text-sm font-medium text-error"
+                          onClick={() => void deleteClient()}
+                        >
+                          {t("common.delete")}
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {detailTab === "stores" ? (
+                    <div className="space-y-4">
+                      {stores.length === 0 ? (
+                        <AdminEmptyState message={t("admin.noStoresYet")} />
+                      ) : (
+                        <>
+                          <div className="space-y-2">
+                            {pagedStores.map((store) => (
+                              <StoreCard
+                                key={store.id}
+                                store={store}
+                                onToggle={() => void toggleStore(store)}
+                                onDelete={() => void deleteStore(store.id)}
+                                onSaved={() => selectedId && void loadStores(selectedId)}
+                              />
+                            ))}
+                          </div>
+                          {storeTotalPages > 1 ? (
+                            <div className="flex items-center justify-between gap-3 border-t border-card-border pt-4">
+                              <p className="text-sm text-muted">
+                                {t("admin.pageOf", {
+                                  page: safeStorePage,
+                                  totalPages: storeTotalPages,
+                                })}
+                              </p>
+                              <div className="flex gap-2">
+                                <button
+                                  type="button"
+                                  disabled={safeStorePage <= 1}
+                                  onClick={() => setStorePage((page) => Math.max(1, page - 1))}
+                                  className="rounded-lg border border-input-border px-3 py-1.5 text-sm text-foreground disabled:opacity-40"
+                                >
+                                  {t("admin.previous")}
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={safeStorePage >= storeTotalPages}
+                                  onClick={() =>
+                                    setStorePage((page) =>
+                                      Math.min(storeTotalPages, page + 1),
+                                    )
+                                  }
+                                  className="rounded-lg border border-input-border px-3 py-1.5 text-sm text-foreground disabled:opacity-40"
+                                >
+                                  {t("admin.next")}
+                                </button>
+                              </div>
+                            </div>
+                          ) : null}
+                        </>
+                      )}
+                    </div>
+                  ) : null}
+
+                  {detailTab === "newStore" ? (
+                    <form
+                      className="mx-auto max-w-md space-y-4"
+                      onSubmit={createStore}
+                    >
+                      <AdminField label={t("admin.storeName")}>
+                        <input
+                          className={adminInputClass}
+                          value={newStore.name}
+                          onChange={(event) =>
+                            setNewStore({ ...newStore, name: event.target.value })
+                          }
+                          required
+                        />
+                      </AdminField>
+                      <AdminField label={t("common.address")}>
+                        <input
+                          className={adminInputClass}
+                          value={newStore.address}
+                          onChange={(event) =>
+                            setNewStore({ ...newStore, address: event.target.value })
+                          }
+                        />
+                      </AdminField>
+                      <AdminField label={t("common.phone")}>
+                        <input
+                          className={adminInputClass}
+                          value={newStore.phone}
+                          onChange={(event) =>
+                            setNewStore({ ...newStore, phone: event.target.value })
+                          }
+                        />
+                      </AdminField>
+                      <AdminField label={t("common.additionalInfo")}>
+                        <textarea
+                          className={`${adminInputClass} min-h-16`}
+                          value={newStore.additionalInfo}
+                          onChange={(event) =>
+                            setNewStore({ ...newStore, additionalInfo: event.target.value })
+                          }
+                        />
+                      </AdminField>
+                      <PrimaryButton type="submit">{t("admin.addStore")}</PrimaryButton>
+                    </form>
+                  ) : null}
+                </div>
+              </div>
             )}
           </div>
         </div>
@@ -474,7 +548,7 @@ function StoreCard({
 
   return (
     <div
-      className={`rounded-xl border border-card-border bg-subtle/60 p-3 ${!store.active ? "opacity-60" : ""}`}
+      className={`rounded-xl border border-card-border bg-background p-3 ${!store.active ? "opacity-60" : ""}`}
     >
       {editing ? (
         <div className="space-y-2">
