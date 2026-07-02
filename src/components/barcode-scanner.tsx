@@ -37,9 +37,11 @@ const SCAN_CONFIG: Html5QrcodeCameraScanConfig = {
 };
 
 const CAMERA_ATTEMPTS: MediaTrackConstraints[] = [
+  { facingMode: { exact: "environment" } },
   { facingMode: { ideal: "environment" } },
   { facingMode: "environment" },
   { facingMode: "user" },
+  {},
 ];
 
 function pickRearCamera(cameras: CameraDevice[]): string | undefined {
@@ -91,6 +93,20 @@ async function startScanner(
     stopEnhanced = startEnhancedAutoScan(fileDecoder, containerId, consider);
   };
 
+  // On some mobile browsers (notably Safari), warming up getUserMedia once
+  // before scanner.start() improves first-time camera initialization.
+  try {
+    if (typeof navigator !== "undefined" && navigator.mediaDevices?.getUserMedia) {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: "environment" } },
+        audio: false,
+      });
+      stream.getTracks().forEach((track) => track.stop());
+    }
+  } catch {
+    // Scanner start has its own retries and error handling.
+  }
+
   for (const camera of CAMERA_ATTEMPTS) {
     try {
       await scanner.start(camera, SCAN_CONFIG, onScanSuccess, () => undefined);
@@ -128,7 +144,12 @@ async function startScanner(
 
 function scannerErrorKey(
   error: unknown,
-): "scanner.permissionDenied" | "scanner.insecureContext" | "scanner.noCamera" | "scanner.cameraUnavailable" {
+):
+  | "scanner.permissionDenied"
+  | "scanner.insecureContext"
+  | "scanner.noCamera"
+  | "scanner.cameraBusy"
+  | "scanner.cameraUnavailable" {
   if (typeof window !== "undefined" && !window.isSecureContext) {
     return "scanner.insecureContext";
   }
@@ -150,6 +171,15 @@ function scannerErrorKey(
     !message.includes("scanner_element")
   ) {
     return "scanner.noCamera";
+  }
+  if (
+    name === "NotReadableError" ||
+    message.includes("could not start video source") ||
+    message.includes("trackstarterror") ||
+    message.includes("device in use") ||
+    message.includes("notreadableerror")
+  ) {
+    return "scanner.cameraBusy";
   }
   if (message.includes("requested device not found") || message.includes("no camera")) {
     return "scanner.noCamera";

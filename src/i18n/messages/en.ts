@@ -157,6 +157,8 @@ export const en = {
     startCamera: "Start camera",
     starting: "Starting camera...",
     cameraUnavailable: "Camera unavailable. Enter the barcode manually.",
+    cameraBusy:
+      "Camera is busy (used by another app/tab). Close other camera apps and try again.",
     permissionDenied:
       "Camera permission denied. Allow camera access in your browser or enter the barcode manually.",
     insecureContext:
