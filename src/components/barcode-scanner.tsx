@@ -19,6 +19,8 @@ import { BarcodeReadConsensus, normalizeBarcode } from "@/lib/barcode";
 type Props = {
   onScan: (barcode: string) => void | Promise<void>;
   onCancel?: () => void;
+  /** Start camera as soon as the component mounts (scan pages). */
+  autoStart?: boolean;
 };
 
 const PRODUCT_BARCODE_FORMATS = [
@@ -36,6 +38,8 @@ const SCAN_CONFIG: Html5QrcodeCameraScanConfig = {
   disableFlip: false,
 };
 
+const CAMERA_CACHE_KEY = "magazin-barcode-camera-id";
+
 const CAMERA_ATTEMPTS: MediaTrackConstraints[] = [
   { facingMode: { exact: "environment" } },
   { facingMode: { ideal: "environment" } },
@@ -43,6 +47,31 @@ const CAMERA_ATTEMPTS: MediaTrackConstraints[] = [
   { facingMode: "user" },
   {},
 ];
+
+const SCANNER_OPTIONS = {
+  verbose: false,
+  formatsToSupport: PRODUCT_BARCODE_FORMATS,
+  useBarCodeDetectorIfSupported: true,
+  experimentalFeatures: {
+    useBarCodeDetectorIfSupported: true,
+  },
+} as const;
+
+function cacheCameraId(cameraId: string): void {
+  try {
+    sessionStorage.setItem(CAMERA_CACHE_KEY, cameraId);
+  } catch {
+    // sessionStorage may be unavailable in private mode
+  }
+}
+
+function readCachedCameraId(): string | null {
+  try {
+    return sessionStorage.getItem(CAMERA_CACHE_KEY);
+  } catch {
+    return null;
+  }
+}
 
 function pickRearCamera(cameras: CameraDevice[]): string | undefined {
   const rear = cameras.find((camera) =>
@@ -93,18 +122,21 @@ async function startScanner(
     stopEnhanced = startEnhancedAutoScan(fileDecoder, containerId, consider);
   };
 
-  // On some mobile browsers (notably Safari), warming up getUserMedia once
-  // before scanner.start() improves first-time camera initialization.
-  try {
-    if (typeof navigator !== "undefined" && navigator.mediaDevices?.getUserMedia) {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: "environment" } },
-        audio: false,
-      });
-      stream.getTracks().forEach((track) => track.stop());
+  const cachedCameraId = readCachedCameraId();
+  if (cachedCameraId) {
+    try {
+      await scanner.start(cachedCameraId, SCAN_CONFIG, onScanSuccess, () => undefined);
+      beginEnhancedScan();
+      return () => stopEnhanced();
+    } catch (error) {
+      lastError = error;
+      await resetScanner(scanner);
+      try {
+        sessionStorage.removeItem(CAMERA_CACHE_KEY);
+      } catch {
+        // ignore
+      }
     }
-  } catch {
-    // Scanner start has its own retries and error handling.
   }
 
   for (const camera of CAMERA_ATTEMPTS) {
@@ -128,6 +160,7 @@ async function startScanner(
     for (const cameraId of cameraIds) {
       try {
         await scanner.start(cameraId, SCAN_CONFIG, onScanSuccess, () => undefined);
+        cacheCameraId(cameraId);
         beginEnhancedScan();
         return () => stopEnhanced();
       } catch (error) {
@@ -140,21 +173,6 @@ async function startScanner(
   }
 
   throw lastError ?? new Error("CAMERA_UNAVAILABLE");
-}
-
-async function ensureCameraAccess(): Promise<void> {
-  if (!navigator.mediaDevices?.getUserMedia) {
-    throw new Error("NO_MEDIA_DEVICES");
-  }
-
-  const stream = await navigator.mediaDevices.getUserMedia({
-    video: { facingMode: { ideal: "environment" } },
-    audio: false,
-  });
-
-  for (const track of stream.getTracks()) {
-    track.stop();
-  }
 }
 
 function scannerErrorKey(
@@ -202,7 +220,7 @@ function scannerErrorKey(
   return "scanner.cameraUnavailable";
 }
 
-export function BarcodeScanner({ onScan, onCancel }: Props) {
+export function BarcodeScanner({ onScan, onCancel, autoStart = false }: Props) {
   const { t } = useT();
   const elementId = useId().replace(/:/g, "");
   const fileDecoderId = `${elementId}-decoder`;
@@ -224,6 +242,15 @@ export function BarcodeScanner({ onScan, onCancel }: Props) {
   }, [onScan]);
 
   useEffect(() => {
+    if (typeof window === "undefined" || !window.isSecureContext) return;
+
+    if (!scannerRef.current) {
+      scannerRef.current = new Html5Qrcode(elementId, SCANNER_OPTIONS);
+    }
+    if (!fileDecoderRef.current) {
+      fileDecoderRef.current = new Html5Qrcode(fileDecoderId, SCANNER_OPTIONS);
+    }
+
     return () => {
       scanCleanupRef.current?.();
       scanCleanupRef.current = null;
@@ -232,7 +259,7 @@ export function BarcodeScanner({ onScan, onCancel }: Props) {
       fileDecoderRef.current?.clear();
       fileDecoderRef.current = null;
     };
-  }, []);
+  }, [elementId, fileDecoderId]);
 
   const deliverBarcode = useCallback(async (value: string) => {
     if (handledRef.current) return;
@@ -262,32 +289,14 @@ export function BarcodeScanner({ onScan, onCancel }: Props) {
     scanCleanupRef.current = null;
 
     try {
-      // Request camera permission via native API first so mobile browsers
-      // show the prompt before html5-qrcode initialization.
-      await ensureCameraAccess();
-
       if (scannerRef.current) {
         await resetScanner(scannerRef.current);
       } else {
-        scannerRef.current = new Html5Qrcode(elementId, {
-          verbose: false,
-          formatsToSupport: PRODUCT_BARCODE_FORMATS,
-          useBarCodeDetectorIfSupported: true,
-          experimentalFeatures: {
-            useBarCodeDetectorIfSupported: true,
-          },
-        });
+        scannerRef.current = new Html5Qrcode(elementId, SCANNER_OPTIONS);
       }
 
       if (!fileDecoderRef.current) {
-        fileDecoderRef.current = new Html5Qrcode(fileDecoderId, {
-          verbose: false,
-          formatsToSupport: PRODUCT_BARCODE_FORMATS,
-          useBarCodeDetectorIfSupported: true,
-          experimentalFeatures: {
-            useBarCodeDetectorIfSupported: true,
-          },
-        });
+        fileDecoderRef.current = new Html5Qrcode(fileDecoderId, SCANNER_OPTIONS);
       }
 
       scanCleanupRef.current = await startScanner(
@@ -310,6 +319,13 @@ export function BarcodeScanner({ onScan, onCancel }: Props) {
       setStarting(false);
     }
   }, [deliverBarcode, elementId, fileDecoderId, scanning, starting, t]);
+
+  useEffect(() => {
+    if (!autoStart) return;
+    void startCamera();
+    // Only auto-start once on mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoStart]);
 
   const onRefocus = useCallback(async () => {
     if (!scannerRef.current || refocusing) return;
@@ -342,7 +358,9 @@ export function BarcodeScanner({ onScan, onCancel }: Props) {
       </div>
       <div id={fileDecoderId} className="hidden" aria-hidden />
       {scanning ? (
-        <p className="text-sm text-muted">{t("scanner.tips")}</p>
+        <p className="text-sm text-muted">
+          {starting ? t("scanner.starting") : t("scanner.tips")}
+        </p>
       ) : null}
       {!scanning ? (
         <PrimaryButton onClick={() => void startCamera()} disabled={starting}>

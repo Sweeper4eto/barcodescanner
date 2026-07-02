@@ -130,6 +130,7 @@ function ScanFlow() {
           ) : null}
           {message ? <p className="mb-4 text-sm text-error">{message}</p> : null}
           <BarcodeScanner
+            autoStart
             onScan={lookupBarcode}
             onCancel={() => router.push("/app")}
           />
