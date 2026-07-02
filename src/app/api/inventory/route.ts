@@ -7,6 +7,7 @@ import {
 } from "@/lib/audit-details";
 import { logAuditEvent } from "@/lib/audit-log";
 import { requireSession } from "@/lib/auth";
+import { barcodeLookupValues, normalizeBarcode } from "@/lib/barcode";
 import { purgeExpiredInventory } from "@/lib/inventory-purge";
 import { expiryListDateBounds } from "@/lib/expiry";
 import {
@@ -53,6 +54,14 @@ export async function POST(request: Request) {
     );
   }
 
+  const barcode = normalizeBarcode(parsed.data.barcode);
+  if (!barcode) {
+    return NextResponse.json(
+      { error: apiT(request, "errors.invalidData") },
+      { status: 400 },
+    );
+  }
+
   const store = await userCanAccessStore(session.userId, parsed.data.storeId);
   if (!store) {
     return NextResponse.json(
@@ -61,10 +70,13 @@ export async function POST(request: Request) {
     );
   }
 
-  const product = await db.product.findUnique({
-    where: { id: parsed.data.productId },
+  const product = await db.product.findFirst({
+    where: {
+      id: parsed.data.productId,
+      barcode: { in: barcodeLookupValues(barcode) },
+    },
   });
-  if (!product || product.barcode !== parsed.data.barcode) {
+  if (!product) {
     return NextResponse.json(
       { error: apiT(request, "errors.productNotFound") },
       { status: 404 },
@@ -115,7 +127,7 @@ export async function POST(request: Request) {
     data: {
       storeId: parsed.data.storeId,
       productId: product.id,
-      barcode: parsed.data.barcode,
+      barcode: product.barcode,
       quantity: parsed.data.quantity,
       expiryDate,
     },

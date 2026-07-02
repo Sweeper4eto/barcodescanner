@@ -1,6 +1,11 @@
 /** Normalize decoded text for comparison and storage. */
 export function normalizeBarcode(value: string): string {
-  return value.trim();
+  const normalized = value.trim();
+  if (!normalized) return "";
+  if (/^\d{12}$/.test(normalized) && !normalized.startsWith("0")) {
+    return `0${normalized}`;
+  }
+  return normalized;
 }
 
 function isValidEan13Checksum(digits: number[]): boolean {
@@ -92,4 +97,30 @@ export class BarcodeReadConsensus {
 
     return null;
   }
+}
+
+export function barcodeLookupValues(raw: string): string[] {
+  const normalized = normalizeBarcode(raw);
+  if (!normalized) return [];
+
+  if (!/^\d+$/.test(normalized)) {
+    return [normalized];
+  }
+
+  const rawDigits = raw.replace(/\D/g, "");
+  const values = new Set<string>([normalized]);
+  if (rawDigits) {
+    values.add(rawDigits);
+  }
+
+  for (const code of Array.from(values)) {
+    if (code.length === 12 && !code.startsWith("0")) {
+      values.add(`0${code}`);
+    }
+    if (code.length === 13 && code.startsWith("0")) {
+      values.add(code.slice(1));
+    }
+  }
+
+  return [...values];
 }

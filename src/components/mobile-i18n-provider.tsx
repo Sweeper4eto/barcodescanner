@@ -26,22 +26,18 @@ export function MobileI18nProvider({
 }: {
   children: React.ReactNode;
 }) {
-  const [locale, setLocaleState] = useState<MobileLocale>("en");
-  const [ready, setReady] = useState(false);
+  const [locale, setLocaleState] = useState<MobileLocale>(() =>
+    typeof window !== "undefined" ? getClientLocale() : "en",
+  );
 
   useEffect(() => {
-    const initial = getClientLocale();
-    setLocaleState(initial);
-    document.documentElement.lang = initial;
-    setReady(true);
-  }, []);
+    document.documentElement.lang = locale;
+  }, [locale]);
 
   const setLocale = useCallback((next: MobileLocale) => {
     setClientLocale(next);
     setLocaleState(next);
   }, []);
-
-  if (!ready) return null;
 
   return (
     <MobileLocaleContext.Provider value={{ locale, setLocale }}>

@@ -8,13 +8,14 @@ import { BarcodeScanner } from "@/components/barcode-scanner";
 import { CameraCapture, uploadImage } from "@/components/camera-capture";
 import { MobilePageHeader } from "@/components/mobile-page-header";
 import { useT } from "@/components/i18n-provider";
+import { normalizeBarcode } from "@/lib/barcode";
 
 function AddProductFlow() {
   const router = useRouter();
   const { t } = useT();
   const searchParams = useSearchParams();
   const storeId = searchParams.get("storeId") ?? "";
-  const initialBarcode = searchParams.get("barcode") ?? "";
+  const initialBarcode = normalizeBarcode(searchParams.get("barcode") ?? "");
   const [step, setStep] = useState<"scan" | "name" | "photo" | "confirm">(
     initialBarcode ? "name" : "scan",
   );
@@ -26,13 +27,16 @@ function AddProductFlow() {
   const [uploading, setUploading] = useState(false);
 
   const checkBarcode = useCallback(async (value: string) => {
-    const response = await fetch(`/api/products?barcode=${encodeURIComponent(value)}`);
+    const normalized = normalizeBarcode(value);
+    if (!normalized) return;
+
+    const response = await fetch(`/api/products?barcode=${encodeURIComponent(normalized)}`);
     const data = await response.json();
     if (data.product) {
       setError(t("errors.productExistsGlobal"));
       return;
     }
-    setBarcode(value);
+    setBarcode(normalized);
     setError("");
     setStep("name");
   }, [t]);
@@ -69,7 +73,9 @@ function AddProductFlow() {
       setError(data.error ?? t("errors.saveFailed"));
       return;
     }
-    router.push(`/app/scan?storeId=${storeId}`);
+    router.push(
+      `/app/scan?storeId=${encodeURIComponent(storeId)}&barcode=${encodeURIComponent(data.product.barcode)}`,
+    );
   }
 
   return (

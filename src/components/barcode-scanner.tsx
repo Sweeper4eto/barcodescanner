@@ -14,7 +14,7 @@ import {
   startEnhancedAutoScan,
   toggleBarcodeTorch,
 } from "@/lib/barcode-camera";
-import { BarcodeReadConsensus } from "@/lib/barcode";
+import { BarcodeReadConsensus, normalizeBarcode } from "@/lib/barcode";
 
 type Props = {
   onScan: (barcode: string) => void | Promise<void>;
@@ -142,6 +142,21 @@ async function startScanner(
   throw lastError ?? new Error("CAMERA_UNAVAILABLE");
 }
 
+async function ensureCameraAccess(): Promise<void> {
+  if (!navigator.mediaDevices?.getUserMedia) {
+    throw new Error("NO_MEDIA_DEVICES");
+  }
+
+  const stream = await navigator.mediaDevices.getUserMedia({
+    video: { facingMode: { ideal: "environment" } },
+    audio: false,
+  });
+
+  for (const track of stream.getTracks()) {
+    track.stop();
+  }
+}
+
 function scannerErrorKey(
   error: unknown,
 ):
@@ -222,11 +237,12 @@ export function BarcodeScanner({ onScan, onCancel }: Props) {
   const deliverBarcode = useCallback(async (value: string) => {
     if (handledRef.current) return;
     handledRef.current = true;
-    if (!value) {
+    const barcode = normalizeBarcode(value);
+    if (!barcode) {
       handledRef.current = false;
       throw new Error("EMPTY_BARCODE");
     }
-    await onScanRef.current(value);
+    await onScanRef.current(barcode);
   }, []);
 
   const startCamera = useCallback(async () => {
@@ -246,6 +262,10 @@ export function BarcodeScanner({ onScan, onCancel }: Props) {
     scanCleanupRef.current = null;
 
     try {
+      // Request camera permission via native API first so mobile browsers
+      // show the prompt before html5-qrcode initialization.
+      await ensureCameraAccess();
+
       if (scannerRef.current) {
         await resetScanner(scannerRef.current);
       } else {
@@ -353,7 +373,7 @@ export function BarcodeScanner({ onScan, onCancel }: Props) {
         type="button"
         className="w-full rounded-xl bg-primary px-4 py-3 font-medium text-primary-fg"
         onClick={() => {
-          const barcode = manual.trim();
+          const barcode = normalizeBarcode(manual);
           if (barcode) {
             void onScan(barcode);
           }

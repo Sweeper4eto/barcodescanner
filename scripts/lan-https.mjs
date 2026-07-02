@@ -69,7 +69,7 @@ async function ensureCerts(ips) {
 const require = createRequire(import.meta.url);
 const nextBin = require.resolve("next/dist/bin/next");
 
-function runNext(appUrl) {
+function runNext(appUrl, lanIps) {
   const cmd = mode === "dev" ? "dev" : "start";
   const child = spawn(
     process.execPath,
@@ -82,6 +82,7 @@ function runNext(appUrl) {
         NEXT_PUBLIC_APP_URL: appUrl,
         APP_URL: appUrl,
         SESSION_COOKIE_SECURE: "true",
+        ALLOWED_DEV_ORIGINS: lanIps.join(","),
       },
     },
   );
@@ -118,7 +119,7 @@ async function main() {
   const appUrl = `https://${lanIp ?? "localhost"}:${HTTPS_PORT}`;
   const certs = await ensureCerts(ips);
 
-  const nextProc = runNext(appUrl);
+  const nextProc = runNext(appUrl, ips.filter((ip) => ip !== "127.0.0.1"));
 
   const shutdown = () => {
     nextProc.kill();

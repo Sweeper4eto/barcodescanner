@@ -8,6 +8,7 @@ import {
 } from "@/lib/audit-details";
 import { logAuditEvent } from "@/lib/audit-log";
 import { requireSession } from "@/lib/auth";
+import { barcodeLookupValues, normalizeBarcode } from "@/lib/barcode";
 import { db } from "@/lib/db";
 import { apiT } from "@/i18n";
 
@@ -22,7 +23,7 @@ export async function GET(request: Request) {
   }
 
   const { searchParams } = new URL(request.url);
-  const barcode = searchParams.get("barcode")?.trim();
+  const barcode = normalizeBarcode(searchParams.get("barcode") ?? "");
   if (!barcode) {
     return NextResponse.json(
       { error: apiT(request, "errors.missingBarcode") },
@@ -30,7 +31,9 @@ export async function GET(request: Request) {
     );
   }
 
-  const product = await db.product.findUnique({ where: { barcode } });
+  const product = await db.product.findFirst({
+    where: { barcode: { in: barcodeLookupValues(barcode) } },
+  });
   return NextResponse.json({ product });
 }
 
@@ -60,8 +63,16 @@ export async function POST(request: Request) {
     );
   }
 
-  const existing = await db.product.findUnique({
-    where: { barcode: parsed.data.barcode },
+  const barcode = normalizeBarcode(parsed.data.barcode);
+  if (!barcode) {
+    return NextResponse.json(
+      { error: apiT(request, "errors.invalidData") },
+      { status: 400 },
+    );
+  }
+
+  const existing = await db.product.findFirst({
+    where: { barcode: { in: barcodeLookupValues(barcode) } },
   });
   if (existing) {
     return NextResponse.json(
@@ -70,7 +81,9 @@ export async function POST(request: Request) {
     );
   }
 
-  const product = await db.product.create({ data: parsed.data });
+  const product = await db.product.create({
+    data: { ...parsed.data, barcode },
+  });
   await logAuditEvent(
     request,
     session,

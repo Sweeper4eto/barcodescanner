@@ -2,18 +2,21 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useCallback, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { PrimaryButton, SecondaryButton } from "@/components/auth-forms";
 import { BarcodeScanner } from "@/components/barcode-scanner";
 import { ExpiryDatePicker } from "@/components/expiry-date-picker";
 import { MobilePageHeader } from "@/components/mobile-page-header";
 import { useT } from "@/components/i18n-provider";
+import { normalizeBarcode } from "@/lib/barcode";
 
 function ScanFlow() {
   const router = useRouter();
   const { t } = useT();
   const searchParams = useSearchParams();
   const storeId = searchParams.get("storeId") ?? "";
+  const pendingBarcode = searchParams.get("barcode") ?? "";
+  const autoLookupDone = useRef(false);
   const [barcode, setBarcode] = useState("");
   const [step, setStep] = useState<"scan" | "qty" | "date" | "missing">("scan");
   const [product, setProduct] = useState<{
@@ -29,7 +32,7 @@ function ScanFlow() {
 
   const lookupBarcode = useCallback(
     async (value: string) => {
-      const normalized = value.trim();
+      const normalized = normalizeBarcode(value);
       if (!normalized) return;
 
       setBarcode(normalized);
@@ -81,6 +84,12 @@ function ScanFlow() {
     },
     [router, t],
   );
+
+  useEffect(() => {
+    if (!pendingBarcode || autoLookupDone.current) return;
+    autoLookupDone.current = true;
+    void lookupBarcode(pendingBarcode);
+  }, [lookupBarcode, pendingBarcode]);
 
   async function submitInventory() {
     if (!product || !expiryDate) return;

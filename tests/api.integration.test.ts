@@ -101,6 +101,31 @@ test("products API requires authentication", async () => {
   assert.equal(response.status, 401);
 });
 
+test("product lookup matches UPC-A and EAN-13 barcodes", async () => {
+  const client = await seedClientWithStore(db);
+  const store = client.stores[0];
+  const user = await seedUserWithAccess(db, client.id, store.id);
+
+  const login = await loginUser(user.username, "password123");
+  assert.equal(login.ok, true);
+  if (!login.ok) return;
+  await setMockSession(login.token);
+
+  const createProduct = await jsonRequest(productsPost, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ barcode: "400229340110", name: "UPC Product" }),
+  });
+  assert.equal(createProduct.response.status, 201);
+  assert.equal(createProduct.data.product.barcode, "0400229340110");
+
+  const lookupUpc = await jsonRequest(productsGet, {
+    url: "http://localhost/api/products?barcode=400229340110",
+  });
+  assert.equal(lookupUpc.response.status, 200);
+  assert.equal(lookupUpc.data.product?.name, "UPC Product");
+});
+
 test("full inventory flow via APIs", async () => {
   const client = await seedClientWithStore(db);
   const store = client.stores[0];
