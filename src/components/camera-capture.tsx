@@ -144,7 +144,7 @@ export function CameraCapture({ onCapture, onCancel }: Props) {
             ref={videoRef}
             className={
               active
-                ? "w-full rounded-xl border border-card-border"
+                ? "max-w-full rounded-xl border border-card-border"
                 : "hidden"
             }
             playsInline

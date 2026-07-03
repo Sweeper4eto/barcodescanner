@@ -6,7 +6,7 @@ import { t } from "@/i18n";
 
 export default function HomePage() {
   return (
-    <div className="mx-auto flex min-h-full max-w-lg flex-col justify-center gap-6 px-4 py-12">
+    <div className="mx-auto flex min-h-full min-w-0 max-w-lg flex-col justify-center gap-6 px-4 py-12">
       <div className="rounded-2xl border border-card-border bg-card p-8 shadow-sm">
         <div className="flex items-center gap-4">
           <AppLogo size={64} />

@@ -113,7 +113,7 @@ function ExpiryList() {
   const emptyMessage = isSearching ? t("expiry.noResults") : t("expiry.empty");
 
   return (
-    <div className="mx-auto max-w-lg px-4 py-6">
+    <div className="mx-auto min-w-0 max-w-lg px-4 py-6">
       <MobilePageHeader
         title={t("expiry.title")}
         action={
@@ -185,9 +185,9 @@ function ExpiryList() {
                 className={`rounded-2xl border p-4 ${expiryUrgencyClass(new Date(entry.expiryDate))}`}
               >
                 <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="font-medium">{entry.product.name}</p>
-                    <p className="mt-1 text-sm text-muted">
+                  <div className="min-w-0 flex-1">
+                    <p className="break-words font-medium">{entry.product.name}</p>
+                    <p className="mt-1 break-all text-sm text-muted">
                       {t("common.barcode")}: {entry.barcode}
                     </p>
                     <p className="text-sm text-muted">
@@ -203,7 +203,7 @@ function ExpiryList() {
                     </p>
                   </div>
                   <button
-                    className="rounded-lg border border-input-border bg-card px-3 py-2 text-sm text-foreground"
+                    className="shrink-0 rounded-lg border border-input-border bg-card px-3 py-2 text-sm text-foreground"
                     onClick={() => setConfirmId(entry.id)}
                   >
                     {t("expiry.remove")}
@@ -215,16 +215,16 @@ function ExpiryList() {
       </div>
 
       {!loading && !isSearching && pagination.totalPages > 1 ? (
-        <div className="mt-6 flex items-center justify-between gap-3">
+        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <button
             type="button"
             disabled={page <= 1}
             onClick={() => setPage((current) => Math.max(1, current - 1))}
-            className="rounded-xl border border-input-border bg-card px-4 py-3 text-sm font-medium text-foreground disabled:opacity-50"
+            className="w-full rounded-xl border border-input-border bg-card px-4 py-3 text-sm font-medium text-foreground disabled:opacity-50 sm:w-auto"
           >
             {t("expiry.previous")}
           </button>
-          <p className="text-sm text-muted">
+          <p className="text-center text-sm text-muted">
             {t("expiry.pageOf", {
               page: pagination.page,
               totalPages: pagination.totalPages,
@@ -236,7 +236,7 @@ function ExpiryList() {
             onClick={() =>
               setPage((current) => Math.min(pagination.totalPages, current + 1))
             }
-            className="rounded-xl border border-input-border bg-card px-4 py-3 text-sm font-medium text-foreground disabled:opacity-50"
+            className="w-full rounded-xl border border-input-border bg-card px-4 py-3 text-sm font-medium text-foreground disabled:opacity-50 sm:w-auto"
           >
             {t("expiry.next")}
           </button>
@@ -248,15 +248,15 @@ function ExpiryList() {
           <div className="w-full rounded-2xl bg-card p-4">
             <p className="font-medium">{t("expiry.confirmTitle")}</p>
             <p className="mt-2 text-sm text-muted">{t("expiry.confirmMessage")}</p>
-            <div className="mt-4 grid grid-cols-2 gap-3">
+            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
               <button
-                className="rounded-xl border border-input-border bg-card px-4 py-3 text-foreground"
+                className="w-full rounded-xl border border-input-border bg-card px-4 py-3 text-foreground"
                 onClick={() => setConfirmId(null)}
               >
                 {t("expiry.confirmCancel")}
               </button>
               <button
-                className="rounded-xl bg-danger px-4 py-3 text-danger-fg"
+                className="w-full rounded-xl bg-danger px-4 py-3 text-danger-fg"
                 onClick={() => void removeEntry(confirmId)}
               >
                 {t("expiry.remove")}

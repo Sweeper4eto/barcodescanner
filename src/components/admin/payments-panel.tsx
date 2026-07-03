@@ -111,14 +111,22 @@ export function PaymentsPanel() {
   return (
     <div className="space-y-6">
       <section className="rounded-2xl border border-card-border p-4">
-        <div className="flex items-center justify-between">
-          <button className="rounded-lg border border-input-border bg-card px-3 py-2 text-foreground" onClick={() => shiftMonth(-1)}>
+        <div className="flex items-center justify-between gap-2">
+          <button
+            type="button"
+            className="shrink-0 rounded-lg border border-input-border bg-card px-3 py-2 text-foreground"
+            onClick={() => shiftMonth(-1)}
+          >
             ←
           </button>
-          <h2 className="text-lg font-medium">
+          <h2 className="min-w-0 flex-1 text-center text-lg font-medium">
             {monthName(month)} {year}
           </h2>
-          <button className="rounded-lg border border-input-border bg-card px-3 py-2 text-foreground" onClick={() => shiftMonth(1)}>
+          <button
+            type="button"
+            className="shrink-0 rounded-lg border border-input-border bg-card px-3 py-2 text-foreground"
+            onClick={() => shiftMonth(1)}
+          >
             →
           </button>
         </div>
@@ -168,13 +176,13 @@ export function PaymentsPanel() {
           </p>
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
             <input
-              className="rounded-xl border border-input-border bg-input text-foreground px-3 py-2"
+              className="min-w-0 rounded-xl border border-input-border bg-input px-3 py-2 text-foreground"
               placeholder={t("admin.discountPlaceholder", { currency })}
               value={discount}
               onChange={(event) => setDiscount(event.target.value)}
             />
             <input
-              className="rounded-xl border border-input-border bg-input text-foreground px-3 py-2"
+              className="min-w-0 rounded-xl border border-input-border bg-input px-3 py-2 text-foreground"
               placeholder={t("admin.notesPlaceholder")}
               value={notes}
               onChange={(event) => setNotes(event.target.value)}

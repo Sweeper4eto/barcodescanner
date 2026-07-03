@@ -156,8 +156,8 @@ export function UsersPanel({ clients, onRefresh }: Props) {
   const selectedUser = users.find((user) => user.id === selectedUserId);
 
   return (
-    <div className="grid gap-6 lg:grid-cols-2">
-      <section className="rounded-2xl border border-card-border p-4">
+    <div className="grid min-w-0 gap-6 lg:grid-cols-2">
+      <section className="min-w-0 rounded-2xl border border-card-border p-4">
         <h2 className="font-medium">{t("admin.allUsers")}</h2>
         <div className="mt-3 max-h-[32rem] space-y-2 overflow-y-auto">
           {users.map((user) => (
@@ -183,7 +183,7 @@ export function UsersPanel({ clients, onRefresh }: Props) {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-card-border p-4">
+      <section className="min-w-0 rounded-2xl border border-card-border p-4">
         <h2 className="font-medium">{t("admin.assignment")}</h2>
         {!selectedUser ? (
           <p className="mt-3 text-sm text-muted">{t("admin.selectUser")}</p>

@@ -58,7 +58,7 @@ export default function RootLayout({
       lang={defaultLocale}
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="flex min-h-full flex-col bg-background text-foreground">
+      <body className="flex min-h-full min-w-0 flex-col overflow-x-clip bg-background text-foreground">
         <I18nProvider locale={defaultLocale}>{children}</I18nProvider>
         <PwaRegister />
       </body>

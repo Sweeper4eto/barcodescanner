@@ -350,11 +350,11 @@ export function BarcodeScanner({ onScan, onCancel, autoStart = false }: Props) {
       <div
         className={
           scanning
-            ? "overflow-hidden rounded-xl border border-card-border"
+            ? "barcode-scanner-view overflow-hidden rounded-xl border border-card-border"
             : "h-0 overflow-hidden"
         }
       >
-        <div id={elementId} />
+        <div id={elementId} className="w-full max-w-full" />
       </div>
       <div id={fileDecoderId} className="hidden" aria-hidden />
       {scanning ? (
@@ -367,7 +367,9 @@ export function BarcodeScanner({ onScan, onCancel, autoStart = false }: Props) {
           {starting ? t("scanner.starting") : t("scanner.startCamera")}
         </PrimaryButton>
       ) : (
-        <div className="grid grid-cols-2 gap-2">
+        <div
+          className={`grid gap-2 ${torchAvailable ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1"}`}
+        >
           <SecondaryButton onClick={() => void onRefocus()}>
             {refocusing ? t("scanner.refocusing") : t("scanner.refocus")}
           </SecondaryButton>
@@ -375,14 +377,12 @@ export function BarcodeScanner({ onScan, onCancel, autoStart = false }: Props) {
             <SecondaryButton onClick={() => void onTorchToggle()}>
               {torchOn ? t("scanner.torchOff") : t("scanner.torchOn")}
             </SecondaryButton>
-          ) : (
-            <div />
-          )}
+          ) : null}
         </div>
       )}
       {error ? <p className="text-sm text-warning-fg">{error}</p> : null}
       <input
-        className="w-full rounded-xl border border-input-border bg-input px-3 py-3 text-foreground"
+        className="w-full min-w-0 rounded-xl border border-input-border bg-input px-3 py-3 text-foreground"
         placeholder={t("scanner.manualPlaceholder")}
         value={manual}
         onChange={(event) => setManual(event.target.value)}

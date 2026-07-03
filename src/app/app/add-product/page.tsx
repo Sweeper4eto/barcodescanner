@@ -79,7 +79,7 @@ function AddProductFlow() {
   }
 
   return (
-    <div className="mx-auto max-w-lg px-4 py-6">
+    <div className="mx-auto min-w-0 max-w-lg px-4 py-6">
       <MobilePageHeader
         title={t("addProduct.title")}
         action={

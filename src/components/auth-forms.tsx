@@ -18,7 +18,7 @@ export function AuthShell({
   const { t } = useT();
 
   return (
-    <div className="mx-auto flex min-h-full w-full max-w-md flex-col justify-center px-4 py-10">
+    <div className="mx-auto flex min-h-full w-full min-w-0 max-w-md flex-col justify-center px-4 py-10">
       <div className="rounded-2xl border border-card-border bg-card p-6 shadow-sm">
         <div className="flex flex-col items-center text-center">
           <AppLogo size={56} />

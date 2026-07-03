@@ -113,7 +113,7 @@ function ScanFlow() {
   }
 
   return (
-    <div className="mx-auto max-w-lg px-4 py-6">
+    <div className="mx-auto min-w-0 max-w-lg px-4 py-6">
       <MobilePageHeader
         title={t("scan.title")}
         action={
@@ -162,12 +162,12 @@ function ScanFlow() {
             />
           ) : null}
           <p className="font-medium">{product.name}</p>
-          <div className="grid grid-cols-5 gap-2">
+          <div className="grid grid-cols-4 gap-2 sm:grid-cols-5">
             {Array.from({ length: 20 }, (_, index) => index + 1).map((value) => (
               <button
                 key={value}
                 type="button"
-                className={`rounded-lg border border-input-border bg-card text-foreground px-2 py-3 ${quantity === String(value) ? "border-primary bg-selected" : "border-card-border"}`}
+                className={`min-w-0 rounded-lg border border-input-border bg-card px-1 py-3 text-sm text-foreground sm:px-2 ${quantity === String(value) ? "border-primary bg-selected" : "border-card-border"}`}
                 onClick={() => setQuantity(String(value))}
               >
                 {value}

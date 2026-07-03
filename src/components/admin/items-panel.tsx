@@ -5,7 +5,11 @@ import {
   AdminEmptyState,
   AdminField,
   AdminSection,
+  adminButtonRowClass,
+  adminDangerButtonClass,
   adminInputClass,
+  adminPaginationClass,
+  adminSearchInputClass,
 } from "@/components/admin/admin-ui";
 import { PrimaryButton } from "@/components/auth-forms";
 import { useT } from "@/components/i18n-provider";
@@ -154,12 +158,12 @@ export function ItemsPanel({ onRefresh }: Props) {
   const safePage = Math.min(page, totalPages);
 
   return (
-    <div className="grid gap-6 md:grid-cols-12">
-      <div className="md:col-span-4">
+    <div className="grid min-w-0 gap-6 md:grid-cols-12">
+      <div className="min-w-0 md:col-span-4">
         <AdminSection title={t("admin.items")}>
-          <form className="mb-4 flex gap-2" onSubmit={onSearch}>
+          <form className="mb-4 flex min-w-0 gap-2" onSubmit={onSearch}>
             <input
-              className={adminInputClass}
+              className={adminSearchInputClass}
               placeholder={t("admin.searchPlaceholder")}
               value={search}
               onChange={(event) => setSearch(event.target.value)}
@@ -206,7 +210,7 @@ export function ItemsPanel({ onRefresh }: Props) {
             )}
           </div>
           {totalPages > 1 ? (
-            <div className="mt-4 flex items-center justify-between gap-3 border-t border-card-border pt-4">
+            <div className={`mt-4 ${adminPaginationClass}`}>
               <p className="text-sm text-muted">
                 {t("admin.pageOf", { page: safePage, totalPages })}
               </p>
@@ -238,7 +242,7 @@ export function ItemsPanel({ onRefresh }: Props) {
         </AdminSection>
       </div>
 
-      <div className="md:col-span-8">
+      <div className="min-w-0 md:col-span-8">
         {!selectedId ? (
           <AdminEmptyState message={t("admin.selectItem")} />
         ) : (
@@ -304,7 +308,7 @@ export function ItemsPanel({ onRefresh }: Props) {
                   {saveMessage}
                 </p>
               ) : null}
-              <div className="grid grid-cols-2 gap-2">
+              <div className={adminButtonRowClass}>
                 <PrimaryButton
                   disabled={!itemDirty || saving || uploading}
                   onClick={() => void saveProduct()}
@@ -313,7 +317,7 @@ export function ItemsPanel({ onRefresh }: Props) {
                 </PrimaryButton>
                 <button
                   type="button"
-                  className="rounded-xl border border-danger-border px-3 py-3 text-sm font-medium text-error"
+                  className={adminDangerButtonClass}
                   onClick={() => void deleteProduct()}
                 >
                   {t("common.delete")}

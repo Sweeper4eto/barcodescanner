@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
-import { AdminField, adminInputClass } from "@/components/admin/admin-ui";
+import { AdminField, adminInputClass, adminPaginationClass, adminSearchInputClass } from "@/components/admin/admin-ui";
 import { useT } from "@/components/i18n-provider";
 import type { MessageKey } from "@/i18n";
 
@@ -230,9 +230,9 @@ export function AuditLogPanel() {
         </AdminField>
       </div>
 
-      <form className="flex flex-wrap gap-2" onSubmit={onSearch}>
+      <form className="flex min-w-0 flex-wrap gap-2" onSubmit={onSearch}>
         <input
-          className={`${adminInputClass} min-w-[12rem] flex-1`}
+          className={adminSearchInputClass}
           placeholder={t("admin.auditSearchPlaceholder")}
           value={search}
           onChange={(event) => setSearch(event.target.value)}
@@ -285,8 +285,8 @@ export function AuditLogPanel() {
             <tbody>
               {entries.map((entry) => (
                 <tr key={entry.id} className="border-b border-card-border last:border-0">
-                  <td className="whitespace-nowrap px-4 py-3 text-foreground">
-                    {formatDate(entry.occurredAt)}
+                  <td className="px-4 py-3 text-foreground">
+                    <span className="whitespace-nowrap">{formatDate(entry.occurredAt)}</span>
                   </td>
                   <td className="px-4 py-3">
                     <span
@@ -299,7 +299,7 @@ export function AuditLogPanel() {
                   <td className="max-w-md px-4 py-3 text-muted" title={entry.details || undefined}>
                     {entry.details || "—"}
                   </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-muted">
+                  <td className="break-all px-4 py-3 text-muted">
                     {entry.ipAddress || "—"}
                   </td>
                   <td className="max-w-[10rem] px-4 py-3 text-muted">{entry.deviceInfo || "—"}</td>
@@ -310,13 +310,13 @@ export function AuditLogPanel() {
         )}
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-card-border pt-4">
+      <div className={adminPaginationClass}>
         <p className="text-sm text-muted">
           {total === 0
             ? t("admin.noAuditEntries")
             : t("admin.showingEntries", { start, end, total })}
         </p>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <p className="text-sm text-muted">
             {t("admin.pageOf", { page: safePage, totalPages })}
           </p>

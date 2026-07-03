@@ -6,7 +6,10 @@ import {
   AdminField,
   AdminSection,
   AdminTabBar,
+  adminButtonRowClass,
+  adminDangerButtonClass,
   adminInputClass,
+  adminPaginationClass,
 } from "@/components/admin/admin-ui";
 import { PrimaryButton } from "@/components/auth-forms";
 import { useT } from "@/components/i18n-provider";
@@ -312,8 +315,8 @@ export function ClientsPanel({ onRefresh }: Props) {
           </AdminSection>
         </div>
       ) : (
-        <div className="grid gap-6 md:grid-cols-12">
-          <div className="md:col-span-4">
+        <div className="grid min-w-0 gap-6 md:grid-cols-12">
+          <div className="min-w-0 md:col-span-4">
             <AdminSection title={t("admin.currentClients")}>
               <form
                 className="mb-4 flex gap-2"
@@ -367,7 +370,7 @@ export function ClientsPanel({ onRefresh }: Props) {
             </AdminSection>
           </div>
 
-          <div className="md:col-span-8">
+          <div className="min-w-0 md:col-span-8">
             {!selectedId ? (
               <AdminEmptyState message={t("admin.selectClient")} />
             ) : (
@@ -446,7 +449,7 @@ export function ClientsPanel({ onRefresh }: Props) {
                           {saveMessage}
                         </p>
                       ) : null}
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className={adminButtonRowClass}>
                         <PrimaryButton
                           disabled={!clientDirty || saving}
                           onClick={() => void saveClient()}
@@ -455,7 +458,7 @@ export function ClientsPanel({ onRefresh }: Props) {
                         </PrimaryButton>
                         <button
                           type="button"
-                          className="rounded-xl border border-danger-border px-3 py-3 text-sm font-medium text-error"
+                          className={adminDangerButtonClass}
                           onClick={() => void deleteClient()}
                         >
                           {t("common.delete")}
@@ -482,14 +485,14 @@ export function ClientsPanel({ onRefresh }: Props) {
                             ))}
                           </div>
                           {storeTotalPages > 1 ? (
-                            <div className="flex items-center justify-between gap-3 border-t border-card-border pt-4">
+                            <div className={adminPaginationClass}>
                               <p className="text-sm text-muted">
                                 {t("admin.pageOf", {
                                   page: safeStorePage,
                                   totalPages: storeTotalPages,
                                 })}
                               </p>
-                              <div className="flex gap-2">
+                              <div className="flex flex-wrap gap-2">
                                 <button
                                   type="button"
                                   disabled={safeStorePage <= 1}
@@ -681,18 +684,18 @@ function StoreCard({
               setForm({ ...form, additionalInfo: event.target.value })
             }
           />
-          <div className="flex gap-2">
+          <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
               disabled={!storeDirty || saving}
-              className="rounded-lg bg-primary px-2 py-1 text-xs text-primary-fg disabled:opacity-50"
+              className="w-full rounded-lg bg-primary px-2 py-2 text-xs text-primary-fg disabled:opacity-50"
               onClick={() => void save()}
             >
               {saving ? t("admin.saving") : t("common.save")}
             </button>
             <button
               type="button"
-              className="rounded-lg border border-input-border bg-card px-2 py-1 text-xs text-foreground"
+              className="w-full rounded-lg border border-input-border bg-card px-2 py-2 text-xs text-foreground"
               onClick={cancelEdit}
             >
               {t("common.cancel")}

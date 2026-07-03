@@ -56,13 +56,13 @@ export default function AppHomePage() {
   }
 
   return (
-    <div className="mx-auto min-h-full max-w-lg px-4 py-6">
-      <header className="mb-6 flex items-start justify-between gap-2">
-        <div>
-          <p className="text-sm text-muted">
+    <div className="mx-auto min-h-full min-w-0 max-w-lg px-4 py-6">
+      <header className="mb-6 flex items-center justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm text-muted">
             {t("app.greeting", { username })}
           </p>
-          <h1 className="text-2xl font-semibold">{t("app.workingStore")}</h1>
+          <h1 className="break-words text-2xl font-semibold">{t("app.workingStore")}</h1>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <LanguageSwitch />
