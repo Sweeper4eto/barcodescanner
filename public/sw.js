@@ -1,9 +1,9 @@
-const CACHE_NAME = "expire365-v1";
-const PRECACHE_URLS = ["/", "/login", "/register", "/app"];
+const CACHE_NAME = "expire365-v2";
+const OFFLINE_FALLBACKS = ["/app", "/login", "/"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE_URLS)),
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(OFFLINE_FALLBACKS)),
   );
   self.skipWaiting();
 });
@@ -32,17 +32,16 @@ self.addEventListener("fetch", (event) => {
     request.mode === "navigate" ||
     request.headers.get("accept")?.includes("text/html");
 
+  // Never cache HTML navigations — stale documents break Next.js back/forward.
   if (isDocument) {
     event.respondWith(
-      fetch(request)
-        .then((response) => {
-          if (response.ok && response.type === "basic") {
-            const copy = response.clone();
-            void caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
-          }
-          return response;
-        })
-        .catch(() => caches.match(request)),
+      fetch(request).catch(async () => {
+        for (const path of OFFLINE_FALLBACKS) {
+          const cached = await caches.match(path);
+          if (cached) return cached;
+        }
+        return Response.error();
+      }),
     );
     return;
   }

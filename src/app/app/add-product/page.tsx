@@ -9,6 +9,7 @@ import { CameraCapture, uploadImage } from "@/components/camera-capture";
 import { MobilePageHeader } from "@/components/mobile-page-header";
 import { useT } from "@/components/i18n-provider";
 import { normalizeBarcode } from "@/lib/barcode";
+import { useWizardHistory } from "@/lib/wizard-history";
 
 function AddProductFlow() {
   const router = useRouter();
@@ -16,9 +17,13 @@ function AddProductFlow() {
   const searchParams = useSearchParams();
   const storeId = searchParams.get("storeId") ?? "";
   const initialBarcode = normalizeBarcode(searchParams.get("barcode") ?? "");
-  const [step, setStep] = useState<"scan" | "name" | "photo" | "confirm">(
-    initialBarcode ? "name" : "scan",
-  );
+  const initialStep = initialBarcode ? "name" : "scan";
+  const [step, setStep] = useState<"scan" | "name" | "photo" | "confirm">(initialStep);
+  const { goToStep } = useWizardHistory({
+    step,
+    initialStep,
+    setStep,
+  });
   const [barcode, setBarcode] = useState(initialBarcode);
   const [name, setName] = useState("");
   const [imagePath, setImagePath] = useState("");
@@ -38,14 +43,14 @@ function AddProductFlow() {
     }
     setBarcode(normalized);
     setError("");
-    setStep("name");
-  }, [t]);
+    goToStep("name");
+  }, [goToStep, t]);
 
   async function onPhotoCapture(dataUrl: string) {
     setPhotoPreview(dataUrl);
     setImagePath("");
     setError("");
-    setStep("confirm");
+    goToStep("confirm");
     setUploading(true);
 
     try {
@@ -73,7 +78,7 @@ function AddProductFlow() {
       setError(data.error ?? t("errors.saveFailed"));
       return;
     }
-    router.push(
+    router.replace(
       `/app/scan?storeId=${encodeURIComponent(storeId)}&barcode=${encodeURIComponent(data.product.barcode)}`,
     );
   }
@@ -110,7 +115,7 @@ function AddProductFlow() {
             value={name}
             onChange={(event) => setName(event.target.value)}
           />
-          <PrimaryButton onClick={() => setStep("photo")} disabled={!name.trim()}>
+          <PrimaryButton onClick={() => goToStep("photo")} disabled={!name.trim()}>
             {t("common.next")}
           </PrimaryButton>
           <SecondaryButton onClick={() => router.push("/app")}>{t("common.cancel")}</SecondaryButton>

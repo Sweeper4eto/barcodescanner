@@ -9,6 +9,7 @@ import { ExpiryDatePicker } from "@/components/expiry-date-picker";
 import { MobilePageHeader } from "@/components/mobile-page-header";
 import { useT } from "@/components/i18n-provider";
 import { normalizeBarcode } from "@/lib/barcode";
+import { useWizardHistory } from "@/lib/wizard-history";
 
 function ScanFlow() {
   const router = useRouter();
@@ -29,6 +30,11 @@ function ScanFlow() {
   const [expiryDate, setExpiryDate] = useState("");
   const [message, setMessage] = useState("");
   const [lookingUp, setLookingUp] = useState(false);
+  const { goToStep } = useWizardHistory({
+    step,
+    initialStep: "scan",
+    setStep,
+  });
 
   const lookupBarcode = useCallback(
     async (value: string) => {
@@ -66,12 +72,12 @@ function ScanFlow() {
         }
 
         if (!data.product) {
-          setStep("missing");
+          goToStep("missing");
           return;
         }
 
         setProduct(data.product);
-        setStep("qty");
+        goToStep("qty");
       } catch (error) {
         if (error instanceof Error && error.message === "LOOKUP_FAILED") {
           throw error;
@@ -82,7 +88,7 @@ function ScanFlow() {
         setLookingUp(false);
       }
     },
-    [router, t],
+    [goToStep, router, t],
   );
 
   useEffect(() => {
@@ -109,7 +115,7 @@ function ScanFlow() {
       setMessage(data.error ?? t("errors.saveFailed"));
       return;
     }
-    router.push("/app");
+    router.replace("/app");
   }
 
   return (
@@ -147,7 +153,7 @@ function ScanFlow() {
           >
             {t("common.yes")}
           </PrimaryButton>
-          <SecondaryButton onClick={() => setStep("scan")}>{t("common.no")}</SecondaryButton>
+          <SecondaryButton onClick={() => goToStep("scan")}>{t("common.no")}</SecondaryButton>
         </div>
       ) : null}
 
@@ -182,7 +188,7 @@ function ScanFlow() {
               setQuantity(event.target.value.replace(/[^\d]/g, ""))
             }
           />
-          <PrimaryButton onClick={() => setStep("date")} disabled={!quantity || Number(quantity) < 1}>
+          <PrimaryButton onClick={() => goToStep("date")} disabled={!quantity || Number(quantity) < 1}>
             {t("common.next")}
           </PrimaryButton>
           <SecondaryButton onClick={() => router.push("/app")}>{t("common.cancel")}</SecondaryButton>

@@ -97,8 +97,8 @@ export const en = {
     greeting: "Hello, {username}",
     workingStore: "Working store",
     selectStore: "Select store",
-    scanStock: "Scan stock",
-    addStock: "Add stock",
+    scanStock: "Scan item",
+    addStock: "Add new item",
     expiry: "Expiry",
     noStores:
       "You have no assigned stores. Contact an administrator.",
@@ -123,13 +123,13 @@ export const en = {
     digestSoonBody: "Next: {productName} at {storeName}",
   },
   scan: {
-    title: "Scan stock",
+    title: "Scan item",
     lookingUp: "Looking up product...",
     productMissing: "Product not found. Would you like to add it?",
     enter: "Add to inventory",
   },
   addProduct: {
-    title: "Add stock",
+    title: "Add new item",
     productName: "Product name",
     takePhoto: "Take a photo of the product",
     uploading: "Uploading...",
