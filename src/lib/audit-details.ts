@@ -165,11 +165,18 @@ export function auditProductCreated(product: ProductLike): string {
   ]);
 }
 
-export function auditProductUpdated(before: ProductLike, after: ProductLike): string {
+export function auditProductUpdated(
+  before: ProductLike,
+  after: ProductLike,
+  inventoryBarcodeUpdates = 0,
+): string {
   return auditSubjectWithChanges(`product "${after.name}"`, [
     auditFieldChange("name", before.name, after.name),
     auditFieldChange("barcode", before.barcode, after.barcode),
     before.imagePath !== after.imagePath ? "image updated" : null,
+    inventoryBarcodeUpdates > 0
+      ? `inventory barcode synced (${inventoryBarcodeUpdates} entries)`
+      : null,
   ]);
 }
 

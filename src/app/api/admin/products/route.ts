@@ -6,6 +6,7 @@ import {
 } from "@/lib/audit-details";
 import { logAuditEvent } from "@/lib/audit-log";
 import { requireAdmin } from "@/lib/auth";
+import { barcodeLookupValues, normalizeBarcode } from "@/lib/barcode";
 import { db } from "@/lib/db";
 import { apiT } from "@/i18n";
 
@@ -86,9 +87,24 @@ export async function PATCH(request: Request) {
 
   const { id, ...data } = parsed.data;
 
-  if (data.barcode) {
+  const updateData = { ...data };
+  if (updateData.barcode !== undefined) {
+    const barcode = normalizeBarcode(updateData.barcode);
+    if (!barcode) {
+      return NextResponse.json(
+        { error: apiT(request, "errors.invalidData") },
+        { status: 400 },
+      );
+    }
+    updateData.barcode = barcode;
+  }
+
+  if (updateData.barcode) {
     const existing = await db.product.findFirst({
-      where: { barcode: data.barcode, NOT: { id } },
+      where: {
+        barcode: { in: barcodeLookupValues(updateData.barcode) },
+        NOT: { id },
+      },
     });
     if (existing) {
       return NextResponse.json(
@@ -106,13 +122,30 @@ export async function PATCH(request: Request) {
     );
   }
 
-  const product = await db.product.update({ where: { id }, data });
+  const barcodeChanged =
+    updateData.barcode !== undefined && updateData.barcode !== before.barcode;
+
+  let inventoryBarcodeUpdates = 0;
+
+  const product = await db.$transaction(async (tx) => {
+    const updated = await tx.product.update({ where: { id }, data: updateData });
+
+    if (barcodeChanged) {
+      const result = await tx.inventoryEntry.updateMany({
+        where: { productId: id },
+        data: { barcode: updated.barcode },
+      });
+      inventoryBarcodeUpdates = result.count;
+    }
+
+    return updated;
+  });
 
   await logAuditEvent(
     request,
     admin,
     "product_updated",
-    auditProductUpdated(before, product),
+    auditProductUpdated(before, product, inventoryBarcodeUpdates),
   );
 
   return NextResponse.json({ product });

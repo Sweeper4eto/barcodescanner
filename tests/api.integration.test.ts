@@ -32,6 +32,7 @@ let clientsPost: (request: Request) => Promise<Response>;
 let usersPatch: (request: Request) => Promise<Response>;
 let paymentsPost: (request: Request) => Promise<Response>;
 let calendarGet: (request: Request) => Promise<Response>;
+let adminProductsPatch: (request: Request) => Promise<Response>;
 
 async function jsonRequest(
   handler: (request: Request) => Promise<Response>,
@@ -62,6 +63,9 @@ test.before(async () => {
   ({ POST: paymentsPost } = await import("../src/app/api/admin/payments/route"));
   ({ GET: calendarGet } = await import(
     "../src/app/api/admin/payments/calendar/route"
+  ));
+  ({ PATCH: adminProductsPatch } = await import(
+    "../src/app/api/admin/products/route"
   ));
 });
 
@@ -238,6 +242,87 @@ test("POST /api/inventory merges quantity for active same product and expiry day
   });
   assert.equal(list.data.entries.length, 1);
   assert.equal(list.data.entries[0].quantity, 5);
+});
+
+test("PATCH /api/admin/products updates barcode on all inventory entries", async () => {
+  const client = await seedClientWithStore(db);
+  const storeA = client.stores[0];
+  const storeB = await db.store.create({
+    data: { clientId: client.id, name: "Store B" },
+  });
+  const user = await seedUserWithAccess(db, client.id, storeA.id);
+  await db.userStore.create({
+    data: { userId: user.id, storeId: storeB.id },
+  });
+
+  const login = await loginUser(user.username, "password123");
+  assert.equal(login.ok, true);
+  if (!login.ok) return;
+  await setMockSession(login.token);
+
+  const createProduct = await jsonRequest(productsPost, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ barcode: "111222", name: "Milk" }),
+  });
+  assert.equal(createProduct.response.status, 201);
+  const productId = createProduct.data.product.id as string;
+
+  const expiry = new Date();
+  expiry.setUTCDate(expiry.getUTCDate() + 10);
+  expiry.setUTCHours(0, 0, 0, 0);
+
+  for (const storeId of [storeA.id, storeB.id]) {
+    const created = await jsonRequest(inventoryPost, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        storeId,
+        barcode: "111222",
+        productId,
+        quantity: 1,
+        expiryDate: expiry.toISOString(),
+      }),
+    });
+    assert.equal(created.response.status, 201);
+    assert.equal(created.data.entry.barcode, "111222");
+  }
+
+  const adminLogin = await loginUser("admin", "admin123");
+  assert.equal(adminLogin.ok, true);
+  if (!adminLogin.ok) return;
+  await setMockSession(adminLogin.token);
+
+  const updated = await jsonRequest(adminProductsPatch, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      id: productId,
+      barcode: "999888",
+    }),
+  });
+  assert.equal(updated.response.status, 200);
+  assert.equal(updated.data.product.barcode, "999888");
+
+  const entries = await db.inventoryEntry.findMany({ where: { productId } });
+  assert.equal(entries.length, 2);
+  assert.ok(entries.every((entry) => entry.barcode === "999888"));
+
+  await setMockSession(login.token);
+
+  for (const storeId of [storeA.id, storeB.id]) {
+    const list = await jsonRequest(inventoryGet, {
+      url: `http://localhost/api/inventory?storeId=${storeId}`,
+    });
+    assert.equal(list.response.status, 200);
+    assert.equal(list.data.entries.length, 1);
+    assert.equal(list.data.entries[0].barcode, "999888");
+  }
+
+  const search = await jsonRequest(inventoryGet, {
+    url: `http://localhost/api/inventory?storeId=${storeA.id}&q=999888`,
+  });
+  assert.equal(search.data.entries.length, 1);
 });
 
 test("POST /api/inventory does not merge removed entries with same expiry", async () => {
