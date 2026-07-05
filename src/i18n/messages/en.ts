@@ -135,6 +135,9 @@ export const en = {
     lookingUp: "Looking up product...",
     productMissing: "Product not found. Would you like to add it?",
     enter: "Add",
+    itemsHeader: "Items",
+    changeQuantity: "Change quantity",
+    manualQuantity: "Or enter quantity",
   },
   addProduct: {
     title: "Add new item",
@@ -173,6 +176,9 @@ export const en = {
     day: "day",
     days: "days",
     today: "Today",
+    monthLabel: "Month",
+    yearLabel: "Year",
+    weekdays: "Mo,Tu,We,Th,Fr,Sa,Su",
   },
   scanner: {
     startCamera: "Start camera",

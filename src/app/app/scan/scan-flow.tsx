@@ -6,6 +6,7 @@ import { PrimaryButton, SecondaryButton } from "@/components/auth-forms";
 import { BarcodeScanner } from "@/components/barcode-scanner";
 import { ExpiryDatePicker } from "@/components/expiry-date-picker";
 import { MobilePageHeader } from "@/components/mobile-page-header";
+import { QuantityPicker } from "@/components/quantity-picker";
 import { useT } from "@/components/i18n-provider";
 import { goBackOrApp, navigateApp } from "@/lib/app-navigation";
 import { normalizeBarcode } from "@/lib/barcode";
@@ -150,26 +151,7 @@ export function ScanFlow() {
               onChange={(event) => setBarcode(event.target.value)}
             />
           </label>
-          <div className="grid grid-cols-4 gap-2 sm:grid-cols-5">
-            {Array.from({ length: 20 }, (_, index) => index + 1).map((value) => (
-              <button
-                key={value}
-                type="button"
-                className={`min-w-0 rounded-lg border border-input-border bg-card px-1 py-3 text-sm text-foreground sm:px-2 ${quantity === String(value) ? "border-primary bg-selected" : "border-card-border"}`}
-                onClick={() => setQuantity(String(value))}
-              >
-                {value}
-              </button>
-            ))}
-          </div>
-          <input
-            className="w-full rounded-xl border border-input-border bg-input px-3 py-3 text-foreground"
-            inputMode="numeric"
-            value={quantity}
-            onChange={(event) =>
-              setQuantity(event.target.value.replace(/[^\d]/g, ""))
-            }
-          />
+          <QuantityPicker value={quantity} onChange={setQuantity} />
           <PrimaryButton onClick={() => goToStep("date")} disabled={!quantity || Number(quantity) < 1}>
             {t("common.next")}
           </PrimaryButton>

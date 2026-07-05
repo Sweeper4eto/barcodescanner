@@ -136,6 +136,9 @@ export const bg = {
     lookingUp: "Търсене на продукт...",
     productMissing: "Продуктът не е намерен. Искате ли да го добавите?",
     enter: "Добави",
+    itemsHeader: "Бройки",
+    changeQuantity: "Промени количество",
+    manualQuantity: "Или въведете количество",
   },
   addProduct: {
     title: "Добави нов продукт",
@@ -174,6 +177,9 @@ export const bg = {
     day: "ден",
     days: "дни",
     today: "Днес",
+    monthLabel: "Месец",
+    yearLabel: "Година",
+    weekdays: "Пн,Вт,Ср,Чт,Пт,Сб,Нд",
   },
   scanner: {
     startCamera: "Стартирай камера",
