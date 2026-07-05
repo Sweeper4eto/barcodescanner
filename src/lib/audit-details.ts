@@ -233,6 +233,23 @@ export function auditInventoryRemoved(input: {
   ]);
 }
 
+export function auditInventoryUpdated(input: {
+  productName: string;
+  barcode: string;
+  storeName: string;
+  beforeQty: number;
+  afterQty: number;
+  beforeExpiry: Date;
+  afterExpiry: Date;
+}): string {
+  return auditSubjectWithChanges(`product "${input.productName}"`, [
+    `barcode ${input.barcode}`,
+    `store "${input.storeName}"`,
+    auditFieldChange("qty", input.beforeQty, input.afterQty),
+    auditFieldChange("expires", input.beforeExpiry, input.afterExpiry),
+  ]);
+}
+
 export function auditAuthLogin(role: string, clientName?: string | null): string {
   return auditJoin([
     `role ${role}`,

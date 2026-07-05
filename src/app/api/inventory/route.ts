@@ -4,6 +4,7 @@ import {
   auditInventoryAdded,
   auditInventoryMerged,
   auditInventoryRemoved,
+  auditInventoryUpdated,
 } from "@/lib/audit-details";
 import { logAuditEvent } from "@/lib/audit-log";
 import { requireSession } from "@/lib/auth";
@@ -15,6 +16,7 @@ import {
   expiryDateDayBounds,
   normalizeExpiryDate,
 } from "@/lib/inventory";
+import { filterInventoryEntriesBySearch } from "@/lib/inventory-search";
 import { db } from "@/lib/db";
 import { apiT } from "@/i18n";
 
@@ -201,26 +203,18 @@ export async function GET(request: Request) {
     },
   };
 
-  const where = q
-    ? {
-        ...baseWhere,
-        OR: [
-          { barcode: q },
-          { barcode: { contains: q } },
-          { product: { name: { contains: q } } },
-        ],
-      }
-    : baseWhere;
+  const where = baseWhere;
 
   const orderBy = { expiryDate: "asc" as const };
 
   if (q) {
-    const entries = await db.inventoryEntry.findMany({
+    const candidates = await db.inventoryEntry.findMany({
       where,
       include: { product: true },
       orderBy,
-      take: 100,
+      take: 1000,
     });
+    const entries = filterInventoryEntriesBySearch(candidates, q).slice(0, 100);
 
     return NextResponse.json({
       entries,
@@ -260,6 +254,8 @@ export async function GET(request: Request) {
 const removeSchema = z.object({
   entryId: z.string().min(1),
   storeId: z.string().min(1),
+  quantity: z.number().int().positive().optional(),
+  expiryDate: z.string().datetime().optional(),
 });
 
 export async function PATCH(request: Request) {
@@ -288,6 +284,113 @@ export async function PATCH(request: Request) {
       { error: apiT(request, "errors.noStoreAccess") },
       { status: 403 },
     );
+  }
+
+  const isUpdate =
+    parsed.data.quantity !== undefined || parsed.data.expiryDate !== undefined;
+
+  if (isUpdate) {
+    const existing = await db.inventoryEntry.findFirst({
+      where: {
+        id: parsed.data.entryId,
+        storeId: parsed.data.storeId,
+        ...activeInventoryWhere,
+      },
+      include: { product: true },
+    });
+
+    if (!existing) {
+      return NextResponse.json(
+        { error: apiT(request, "errors.entryNotFound") },
+        { status: 404 },
+      );
+    }
+
+    const nextQuantity = parsed.data.quantity ?? existing.quantity;
+    const nextExpiry = parsed.data.expiryDate
+      ? normalizeExpiryDate(new Date(parsed.data.expiryDate))
+      : existing.expiryDate;
+
+    if (parsed.data.expiryDate) {
+      const { start, end } = expiryDateDayBounds(nextExpiry);
+      const conflict = await db.inventoryEntry.findFirst({
+        where: {
+          storeId: parsed.data.storeId,
+          productId: existing.productId,
+          id: { not: parsed.data.entryId },
+          ...activeInventoryWhere,
+          expiryDate: { gte: start, lt: end },
+        },
+        include: { product: true },
+      });
+
+      if (conflict) {
+        const mergedEntry = await db.$transaction(async (tx) => {
+          await tx.inventoryEntry.update({
+            where: { id: conflict.id },
+            data: { quantity: conflict.quantity + nextQuantity },
+          });
+          await tx.inventoryEntry.update({
+            where: { id: existing.id },
+            data: { removedAt: new Date() },
+          });
+          return tx.inventoryEntry.findUniqueOrThrow({
+            where: { id: conflict.id },
+            include: { product: true },
+          });
+        });
+
+        await logAuditEvent(
+          request,
+          session,
+          "inventory_merged",
+          auditInventoryMerged({
+            productName: existing.product.name,
+            barcode: existing.barcode,
+            addedQty: nextQuantity,
+            totalQty: mergedEntry.quantity,
+            storeName: store.name,
+            expiryDate: nextExpiry,
+          }),
+        );
+
+        return NextResponse.json({
+          entry: mergedEntry,
+          merged: true,
+          removedId: existing.id,
+        });
+      }
+    }
+
+    const entry = await db.inventoryEntry.update({
+      where: { id: existing.id },
+      data: {
+        ...(parsed.data.quantity !== undefined
+          ? { quantity: parsed.data.quantity }
+          : {}),
+        ...(parsed.data.expiryDate !== undefined
+          ? { expiryDate: nextExpiry }
+          : {}),
+      },
+      include: { product: true },
+    });
+
+    await logAuditEvent(
+      request,
+      session,
+      "inventory_updated",
+      auditInventoryUpdated({
+        productName: existing.product.name,
+        barcode: existing.barcode,
+        storeName: store.name,
+        beforeQty: existing.quantity,
+        afterQty: entry.quantity,
+        beforeExpiry: existing.expiryDate,
+        afterExpiry: entry.expiryDate,
+      }),
+    );
+
+    return NextResponse.json({ entry });
   }
 
   const removed = await db.inventoryEntry.findFirst({

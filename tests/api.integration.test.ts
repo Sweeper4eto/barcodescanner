@@ -130,6 +130,74 @@ test("product lookup matches UPC-A and EAN-13 barcodes", async () => {
   assert.equal(lookupUpc.data.product?.name, "UPC Product");
 });
 
+test("PATCH /api/inventory updates quantity and expiry date", async () => {
+  const client = await seedClientWithStore(db);
+  const store = client.stores[0];
+  const user = await seedUserWithAccess(db, client.id, store.id);
+
+  const login = await loginUser(user.username, "password123");
+  assert.equal(login.ok, true);
+  if (!login.ok) return;
+  await setMockSession(login.token);
+
+  const createProduct = await jsonRequest(productsPost, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ barcode: "777", name: "Cheese" }),
+  });
+  assert.equal(createProduct.response.status, 201);
+
+  const expiry = new Date();
+  expiry.setUTCDate(expiry.getUTCDate() + 10);
+  expiry.setUTCHours(0, 0, 0, 0);
+
+  const createEntry = await jsonRequest(inventoryPost, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      storeId: store.id,
+      barcode: "777",
+      productId: createProduct.data.product.id,
+      quantity: 2,
+      expiryDate: expiry.toISOString(),
+    }),
+  });
+  assert.equal(createEntry.response.status, 201);
+
+  const entryId = createEntry.data.entry.id as string;
+
+  const updateQty = await jsonRequest(inventoryPatch, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      entryId,
+      storeId: store.id,
+      quantity: 5,
+    }),
+  });
+  assert.equal(updateQty.response.status, 200);
+  assert.equal(updateQty.data.entry.quantity, 5);
+
+  const newExpiry = new Date(expiry);
+  newExpiry.setUTCDate(newExpiry.getUTCDate() + 3);
+
+  const updateExpiry = await jsonRequest(inventoryPatch, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      entryId,
+      storeId: store.id,
+      expiryDate: newExpiry.toISOString(),
+    }),
+  });
+  assert.equal(updateExpiry.response.status, 200);
+  assert.equal(
+    new Date(updateExpiry.data.entry.expiryDate).toISOString().slice(0, 10),
+    newExpiry.toISOString().slice(0, 10),
+  );
+  assert.equal(updateExpiry.data.entry.quantity, 5);
+});
+
 test("full inventory flow via APIs", async () => {
   const client = await seedClientWithStore(db);
   const store = client.stores[0];
@@ -444,10 +512,16 @@ test("inventory list filters expiry window, search, and pagination", async () =>
   assert.equal(list.data.pagination.totalPages, 1);
 
   const search = await jsonRequest(inventoryGet, {
-    url: `http://localhost/api/inventory?storeId=${store.id}&q=Milk`,
+    url: `http://localhost/api/inventory?storeId=${store.id}&q=Milk&withinDays=90`,
   });
   assert.equal(search.response.status, 200);
-  assert.equal(search.data.entries.length, 0);
+  assert.equal(search.data.entries.length, 1);
+  assert.equal(search.data.entries[0].product.name, "Milk");
+
+  const caseSearch = await jsonRequest(inventoryGet, {
+    url: `http://localhost/api/inventory?storeId=${store.id}&q=milk&withinDays=90`,
+  });
+  assert.equal(caseSearch.data.entries.length, 1);
 
   const barcodeSearch = await jsonRequest(inventoryGet, {
     url: `http://localhost/api/inventory?storeId=${store.id}&q=111`,

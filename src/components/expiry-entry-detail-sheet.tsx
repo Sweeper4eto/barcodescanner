@@ -1,0 +1,295 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import { ExpiryDatePicker } from "@/components/expiry-date-picker";
+import { QuantityPicker } from "@/components/quantity-picker";
+import { useT } from "@/components/i18n-provider";
+import { expiryIsoToYmd, expiryYmdToIso } from "@/lib/inventory";
+
+export type ExpiryDetailEntry = {
+  id: string;
+  quantity: number;
+  expiryDate: string;
+  product: { name: string; imagePath: string | null };
+};
+
+type UpdateMeta = {
+  merged?: boolean;
+  removedId?: string;
+};
+
+type Props = {
+  entry: ExpiryDetailEntry;
+  storeId: string;
+  onClose: () => void;
+  onUpdated: (entry: ExpiryDetailEntry, meta?: UpdateMeta) => void;
+};
+
+export function ExpiryEntryDetailSheet({
+  entry,
+  storeId,
+  onClose,
+  onUpdated,
+}: Props) {
+  const { t, dateLocale } = useT();
+  const [quantity, setQuantity] = useState(String(entry.quantity));
+  const [expiryYmd, setExpiryYmd] = useState(() => expiryIsoToYmd(entry.expiryDate));
+  const [editingExpiry, setEditingExpiry] = useState(false);
+  const [editingQuantity, setEditingQuantity] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const savedExpiryYmd = expiryIsoToYmd(entry.expiryDate);
+  const parsedQuantity = Number(quantity);
+  const quantityValid =
+    quantity.length > 0 &&
+    Number.isInteger(parsedQuantity) &&
+    parsedQuantity >= 1;
+  const hasChanges =
+    expiryYmd !== savedExpiryYmd ||
+    (quantityValid && parsedQuantity !== entry.quantity);
+  const canConfirm = hasChanges && quantityValid;
+
+  useEffect(() => {
+    setQuantity(String(entry.quantity));
+    setExpiryYmd(expiryIsoToYmd(entry.expiryDate));
+    setEditingExpiry(false);
+    setEditingQuantity(false);
+    setError(null);
+  }, [entry.id, entry.quantity, entry.expiryDate]);
+
+  function revertDraft() {
+    setQuantity(String(entry.quantity));
+    setExpiryYmd(savedExpiryYmd);
+    setEditingExpiry(false);
+    setEditingQuantity(false);
+    setError(null);
+  }
+
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !saving) {
+        onClose();
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = "";
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [onClose, saving]);
+
+  async function confirmChanges() {
+    if (!canConfirm) return;
+
+    const updates: { quantity?: number; expiryDate?: string } = {};
+    if (parsedQuantity !== entry.quantity) {
+      updates.quantity = parsedQuantity;
+    }
+    if (expiryYmd !== savedExpiryYmd) {
+      updates.expiryDate = expiryYmd;
+    }
+
+    setSaving(true);
+    setError(null);
+
+    try {
+      const body: Record<string, unknown> = {
+        entryId: entry.id,
+        storeId,
+      };
+      if (updates.quantity !== undefined) {
+        body.quantity = updates.quantity;
+      }
+      if (updates.expiryDate !== undefined) {
+        body.expiryDate = expiryYmdToIso(updates.expiryDate);
+      }
+
+      const response = await fetch("/api/inventory", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = (await response.json()) as {
+        entry?: ExpiryDetailEntry;
+        merged?: boolean;
+        removedId?: string;
+        error?: string;
+      };
+
+      if (!response.ok || !data.entry) {
+        setError(data.error ?? t("expiry.saveFailed"));
+        return;
+      }
+
+      onUpdated(data.entry, {
+        merged: data.merged,
+        removedId: data.removedId,
+      });
+
+      setQuantity(String(data.entry.quantity));
+      setExpiryYmd(expiryIsoToYmd(data.entry.expiryDate));
+      setEditingExpiry(false);
+      setEditingQuantity(false);
+    } catch {
+      setError(t("expiry.saveFailed"));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function onExpiryChange(nextYmd: string) {
+    setExpiryYmd(nextYmd);
+    setError(null);
+  }
+
+  function onQuantityChange(nextRaw: string) {
+    setQuantity(nextRaw);
+    setError(null);
+  }
+
+  const expiryDisplay = useMemo(() => {
+    const [year, month, day] = expiryYmd.split("-").map(Number);
+    return new Date(Date.UTC(year, month - 1, day)).toLocaleDateString(
+      dateLocale,
+      { timeZone: "UTC" },
+    );
+  }, [expiryYmd, dateLocale]);
+
+  return (
+    <div
+      className="fixed inset-0 z-[60] flex flex-col bg-card"
+      role="dialog"
+      aria-modal="true"
+      aria-label={entry.product.name}
+    >
+      <div className="relative flex h-[50vh] min-h-0 shrink-0 items-center justify-center bg-black/90">
+        <button
+          type="button"
+          aria-label={t("expiry.closeImage")}
+          className="absolute top-3 right-3 z-10 flex h-9 w-9 items-center justify-center rounded-full border border-card-border bg-card text-xl leading-none text-foreground"
+          onClick={onClose}
+          disabled={saving}
+        >
+          ×
+        </button>
+
+        {entry.product.imagePath ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={entry.product.imagePath}
+            alt={entry.product.name}
+            className="h-full w-full object-contain p-3"
+          />
+        ) : (
+          <div
+            className="flex h-28 w-28 items-center justify-center rounded-2xl bg-subtle text-4xl font-bold text-muted"
+            aria-hidden
+          >
+            {entry.product.name.charAt(0).toUpperCase()}
+          </div>
+        )}
+      </div>
+
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto border-t border-card-border p-4">
+        <h2 className="text-base font-semibold text-foreground">
+          {entry.product.name}
+        </h2>
+
+        {error ? (
+          <p className="mt-2 text-sm text-danger" role="alert">
+            {error}
+          </p>
+        ) : null}
+
+        {saving ? (
+          <p className="mt-2 text-xs text-muted">{t("expiry.saving")}</p>
+        ) : null}
+
+        <div className="mt-4 space-y-3">
+          <div>
+            <button
+              type="button"
+              className="flex w-full items-center justify-between rounded-xl border border-card-border bg-subtle px-3 py-3 text-left disabled:opacity-60"
+              onClick={() => {
+                setEditingQuantity(false);
+                setEditingExpiry((open) => !open);
+              }}
+              disabled={saving}
+              aria-expanded={editingExpiry}
+            >
+              <span className="text-sm text-muted">{t("expiry.validUntil")}</span>
+              <span className="text-sm font-semibold text-foreground">
+                {expiryDisplay}
+              </span>
+            </button>
+            {editingExpiry ? (
+              <div className="mt-2">
+                <ExpiryDatePicker value={expiryYmd} onChange={onExpiryChange} />
+              </div>
+            ) : null}
+          </div>
+
+          <div>
+            <button
+              type="button"
+              className="flex w-full items-center justify-between rounded-xl border border-card-border bg-subtle px-3 py-3 text-left disabled:opacity-60"
+              onClick={() => {
+                setEditingExpiry(false);
+                setEditingQuantity((open) => !open);
+              }}
+              disabled={saving}
+              aria-expanded={editingQuantity}
+            >
+              <span className="text-sm text-muted">{t("expiry.pieces")}</span>
+              <span className="text-lg font-bold tabular-nums text-foreground">
+                {quantity}
+              </span>
+            </button>
+            {editingQuantity ? (
+              <div className="mt-2">
+                <QuantityPicker
+                  value={quantity}
+                  onChange={onQuantityChange}
+                  startWithGridOpen={false}
+                />
+              </div>
+            ) : null}
+          </div>
+        </div>
+
+        {hasChanges ? (
+          <div className="mt-4 rounded-xl border border-card-border bg-subtle p-3">
+            <p className="text-sm font-semibold text-foreground">
+              {t("expiry.confirmUpdateTitle")}
+            </p>
+            <p className="mt-1 text-xs text-muted">
+              {t("expiry.confirmUpdateMessage")}
+            </p>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                className="rounded-lg border border-input-border bg-card px-3 py-2 text-sm text-foreground"
+                onClick={revertDraft}
+                disabled={saving}
+              >
+                {t("expiry.confirmCancel")}
+              </button>
+              <button
+                type="button"
+                className="rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-fg disabled:opacity-60"
+                onClick={() => void confirmChanges()}
+                disabled={saving || !canConfirm}
+              >
+                {saving ? t("expiry.saving") : t("expiry.confirmSave")}
+              </button>
+            </div>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}

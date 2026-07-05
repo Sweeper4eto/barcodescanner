@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useT } from "@/components/i18n-provider";
 import {
   daysUntilExpiry,
@@ -14,6 +13,7 @@ type Props = {
   expiryDate: string;
   enteredAt: string;
   quantity: number;
+  onOpen: () => void;
   onRemove: () => void;
 };
 
@@ -23,10 +23,10 @@ export function ExpiryListCard({
   expiryDate,
   enteredAt,
   quantity,
+  onOpen,
   onRemove,
 }: Props) {
   const { t, dateLocale } = useT();
-  const [previewOpen, setPreviewOpen] = useState(false);
   const expiry = new Date(expiryDate);
   const entered = new Date(enteredAt);
   const days = daysUntilExpiry(expiry);
@@ -37,32 +37,8 @@ export function ExpiryListCard({
         ? t("expiry.day")
         : t("expiry.days");
 
-  useEffect(() => {
-    if (!previewOpen) return;
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setPreviewOpen(false);
-      }
-    };
-
-    document.body.style.overflow = "hidden";
-    window.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.body.style.overflow = "";
-      window.removeEventListener("keydown", onKeyDown);
-    };
-  }, [previewOpen]);
-
-  function openPreview() {
-    if (imagePath) {
-      setPreviewOpen(true);
-    }
-  }
-
   return (
-    <>
-      <article className="relative overflow-visible">
+    <article className="relative overflow-visible">
         <button
           type="button"
           aria-label={t("expiry.remove")}
@@ -83,10 +59,9 @@ export function ExpiryListCard({
 
           <button
             type="button"
-            disabled={!imagePath}
-            aria-label={imagePath ? t("expiry.viewImage") : undefined}
-            className="flex min-w-0 flex-1 items-center gap-2 px-2 py-1 text-left disabled:cursor-default"
-            onClick={openPreview}
+            aria-label={t("expiry.viewEntry")}
+            className="flex min-w-0 flex-1 items-center gap-2 px-2 py-1 text-left"
+            onClick={onOpen}
           >
             {imagePath ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -145,38 +120,5 @@ export function ExpiryListCard({
           </button>
         </div>
       </article>
-
-      {previewOpen && imagePath ? (
-        <div
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/75 p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-label={name}
-          onClick={() => setPreviewOpen(false)}
-        >
-          <button
-            type="button"
-            aria-label={t("expiry.closeImage")}
-            className="absolute top-3 right-3 flex h-9 w-9 items-center justify-center rounded-full border border-card-border bg-card text-xl leading-none text-foreground"
-            onClick={(event) => {
-              event.stopPropagation();
-              setPreviewOpen(false);
-            }}
-          >
-            ×
-          </button>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={imagePath}
-            alt={name}
-            className="max-h-[min(80vh,640px)] max-w-full rounded-xl object-contain"
-            onClick={(event) => {
-              event.stopPropagation();
-              setPreviewOpen(false);
-            }}
-          />
-        </div>
-      ) : null}
-    </>
   );
 }

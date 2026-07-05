@@ -5,6 +5,10 @@ import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { BarcodeScanner } from "@/components/barcode-scanner";
 import { ScanNavIcon } from "@/components/app-nav-icons";
 import { ExpiryListCard } from "@/components/expiry-list-card";
+import {
+  ExpiryEntryDetailSheet,
+  type ExpiryDetailEntry,
+} from "@/components/expiry-entry-detail-sheet";
 import { ExpiryPeriodFilter } from "@/components/expiry-period-filter";
 import { MobilePageHeader } from "@/components/mobile-page-header";
 import { useT } from "@/components/i18n-provider";
@@ -50,10 +54,12 @@ function ExpiryList() {
   const [page, setPage] = useState(1);
   const [showScanner, setShowScanner] = useState(false);
   const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [detailEntry, setDetailEntry] = useState<ExpiryDetailEntry | null>(null);
   const [loading, setLoading] = useState(false);
   const [period, setPeriod] = useState<ExpiryPeriod>(DEFAULT_EXPIRY_PERIOD);
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const loadingMoreRef = useRef(false);
+  const fetchGenerationRef = useRef(0);
 
   useEffect(() => {
     setPeriod(getStoredExpiryPeriod());
@@ -62,13 +68,12 @@ function ExpiryList() {
   useEffect(() => {
     const timer = window.setTimeout(() => {
       setDebouncedSearch(search.trim());
-    }, 300);
+    }, 150);
     return () => window.clearTimeout(timer);
   }, [search]);
 
   useEffect(() => {
     setPage(1);
-    setEntries([]);
   }, [debouncedSearch, period, storeId]);
 
   function onPeriodChange(next: ExpiryPeriod) {
@@ -80,6 +85,7 @@ function ExpiryList() {
     async (targetPage: number, append: boolean) => {
       if (!storeId) return;
 
+      const generation = ++fetchGenerationRef.current;
       loadingMoreRef.current = true;
       setLoading(true);
       const params = new URLSearchParams({
@@ -100,6 +106,8 @@ function ExpiryList() {
           pagination?: Pagination;
         };
 
+        if (generation !== fetchGenerationRef.current) return;
+
         const nextEntries = data.entries ?? [];
         setEntries((current) => (append ? [...current, ...nextEntries] : nextEntries));
         setPagination(
@@ -111,8 +119,10 @@ function ExpiryList() {
           },
         );
       } finally {
-        loadingMoreRef.current = false;
-        setLoading(false);
+        if (generation === fetchGenerationRef.current) {
+          loadingMoreRef.current = false;
+          setLoading(false);
+        }
       }
     },
     [storeId, debouncedSearch, period],
@@ -120,7 +130,7 @@ function ExpiryList() {
 
   useEffect(() => {
     if (storeId) {
-      void loadEntries(page, page > 1);
+      void loadEntries(page, page > 1 && !debouncedSearch);
     }
   }, [storeId, debouncedSearch, page, period, loadEntries]);
 
@@ -151,9 +161,55 @@ function ExpiryList() {
       body: JSON.stringify({ entryId, storeId }),
     });
     setConfirmId(null);
+    setDetailEntry((current) => (current?.id === entryId ? null : current));
     setPage(1);
     setEntries([]);
     await loadEntries(1, false);
+  }
+
+  function handleEntryUpdated(
+    updated: ExpiryDetailEntry,
+    meta?: { merged?: boolean; removedId?: string },
+  ) {
+    setDetailEntry(updated);
+    setEntries((current) => {
+      let next = current;
+
+      if (meta?.removedId) {
+        next = next.filter((entry) => entry.id !== meta.removedId);
+      } else {
+        next = next.map((entry) =>
+          entry.id === updated.id
+            ? {
+                ...entry,
+                quantity: updated.quantity,
+                expiryDate: updated.expiryDate,
+                product: updated.product,
+              }
+            : entry,
+        );
+      }
+
+      const hasUpdated = next.some((entry) => entry.id === updated.id);
+      if (!hasUpdated) {
+        next = [
+          ...next,
+          {
+            id: updated.id,
+            barcode: "",
+            quantity: updated.quantity,
+            enteredAt: new Date().toISOString(),
+            expiryDate: updated.expiryDate,
+            product: updated.product,
+          },
+        ];
+      }
+
+      return [...next].sort(
+        (a, b) =>
+          new Date(a.expiryDate).getTime() - new Date(b.expiryDate).getTime(),
+      );
+    });
   }
 
   function onBarcodeScanned(barcode: string) {
@@ -216,10 +272,14 @@ function ExpiryList() {
       ) : null}
 
       <div className="space-y-1 pt-1">
-        {loading && page === 1 ? (
+        {loading && page === 1 && entries.length === 0 ? (
           <p className="rounded-xl bg-subtle p-4 text-sm text-muted">
-            {t("expiry.loading")}
+            {isSearching ? t("expiry.searching") : t("expiry.loading")}
           </p>
+        ) : null}
+
+        {loading && isSearching && entries.length > 0 ? (
+          <p className="py-1 text-center text-xs text-muted">{t("expiry.searching")}</p>
         ) : null}
 
         {!loading && entries.length === 0 ? (
@@ -228,19 +288,18 @@ function ExpiryList() {
           </p>
         ) : null}
 
-        {!loading || page > 1
-          ? entries.map((entry) => (
-              <ExpiryListCard
-                key={entry.id}
-                name={entry.product.name}
-                imagePath={entry.product.imagePath}
-                expiryDate={entry.expiryDate}
-                enteredAt={entry.enteredAt}
-                quantity={entry.quantity}
-                onRemove={() => setConfirmId(entry.id)}
-              />
-            ))
-          : null}
+        {entries.map((entry) => (
+          <ExpiryListCard
+            key={entry.id}
+            name={entry.product.name}
+            imagePath={entry.product.imagePath}
+            expiryDate={entry.expiryDate}
+            enteredAt={entry.enteredAt}
+            quantity={entry.quantity}
+            onOpen={() => setDetailEntry(entry)}
+            onRemove={() => setConfirmId(entry.id)}
+          />
+        ))}
 
         {!isSearching && pagination.page < pagination.totalPages ? (
           <div ref={loadMoreRef} className="h-2" aria-hidden />
@@ -250,6 +309,15 @@ function ExpiryList() {
           <p className="py-2 text-center text-xs text-muted">{t("expiry.loading")}</p>
         ) : null}
       </div>
+
+      {detailEntry ? (
+        <ExpiryEntryDetailSheet
+          entry={detailEntry}
+          storeId={storeId}
+          onClose={() => setDetailEntry(null)}
+          onUpdated={handleEntryUpdated}
+        />
+      ) : null}
 
       {confirmId ? (
         <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40">

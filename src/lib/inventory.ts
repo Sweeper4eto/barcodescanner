@@ -17,3 +17,24 @@ export const activeInventoryWhere = {
   removedAt: null,
   deletedAt: null,
 } as const;
+
+/** UTC calendar day as YYYY-MM-DD from stored expiry ISO. */
+export function expiryIsoToYmd(iso: string): string {
+  const date = new Date(iso);
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(date.getUTCDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+/** ISO datetime at UTC midnight for API storage from YYYY-MM-DD. */
+export function expiryYmdToIso(ymd: string): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd);
+  if (!match) {
+    throw new Error("Invalid expiry date");
+  }
+  const date = new Date(
+    Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])),
+  );
+  return normalizeExpiryDate(date).toISOString();
+}
