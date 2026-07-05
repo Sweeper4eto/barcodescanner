@@ -49,6 +49,8 @@ export function ExpiryEntryDetailSheet({
     expiryYmd !== savedExpiryYmd ||
     (quantityValid && parsedQuantity !== entry.quantity);
   const canConfirm = hasChanges && quantityValid;
+  const compactLayout =
+    editingExpiry || editingQuantity || hasChanges;
 
   useEffect(() => {
     setQuantity(String(entry.quantity));
@@ -166,11 +168,15 @@ export function ExpiryEntryDetailSheet({
       aria-modal="true"
       aria-label={entry.product.name}
     >
-      <div className="relative flex h-[50vh] min-h-0 shrink-0 items-center justify-center bg-black/90">
+      <div
+        className={`relative flex shrink-0 items-center justify-center bg-black/90 transition-[height] duration-200 ${
+          compactLayout ? "h-[min(17vh,6.5rem)]" : "h-[50vh]"
+        }`}
+      >
         <button
           type="button"
           aria-label={t("expiry.closeImage")}
-          className="absolute top-3 right-3 z-10 flex h-9 w-9 items-center justify-center rounded-full border border-card-border bg-card text-xl leading-none text-foreground"
+          className="absolute top-2 right-2 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-card-border bg-card text-lg leading-none text-foreground"
           onClick={onClose}
           disabled={saving}
         >
@@ -182,11 +188,17 @@ export function ExpiryEntryDetailSheet({
           <img
             src={entry.product.imagePath}
             alt={entry.product.name}
-            className="h-full w-full object-contain p-3"
+            className={
+              compactLayout
+                ? "h-full max-h-20 w-auto max-w-[45%] object-contain"
+                : "h-full w-full object-contain p-3"
+            }
           />
         ) : (
           <div
-            className="flex h-28 w-28 items-center justify-center rounded-2xl bg-subtle text-4xl font-bold text-muted"
+            className={`flex items-center justify-center rounded-2xl bg-subtle font-bold text-muted ${
+              compactLayout ? "h-14 w-14 text-2xl" : "h-28 w-28 text-4xl"
+            }`}
             aria-hidden
           >
             {entry.product.name.charAt(0).toUpperCase()}
@@ -194,26 +206,46 @@ export function ExpiryEntryDetailSheet({
         )}
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto border-t border-card-border p-4">
-        <h2 className="text-base font-semibold text-foreground">
-          {entry.product.name}
-        </h2>
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden border-t border-card-border">
+        <div className="min-h-0 flex-1 overflow-y-auto p-4">
+          <h2 className="text-base font-semibold text-foreground">
+            {entry.product.name}
+          </h2>
 
-        {error ? (
-          <p className="mt-2 text-sm text-danger" role="alert">
-            {error}
-          </p>
-        ) : null}
+          {error ? (
+            <p className="mt-2 text-sm text-danger" role="alert">
+              {error}
+            </p>
+          ) : null}
 
-        {saving ? (
-          <p className="mt-2 text-xs text-muted">{t("expiry.saving")}</p>
-        ) : null}
+          {saving && !hasChanges ? (
+            <p className="mt-2 text-xs text-muted">{t("expiry.saving")}</p>
+          ) : null}
 
-        <div className="mt-4 space-y-3">
-          <div>
+          {compactLayout && editingExpiry ? (
+            <div className="mt-3">
+              <ExpiryDatePicker value={expiryYmd} onChange={onExpiryChange} />
+            </div>
+          ) : null}
+
+          {compactLayout && editingQuantity ? (
+            <div className="mt-3">
+              <QuantityPicker
+                value={quantity}
+                onChange={onQuantityChange}
+                startWithGridOpen
+              />
+            </div>
+          ) : null}
+
+          <div className="mt-3 space-y-2">
             <button
               type="button"
-              className="flex w-full items-center justify-between rounded-xl border border-card-border bg-subtle px-3 py-3 text-left disabled:opacity-60"
+              className={`flex w-full items-center justify-between rounded-xl border px-3 py-2.5 text-left disabled:opacity-60 ${
+                editingExpiry
+                  ? "border-primary bg-selected"
+                  : "border-card-border bg-subtle"
+              }`}
               onClick={() => {
                 setEditingQuantity(false);
                 setEditingExpiry((open) => !open);
@@ -226,17 +258,17 @@ export function ExpiryEntryDetailSheet({
                 {expiryDisplay}
               </span>
             </button>
-            {editingExpiry ? (
-              <div className="mt-2">
-                <ExpiryDatePicker value={expiryYmd} onChange={onExpiryChange} />
-              </div>
+            {!compactLayout && editingExpiry ? (
+              <ExpiryDatePicker value={expiryYmd} onChange={onExpiryChange} />
             ) : null}
-          </div>
 
-          <div>
             <button
               type="button"
-              className="flex w-full items-center justify-between rounded-xl border border-card-border bg-subtle px-3 py-3 text-left disabled:opacity-60"
+              className={`flex w-full items-center justify-between rounded-xl border px-3 py-2.5 text-left disabled:opacity-60 ${
+                editingQuantity
+                  ? "border-primary bg-selected"
+                  : "border-card-border bg-subtle"
+              }`}
               onClick={() => {
                 setEditingExpiry(false);
                 setEditingQuantity((open) => !open);
@@ -249,27 +281,25 @@ export function ExpiryEntryDetailSheet({
                 {quantity}
               </span>
             </button>
-            {editingQuantity ? (
-              <div className="mt-2">
-                <QuantityPicker
-                  value={quantity}
-                  onChange={onQuantityChange}
-                  startWithGridOpen={false}
-                />
-              </div>
+            {!compactLayout && editingQuantity ? (
+              <QuantityPicker
+                value={quantity}
+                onChange={onQuantityChange}
+                startWithGridOpen={false}
+              />
             ) : null}
           </div>
         </div>
 
         {hasChanges ? (
-          <div className="mt-4 rounded-xl border border-card-border bg-subtle p-3">
+          <div className="shrink-0 border-t border-card-border bg-card p-3 shadow-[0_-6px_16px_rgba(0,0,0,0.08)]">
             <p className="text-sm font-semibold text-foreground">
               {t("expiry.confirmUpdateTitle")}
             </p>
-            <p className="mt-1 text-xs text-muted">
+            <p className="mt-0.5 text-xs text-muted">
               {t("expiry.confirmUpdateMessage")}
             </p>
-            <div className="mt-3 grid grid-cols-2 gap-2">
+            <div className="mt-2 grid grid-cols-2 gap-2">
               <button
                 type="button"
                 className="rounded-lg border border-input-border bg-card px-3 py-2 text-sm text-foreground"
