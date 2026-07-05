@@ -3,11 +3,60 @@
 import { useEffect, useMemo, useState } from "react";
 import { ExpiryDatePicker } from "@/components/expiry-date-picker";
 import { QuantityPicker } from "@/components/quantity-picker";
+import { CopyIcon } from "@/components/app-nav-icons";
 import { useT } from "@/components/i18n-provider";
 import { expiryIsoToYmd, expiryYmdToIso } from "@/lib/inventory";
 
+function CopyTextButton({
+  text,
+  label,
+  copiedLabel,
+}: {
+  text: string;
+  label: string;
+  copiedLabel: string;
+}) {
+  const [copied, setCopied] = useState(false);
+
+  async function onCopy() {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1500);
+    } catch {
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textarea);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1500);
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      aria-label={copied ? copiedLabel : label}
+      title={copied ? copiedLabel : label}
+      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-card-border bg-card text-muted hover:text-foreground"
+      onClick={() => void onCopy()}
+    >
+      {copied ? (
+        <span className="text-[10px] font-semibold text-primary">OK</span>
+      ) : (
+        <CopyIcon className="h-4 w-4" />
+      )}
+    </button>
+  );
+}
+
 export type ExpiryDetailEntry = {
   id: string;
+  barcode: string;
   quantity: number;
   expiryDate: string;
   product: { name: string; imagePath: string | null };
@@ -208,9 +257,30 @@ export function ExpiryEntryDetailSheet({
 
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden border-t border-card-border">
         <div className="min-h-0 flex-1 overflow-y-auto p-4">
-          <h2 className="text-base font-semibold text-foreground">
-            {entry.product.name}
-          </h2>
+          <div className="space-y-1">
+            <div className="flex items-start gap-2">
+              <h2 className="min-w-0 flex-1 text-base font-semibold leading-snug text-foreground">
+                {entry.product.name}
+              </h2>
+              <CopyTextButton
+                text={entry.product.name}
+                label={t("expiry.copyName")}
+                copiedLabel={t("expiry.copied")}
+              />
+            </div>
+            {entry.barcode ? (
+              <div className="flex items-center gap-2">
+                <p className="min-w-0 flex-1 font-mono text-xs tabular-nums text-muted">
+                  {entry.barcode}
+                </p>
+                <CopyTextButton
+                  text={entry.barcode}
+                  label={t("expiry.copyBarcode")}
+                  copiedLabel={t("expiry.copied")}
+                />
+              </div>
+            ) : null}
+          </div>
 
           {error ? (
             <p className="mt-2 text-sm text-danger" role="alert">

@@ -182,6 +182,7 @@ function ExpiryList() {
           entry.id === updated.id
             ? {
                 ...entry,
+                barcode: updated.barcode,
                 quantity: updated.quantity,
                 expiryDate: updated.expiryDate,
                 product: updated.product,
@@ -196,7 +197,7 @@ function ExpiryList() {
           ...next,
           {
             id: updated.id,
-            barcode: "",
+            barcode: updated.barcode,
             quantity: updated.quantity,
             enteredAt: new Date().toISOString(),
             expiryDate: updated.expiryDate,
