@@ -28,9 +28,11 @@ export function ExpiryPeriodFilter({ value, onChange }: Props) {
   const { t } = useT();
 
   return (
-    <div className="mb-3">
-      <p className="mb-2 text-xs font-medium text-muted">{t("expiry.periodLabel")}</p>
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+    <div className="mb-2">
+      <p className="mb-0.5 text-[10px] font-medium leading-none text-muted">
+        {t("expiry.periodLabel")}
+      </p>
+      <div className="flex gap-0.5">
         {EXPIRY_PERIOD_OPTIONS.map((period) => {
           const active = period === value;
           return (
@@ -38,7 +40,7 @@ export function ExpiryPeriodFilter({ value, onChange }: Props) {
               key={period}
               type="button"
               onClick={() => onChange(period)}
-              className={`rounded-xl border px-2 py-2.5 text-sm font-medium transition-colors ${
+              className={`min-w-0 flex-1 rounded-md border px-1 py-0.5 text-[10px] font-medium leading-tight transition-colors ${
                 active
                   ? "border-primary bg-selected text-primary"
                   : "border-input-border bg-card text-foreground"
