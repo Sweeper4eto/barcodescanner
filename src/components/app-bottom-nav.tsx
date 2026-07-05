@@ -52,13 +52,13 @@ export function AppBottomNav() {
   return (
     <nav
       aria-label={t("app.bottomNav")}
-      className="fixed inset-x-0 bottom-0 z-50 border-t border-card-border bg-card/95 backdrop-blur-sm supports-[backdrop-filter]:bg-card/90"
+      className="fixed inset-x-0 bottom-0 z-40 border-t border-card-border bg-card/95 backdrop-blur-sm supports-[backdrop-filter]:bg-card/90"
     >
-      <div className="mx-auto grid min-w-0 max-w-lg grid-cols-2 px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+      <div className="mx-auto grid min-h-[var(--app-bottom-nav-height)] min-w-0 max-w-lg grid-cols-2 px-1 pb-[max(0.125rem,env(safe-area-inset-bottom))]">
         {tabs.map((tab) => {
           const active = tab.match(pathname);
           const isScan = tab.id === "scan";
-          const className = `flex min-w-0 flex-col items-center gap-1 rounded-xl px-2 py-2 text-xs font-medium transition-colors ${
+          const className = `flex min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg px-1 py-1 text-[10px] font-medium leading-none transition-colors ${
             disabled
               ? "pointer-events-none opacity-40"
               : active
@@ -70,7 +70,7 @@ export function AppBottomNav() {
 
           const content = (
             <>
-              <tab.icon className="h-6 w-6" />
+              <tab.icon className="h-5 w-5" />
               <span className="max-w-full truncate">{tab.label}</span>
             </>
           );

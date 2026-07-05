@@ -34,33 +34,33 @@ export function ExpiryListCard({
         : t("expiry.days");
 
   return (
-    <article className="flex overflow-hidden rounded-xl border border-card-border bg-card">
-      <div
-        className={`w-1 shrink-0 ${expiryUrgencyStripeClass(expiry)}`}
-        aria-hidden
-      />
+    <article className="relative overflow-visible">
+      <button
+        type="button"
+        aria-label={t("expiry.remove")}
+        className="absolute top-0 right-0 z-10 flex h-5 w-5 -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full border border-card-border bg-card text-sm leading-none text-muted"
+        onClick={onRemove}
+      >
+        ×
+      </button>
 
-      <div className="relative min-w-0 flex-1 p-3">
-        <button
-          type="button"
-          aria-label={t("expiry.remove")}
-          className="absolute top-2 right-2 flex h-8 w-8 items-center justify-center rounded-lg border border-card-border bg-card text-xl leading-none text-muted"
-          onClick={onRemove}
-        >
-          ×
-        </button>
+      <div className="flex overflow-hidden rounded-lg border border-card-border bg-card">
+        <div
+          className={`w-1 shrink-0 ${expiryUrgencyStripeClass(expiry)}`}
+          aria-hidden
+        />
 
-        <div className="flex items-start gap-3 pr-9">
+        <div className="flex min-w-0 flex-1 items-center gap-2 px-2 py-1">
           {imagePath ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={imagePath}
               alt=""
-              className="h-14 w-14 shrink-0 rounded-lg object-cover"
+              className="h-10 w-10 shrink-0 rounded-md object-cover"
             />
           ) : (
             <div
-              className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-subtle text-lg font-semibold text-muted"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-subtle text-sm font-semibold text-muted"
               aria-hidden
             >
               {name.charAt(0).toUpperCase()}
@@ -68,30 +68,30 @@ export function ExpiryListCard({
           )}
 
           <div className="min-w-0 flex-1">
-            <p className="line-clamp-2 text-sm font-semibold leading-snug text-foreground">
+            <p className="line-clamp-2 text-xs font-semibold leading-tight text-foreground">
               {name}
             </p>
-            <p className="mt-1 text-xs text-foreground">
+            <p className="mt-0.5 text-[11px] leading-tight text-foreground">
               <span className="font-bold">{t("expiry.validUntil")}</span>
               {" · "}
               {expiry.toLocaleDateString(dateLocale)}
             </p>
-            <p className="mt-0.5 text-xs text-muted">
+            <p className="text-[10px] leading-tight text-muted">
               {t("expiry.enteredOn")}{" "}
               {entered.toLocaleDateString(dateLocale)}
             </p>
           </div>
 
           <div
-            className={`shrink-0 rounded-lg border px-2 py-1.5 text-center ${expiryUrgencyBadgeClass(expiry)}`}
+            className={`shrink-0 rounded-md border px-1.5 py-0.5 text-center ${expiryUrgencyBadgeClass(expiry)}`}
           >
             {days > 0 ? (
               <>
-                <p className="text-xl font-bold leading-none tabular-nums">{days}</p>
-                <p className="mt-0.5 text-[11px] font-semibold leading-none">{daysLabel}</p>
+                <p className="text-base font-bold leading-none tabular-nums">{days}</p>
+                <p className="text-[10px] font-semibold leading-none">{daysLabel}</p>
               </>
             ) : (
-              <p className="text-sm font-bold leading-tight">{daysLabel}</p>
+              <p className="text-xs font-bold leading-tight">{daysLabel}</p>
             )}
           </div>
         </div>

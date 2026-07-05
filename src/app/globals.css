@@ -31,6 +31,7 @@
   --urgency-warning-bg: #fefce8;
   --urgency-soon-border: #3b82f6;
   --urgency-soon-bg: #eff6ff;
+  --app-bottom-nav-height: 3.25rem;
 }
 
 @media (prefers-color-scheme: dark) {

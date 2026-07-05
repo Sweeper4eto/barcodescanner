@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { BarcodeScanner } from "@/components/barcode-scanner";
 import { ScanNavIcon } from "@/components/app-nav-icons";
 import { ExpiryListCard } from "@/components/expiry-list-card";
@@ -52,6 +52,8 @@ function ExpiryList() {
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [period, setPeriod] = useState<ExpiryPeriod>(DEFAULT_EXPIRY_PERIOD);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
+  const loadingMoreRef = useRef(false);
 
   useEffect(() => {
     setPeriod(getStoredExpiryPeriod());
@@ -66,7 +68,8 @@ function ExpiryList() {
 
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, period]);
+    setEntries([]);
+  }, [debouncedSearch, period, storeId]);
 
   function onPeriodChange(next: ExpiryPeriod) {
     setPeriod(next);
@@ -74,9 +77,10 @@ function ExpiryList() {
   }
 
   const loadEntries = useCallback(
-    async (targetPage = page) => {
+    async (targetPage: number, append: boolean) => {
       if (!storeId) return;
 
+      loadingMoreRef.current = true;
       setLoading(true);
       const params = new URLSearchParams({
         storeId,
@@ -89,31 +93,56 @@ function ExpiryList() {
         params.set("limit", String(PAGE_SIZE));
       }
 
-      const response = await fetch(`/api/inventory?${params.toString()}`);
-      const data = (await response.json()) as {
-        entries?: Entry[];
-        pagination?: Pagination;
-      };
+      try {
+        const response = await fetch(`/api/inventory?${params.toString()}`);
+        const data = (await response.json()) as {
+          entries?: Entry[];
+          pagination?: Pagination;
+        };
 
-      setEntries(data.entries ?? []);
-      setPagination(
-        data.pagination ?? {
-          page: targetPage,
-          limit: PAGE_SIZE,
-          total: data.entries?.length ?? 0,
-          totalPages: 1,
-        },
-      );
-      setLoading(false);
+        const nextEntries = data.entries ?? [];
+        setEntries((current) => (append ? [...current, ...nextEntries] : nextEntries));
+        setPagination(
+          data.pagination ?? {
+            page: targetPage,
+            limit: PAGE_SIZE,
+            total: nextEntries.length,
+            totalPages: 1,
+          },
+        );
+      } finally {
+        loadingMoreRef.current = false;
+        setLoading(false);
+      }
     },
-    [storeId, debouncedSearch, page, period],
+    [storeId, debouncedSearch, period],
   );
 
   useEffect(() => {
     if (storeId) {
-      void loadEntries(page);
+      void loadEntries(page, page > 1);
     }
-  }, [storeId, debouncedSearch, page, loadEntries]);
+  }, [storeId, debouncedSearch, page, period, loadEntries]);
+
+  useEffect(() => {
+    if (debouncedSearch || loading) return;
+
+    const node = loadMoreRef.current;
+    if (!node || pagination.page >= pagination.totalPages) return;
+
+    const observer = new IntersectionObserver(
+      (records) => {
+        if (!records[0]?.isIntersecting || loadingMoreRef.current) return;
+        setPage((current) =>
+          current < pagination.totalPages ? current + 1 : current,
+        );
+      },
+      { rootMargin: "160px" },
+    );
+
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [debouncedSearch, loading, pagination.page, pagination.totalPages, entries.length]);
 
   async function removeEntry(entryId: string) {
     await fetch("/api/inventory", {
@@ -122,7 +151,9 @@ function ExpiryList() {
       body: JSON.stringify({ entryId, storeId }),
     });
     setConfirmId(null);
-    await loadEntries(page);
+    setPage(1);
+    setEntries([]);
+    await loadEntries(1, false);
   }
 
   function onBarcodeScanned(barcode: string) {
@@ -134,7 +165,7 @@ function ExpiryList() {
   const emptyMessage = isSearching ? t("expiry.noResults") : t("expiry.empty");
 
   return (
-    <div className="mx-auto min-w-0 max-w-lg px-4 py-4">
+    <div className="mx-auto min-w-0 max-w-lg px-4 py-3">
       <MobilePageHeader title={t("expiry.title")} />
 
       <ExpiryPeriodFilter value={period} onChange={onPeriodChange} />
@@ -184,8 +215,8 @@ function ExpiryList() {
         </div>
       ) : null}
 
-      <div className="space-y-1.5">
-        {loading ? (
+      <div className="space-y-1 pt-1">
+        {loading && page === 1 ? (
           <p className="rounded-xl bg-subtle p-4 text-sm text-muted">
             {t("expiry.loading")}
           </p>
@@ -197,7 +228,7 @@ function ExpiryList() {
           </p>
         ) : null}
 
-        {!loading
+        {!loading || page > 1
           ? entries.map((entry) => (
               <ExpiryListCard
                 key={entry.id}
@@ -209,55 +240,38 @@ function ExpiryList() {
               />
             ))
           : null}
+
+        {!isSearching && pagination.page < pagination.totalPages ? (
+          <div ref={loadMoreRef} className="h-2" aria-hidden />
+        ) : null}
+
+        {loading && page > 1 ? (
+          <p className="py-2 text-center text-xs text-muted">{t("expiry.loading")}</p>
+        ) : null}
       </div>
 
-      {!loading && !isSearching && pagination.totalPages > 1 ? (
-        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <button
-            type="button"
-            disabled={page <= 1}
-            onClick={() => setPage((current) => Math.max(1, current - 1))}
-            className="w-full rounded-xl border border-input-border bg-card px-4 py-3 text-sm font-medium text-foreground disabled:opacity-50 sm:w-auto"
-          >
-            {t("expiry.previous")}
-          </button>
-          <p className="text-center text-sm text-muted">
-            {t("expiry.pageOf", {
-              page: pagination.page,
-              totalPages: pagination.totalPages,
-            })}
-          </p>
-          <button
-            type="button"
-            disabled={page >= pagination.totalPages}
-            onClick={() =>
-              setPage((current) => Math.min(pagination.totalPages, current + 1))
-            }
-            className="w-full rounded-xl border border-input-border bg-card px-4 py-3 text-sm font-medium text-foreground disabled:opacity-50 sm:w-auto"
-          >
-            {t("expiry.next")}
-          </button>
-        </div>
-      ) : null}
-
       {confirmId ? (
-        <div className="fixed inset-0 flex items-end bg-black/40 p-4">
-          <div className="w-full rounded-2xl bg-card p-4">
-            <p className="font-medium">{t("expiry.confirmTitle")}</p>
-            <p className="mt-2 text-sm text-muted">{t("expiry.confirmMessage")}</p>
-            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <button
-                className="w-full rounded-xl border border-input-border bg-card px-4 py-3 text-foreground"
-                onClick={() => setConfirmId(null)}
-              >
-                {t("expiry.confirmCancel")}
-              </button>
-              <button
-                className="w-full rounded-xl bg-danger px-4 py-3 text-danger-fg"
-                onClick={() => void removeEntry(confirmId)}
-              >
-                {t("expiry.remove")}
-              </button>
+        <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40">
+          <div className="w-full max-w-lg px-3 pb-[calc(var(--app-bottom-nav-height)+env(safe-area-inset-bottom,0px)+0.5rem)]">
+            <div className="rounded-xl border border-card-border bg-card p-3">
+              <p className="text-sm font-semibold">{t("expiry.confirmTitle")}</p>
+              <p className="mt-1 text-xs text-muted">{t("expiry.confirmMessage")}</p>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  className="rounded-lg border border-input-border bg-card px-3 py-2 text-sm text-foreground"
+                  onClick={() => setConfirmId(null)}
+                >
+                  {t("expiry.confirmCancel")}
+                </button>
+                <button
+                  type="button"
+                  className="rounded-lg bg-danger px-3 py-2 text-sm text-danger-fg"
+                  onClick={() => void removeEntry(confirmId)}
+                >
+                  {t("expiry.remove")}
+                </button>
+              </div>
             </div>
           </div>
         </div>
