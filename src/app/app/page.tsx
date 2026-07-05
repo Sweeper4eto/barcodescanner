@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useT } from "@/components/i18n-provider";
@@ -94,28 +93,7 @@ export default function AppHomePage() {
         <p className="mt-6 rounded-xl bg-warning-bg p-4 text-sm text-warning-fg">
           {t("app.noStores")}
         </p>
-      ) : (
-        <div className="mt-6 grid gap-3">
-          <Link
-            href={`/app/scan?storeId=${storeId}`}
-            className="rounded-xl bg-primary px-4 py-4 text-center text-lg font-medium text-primary-fg"
-          >
-            {t("app.scanStock")}
-          </Link>
-          <Link
-            href={`/app/add-product?storeId=${storeId}`}
-            className="rounded-xl bg-invert px-4 py-4 text-center text-lg font-medium text-invert-fg"
-          >
-            {t("app.addStock")}
-          </Link>
-          <Link
-            href={`/app/expiry?storeId=${storeId}`}
-            className="rounded-xl border border-input-border bg-card px-4 py-4 text-center text-lg font-medium text-foreground"
-          >
-            {t("app.expiry")}
-          </Link>
-        </div>
-      )}
+      ) : null}
 
       <PushNotifications />
     </div>

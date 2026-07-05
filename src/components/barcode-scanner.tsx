@@ -229,6 +229,7 @@ export function BarcodeScanner({ onScan, onCancel, autoStart = false }: Props) {
   const scanCleanupRef = useRef<(() => void) | null>(null);
   const onScanRef = useRef(onScan);
   const handledRef = useRef(false);
+  const abortedRef = useRef(false);
   const [manual, setManual] = useState("");
   const [error, setError] = useState("");
   const [scanning, setScanning] = useState(false);
@@ -244,6 +245,8 @@ export function BarcodeScanner({ onScan, onCancel, autoStart = false }: Props) {
   useEffect(() => {
     if (typeof window === "undefined" || !window.isSecureContext) return;
 
+    abortedRef.current = false;
+
     if (!scannerRef.current) {
       scannerRef.current = new Html5Qrcode(elementId, SCANNER_OPTIONS);
     }
@@ -251,10 +254,22 @@ export function BarcodeScanner({ onScan, onCancel, autoStart = false }: Props) {
       fileDecoderRef.current = new Html5Qrcode(fileDecoderId, SCANNER_OPTIONS);
     }
 
-    return () => {
+    const stopCamera = () => {
+      abortedRef.current = true;
       scanCleanupRef.current?.();
       scanCleanupRef.current = null;
       void scannerRef.current?.stop().catch(() => undefined);
+    };
+
+    const onPageHide = () => {
+      stopCamera();
+    };
+
+    window.addEventListener("pagehide", onPageHide);
+
+    return () => {
+      window.removeEventListener("pagehide", onPageHide);
+      stopCamera();
       scannerRef.current = null;
       fileDecoderRef.current?.clear();
       fileDecoderRef.current = null;
@@ -273,7 +288,7 @@ export function BarcodeScanner({ onScan, onCancel, autoStart = false }: Props) {
   }, []);
 
   const startCamera = useCallback(async () => {
-    if (starting || scanning) return;
+    if (starting || scanning || abortedRef.current) return;
 
     if (typeof window !== "undefined" && !window.isSecureContext) {
       setError(t("scanner.insecureContext"));
@@ -295,6 +310,8 @@ export function BarcodeScanner({ onScan, onCancel, autoStart = false }: Props) {
         scannerRef.current = new Html5Qrcode(elementId, SCANNER_OPTIONS);
       }
 
+      if (abortedRef.current) return;
+
       if (!fileDecoderRef.current) {
         fileDecoderRef.current = new Html5Qrcode(fileDecoderId, SCANNER_OPTIONS);
       }
@@ -306,6 +323,14 @@ export function BarcodeScanner({ onScan, onCancel, autoStart = false }: Props) {
         deliverBarcode,
       );
 
+      if (abortedRef.current) {
+        scanCleanupRef.current?.();
+        scanCleanupRef.current = null;
+        await resetScanner(scannerRef.current);
+        setScanning(false);
+        return;
+      }
+
       try {
         const torch = scannerRef.current.getRunningTrackCameraCapabilities().torchFeature();
         setTorchAvailable(torch.isSupported());
@@ -313,10 +338,14 @@ export function BarcodeScanner({ onScan, onCancel, autoStart = false }: Props) {
         setTorchAvailable(false);
       }
     } catch (caught) {
-      setScanning(false);
-      setError(t(scannerErrorKey(caught)));
+      if (!abortedRef.current) {
+        setScanning(false);
+        setError(t(scannerErrorKey(caught)));
+      }
     } finally {
-      setStarting(false);
+      if (!abortedRef.current) {
+        setStarting(false);
+      }
     }
   }, [deliverBarcode, elementId, fileDecoderId, scanning, starting, t]);
 

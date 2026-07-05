@@ -1,4 +1,4 @@
-const CACHE_NAME = "expire365-v2";
+const CACHE_NAME = "expire365-v3";
 const OFFLINE_FALLBACKS = ["/app", "/login", "/"];
 
 self.addEventListener("install", (event) => {
@@ -32,17 +32,8 @@ self.addEventListener("fetch", (event) => {
     request.mode === "navigate" ||
     request.headers.get("accept")?.includes("text/html");
 
-  // Never cache HTML navigations — stale documents break Next.js back/forward.
+  // Let the browser handle navigations; Next.js needs a live network response.
   if (isDocument) {
-    event.respondWith(
-      fetch(request).catch(async () => {
-        for (const path of OFFLINE_FALLBACKS) {
-          const cached = await caches.match(path);
-          if (cached) return cached;
-        }
-        return Response.error();
-      }),
-    );
     return;
   }
 

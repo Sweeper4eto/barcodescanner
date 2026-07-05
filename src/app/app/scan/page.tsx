@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { PrimaryButton, SecondaryButton } from "@/components/auth-forms";
@@ -120,14 +119,7 @@ function ScanFlow() {
 
   return (
     <div className="mx-auto min-w-0 max-w-lg px-4 py-6">
-      <MobilePageHeader
-        title={t("scan.title")}
-        action={
-          <Link href="/app" className="text-sm text-accent">
-            {t("common.cancel")}
-          </Link>
-        }
-      />
+      <MobilePageHeader title={t("scan.title")} />
 
       {step === "scan" ? (
         <div className="rounded-2xl border border-card-border p-4">
@@ -138,7 +130,7 @@ function ScanFlow() {
           <BarcodeScanner
             autoStart
             onScan={lookupBarcode}
-            onCancel={() => router.push("/app")}
+            onCancel={() => router.back()}
           />
         </div>
       ) : null}

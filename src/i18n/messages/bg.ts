@@ -102,6 +102,10 @@ export const bg = {
     scanStock: "Сканирай продукт",
     addStock: "Добави нов продукт",
     expiry: "Годност",
+    navExpiry: "Годност",
+    navAdd: "Добави",
+    navScan: "Сканирай",
+    bottomNav: "Основна навигация",
     noStores: "Нямате назначени магазини. Свържете се с администратор.",
   },
   push: {

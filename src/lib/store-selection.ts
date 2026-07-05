@@ -8,4 +8,5 @@ export function getStoredStoreId(): string | null {
 export function setStoredStoreId(storeId: string): void {
   if (typeof window === "undefined") return;
   localStorage.setItem(STORE_KEY, storeId);
+  window.dispatchEvent(new Event("magazin:store-changed"));
 }

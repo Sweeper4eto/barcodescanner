@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { BarcodeScanner } from "@/components/barcode-scanner";
@@ -114,14 +113,7 @@ function ExpiryList() {
 
   return (
     <div className="mx-auto min-w-0 max-w-lg px-4 py-6">
-      <MobilePageHeader
-        title={t("expiry.title")}
-        action={
-          <Link href="/app" className="text-sm text-accent">
-            {t("common.back")}
-          </Link>
-        }
-      />
+      <MobilePageHeader title={t("expiry.title")} />
 
       <div className="mb-4 flex gap-2">
         <input

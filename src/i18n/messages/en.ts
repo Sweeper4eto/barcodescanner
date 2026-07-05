@@ -100,6 +100,10 @@ export const en = {
     scanStock: "Scan item",
     addStock: "Add new item",
     expiry: "Expiry",
+    navExpiry: "Expiry",
+    navAdd: "Add item",
+    navScan: "Scan item",
+    bottomNav: "Main navigation",
     noStores:
       "You have no assigned stores. Contact an administrator.",
   },
