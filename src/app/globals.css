@@ -107,12 +107,18 @@ body {
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
 }
 
+.barcode-scanner-view {
+  max-height: min(38vh, 280px);
+}
+
 .barcode-scanner-view video,
 .barcode-scanner-view canvas,
 .barcode-scanner-view img {
   max-width: 100% !important;
   width: 100% !important;
   height: auto !important;
+  max-height: min(38vh, 280px) !important;
+  object-fit: cover;
 }
 
 input,

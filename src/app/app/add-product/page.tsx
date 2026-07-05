@@ -67,10 +67,12 @@ function AddProductFlow() {
   const confirmPhotoSrc = photoPreview || imagePath;
 
   async function saveProduct() {
+    const normalizedBarcode = normalizeBarcode(barcode);
+    if (!normalizedBarcode) return;
     const response = await fetch("/api/products", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ barcode, name, imagePath: imagePath || undefined }),
+      body: JSON.stringify({ barcode: normalizedBarcode, name, imagePath: imagePath || undefined }),
     });
     const data = await response.json();
     if (!response.ok) {
@@ -89,8 +91,9 @@ function AddProductFlow() {
       {step === "scan" ? (
         <div className="rounded-2xl border border-card-border p-4">
           <BarcodeScanner
+            autoStart
             onScan={(value) => void checkBarcode(value)}
-            onCancel={() => router.push("/app")}
+            onCancel={() => router.back()}
           />
           {error ? <p className="mt-2 text-sm text-error">{error}</p> : null}
         </div>
@@ -98,9 +101,14 @@ function AddProductFlow() {
 
       {step === "name" ? (
         <div className="space-y-4 rounded-2xl border border-card-border p-4">
-          <p className="text-sm text-muted">
-            {t("common.barcode")}: {barcode}
-          </p>
+          <label className="block text-sm font-medium text-foreground">
+            {t("common.barcode")}
+            <input
+              className="mt-1 w-full rounded-xl border border-input-border bg-input px-3 py-3 text-foreground"
+              value={barcode}
+              onChange={(event) => setBarcode(event.target.value)}
+            />
+          </label>
           <input
             className="w-full rounded-xl border border-input-border bg-input px-3 py-3 text-foreground"
             placeholder={t("addProduct.productName")}

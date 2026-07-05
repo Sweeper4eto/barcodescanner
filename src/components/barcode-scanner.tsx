@@ -9,11 +9,7 @@ import {
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { PrimaryButton, SecondaryButton } from "@/components/auth-forms";
 import { useT } from "@/components/i18n-provider";
-import {
-  refocusBarcodeCamera,
-  startEnhancedAutoScan,
-  toggleBarcodeTorch,
-} from "@/lib/barcode-camera";
+import { startEnhancedAutoScan, toggleBarcodeTorch } from "@/lib/barcode-camera";
 import { BarcodeReadConsensus, normalizeBarcode } from "@/lib/barcode";
 
 type Props = {
@@ -21,6 +17,8 @@ type Props = {
   onCancel?: () => void;
   /** Start camera as soon as the component mounts (scan pages). */
   autoStart?: boolean;
+  /** When false, camera scan fills the barcode field for manual edit before confirm. */
+  submitOnScan?: boolean;
 };
 
 const PRODUCT_BARCODE_FORMATS = [
@@ -220,7 +218,12 @@ function scannerErrorKey(
   return "scanner.cameraUnavailable";
 }
 
-export function BarcodeScanner({ onScan, onCancel, autoStart = false }: Props) {
+export function BarcodeScanner({
+  onScan,
+  onCancel,
+  autoStart = false,
+  submitOnScan = false,
+}: Props) {
   const { t } = useT();
   const elementId = useId().replace(/:/g, "");
   const fileDecoderId = `${elementId}-decoder`;
@@ -228,19 +231,23 @@ export function BarcodeScanner({ onScan, onCancel, autoStart = false }: Props) {
   const fileDecoderRef = useRef<Html5Qrcode | null>(null);
   const scanCleanupRef = useRef<(() => void) | null>(null);
   const onScanRef = useRef(onScan);
+  const submitOnScanRef = useRef(submitOnScan);
   const handledRef = useRef(false);
   const abortedRef = useRef(false);
   const [manual, setManual] = useState("");
   const [error, setError] = useState("");
   const [scanning, setScanning] = useState(false);
   const [starting, setStarting] = useState(false);
-  const [refocusing, setRefocusing] = useState(false);
   const [torchOn, setTorchOn] = useState(false);
   const [torchAvailable, setTorchAvailable] = useState(false);
 
   useEffect(() => {
     onScanRef.current = onScan;
   }, [onScan]);
+
+  useEffect(() => {
+    submitOnScanRef.current = submitOnScan;
+  }, [submitOnScan]);
 
   useEffect(() => {
     if (typeof window === "undefined" || !window.isSecureContext) return;
@@ -277,13 +284,21 @@ export function BarcodeScanner({ onScan, onCancel, autoStart = false }: Props) {
   }, [elementId, fileDecoderId]);
 
   const deliverBarcode = useCallback(async (value: string) => {
-    if (handledRef.current) return;
-    handledRef.current = true;
     const barcode = normalizeBarcode(value);
     if (!barcode) {
-      handledRef.current = false;
       throw new Error("EMPTY_BARCODE");
     }
+
+    if (!submitOnScanRef.current) {
+      setManual(barcode);
+      handledRef.current = false;
+      scannerRef.current?.resume();
+      return;
+    }
+
+    if (handledRef.current) return;
+    handledRef.current = true;
+    setManual(barcode);
     await onScanRef.current(barcode);
   }, []);
 
@@ -356,17 +371,6 @@ export function BarcodeScanner({ onScan, onCancel, autoStart = false }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoStart]);
 
-  const onRefocus = useCallback(async () => {
-    if (!scannerRef.current || refocusing) return;
-    setRefocusing(true);
-    setError("");
-    try {
-      await refocusBarcodeCamera(scannerRef.current);
-    } finally {
-      setRefocusing(false);
-    }
-  }, [refocusing]);
-
   const onTorchToggle = useCallback(async () => {
     if (!scannerRef.current) return;
     const next = !torchOn;
@@ -374,8 +378,14 @@ export function BarcodeScanner({ onScan, onCancel, autoStart = false }: Props) {
     if (applied) setTorchOn(next);
   }, [torchOn]);
 
+  function confirmManual() {
+    const barcode = normalizeBarcode(manual);
+    if (!barcode) return;
+    void onScan(barcode);
+  }
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div
         className={
           scanning
@@ -395,36 +405,26 @@ export function BarcodeScanner({ onScan, onCancel, autoStart = false }: Props) {
         <PrimaryButton onClick={() => void startCamera()} disabled={starting}>
           {starting ? t("scanner.starting") : t("scanner.startCamera")}
         </PrimaryButton>
-      ) : (
-        <div
-          className={`grid gap-2 ${torchAvailable ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1"}`}
-        >
-          <SecondaryButton onClick={() => void onRefocus()}>
-            {refocusing ? t("scanner.refocusing") : t("scanner.refocus")}
-          </SecondaryButton>
-          {torchAvailable ? (
-            <SecondaryButton onClick={() => void onTorchToggle()}>
-              {torchOn ? t("scanner.torchOff") : t("scanner.torchOn")}
-            </SecondaryButton>
-          ) : null}
-        </div>
-      )}
+      ) : torchAvailable ? (
+        <SecondaryButton onClick={() => void onTorchToggle()}>
+          {torchOn ? t("scanner.torchOff") : t("scanner.torchOn")}
+        </SecondaryButton>
+      ) : null}
       {error ? <p className="text-sm text-warning-fg">{error}</p> : null}
-      <input
-        className="w-full min-w-0 rounded-xl border border-input-border bg-input px-3 py-3 text-foreground"
-        placeholder={t("scanner.manualPlaceholder")}
-        value={manual}
-        onChange={(event) => setManual(event.target.value)}
-      />
+      <label className="block text-sm font-medium text-foreground">
+        {t("common.barcode")}
+        <input
+          className="mt-1 w-full min-w-0 rounded-xl border border-input-border bg-input px-3 py-3 text-foreground"
+          placeholder={t("scanner.manualPlaceholder")}
+          value={manual}
+          onChange={(event) => setManual(event.target.value)}
+        />
+      </label>
       <button
         type="button"
-        className="w-full rounded-xl bg-primary px-4 py-3 font-medium text-primary-fg"
-        onClick={() => {
-          const barcode = normalizeBarcode(manual);
-          if (barcode) {
-            void onScan(barcode);
-          }
-        }}
+        className="w-full rounded-xl bg-primary px-4 py-3 font-medium text-primary-fg disabled:opacity-50"
+        disabled={!normalizeBarcode(manual)}
+        onClick={confirmManual}
       >
         {t("scanner.confirmBarcode")}
       </button>

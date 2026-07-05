@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { expiryListVisible } from "@/lib/expiry";
+import { expiryListVisible, daysUntilExpiry } from "@/lib/expiry";
 import {
   isPushConfigured,
   sendPushToSubscription,
@@ -19,11 +19,7 @@ export type ExpiryDigestItem = {
   daysUntilExpiry: number;
 };
 
-export function daysUntilExpiry(expiryDate: Date, now = new Date()): number {
-  return Math.ceil(
-    (expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
-  );
-}
+export { daysUntilExpiry } from "@/lib/expiry";
 
 export function buildExpiryDigestPayload(
   items: ExpiryDigestItem[],

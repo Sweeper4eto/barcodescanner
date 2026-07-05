@@ -157,6 +157,10 @@ export const bg = {
     confirmMessage: "Премахване на този артикул от списъка с годност?",
     confirmCancel: "Отказ",
     dateLabel: "Ден / месец / година (годност)",
+    validUntil: "Годен до",
+    day: "ден",
+    days: "дни",
+    today: "Днес",
   },
   scanner: {
     startCamera: "Стартирай камера",

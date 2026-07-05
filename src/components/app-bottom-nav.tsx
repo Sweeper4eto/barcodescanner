@@ -2,65 +2,17 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { ReactNode } from "react";
+import type { ComponentType } from "react";
 import { useEffect, useState } from "react";
+import { AddNavIcon, ExpiryNavIcon, ScanNavIcon } from "@/components/app-nav-icons";
 import { useT } from "@/components/i18n-provider";
 import { getStoredStoreId } from "@/lib/store-selection";
-
-function ExpiryIcon() {
-  return (
-    <svg
-      aria-hidden
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.75"
-      className="h-6 w-6"
-    >
-      <rect x="3" y="4" width="18" height="18" rx="2" />
-      <path d="M16 2v4M8 2v4M3 10h18" />
-      <circle cx="12" cy="15" r="2.5" fill="currentColor" stroke="none" />
-    </svg>
-  );
-}
-
-function AddIcon() {
-  return (
-    <svg
-      aria-hidden
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.75"
-      className="h-6 w-6"
-    >
-      <circle cx="12" cy="12" r="9" />
-      <path d="M12 8v8M8 12h8" />
-    </svg>
-  );
-}
-
-function ScanIcon() {
-  return (
-    <svg
-      aria-hidden
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.75"
-      className="h-6 w-6"
-    >
-      <path d="M4 7V5a1 1 0 0 1 1-1h2M20 7V5a1 1 0 0 0-1-1h-2M4 17v2a1 1 0 0 0 1 1h2M20 17v2a1 1 0 0 1-1 1h-2" />
-      <path d="M7 12h10" strokeWidth="2" />
-    </svg>
-  );
-}
 
 type Tab = {
   id: "expiry" | "add" | "scan";
   href: string;
   label: string;
-  icon: () => ReactNode;
+  icon: ComponentType<{ className?: string }>;
   match: (pathname: string) => boolean;
 };
 
@@ -86,21 +38,21 @@ export function AppBottomNav() {
       id: "expiry",
       href: `/app/expiry${query}`,
       label: t("app.navExpiry"),
-      icon: ExpiryIcon,
+      icon: ExpiryNavIcon,
       match: (path) => path.startsWith("/app/expiry"),
     },
     {
       id: "add",
       href: `/app/add-product${query}`,
       label: t("app.navAdd"),
-      icon: AddIcon,
+      icon: AddNavIcon,
       match: (path) => path.startsWith("/app/add-product"),
     },
     {
       id: "scan",
       href: `/app/scan${query}`,
       label: t("app.navScan"),
-      icon: ScanIcon,
+      icon: ScanNavIcon,
       match: (path) => path.startsWith("/app/scan"),
     },
   ];
@@ -126,7 +78,7 @@ export function AppBottomNav() {
 
           const content = (
             <>
-              <tab.icon />
+              <tab.icon className="h-6 w-6" />
               <span className="max-w-full truncate">{tab.label}</span>
             </>
           );

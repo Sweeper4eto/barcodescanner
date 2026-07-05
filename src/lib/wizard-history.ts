@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect } from "react";
 
 type WizardHistoryOptions<T extends string> = {
   step: T;
@@ -19,39 +19,37 @@ function readWizardStep<T extends string>(state: unknown): T | undefined {
   return (state as { wizardStep?: T }).wizardStep;
 }
 
-/** Tie multi-step flows to the browser back button via history state. */
+/** Tie multi-step flows to the browser back button without replacing the initial history entry. */
 export function useWizardHistory<T extends string>({
   step,
   initialStep,
   setStep,
 }: WizardHistoryOptions<T>) {
-  const seededRef = useRef(false);
-
-  useEffect(() => {
-    if (seededRef.current) return;
-    seededRef.current = true;
-    window.history.replaceState(mergeWizardState(initialStep), "");
-  }, [initialStep]);
-
   useEffect(() => {
     function onPopState(event: PopStateEvent) {
       const nextStep = readWizardStep<T>(event.state);
       if (nextStep) {
         setStep(nextStep);
+        return;
+      }
+      if (step !== initialStep) {
+        setStep(initialStep);
       }
     }
 
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
-  }, [setStep]);
+  }, [initialStep, setStep, step]);
 
   const goToStep = useCallback(
     (nextStep: T) => {
       if (nextStep === step) return;
-      window.history.pushState(mergeWizardState(nextStep), "");
+      if (nextStep !== initialStep || step !== initialStep) {
+        window.history.pushState(mergeWizardState(nextStep), "");
+      }
       setStep(nextStep);
     },
-    [setStep, step],
+    [initialStep, setStep, step],
   );
 
   return { goToStep };

@@ -3,9 +3,10 @@
 import { useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { BarcodeScanner } from "@/components/barcode-scanner";
+import { ScanNavIcon } from "@/components/app-nav-icons";
+import { ExpiryListCard } from "@/components/expiry-list-card";
 import { MobilePageHeader } from "@/components/mobile-page-header";
 import { useT } from "@/components/i18n-provider";
-import { expiryUrgencyClass } from "@/lib/expiry";
 
 const PAGE_SIZE = 20;
 
@@ -26,7 +27,7 @@ type Pagination = {
 };
 
 function ExpiryList() {
-  const { t, dateLocale } = useT();
+  const { t } = useT();
   const searchParams = useSearchParams();
   const storeId = searchParams.get("storeId") ?? "";
   const [entries, setEntries] = useState<Entry[]>([]);
@@ -112,10 +113,10 @@ function ExpiryList() {
   const emptyMessage = isSearching ? t("expiry.noResults") : t("expiry.empty");
 
   return (
-    <div className="mx-auto min-w-0 max-w-lg px-4 py-6">
+    <div className="mx-auto min-w-0 max-w-lg px-4 py-4">
       <MobilePageHeader title={t("expiry.title")} />
 
-      <div className="mb-4 flex gap-2">
+      <div className="mb-3 flex gap-2">
         <input
           className="min-w-0 flex-1 rounded-xl border border-input-border bg-input px-3 py-3 text-base text-foreground"
           placeholder={t("expiry.searchPlaceholder")}
@@ -125,13 +126,14 @@ function ExpiryList() {
         <button
           type="button"
           onClick={() => setShowScanner((open) => !open)}
-          className={`shrink-0 rounded-xl border px-4 py-3 text-sm font-medium ${
+          className={`flex shrink-0 flex-col items-center justify-center gap-0.5 rounded-xl border px-3 py-2 text-xs font-medium ${
             showScanner
-              ? "border-primary bg-selected text-foreground"
-              : "border-input-border bg-card text-foreground"
+              ? "border-primary bg-selected text-primary"
+              : "border-input-border bg-card text-muted"
           }`}
         >
-          {t("expiry.scan")}
+          <ScanNavIcon className="h-6 w-6" />
+          <span>{t("app.navScan")}</span>
         </button>
       </div>
 
@@ -151,13 +153,15 @@ function ExpiryList() {
       {showScanner ? (
         <div className="mb-4 rounded-2xl border border-card-border p-4">
           <BarcodeScanner
+            autoStart
+            submitOnScan
             onScan={async (barcode) => onBarcodeScanned(barcode)}
             onCancel={() => setShowScanner(false)}
           />
         </div>
       ) : null}
 
-      <div className="space-y-3">
+      <div className="space-y-1.5">
         {loading ? (
           <p className="rounded-xl bg-subtle p-4 text-sm text-muted">
             {t("expiry.loading")}
@@ -172,36 +176,13 @@ function ExpiryList() {
 
         {!loading
           ? entries.map((entry) => (
-              <div
+              <ExpiryListCard
                 key={entry.id}
-                className={`rounded-2xl border p-4 ${expiryUrgencyClass(new Date(entry.expiryDate))}`}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    <p className="break-words font-medium">{entry.product.name}</p>
-                    <p className="mt-1 break-all text-sm text-muted">
-                      {t("common.barcode")}: {entry.barcode}
-                    </p>
-                    <p className="text-sm text-muted">
-                      {t("common.quantity")}: {entry.quantity}
-                    </p>
-                    <p className="text-sm text-muted">
-                      {t("expiry.entered")}:{" "}
-                      {new Date(entry.enteredAt).toLocaleDateString(dateLocale)}
-                    </p>
-                    <p className="text-sm text-muted">
-                      {t("expiry.expiryDate")}:{" "}
-                      {new Date(entry.expiryDate).toLocaleDateString(dateLocale)}
-                    </p>
-                  </div>
-                  <button
-                    className="shrink-0 rounded-lg border border-input-border bg-card px-3 py-2 text-sm text-foreground"
-                    onClick={() => setConfirmId(entry.id)}
-                  >
-                    {t("expiry.remove")}
-                  </button>
-                </div>
-              </div>
+                name={entry.product.name}
+                imagePath={entry.product.imagePath}
+                expiryDate={entry.expiryDate}
+                onRemove={() => setConfirmId(entry.id)}
+              />
             ))
           : null}
       </div>

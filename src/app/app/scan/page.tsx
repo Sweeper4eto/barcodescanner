@@ -98,12 +98,13 @@ function ScanFlow() {
 
   async function submitInventory() {
     if (!product || !expiryDate) return;
+    const resolvedBarcode = normalizeBarcode(barcode) || product.barcode;
     const response = await fetch("/api/inventory", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         storeId,
-        barcode: product.barcode,
+        barcode: resolvedBarcode,
         productId: product.id,
         quantity: Number(quantity),
         expiryDate: new Date(expiryDate).toISOString(),
@@ -138,6 +139,14 @@ function ScanFlow() {
       {step === "missing" ? (
         <div className="space-y-4 rounded-2xl border border-card-border p-4">
           <p>{t("scan.productMissing")}</p>
+          <label className="block text-sm font-medium text-foreground">
+            {t("common.barcode")}
+            <input
+              className="mt-1 w-full rounded-xl border border-input-border bg-input px-3 py-3 text-foreground"
+              value={barcode}
+              onChange={(event) => setBarcode(event.target.value)}
+            />
+          </label>
           <PrimaryButton
             onClick={() =>
               router.push(`/app/add-product?storeId=${storeId}&barcode=${encodeURIComponent(barcode)}`)
@@ -160,6 +169,14 @@ function ScanFlow() {
             />
           ) : null}
           <p className="font-medium">{product.name}</p>
+          <label className="block text-sm font-medium text-foreground">
+            {t("common.barcode")}
+            <input
+              className="mt-1 w-full rounded-xl border border-input-border bg-input px-3 py-3 text-foreground"
+              value={barcode}
+              onChange={(event) => setBarcode(event.target.value)}
+            />
+          </label>
           <div className="grid grid-cols-4 gap-2 sm:grid-cols-5">
             {Array.from({ length: 20 }, (_, index) => index + 1).map((value) => (
               <button
@@ -198,6 +215,14 @@ function ScanFlow() {
             />
           ) : null}
           <p className="font-medium">{product.name}</p>
+          <label className="block text-sm font-medium text-foreground">
+            {t("common.barcode")}
+            <input
+              className="mt-1 w-full rounded-xl border border-input-border bg-input px-3 py-3 text-foreground"
+              value={barcode}
+              onChange={(event) => setBarcode(event.target.value)}
+            />
+          </label>
           <p className="text-sm text-muted">
             {t("common.quantity")}: {quantity}
           </p>

@@ -18,11 +18,17 @@ export function expiryListVisible(expiryDate: Date, now = new Date()): boolean {
 }
 
 export function expiryUrgencyClass(expiryDate: Date, now = new Date()): string {
-  const days = (expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
+  const days = daysUntilExpiry(expiryDate, now);
   if (days <= 7) return "urgency-critical";
   if (days <= 14) return "urgency-warning";
   if (days <= 28) return "urgency-soon";
   return "urgency-normal";
+}
+
+export function daysUntilExpiry(expiryDate: Date, now = new Date()): number {
+  return Math.ceil(
+    (expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
+  );
 }
 
 export function paymentAmount(

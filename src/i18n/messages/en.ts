@@ -156,6 +156,10 @@ export const en = {
     confirmMessage: "Remove this item from the expiry list?",
     confirmCancel: "Cancel",
     dateLabel: "Day / month / year (expiry)",
+    validUntil: "Valid until",
+    day: "day",
+    days: "days",
+    today: "Today",
   },
   scanner: {
     startCamera: "Start camera",
