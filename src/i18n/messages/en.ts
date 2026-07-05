@@ -166,6 +166,7 @@ export const en = {
     confirmCancel: "Cancel",
     dateLabel: "Day / month / year (expiry)",
     validUntil: "Valid until",
+    enteredOn: "Entered on:",
     day: "day",
     days: "days",
     today: "Today",

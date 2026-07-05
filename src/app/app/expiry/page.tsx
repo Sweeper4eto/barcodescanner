@@ -204,6 +204,7 @@ function ExpiryList() {
                 name={entry.product.name}
                 imagePath={entry.product.imagePath}
                 expiryDate={entry.expiryDate}
+                enteredAt={entry.enteredAt}
                 onRemove={() => setConfirmId(entry.id)}
               />
             ))

@@ -78,6 +78,28 @@ export function expiryUrgencyClass(expiryDate: Date, now = new Date()): string {
   return "urgency-normal";
 }
 
+export function expiryUrgencyStripeClass(expiryDate: Date, now = new Date()): string {
+  const days = daysUntilExpiry(expiryDate, now);
+  if (days <= 7) return "bg-[var(--urgency-critical-border)]";
+  if (days <= 14) return "bg-[var(--urgency-warning-border)]";
+  if (days <= 28) return "bg-[var(--urgency-soon-border)]";
+  return "bg-card-border";
+}
+
+export function expiryUrgencyBadgeClass(expiryDate: Date, now = new Date()): string {
+  const days = daysUntilExpiry(expiryDate, now);
+  if (days <= 7) {
+    return "border-[var(--urgency-critical-border)] bg-[var(--urgency-critical-bg)] text-error";
+  }
+  if (days <= 14) {
+    return "border-[var(--urgency-warning-border)] bg-[var(--urgency-warning-bg)] text-warning-fg";
+  }
+  if (days <= 28) {
+    return "border-[var(--urgency-soon-border)] bg-[var(--urgency-soon-bg)] text-foreground";
+  }
+  return "border-card-border bg-subtle text-foreground";
+}
+
 export function daysUntilExpiry(expiryDate: Date, now = new Date()): number {
   return Math.ceil(
     (expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),

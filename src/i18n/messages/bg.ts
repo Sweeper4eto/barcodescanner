@@ -167,6 +167,7 @@ export const bg = {
     confirmCancel: "Отказ",
     dateLabel: "Ден / месец / година (годност)",
     validUntil: "Годен до",
+    enteredOn: "Въведен на:",
     day: "ден",
     days: "дни",
     today: "Днес",
