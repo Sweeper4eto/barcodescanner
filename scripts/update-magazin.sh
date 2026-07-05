@@ -26,7 +26,8 @@ pm2 stop magazin 2>/dev/null || true
 echo "==> Removing old .next build..."
 rm -rf .next
 
-echo "==> Building app..."
+echo "==> Building app (webpack, low-memory friendly)..."
+export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=1536}"
 npm run build
 
 echo "==> Restarting PM2..."
