@@ -3,10 +3,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { useT } from "@/components/i18n-provider";
 
+export const EXPIRY_PICKER_YEARS_AHEAD = 5;
+
 export function expiryDateBounds(): { min: string; max: string } {
   const today = new Date();
   const max = new Date(today);
-  max.setFullYear(max.getFullYear() + 1);
+  max.setFullYear(max.getFullYear() + EXPIRY_PICKER_YEARS_AHEAD);
 
   const toInput = (date: Date) => date.toISOString().slice(0, 10);
   return { min: toInput(today), max: toInput(max) };

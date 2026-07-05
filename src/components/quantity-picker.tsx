@@ -7,11 +7,18 @@ type Props = {
   value: string;
   onChange: (value: string) => void;
   max?: number;
+  /** When false, starts collapsed so the user can tap the value to reopen the grid. */
+  startWithGridOpen?: boolean;
 };
 
-export function QuantityPicker({ value, onChange, max = 20 }: Props) {
+export function QuantityPicker({
+  value,
+  onChange,
+  max = 20,
+  startWithGridOpen = true,
+}: Props) {
   const { t } = useT();
-  const [gridOpen, setGridOpen] = useState(true);
+  const [gridOpen, setGridOpen] = useState(startWithGridOpen);
 
   useEffect(() => {
     const parsed = Number(value);

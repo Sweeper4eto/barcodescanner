@@ -178,12 +178,14 @@ export function ScanFlow() {
               onChange={(event) => setBarcode(event.target.value)}
             />
           </label>
-          <p className="text-sm text-muted">
-            {t("common.quantity")}: {quantity}
-          </p>
+          <QuantityPicker
+            value={quantity}
+            onChange={setQuantity}
+            startWithGridOpen={false}
+          />
           <ExpiryDatePicker value={expiryDate} onChange={setExpiryDate} />
           {message ? <p className="text-sm text-error">{message}</p> : null}
-          <PrimaryButton onClick={() => void submitInventory()} disabled={!expiryDate}>
+          <PrimaryButton onClick={() => void submitInventory()} disabled={!expiryDate || !quantity || Number(quantity) < 1}>
             {t("scan.enter")}
           </PrimaryButton>
           <SecondaryButton onClick={() => navigateApp("/app")}>{t("common.cancel")}</SecondaryButton>
