@@ -10,8 +10,7 @@ import { useT } from "@/components/i18n-provider";
 import { normalizeBarcode } from "@/lib/barcode";
 import { useWizardStep } from "@/lib/wizard-history";
 
-const ADD_PRODUCT_STEPS = ["scan", "name", "photo", "confirm"] as const;
-type AddProductStep = (typeof ADD_PRODUCT_STEPS)[number];
+type AddProductStep = "scan" | "name" | "photo" | "confirm";
 
 function AddProductFlow() {
   const router = useRouter();
@@ -22,7 +21,6 @@ function AddProductFlow() {
   const initialStep: AddProductStep = initialBarcode ? "name" : "scan";
   const { step, goToStep } = useWizardStep<AddProductStep>({
     initialStep,
-    validSteps: ADD_PRODUCT_STEPS,
   });
   const [barcode, setBarcode] = useState(initialBarcode);
   const [name, setName] = useState("");
@@ -80,7 +78,7 @@ function AddProductFlow() {
       setError(data.error ?? t("errors.saveFailed"));
       return;
     }
-    router.replace(
+    window.location.replace(
       `/app/scan?storeId=${encodeURIComponent(storeId)}&barcode=${encodeURIComponent(data.product.barcode)}`,
     );
   }

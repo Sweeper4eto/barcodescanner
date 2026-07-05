@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ComponentType } from "react";
 import { useEffect, useState } from "react";
@@ -85,9 +84,9 @@ export function AppBottomNav() {
           }
 
           return (
-            <Link key={tab.id} href={tab.href} className={className} aria-current={active ? "page" : undefined}>
+            <a key={tab.id} href={tab.href} className={className} aria-current={active ? "page" : undefined}>
               {content}
-            </Link>
+            </a>
           );
         })}
       </div>

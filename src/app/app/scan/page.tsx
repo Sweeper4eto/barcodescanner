@@ -10,8 +10,7 @@ import { useT } from "@/components/i18n-provider";
 import { normalizeBarcode } from "@/lib/barcode";
 import { useWizardStep } from "@/lib/wizard-history";
 
-const SCAN_STEPS = ["scan", "qty", "date", "missing"] as const;
-type ScanStep = (typeof SCAN_STEPS)[number];
+type ScanStep = "scan" | "qty" | "date" | "missing";
 
 function ScanFlow() {
   const router = useRouter();
@@ -23,7 +22,6 @@ function ScanFlow() {
   const [barcode, setBarcode] = useState("");
   const { step, goToStep } = useWizardStep<ScanStep>({
     initialStep: "scan",
-    validSteps: SCAN_STEPS,
   });
   const [product, setProduct] = useState<{
     id: string;
@@ -122,7 +120,9 @@ function ScanFlow() {
       setMessage(data.error ?? t("errors.saveFailed"));
       return;
     }
-    router.replace(storeId ? `/app/expiry?storeId=${encodeURIComponent(storeId)}` : "/app");
+    window.location.replace(
+      storeId ? `/app/expiry?storeId=${encodeURIComponent(storeId)}` : "/app",
+    );
   }
 
   return (
@@ -155,9 +155,11 @@ function ScanFlow() {
             />
           </label>
           <PrimaryButton
-            onClick={() =>
-              router.push(`/app/add-product?storeId=${storeId}&barcode=${encodeURIComponent(barcode)}`)
-            }
+            onClick={() => {
+              window.location.assign(
+                `/app/add-product?storeId=${encodeURIComponent(storeId)}&barcode=${encodeURIComponent(barcode)}`,
+              );
+            }}
           >
             {t("common.yes")}
           </PrimaryButton>
