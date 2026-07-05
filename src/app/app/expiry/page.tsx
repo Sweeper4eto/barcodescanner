@@ -5,8 +5,16 @@ import { Suspense, useCallback, useEffect, useState } from "react";
 import { BarcodeScanner } from "@/components/barcode-scanner";
 import { ScanNavIcon } from "@/components/app-nav-icons";
 import { ExpiryListCard } from "@/components/expiry-list-card";
+import { ExpiryPeriodFilter } from "@/components/expiry-period-filter";
 import { MobilePageHeader } from "@/components/mobile-page-header";
 import { useT } from "@/components/i18n-provider";
+import {
+  type ExpiryPeriod,
+  DEFAULT_EXPIRY_PERIOD,
+  expiryPeriodDays,
+  getStoredExpiryPeriod,
+  setStoredExpiryPeriod,
+} from "@/lib/expiry-period";
 
 const PAGE_SIZE = 20;
 
@@ -43,6 +51,11 @@ function ExpiryList() {
   const [showScanner, setShowScanner] = useState(false);
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [period, setPeriod] = useState<ExpiryPeriod>(DEFAULT_EXPIRY_PERIOD);
+
+  useEffect(() => {
+    setPeriod(getStoredExpiryPeriod());
+  }, []);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -53,14 +66,22 @@ function ExpiryList() {
 
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch]);
+  }, [debouncedSearch, period]);
+
+  function onPeriodChange(next: ExpiryPeriod) {
+    setPeriod(next);
+    setStoredExpiryPeriod(next);
+  }
 
   const loadEntries = useCallback(
     async (targetPage = page) => {
       if (!storeId) return;
 
       setLoading(true);
-      const params = new URLSearchParams({ storeId });
+      const params = new URLSearchParams({
+        storeId,
+        withinDays: String(expiryPeriodDays(period)),
+      });
       if (debouncedSearch) {
         params.set("q", debouncedSearch);
       } else {
@@ -85,7 +106,7 @@ function ExpiryList() {
       );
       setLoading(false);
     },
-    [storeId, debouncedSearch, page],
+    [storeId, debouncedSearch, page, period],
   );
 
   useEffect(() => {
@@ -115,6 +136,8 @@ function ExpiryList() {
   return (
     <div className="mx-auto min-w-0 max-w-lg px-4 py-4">
       <MobilePageHeader title={t("expiry.title")} />
+
+      <ExpiryPeriodFilter value={period} onChange={onPeriodChange} />
 
       <div className="mb-3 flex gap-2">
         <input

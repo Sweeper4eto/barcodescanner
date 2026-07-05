@@ -22,57 +22,55 @@ export function ExpiryListCard({ name, imagePath, expiryDate, onRemove }: Props)
         : t("expiry.days");
 
   return (
-    <div
-      className={`flex gap-2.5 rounded-xl border p-2.5 ${expiryUrgencyClass(expiry)}`}
+    <article
+      className={`relative rounded-xl border p-2.5 ${expiryUrgencyClass(expiry)}`}
     >
-      {imagePath ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={imagePath}
-          alt=""
-          className="h-14 w-14 shrink-0 rounded-lg object-cover"
-        />
-      ) : (
-        <div
-          className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-subtle text-lg font-semibold text-muted"
-          aria-hidden
-        >
-          {name.charAt(0).toUpperCase()}
-        </div>
-      )}
+      <button
+        type="button"
+        className="absolute top-2 right-2 rounded-lg border border-danger-border bg-card px-2 py-1 text-xs font-medium text-error"
+        onClick={onRemove}
+      >
+        {t("expiry.remove")}
+      </button>
 
-      <div className="min-w-0 flex-1">
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
-            {days > 0 ? (
-              <>
-                <p className="text-3xl font-bold leading-none tabular-nums text-foreground">
-                  {days}
-                </p>
-                <p className="mt-0.5 text-base font-semibold leading-none text-foreground">
-                  {daysLabel}
-                </p>
-              </>
-            ) : (
-              <p className="text-xl font-bold leading-none text-foreground">
+      <div className="flex gap-2.5 pr-20">
+        {imagePath ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={imagePath}
+            alt=""
+            className="h-14 w-14 shrink-0 rounded-lg object-cover"
+          />
+        ) : (
+          <div
+            className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-subtle text-lg font-semibold text-muted"
+            aria-hidden
+          >
+            {name.charAt(0).toUpperCase()}
+          </div>
+        )}
+
+        <div className="min-w-0">
+          {days > 0 ? (
+            <>
+              <p className="text-2xl font-bold leading-none tabular-nums text-foreground">
+                {days}
+              </p>
+              <p className="mt-0.5 text-sm font-semibold leading-none text-foreground">
                 {daysLabel}
               </p>
-            )}
-            <p className="mt-1 text-xs text-muted">{t("expiry.validUntil")}</p>
-            <p className="text-sm font-medium leading-tight text-foreground">
-              {expiry.toLocaleDateString(dateLocale)}
-            </p>
-          </div>
-          <button
-            type="button"
-            className="shrink-0 rounded-lg border border-danger-border bg-card px-2 py-1 text-xs font-medium text-error"
-            onClick={onRemove}
-          >
-            {t("expiry.remove")}
-          </button>
+            </>
+          ) : (
+            <p className="text-lg font-bold leading-none text-foreground">{daysLabel}</p>
+          )}
+          <p className="mt-0.5 text-[11px] text-muted">{t("expiry.validUntil")}</p>
+          <p className="text-xs font-medium leading-tight text-foreground">
+            {expiry.toLocaleDateString(dateLocale)}
+          </p>
         </div>
-        <p className="mt-1 truncate text-xs text-muted">{name}</p>
       </div>
-    </div>
+
+      <p className="mt-1 truncate text-xs text-muted">{name}</p>
+    </article>
   );
 }

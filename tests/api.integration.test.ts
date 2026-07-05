@@ -454,6 +454,12 @@ test("inventory list filters expiry window, search, and pagination", async () =>
   });
   assert.equal(barcodeSearch.data.entries.length, 1);
   assert.equal(barcodeSearch.data.entries[0].quantity, 3);
+
+  const wideWindow = await jsonRequest(inventoryGet, {
+    url: `http://localhost/api/inventory?storeId=${store.id}&withinDays=90`,
+  });
+  assert.equal(wideWindow.response.status, 200);
+  assert.equal(wideWindow.data.entries.length, 2);
 });
 
 test("admin clients and user assignment APIs", async () => {
