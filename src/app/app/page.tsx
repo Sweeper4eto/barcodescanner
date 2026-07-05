@@ -14,6 +14,7 @@ export default function AppHomePage() {
   const { t } = useT();
   const [stores, setStores] = useState<Store[]>([]);
   const [username, setUsername] = useState("");
+  const [bootstrapped, setBootstrapped] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -33,6 +34,7 @@ export default function AppHomePage() {
       const valid = list.find((store) => store.id === stored);
       const nextId = valid?.id ?? list[0]?.id ?? "";
       if (nextId) setStoredStoreId(nextId);
+      setBootstrapped(true);
     }
 
     void load();
@@ -45,9 +47,13 @@ export default function AppHomePage() {
     <div className="mx-auto min-h-full min-w-0 max-w-lg px-4 py-6">
       <MobilePageHeader title={t("app.workingStore")} />
 
-      <p className="mb-6 text-sm text-muted">{t("app.greeting", { username })}</p>
+      <p className="mb-6 text-sm text-muted">
+        {bootstrapped ? t("app.greeting", { username }) : null}
+      </p>
 
-      {stores.length === 0 ? (
+      {!bootstrapped ? (
+        <p className="text-sm text-muted">{t("expiry.loading")}</p>
+      ) : stores.length === 0 ? (
         <p className="rounded-xl bg-warning-bg p-4 text-sm text-warning-fg">
           {t("app.noStores")}
         </p>
