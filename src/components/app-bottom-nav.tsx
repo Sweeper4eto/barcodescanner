@@ -4,12 +4,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ComponentType } from "react";
 import { useEffect, useState } from "react";
-import { AddNavIcon, ExpiryNavIcon, ScanNavIcon } from "@/components/app-nav-icons";
+import { ExpiryNavIcon, ScanNavIcon } from "@/components/app-nav-icons";
 import { useT } from "@/components/i18n-provider";
 import { getStoredStoreId } from "@/lib/store-selection";
 
 type Tab = {
-  id: "expiry" | "add" | "scan";
+  id: "expiry" | "scan";
   href: string;
   label: string;
   icon: ComponentType<{ className?: string }>;
@@ -42,13 +42,6 @@ export function AppBottomNav() {
       match: (path) => path.startsWith("/app/expiry"),
     },
     {
-      id: "add",
-      href: `/app/add-product${query}`,
-      label: t("app.navAdd"),
-      icon: AddNavIcon,
-      match: (path) => path.startsWith("/app/add-product"),
-    },
-    {
       id: "scan",
       href: `/app/scan${query}`,
       label: t("app.navScan"),
@@ -62,7 +55,7 @@ export function AppBottomNav() {
       aria-label={t("app.bottomNav")}
       className="fixed inset-x-0 bottom-0 z-50 border-t border-card-border bg-card/95 backdrop-blur-sm supports-[backdrop-filter]:bg-card/90"
     >
-      <div className="mx-auto grid min-w-0 max-w-lg grid-cols-3 px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+      <div className="mx-auto grid min-w-0 max-w-lg grid-cols-2 px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
         {tabs.map((tab) => {
           const active = tab.match(pathname);
           const isScan = tab.id === "scan";

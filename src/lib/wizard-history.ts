@@ -1,56 +1,44 @@
-import { useCallback, useEffect } from "react";
+"use client";
 
-type WizardHistoryOptions<T extends string> = {
-  step: T;
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useMemo } from "react";
+
+type UseWizardStepOptions<T extends string> = {
   initialStep: T;
-  setStep: (step: T) => void;
+  param?: string;
+  validSteps?: readonly T[];
 };
 
-function mergeWizardState<T extends string>(wizardStep: T): Record<string, unknown> {
-  const current =
-    typeof window !== "undefined" && window.history.state && typeof window.history.state === "object"
-      ? (window.history.state as Record<string, unknown>)
-      : {};
-  return { ...current, wizardStep };
-}
-
-function readWizardStep<T extends string>(state: unknown): T | undefined {
-  if (!state || typeof state !== "object") return undefined;
-  return (state as { wizardStep?: T }).wizardStep;
-}
-
-/** Tie multi-step flows to the browser back button without replacing the initial history entry. */
-export function useWizardHistory<T extends string>({
-  step,
+/** Wizard steps via URL search params so Next.js router stays in sync with the back button. */
+export function useWizardStep<T extends string>({
   initialStep,
-  setStep,
-}: WizardHistoryOptions<T>) {
-  useEffect(() => {
-    function onPopState(event: PopStateEvent) {
-      const nextStep = readWizardStep<T>(event.state);
-      if (nextStep) {
-        setStep(nextStep);
-        return;
-      }
-      if (step !== initialStep) {
-        setStep(initialStep);
-      }
-    }
+  param = "step",
+  validSteps,
+}: UseWizardStepOptions<T>) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
 
-    window.addEventListener("popstate", onPopState);
-    return () => window.removeEventListener("popstate", onPopState);
-  }, [initialStep, setStep, step]);
+  const step = useMemo(() => {
+    const raw = searchParams.get(param);
+    if (!raw) return initialStep;
+    if (validSteps && !validSteps.includes(raw as T)) return initialStep;
+    return raw as T;
+  }, [initialStep, param, searchParams, validSteps]);
 
   const goToStep = useCallback(
     (nextStep: T) => {
-      if (nextStep === step) return;
-      if (nextStep !== initialStep || step !== initialStep) {
-        window.history.pushState(mergeWizardState(nextStep), "");
+      const params = new URLSearchParams(searchParams.toString());
+      if (nextStep === initialStep) {
+        params.delete(param);
+      } else {
+        params.set(param, nextStep);
       }
-      setStep(nextStep);
+      const qs = params.toString();
+      router.push(qs ? `${pathname}?${qs}` : pathname);
     },
-    [initialStep, setStep, step],
+    [initialStep, param, pathname, router, searchParams],
   );
 
-  return { goToStep };
+  return { step, goToStep };
 }

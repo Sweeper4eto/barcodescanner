@@ -8,7 +8,10 @@ import { CameraCapture, uploadImage } from "@/components/camera-capture";
 import { MobilePageHeader } from "@/components/mobile-page-header";
 import { useT } from "@/components/i18n-provider";
 import { normalizeBarcode } from "@/lib/barcode";
-import { useWizardHistory } from "@/lib/wizard-history";
+import { useWizardStep } from "@/lib/wizard-history";
+
+const ADD_PRODUCT_STEPS = ["scan", "name", "photo", "confirm"] as const;
+type AddProductStep = (typeof ADD_PRODUCT_STEPS)[number];
 
 function AddProductFlow() {
   const router = useRouter();
@@ -16,12 +19,10 @@ function AddProductFlow() {
   const searchParams = useSearchParams();
   const storeId = searchParams.get("storeId") ?? "";
   const initialBarcode = normalizeBarcode(searchParams.get("barcode") ?? "");
-  const initialStep = initialBarcode ? "name" : "scan";
-  const [step, setStep] = useState<"scan" | "name" | "photo" | "confirm">(initialStep);
-  const { goToStep } = useWizardHistory({
-    step,
+  const initialStep: AddProductStep = initialBarcode ? "name" : "scan";
+  const { step, goToStep } = useWizardStep<AddProductStep>({
     initialStep,
-    setStep,
+    validSteps: ADD_PRODUCT_STEPS,
   });
   const [barcode, setBarcode] = useState(initialBarcode);
   const [name, setName] = useState("");

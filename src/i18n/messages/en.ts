@@ -130,7 +130,7 @@ export const en = {
     title: "Scan item",
     lookingUp: "Looking up product...",
     productMissing: "Product not found. Would you like to add it?",
-    enter: "Add to inventory",
+    enter: "Add",
   },
   addProduct: {
     title: "Add new item",

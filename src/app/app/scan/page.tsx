@@ -8,7 +8,10 @@ import { ExpiryDatePicker } from "@/components/expiry-date-picker";
 import { MobilePageHeader } from "@/components/mobile-page-header";
 import { useT } from "@/components/i18n-provider";
 import { normalizeBarcode } from "@/lib/barcode";
-import { useWizardHistory } from "@/lib/wizard-history";
+import { useWizardStep } from "@/lib/wizard-history";
+
+const SCAN_STEPS = ["scan", "qty", "date", "missing"] as const;
+type ScanStep = (typeof SCAN_STEPS)[number];
 
 function ScanFlow() {
   const router = useRouter();
@@ -18,7 +21,10 @@ function ScanFlow() {
   const pendingBarcode = searchParams.get("barcode") ?? "";
   const autoLookupDone = useRef(false);
   const [barcode, setBarcode] = useState("");
-  const [step, setStep] = useState<"scan" | "qty" | "date" | "missing">("scan");
+  const { step, goToStep } = useWizardStep<ScanStep>({
+    initialStep: "scan",
+    validSteps: SCAN_STEPS,
+  });
   const [product, setProduct] = useState<{
     id: string;
     name: string;
@@ -29,11 +35,12 @@ function ScanFlow() {
   const [expiryDate, setExpiryDate] = useState("");
   const [message, setMessage] = useState("");
   const [lookingUp, setLookingUp] = useState(false);
-  const { goToStep } = useWizardHistory({
-    step,
-    initialStep: "scan",
-    setStep,
-  });
+
+  useEffect(() => {
+    if ((step === "qty" || step === "date") && !product) {
+      goToStep("scan");
+    }
+  }, [goToStep, product, step]);
 
   const lookupBarcode = useCallback(
     async (value: string) => {
@@ -115,7 +122,7 @@ function ScanFlow() {
       setMessage(data.error ?? t("errors.saveFailed"));
       return;
     }
-    router.replace("/app");
+    router.replace(storeId ? `/app/expiry?storeId=${encodeURIComponent(storeId)}` : "/app");
   }
 
   return (
