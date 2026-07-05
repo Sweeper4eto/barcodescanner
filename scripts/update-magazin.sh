@@ -20,6 +20,12 @@ npx prisma generate
 echo "==> Applying migrations..."
 npx prisma migrate deploy
 
+echo "==> Stopping app for clean build..."
+pm2 stop magazin 2>/dev/null || true
+
+echo "==> Removing old .next build..."
+rm -rf .next
+
 echo "==> Building app..."
 npm run build
 
