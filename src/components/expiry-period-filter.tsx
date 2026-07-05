@@ -4,7 +4,6 @@ import { useT } from "@/components/i18n-provider";
 import {
   EXPIRY_PERIOD_OPTIONS,
   type ExpiryPeriod,
-  expiryPeriodDays,
 } from "@/lib/expiry-period";
 
 type Props = {
@@ -53,5 +52,3 @@ export function ExpiryPeriodFilter({ value, onChange }: Props) {
     </div>
   );
 }
-
-export { expiryPeriodToApiParam };

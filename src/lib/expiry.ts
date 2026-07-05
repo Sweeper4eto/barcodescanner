@@ -11,8 +11,10 @@ export type ExpiryPeriod = (typeof EXPIRY_PERIOD_OPTIONS)[number];
 
 export const DEFAULT_EXPIRY_PERIOD: ExpiryPeriod = "1m";
 
-/** @deprecated Use expiryPeriodDays(DEFAULT_EXPIRY_PERIOD) */
-export const EXPIRY_LIST_MAX_FUTURE_DAYS = EXPIRY_PERIOD_DAYS[DEFAULT_EXPIRY_PERIOD];
+export const DEFAULT_EXPIRY_FUTURE_DAYS = EXPIRY_PERIOD_DAYS[DEFAULT_EXPIRY_PERIOD];
+
+/** @deprecated Use DEFAULT_EXPIRY_FUTURE_DAYS */
+export const EXPIRY_LIST_MAX_FUTURE_DAYS = DEFAULT_EXPIRY_FUTURE_DAYS;
 
 export function parseExpiryPeriod(value: string | null | undefined): ExpiryPeriod {
   if (value === "6m") return "all";
@@ -37,7 +39,7 @@ export function parseExpiryWithinDays(value: string | null | undefined): number 
   if (allowed.includes(parsed as (typeof allowed)[number])) {
     return parsed;
   }
-  return expiryPeriodDays(DEFAULT_EXPIRY_PERIOD);
+  return expiryPeriodDays("1m");
 }
 
 export function expiryListMaxPast(now = new Date()) {
@@ -46,7 +48,7 @@ export function expiryListMaxPast(now = new Date()) {
 
 export function expiryListDateBounds(
   now = new Date(),
-  futureDays: number | "all" = expiryPeriodDays(DEFAULT_EXPIRY_PERIOD),
+  futureDays: number | "all" = DEFAULT_EXPIRY_FUTURE_DAYS,
 ) {
   const maxPast = expiryListMaxPast(now);
   if (futureDays === "all") {
@@ -59,7 +61,7 @@ export function expiryListDateBounds(
 export function expiryListVisible(
   expiryDate: Date,
   now = new Date(),
-  futureDays: number | "all" = expiryPeriodDays(DEFAULT_EXPIRY_PERIOD),
+  futureDays: number | "all" = DEFAULT_EXPIRY_FUTURE_DAYS,
 ): boolean {
   const { maxFuture, maxPast } = expiryListDateBounds(now, futureDays);
   const time = expiryDate.getTime();
