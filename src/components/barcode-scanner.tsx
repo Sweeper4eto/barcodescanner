@@ -78,10 +78,19 @@ function pickRearCamera(cameras: CameraDevice[]): string | undefined {
   return rear?.id ?? cameras[0]?.id;
 }
 
-async function resetScanner(scanner: Html5Qrcode): Promise<void> {
-  if (scanner.isScanning) {
-    await scanner.stop().catch(() => undefined);
+async function safeStopScanner(scanner: Html5Qrcode | null | undefined): Promise<void> {
+  if (!scanner) return;
+  try {
+    if (scanner.isScanning) {
+      await scanner.stop().catch(() => undefined);
+    }
+  } catch {
+    // html5-qrcode may throw synchronously if stop runs before start finishes
   }
+}
+
+async function resetScanner(scanner: Html5Qrcode): Promise<void> {
+  await safeStopScanner(scanner);
 }
 
 async function startScanner(
@@ -97,12 +106,20 @@ async function startScanner(
   const deliver = (accepted: string) => {
     void (async () => {
       stopEnhanced();
-      scanner.pause(true);
+      try {
+        scanner.pause(true);
+      } catch {
+        // Scanner may not be running yet while the camera is still starting.
+      }
       try {
         await onDecoded(accepted);
       } catch {
         consensus.reset();
-        scanner.resume();
+        try {
+          scanner.resume();
+        } catch {
+          // ignore resume failures during camera startup
+        }
         stopEnhanced = startEnhancedAutoScan(fileDecoder, containerId, consider);
       }
     })();
@@ -265,7 +282,7 @@ export function BarcodeScanner({
       abortedRef.current = true;
       scanCleanupRef.current?.();
       scanCleanupRef.current = null;
-      void scannerRef.current?.stop().catch(() => undefined);
+      void safeStopScanner(scannerRef.current);
     };
 
     const onPageHide = () => {
@@ -286,13 +303,17 @@ export function BarcodeScanner({
   const deliverBarcode = useCallback(async (value: string) => {
     const barcode = normalizeBarcode(value);
     if (!barcode) {
-      throw new Error("EMPTY_BARCODE");
+      return;
     }
 
     if (!submitOnScanRef.current) {
       setManual(barcode);
       handledRef.current = false;
-      scannerRef.current?.resume();
+      try {
+        scannerRef.current?.resume();
+      } catch {
+        // Scanner may not be running yet while the camera is still starting.
+      }
       return;
     }
 
@@ -378,10 +399,14 @@ export function BarcodeScanner({
     if (applied) setTorchOn(next);
   }, [torchOn]);
 
-  function confirmManual() {
+  async function confirmManual() {
     const barcode = normalizeBarcode(manual);
     if (!barcode) return;
-    void onScan(barcode);
+    try {
+      await onScanRef.current(barcode);
+    } catch {
+      // Scan handlers must not throw; guard the app shell if one does.
+    }
   }
 
   return (
@@ -414,6 +439,7 @@ export function BarcodeScanner({
       <label className="block text-sm font-medium text-foreground">
         {t("common.barcode")}
         <input
+          data-testid="barcode-manual-input"
           className="mt-1 w-full min-w-0 rounded-xl border border-input-border bg-input px-3 py-3 text-foreground"
           placeholder={t("scanner.manualPlaceholder")}
           value={manual}
@@ -422,9 +448,10 @@ export function BarcodeScanner({
       </label>
       <button
         type="button"
+        data-testid="scanner-confirm-barcode"
         className="w-full rounded-xl bg-primary px-4 py-3 font-medium text-primary-fg disabled:opacity-50"
         disabled={!normalizeBarcode(manual)}
-        onClick={confirmManual}
+        onClick={() => void confirmManual()}
       >
         {t("scanner.confirmBarcode")}
       </button>
