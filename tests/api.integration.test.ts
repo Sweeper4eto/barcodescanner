@@ -460,6 +460,12 @@ test("inventory list filters expiry window, search, and pagination", async () =>
   });
   assert.equal(wideWindow.response.status, 200);
   assert.equal(wideWindow.data.entries.length, 2);
+
+  const allWindow = await jsonRequest(inventoryGet, {
+    url: `http://localhost/api/inventory?storeId=${store.id}&withinDays=all`,
+  });
+  assert.equal(allWindow.response.status, 200);
+  assert.equal(allWindow.data.entries.length, 2);
 });
 
 test("admin clients and user assignment APIs", async () => {

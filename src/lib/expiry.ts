@@ -4,10 +4,9 @@ export const EXPIRY_PERIOD_DAYS = {
   "2w": 14,
   "1m": 30,
   "3m": 90,
-  "6m": 180,
 } as const;
 
-export const EXPIRY_PERIOD_OPTIONS = ["2w", "1m", "3m", "6m"] as const;
+export const EXPIRY_PERIOD_OPTIONS = ["2w", "1m", "3m", "all"] as const;
 export type ExpiryPeriod = (typeof EXPIRY_PERIOD_OPTIONS)[number];
 
 export const DEFAULT_EXPIRY_PERIOD: ExpiryPeriod = "1m";
@@ -16,17 +15,23 @@ export const DEFAULT_EXPIRY_PERIOD: ExpiryPeriod = "1m";
 export const EXPIRY_LIST_MAX_FUTURE_DAYS = EXPIRY_PERIOD_DAYS[DEFAULT_EXPIRY_PERIOD];
 
 export function parseExpiryPeriod(value: string | null | undefined): ExpiryPeriod {
+  if (value === "6m") return "all";
   if (value && (EXPIRY_PERIOD_OPTIONS as readonly string[]).includes(value)) {
     return value as ExpiryPeriod;
   }
   return DEFAULT_EXPIRY_PERIOD;
 }
 
-export function expiryPeriodDays(period: ExpiryPeriod): number {
+export function expiryPeriodDays(period: Exclude<ExpiryPeriod, "all">): number {
   return EXPIRY_PERIOD_DAYS[period];
 }
 
-export function parseExpiryWithinDays(value: string | null | undefined): number {
+export function expiryPeriodToApiParam(period: ExpiryPeriod): string {
+  return period === "all" ? "all" : String(expiryPeriodDays(period));
+}
+
+export function parseExpiryWithinDays(value: string | null | undefined): number | "all" {
+  if (value === "all") return "all";
   const parsed = Number.parseInt(value ?? "", 10);
   const allowed = Object.values(EXPIRY_PERIOD_DAYS);
   if (allowed.includes(parsed as (typeof allowed)[number])) {
@@ -35,23 +40,32 @@ export function parseExpiryWithinDays(value: string | null | undefined): number 
   return expiryPeriodDays(DEFAULT_EXPIRY_PERIOD);
 }
 
+export function expiryListMaxPast(now = new Date()) {
+  return new Date(now.getTime() - EXPIRY_LIST_MAX_PAST_DAYS * 24 * 60 * 60 * 1000);
+}
+
 export function expiryListDateBounds(
   now = new Date(),
-  futureDays = expiryPeriodDays(DEFAULT_EXPIRY_PERIOD),
+  futureDays: number | "all" = expiryPeriodDays(DEFAULT_EXPIRY_PERIOD),
 ) {
+  const maxPast = expiryListMaxPast(now);
+  if (futureDays === "all") {
+    return { maxFuture: null, maxPast };
+  }
   const maxFuture = new Date(now.getTime() + futureDays * 24 * 60 * 60 * 1000);
-  const maxPast = new Date(now.getTime() - EXPIRY_LIST_MAX_PAST_DAYS * 24 * 60 * 60 * 1000);
   return { maxFuture, maxPast };
 }
 
 export function expiryListVisible(
   expiryDate: Date,
   now = new Date(),
-  futureDays = expiryPeriodDays(DEFAULT_EXPIRY_PERIOD),
+  futureDays: number | "all" = expiryPeriodDays(DEFAULT_EXPIRY_PERIOD),
 ): boolean {
   const { maxFuture, maxPast } = expiryListDateBounds(now, futureDays);
   const time = expiryDate.getTime();
-  return time <= maxFuture.getTime() && time >= maxPast.getTime();
+  if (time < maxPast.getTime()) return false;
+  if (futureDays === "all" || maxFuture === null) return true;
+  return time <= maxFuture.getTime();
 }
 
 export function expiryUrgencyClass(expiryDate: Date, now = new Date()): string {

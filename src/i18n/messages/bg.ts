@@ -149,7 +149,7 @@ export const bg = {
     period2Weeks: "2 седмици",
     period1Month: "1 месец",
     period3Months: "3 месеца",
-    period6Months: "6 месеца",
+    periodAll: "Всички",
     searchPlaceholder: "Търсене по име или баркод",
     scan: "Сканирай",
     clearSearch: "Изчисти",

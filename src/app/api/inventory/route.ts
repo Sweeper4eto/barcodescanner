@@ -9,7 +9,7 @@ import { logAuditEvent } from "@/lib/audit-log";
 import { requireSession } from "@/lib/auth";
 import { barcodeLookupValues, normalizeBarcode } from "@/lib/barcode";
 import { purgeExpiredInventory } from "@/lib/inventory-purge";
-import { expiryListDateBounds, parseExpiryWithinDays } from "@/lib/expiry";
+import { expiryListDateBounds, expiryListMaxPast, parseExpiryWithinDays } from "@/lib/expiry";
 import {
   activeInventoryWhere,
   expiryDateDayBounds,
@@ -182,7 +182,9 @@ export async function GET(request: Request) {
   await purgeExpiredInventory();
 
   const withinDays = parseExpiryWithinDays(searchParams.get("withinDays"));
-  const { maxFuture, maxPast } = expiryListDateBounds(now, withinDays);
+  const maxPast = expiryListMaxPast(now);
+  const maxFuture =
+    withinDays === "all" ? null : expiryListDateBounds(now, withinDays).maxFuture;
   const q = searchParams.get("q")?.trim() ?? "";
   const page = Math.max(1, Number.parseInt(searchParams.get("page") ?? "1", 10) || 1);
   const limit = Math.min(
@@ -195,7 +197,7 @@ export async function GET(request: Request) {
     ...activeInventoryWhere,
     expiryDate: {
       gte: maxPast,
-      lte: maxFuture,
+      ...(maxFuture ? { lte: maxFuture } : {}),
     },
   };
 

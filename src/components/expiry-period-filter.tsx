@@ -20,8 +20,8 @@ function periodLabel(period: ExpiryPeriod, t: ReturnType<typeof useT>["t"]) {
       return t("expiry.period1Month");
     case "3m":
       return t("expiry.period3Months");
-    case "6m":
-      return t("expiry.period6Months");
+    case "all":
+      return t("expiry.periodAll");
   }
 }
 
@@ -54,4 +54,4 @@ export function ExpiryPeriodFilter({ value, onChange }: Props) {
   );
 }
 
-export { expiryPeriodDays };
+export { expiryPeriodToApiParam };

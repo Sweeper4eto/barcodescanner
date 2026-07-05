@@ -3,6 +3,7 @@ import {
   EXPIRY_PERIOD_OPTIONS,
   type ExpiryPeriod,
   expiryPeriodDays,
+  expiryPeriodToApiParam,
   parseExpiryPeriod,
 } from "@/lib/expiry";
 
@@ -17,5 +18,5 @@ export function setStoredExpiryPeriod(period: ExpiryPeriod) {
   localStorage.setItem(STORAGE_KEY, period);
 }
 
-export { DEFAULT_EXPIRY_PERIOD, EXPIRY_PERIOD_OPTIONS, expiryPeriodDays };
+export { DEFAULT_EXPIRY_PERIOD, EXPIRY_PERIOD_OPTIONS, expiryPeriodDays, expiryPeriodToApiParam };
 export type { ExpiryPeriod };

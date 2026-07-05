@@ -11,7 +11,7 @@ import { useT } from "@/components/i18n-provider";
 import {
   type ExpiryPeriod,
   DEFAULT_EXPIRY_PERIOD,
-  expiryPeriodDays,
+  expiryPeriodToApiParam,
   getStoredExpiryPeriod,
   setStoredExpiryPeriod,
 } from "@/lib/expiry-period";
@@ -80,7 +80,7 @@ function ExpiryList() {
       setLoading(true);
       const params = new URLSearchParams({
         storeId,
-        withinDays: String(expiryPeriodDays(period)),
+        withinDays: expiryPeriodToApiParam(period),
       });
       if (debouncedSearch) {
         params.set("q", debouncedSearch);
