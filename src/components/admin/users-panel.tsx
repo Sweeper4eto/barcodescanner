@@ -1,6 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useState } from "react";
+import {
+  AdminEmptyState,
+  adminPaginationClass,
+  adminSearchInputClass,
+} from "@/components/admin/admin-ui";
 import { PrimaryButton } from "@/components/auth-forms";
 import { useT } from "@/components/i18n-provider";
 import type { Client } from "@/components/admin/clients-panel";
@@ -47,6 +52,11 @@ function assignmentIsDirty(current: AssignmentState, saved: AssignmentState | nu
 export function UsersPanel({ clients, onRefresh }: Props) {
   const { t } = useT();
   const [users, setUsers] = useState<UserRow[]>([]);
+  const [search, setSearch] = useState("");
+  const [query, setQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [clientId, setClientId] = useState("");
   const [storeIds, setStoreIds] = useState<string[]>([]);
@@ -56,26 +66,25 @@ export function UsersPanel({ clients, onRefresh }: Props) {
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState("");
 
-  async function loadUsers() {
-    const response = await fetch("/api/admin/users");
+  const loadUsers = useCallback(async () => {
+    const params = new URLSearchParams({
+      page: String(page),
+      pageSize: "20",
+    });
+    if (query) params.set("q", query);
+
+    const response = await fetch(`/api/admin/users?${params}`);
     const data = await response.json();
     const list = (data.users ?? []) as UserRow[];
     setUsers(list);
+    setTotal(data.total ?? 0);
+    setTotalPages(data.totalPages ?? 1);
     return list;
-  }
+  }, [page, query]);
 
   useEffect(() => {
-    let cancelled = false;
-    async function run() {
-      const response = await fetch("/api/admin/users");
-      const data = await response.json();
-      if (!cancelled) setUsers(data.users ?? []);
-    }
-    void run();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    void loadUsers();
+  }, [loadUsers]);
 
   async function loadClientStores(nextClientId: string) {
     if (!nextClientId) {
@@ -102,6 +111,12 @@ export function UsersPanel({ clients, onRefresh }: Props) {
     setClientId(nextClientId);
     setStoreIds([]);
     await loadClientStores(nextClientId);
+  }
+
+  async function onSearch(event: FormEvent) {
+    event.preventDefault();
+    setPage(1);
+    setQuery(search.trim());
   }
 
   const currentAssignment: AssignmentState = {
@@ -154,33 +169,82 @@ export function UsersPanel({ clients, onRefresh }: Props) {
   }
 
   const selectedUser = users.find((user) => user.id === selectedUserId);
+  const safePage = Math.min(page, totalPages);
 
   return (
     <div className="grid min-w-0 gap-6 lg:grid-cols-2">
       <section className="min-w-0 rounded-2xl border border-card-border p-4">
         <h2 className="font-medium">{t("admin.allUsers")}</h2>
+        <form className="mt-3 flex min-w-0 gap-2" onSubmit={onSearch}>
+          <input
+            className={adminSearchInputClass}
+            placeholder={t("admin.usersSearchPlaceholder")}
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+          />
+          <button
+            type="submit"
+            className="shrink-0 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-fg"
+          >
+            {t("common.search")}
+          </button>
+        </form>
         <div className="mt-3 max-h-[32rem] space-y-2 overflow-y-auto">
-          {users.map((user) => (
-            <button
-              key={user.id}
-              type="button"
-              onClick={() => selectUser(user)}
-              className={`w-full rounded-xl border p-3 text-left ${selectedUserId === user.id ? "border-primary bg-selected" : "border-card-border"} ${!user.active ? "opacity-60" : ""}`}
-            >
-              <p className="font-medium">{user.username}</p>
-              <p className="text-xs text-muted">
-                {t("admin.clientRow", {
-                  name: user.client?.name ?? t("common.none"),
-                })}
-              </p>
-              <p className="text-xs text-muted">
-                {t("admin.storesRow", {
-                  names: user.stores.map((s) => s.name).join(", ") || t("common.none"),
-                })}
-              </p>
-            </button>
-          ))}
+          {users.length === 0 ? (
+            <AdminEmptyState message={t("admin.noUsersFound")} />
+          ) : (
+            users.map((user) => (
+              <button
+                key={user.id}
+                type="button"
+                onClick={() => selectUser(user)}
+                className={`w-full rounded-xl border p-3 text-left ${selectedUserId === user.id ? "border-primary bg-selected" : "border-card-border"} ${!user.active ? "opacity-60" : ""}`}
+              >
+                <p className="font-medium">{user.username}</p>
+                <p className="text-xs text-muted">
+                  {t("admin.clientRow", {
+                    name: user.client?.name ?? t("common.none"),
+                  })}
+                </p>
+                <p className="text-xs text-muted">
+                  {t("admin.storesRow", {
+                    names: user.stores.map((s) => s.name).join(", ") || t("common.none"),
+                  })}
+                </p>
+              </button>
+            ))
+          )}
         </div>
+        {totalPages > 1 ? (
+          <div className={`mt-4 ${adminPaginationClass}`}>
+            <p className="text-sm text-muted">
+              {t("admin.pageOf", { page: safePage, totalPages })}
+            </p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                disabled={safePage <= 1}
+                onClick={() => setPage((value) => Math.max(1, value - 1))}
+                className="rounded-lg border border-input-border px-3 py-1.5 text-sm disabled:opacity-40"
+              >
+                {t("admin.previous")}
+              </button>
+              <button
+                type="button"
+                disabled={safePage >= totalPages}
+                onClick={() => setPage((value) => Math.min(totalPages, value + 1))}
+                className="rounded-lg border border-input-border px-3 py-1.5 text-sm disabled:opacity-40"
+              >
+                {t("admin.next")}
+              </button>
+            </div>
+          </div>
+        ) : null}
+        {total > 0 && totalPages <= 1 ? (
+          <p className="mt-3 text-sm text-muted">
+            {t("admin.usersTotal", { count: total })}
+          </p>
+        ) : null}
       </section>
 
       <section className="min-w-0 rounded-2xl border border-card-border p-4">

@@ -29,6 +29,7 @@ let inventoryPatch: (request: Request) => Promise<Response>;
 let cronPost: (request: Request) => Promise<Response>;
 let clientsGet: (request: Request) => Promise<Response>;
 let clientsPost: (request: Request) => Promise<Response>;
+let usersGet: (request: Request) => Promise<Response>;
 let usersPatch: (request: Request) => Promise<Response>;
 let paymentsPost: (request: Request) => Promise<Response>;
 let calendarGet: (request: Request) => Promise<Response>;
@@ -59,7 +60,7 @@ test.before(async () => {
   ({ GET: clientsGet, POST: clientsPost } = await import(
     "../src/app/api/admin/clients/route"
   ));
-  ({ PATCH: usersPatch } = await import("../src/app/api/admin/users/route"));
+  ({ GET: usersGet, PATCH: usersPatch } = await import("../src/app/api/admin/users/route"));
   ({ POST: paymentsPost } = await import("../src/app/api/admin/payments/route"));
   ({ GET: calendarGet } = await import(
     "../src/app/api/admin/payments/calendar/route"
@@ -591,6 +592,76 @@ test("admin clients and user assignment APIs", async () => {
   });
   assert.equal(list.response.status, 200);
   assert.equal(list.data.clients.length, 1);
+});
+
+test("GET /api/admin/users supports search and pagination", async () => {
+  const adminLogin = await loginUser("admin", "admin123");
+  assert.equal(adminLogin.ok, true);
+  if (!adminLogin.ok) return;
+  await setMockSession(adminLogin.token);
+
+  const clientA = await db.client.create({
+    data: { name: "Alpha Retail", monthlyFeePerStore: 10 },
+  });
+  const clientB = await db.client.create({
+    data: { name: "Beta Shops", monthlyFeePerStore: 10 },
+  });
+  const storeA = await db.store.create({
+    data: { clientId: clientA.id, name: "Alpha Downtown" },
+  });
+
+  await db.user.create({
+    data: {
+      username: "alpha_user",
+      passwordHash: "hash",
+      clientId: clientA.id,
+      storeLinks: { create: { storeId: storeA.id } },
+    },
+  });
+  await db.user.create({
+    data: {
+      username: "beta_user",
+      passwordHash: "hash",
+      clientId: clientB.id,
+    },
+  });
+  await db.user.create({
+    data: {
+      username: "gamma_user",
+      passwordHash: "hash",
+    },
+  });
+
+  const page1 = await jsonRequest(usersGet, {
+    url: "http://localhost/api/admin/users?page=1&pageSize=2",
+  });
+  assert.equal(page1.response.status, 200);
+  assert.equal(page1.data.users.length, 2);
+  assert.equal(page1.data.total, 4);
+  assert.equal(page1.data.totalPages, 2);
+
+  const page2 = await jsonRequest(usersGet, {
+    url: "http://localhost/api/admin/users?page=2&pageSize=2",
+  });
+  assert.equal(page2.data.users.length, 2);
+
+  const byUsername = await jsonRequest(usersGet, {
+    url: "http://localhost/api/admin/users?q=alpha_user",
+  });
+  assert.equal(byUsername.data.users.length, 1);
+  assert.equal(byUsername.data.users[0].username, "alpha_user");
+
+  const byClient = await jsonRequest(usersGet, {
+    url: "http://localhost/api/admin/users?q=Beta",
+  });
+  assert.equal(byClient.data.users.length, 1);
+  assert.equal(byClient.data.users[0].username, "beta_user");
+
+  const byStore = await jsonRequest(usersGet, {
+    url: "http://localhost/api/admin/users?q=Downtown",
+  });
+  assert.equal(byStore.data.users.length, 1);
+  assert.equal(byStore.data.users[0].username, "alpha_user");
 });
 
 test("payments calendar and mark paid APIs", async () => {

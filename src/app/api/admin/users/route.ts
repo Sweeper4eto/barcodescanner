@@ -21,20 +21,46 @@ export async function GET(request: Request) {
   const admin = await requireAdminResponse(request);
   if (admin instanceof NextResponse) return admin;
 
-  const users = await db.user.findMany({
-    orderBy: { username: "asc" },
-    select: {
-      id: true,
-      username: true,
-      role: true,
-      active: true,
-      clientId: true,
-      client: { select: { id: true, name: true } },
-      storeLinks: {
-        select: { store: { select: { id: true, name: true, clientId: true } } },
+  const { searchParams } = new URL(request.url);
+  const q = searchParams.get("q")?.trim();
+  const page = Math.max(1, Number.parseInt(searchParams.get("page") ?? "1", 10) || 1);
+  const pageSize = Math.min(
+    50,
+    Math.max(1, Number.parseInt(searchParams.get("pageSize") ?? "20", 10) || 20),
+  );
+
+  const where = q
+    ? {
+        OR: [
+          { username: { contains: q } },
+          { client: { name: { contains: q } } },
+          { storeLinks: { some: { store: { name: { contains: q } } } } },
+        ],
+      }
+    : undefined;
+
+  const [users, total] = await Promise.all([
+    db.user.findMany({
+      where,
+      orderBy: { username: "asc" },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+      select: {
+        id: true,
+        username: true,
+        role: true,
+        active: true,
+        clientId: true,
+        client: { select: { id: true, name: true } },
+        storeLinks: {
+          select: { store: { select: { id: true, name: true, clientId: true } } },
+        },
       },
-    },
-  });
+    }),
+    db.user.count({ where }),
+  ]);
+
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   return NextResponse.json({
     users: users.map((user) => ({
@@ -42,6 +68,10 @@ export async function GET(request: Request) {
       stores: user.storeLinks.map((link) => link.store),
       storeLinks: undefined,
     })),
+    total,
+    page,
+    pageSize,
+    totalPages,
   });
 }
 
