@@ -75,9 +75,8 @@ export function PriceReduceIcon({ className = "h-4 w-4" }: { className?: string 
       strokeLinejoin="round"
       className={className}
     >
-      <path d="M12 4v16" />
-      <path d="M9 8h4.5a2 2 0 0 1 0 4H9" />
-      <path d="M9 12h5a2 2 0 0 1 0 4H9" />
+      <path d="M12 2v20" />
+      <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
     </svg>
   );
 }

@@ -17,6 +17,7 @@ type Props = {
   priceReduced: boolean;
   onOpen: () => void;
   onRemove: () => void;
+  onReducePrice: () => void;
 };
 
 export function ExpiryListCard({
@@ -28,6 +29,7 @@ export function ExpiryListCard({
   priceReduced,
   onOpen,
   onRemove,
+  onReducePrice,
 }: Props) {
   const { t, dateLocale } = useT();
   const expiry = new Date(expiryDate);
@@ -42,6 +44,24 @@ export function ExpiryListCard({
 
   return (
     <article className="relative overflow-visible">
+        <button
+          type="button"
+          aria-label={
+            priceReduced ? t("expiry.priceReduced") : t("expiry.reducePrice")
+          }
+          title={
+            priceReduced ? t("expiry.priceReduced") : t("expiry.reducePrice")
+          }
+          className="absolute top-0 left-0 z-10 flex h-5 w-5 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-card-border bg-card text-muted disabled:opacity-50"
+          onClick={(event) => {
+            event.stopPropagation();
+            onReducePrice();
+          }}
+          disabled={priceReduced}
+        >
+          <PriceReduceIcon className="h-3 w-3" />
+        </button>
+
         <button
           type="button"
           aria-label={t("expiry.remove")}
