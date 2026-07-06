@@ -59,26 +59,7 @@ export function AppTopActions() {
   }
 
   return (
-    <div className="flex shrink-0 items-center gap-1.5">
-      {stores.length > 1 ? (
-        <label className="sr-only" htmlFor="app-store-select">
-          {t("app.selectStore")}
-        </label>
-      ) : null}
-      {stores.length > 1 ? (
-        <select
-          id="app-store-select"
-          className="max-w-[6.5rem] rounded-lg border border-input-border bg-input px-2 py-1.5 text-xs text-foreground sm:max-w-[8.5rem]"
-          value={storeId}
-          onChange={(event) => onStoreChange(event.target.value)}
-        >
-          {stores.map((store) => (
-            <option key={store.id} value={store.id}>
-              {store.name}
-            </option>
-          ))}
-        </select>
-      ) : null}
+    <div className="flex shrink-0 items-start gap-1.5">
       <button
         type="button"
         onClick={() => void logout()}
@@ -86,7 +67,28 @@ export function AppTopActions() {
       >
         {t("common.logout")}
       </button>
-      <LanguageSwitch />
+      <div className="flex items-end gap-1.5">
+        <LanguageSwitch />
+        {stores.length > 1 ? (
+          <div className="flex flex-col items-end gap-1">
+            <label className="sr-only" htmlFor="app-store-select">
+              {t("app.selectStore")}
+            </label>
+            <select
+              id="app-store-select"
+              className="max-w-[6.5rem] rounded-lg border border-input-border bg-input px-2 py-1.5 text-xs text-foreground sm:max-w-[8.5rem]"
+              value={storeId}
+              onChange={(event) => onStoreChange(event.target.value)}
+            >
+              {stores.map((store) => (
+                <option key={store.id} value={store.id}>
+                  {store.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }

@@ -60,6 +60,7 @@ function ExpiryList() {
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const loadingMoreRef = useRef(false);
   const fetchGenerationRef = useRef(0);
+  const detailBackStatePushedRef = useRef(false);
 
   useEffect(() => {
     setPeriod(getStoredExpiryPeriod());
@@ -154,6 +155,17 @@ function ExpiryList() {
     return () => observer.disconnect();
   }, [debouncedSearch, loading, pagination.page, pagination.totalPages, entries.length]);
 
+  useEffect(() => {
+    const onPopState = () => {
+      if (!detailBackStatePushedRef.current) return;
+      detailBackStatePushedRef.current = false;
+      setDetailEntry(null);
+    };
+
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
+
   async function removeEntry(entryId: string) {
     await fetch("/api/inventory", {
       method: "PATCH",
@@ -216,6 +228,19 @@ function ExpiryList() {
   function onBarcodeScanned(barcode: string) {
     setSearch(barcode);
     setShowScanner(false);
+  }
+
+  function openDetail(entry: Entry) {
+    setDetailEntry(entry);
+    window.history.pushState({ ...window.history.state, expiryDetail: true }, "");
+    detailBackStatePushedRef.current = true;
+  }
+
+  function closeDetail() {
+    setDetailEntry(null);
+    if (!detailBackStatePushedRef.current) return;
+    detailBackStatePushedRef.current = false;
+    window.history.back();
   }
 
   const isSearching = debouncedSearch.length > 0;
@@ -297,7 +322,7 @@ function ExpiryList() {
             expiryDate={entry.expiryDate}
             enteredAt={entry.enteredAt}
             quantity={entry.quantity}
-            onOpen={() => setDetailEntry(entry)}
+            onOpen={() => openDetail(entry)}
             onRemove={() => setConfirmId(entry.id)}
           />
         ))}
@@ -315,7 +340,7 @@ function ExpiryList() {
         <ExpiryEntryDetailSheet
           entry={detailEntry}
           storeId={storeId}
-          onClose={() => setDetailEntry(null)}
+          onClose={closeDetail}
           onUpdated={handleEntryUpdated}
         />
       ) : null}
