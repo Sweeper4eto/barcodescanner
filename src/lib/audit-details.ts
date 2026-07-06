@@ -151,6 +151,15 @@ export function auditUserUpdated(before: UserAssignmentLike, after: UserAssignme
   ]);
 }
 
+export function auditUserDeleted(user: UserAssignmentLike): string {
+  return auditJoin([
+    `user "${user.username}"`,
+    user.clientName ? `client "${user.clientName}"` : null,
+    user.storeNames.length ? `stores: ${user.storeNames.join(", ")}` : null,
+    formatAuditValue(user.active),
+  ]);
+}
+
 type ProductLike = {
   name: string;
   barcode: string;

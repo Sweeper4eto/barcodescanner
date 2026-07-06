@@ -3,6 +3,7 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import {
   AdminEmptyState,
+  adminDangerButtonClass,
   adminPaginationClass,
   adminSearchInputClass,
 } from "@/components/admin/admin-ui";
@@ -13,6 +14,7 @@ import type { Client } from "@/components/admin/clients-panel";
 type UserRow = {
   id: string;
   username: string;
+  role: "ADMIN" | "USER";
   active: boolean;
   clientId: string | null;
   client: { id: string; name: string } | null;
@@ -147,8 +149,9 @@ export function UsersPanel({ clients, onRefresh }: Props) {
           active,
         }),
       });
+      const data = (await response.json()) as { error?: string };
       if (!response.ok) {
-        setSaveMessage(t("errors.saveFailed"));
+        setSaveMessage(data.error ?? t("errors.saveFailed"));
         return;
       }
       const list = await loadUsers();
@@ -166,6 +169,27 @@ export function UsersPanel({ clients, onRefresh }: Props) {
     } finally {
       setSaving(false);
     }
+  }
+
+  async function deleteUser() {
+    if (!selectedUserId || selectedUser?.role === "ADMIN") return;
+    if (!confirm(t("admin.confirmDeleteUser"))) return;
+
+    const response = await fetch(
+      `/api/admin/users?userId=${encodeURIComponent(selectedUserId)}`,
+      { method: "DELETE" },
+    );
+    const data = (await response.json()) as { error?: string };
+    if (!response.ok) {
+      setSaveMessage(data.error ?? t("errors.saveFailed"));
+      return;
+    }
+
+    setSelectedUserId(null);
+    setSavedAssignment(null);
+    setSaveMessage("");
+    await loadUsers();
+    onRefresh();
   }
 
   const selectedUser = users.find((user) => user.id === selectedUserId);
@@ -317,6 +341,15 @@ export function UsersPanel({ clients, onRefresh }: Props) {
             >
               {saving ? t("admin.saving") : t("common.save")}
             </PrimaryButton>
+            {selectedUser.role !== "ADMIN" ? (
+              <button
+                type="button"
+                className={`w-full ${adminDangerButtonClass}`}
+                onClick={() => void deleteUser()}
+              >
+                {t("common.delete")}
+              </button>
+            ) : null}
           </div>
         )}
       </section>

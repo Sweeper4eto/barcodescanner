@@ -31,6 +31,7 @@ let clientsGet: (request: Request) => Promise<Response>;
 let clientsPost: (request: Request) => Promise<Response>;
 let usersGet: (request: Request) => Promise<Response>;
 let usersPatch: (request: Request) => Promise<Response>;
+let usersDelete: (request: Request) => Promise<Response>;
 let paymentsPost: (request: Request) => Promise<Response>;
 let calendarGet: (request: Request) => Promise<Response>;
 let adminProductsPatch: (request: Request) => Promise<Response>;
@@ -60,7 +61,9 @@ test.before(async () => {
   ({ GET: clientsGet, POST: clientsPost } = await import(
     "../src/app/api/admin/clients/route"
   ));
-  ({ GET: usersGet, PATCH: usersPatch } = await import("../src/app/api/admin/users/route"));
+  ({ GET: usersGet, PATCH: usersPatch, DELETE: usersDelete } = await import(
+    "../src/app/api/admin/users/route"
+  ));
   ({ POST: paymentsPost } = await import("../src/app/api/admin/payments/route"));
   ({ GET: calendarGet } = await import(
     "../src/app/api/admin/payments/calendar/route"
@@ -662,6 +665,71 @@ test("GET /api/admin/users supports search and pagination", async () => {
   });
   assert.equal(byStore.data.users.length, 1);
   assert.equal(byStore.data.users[0].username, "alpha_user");
+});
+
+test("PATCH /api/admin/users deactivates user without client assignment", async () => {
+  const adminLogin = await loginUser("admin", "admin123");
+  assert.equal(adminLogin.ok, true);
+  if (!adminLogin.ok) return;
+  await setMockSession(adminLogin.token);
+
+  await registerPost(
+    new Request("http://localhost/api/auth/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: "inactive_user", password: "password123" }),
+    }),
+  );
+
+  const user = await db.user.findUnique({ where: { username: "inactive_user" } });
+  assert.ok(user);
+
+  const deactivate = await jsonRequest(usersPatch, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      userId: user!.id,
+      clientId: null,
+      storeIds: [],
+      active: false,
+    }),
+  });
+  assert.equal(deactivate.response.status, 200);
+
+  const updated = await db.user.findUnique({ where: { id: user!.id } });
+  assert.equal(updated?.active, false);
+});
+
+test("DELETE /api/admin/users removes regular users", async () => {
+  const adminLogin = await loginUser("admin", "admin123");
+  assert.equal(adminLogin.ok, true);
+  if (!adminLogin.ok) return;
+  await setMockSession(adminLogin.token);
+
+  const created = await db.user.create({
+    data: {
+      username: "delete_me",
+      passwordHash: "hash",
+    },
+  });
+
+  const removed = await jsonRequest(usersDelete, {
+    method: "DELETE",
+    url: `http://localhost/api/admin/users?userId=${created.id}`,
+  });
+  assert.equal(removed.response.status, 200);
+
+  const gone = await db.user.findUnique({ where: { id: created.id } });
+  assert.equal(gone, null);
+
+  const adminUser = await db.user.findUnique({ where: { username: "admin" } });
+  assert.ok(adminUser);
+
+  const blockAdmin = await jsonRequest(usersDelete, {
+    method: "DELETE",
+    url: `http://localhost/api/admin/users?userId=${adminUser!.id}`,
+  });
+  assert.equal(blockAdmin.response.status, 400);
 });
 
 test("payments calendar and mark paid APIs", async () => {

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { auditUserUpdated } from "@/lib/audit-details";
+import { auditUserDeleted, auditUserUpdated } from "@/lib/audit-details";
 import { logAuditEvent } from "@/lib/audit-log";
 import { requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -128,39 +128,65 @@ export async function PATCH(request: Request) {
     storeNames: user.storeLinks.map((link) => link.store.name).sort(),
   };
 
-  const updated = await db.$transaction(async (tx) => {
-    const nextUser = await tx.user.update({
-      where: { id: parsed.data.userId },
-      data: {
-        clientId: parsed.data.clientId,
-        active: parsed.data.active,
-      },
-    });
+  if (
+    parsed.data.storeIds !== undefined &&
+    parsed.data.storeIds.length > 0 &&
+    !parsed.data.clientId &&
+    !user.clientId
+  ) {
+    return NextResponse.json(
+      { error: apiT(request, "errors.userNeedsClientForStores") },
+      { status: 400 },
+    );
+  }
 
-    if (parsed.data.storeIds) {
-      const clientId = parsed.data.clientId ?? nextUser.clientId;
-      if (!clientId) {
-        throw new Error("NO_CLIENT");
-      }
-
-      const validStores = await tx.store.findMany({
-        where: { id: { in: parsed.data.storeIds }, clientId },
-        select: { id: true },
+  let updated;
+  try {
+    updated = await db.$transaction(async (tx) => {
+      const nextUser = await tx.user.update({
+        where: { id: parsed.data.userId },
+        data: {
+          clientId: parsed.data.clientId,
+          ...(parsed.data.active !== undefined ? { active: parsed.data.active } : {}),
+        },
       });
 
-      await tx.userStore.deleteMany({ where: { userId: parsed.data.userId } });
-      if (validStores.length > 0) {
-        await tx.userStore.createMany({
-          data: validStores.map((store) => ({
-            userId: parsed.data.userId,
-            storeId: store.id,
-          })),
-        });
-      }
-    }
+      if (parsed.data.storeIds !== undefined) {
+        await tx.userStore.deleteMany({ where: { userId: parsed.data.userId } });
 
-    return nextUser;
-  });
+        if (parsed.data.storeIds.length > 0) {
+          const clientId = parsed.data.clientId ?? nextUser.clientId;
+          if (!clientId) {
+            throw new Error("NO_CLIENT");
+          }
+
+          const validStores = await tx.store.findMany({
+            where: { id: { in: parsed.data.storeIds }, clientId },
+            select: { id: true },
+          });
+
+          if (validStores.length > 0) {
+            await tx.userStore.createMany({
+              data: validStores.map((store) => ({
+                userId: parsed.data.userId,
+                storeId: store.id,
+              })),
+            });
+          }
+        }
+      }
+
+      return nextUser;
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message === "NO_CLIENT") {
+      return NextResponse.json(
+        { error: apiT(request, "errors.userNeedsClientForStores") },
+        { status: 400 },
+      );
+    }
+    throw error;
+  }
 
   const afterUser = await db.user.findUnique({
     where: { id: parsed.data.userId },
@@ -185,4 +211,63 @@ export async function PATCH(request: Request) {
   }
 
   return NextResponse.json({ user: updated });
+}
+
+export async function DELETE(request: Request) {
+  const admin = await requireAdminResponse(request);
+  if (admin instanceof NextResponse) return admin;
+
+  const { searchParams } = new URL(request.url);
+  const userId = searchParams.get("userId");
+  if (!userId) {
+    return NextResponse.json(
+      { error: apiT(request, "errors.missingId") },
+      { status: 400 },
+    );
+  }
+
+  if (userId === admin.userId) {
+    return NextResponse.json(
+      { error: apiT(request, "errors.cannotDeleteSelf") },
+      { status: 400 },
+    );
+  }
+
+  const user = await db.user.findUnique({
+    where: { id: userId },
+    include: {
+      client: { select: { name: true } },
+      storeLinks: { include: { store: { select: { name: true } } } },
+    },
+  });
+
+  if (!user) {
+    return NextResponse.json(
+      { error: apiT(request, "errors.userNotFound") },
+      { status: 404 },
+    );
+  }
+
+  if (user.role === "ADMIN") {
+    return NextResponse.json(
+      { error: apiT(request, "errors.cannotDeleteAdminUser") },
+      { status: 400 },
+    );
+  }
+
+  await db.user.delete({ where: { id: userId } });
+
+  await logAuditEvent(
+    request,
+    admin,
+    "user_deleted",
+    auditUserDeleted({
+      username: user.username,
+      active: user.active,
+      clientName: user.client?.name ?? null,
+      storeNames: user.storeLinks.map((link) => link.store.name).sort(),
+    }),
+  );
+
+  return NextResponse.json({ ok: true });
 }

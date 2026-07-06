@@ -13,6 +13,7 @@ export type AuditEvent =
   | "store_updated"
   | "store_deleted"
   | "user_updated"
+  | "user_deleted"
   | "payment_recorded"
   | "product_created"
   | "product_updated"
@@ -46,6 +47,7 @@ const ADMIN_EVENTS: AuditEvent[] = [
   "store_updated",
   "store_deleted",
   "user_updated",
+  "user_deleted",
   "payment_recorded",
 ];
 
