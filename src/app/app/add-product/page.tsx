@@ -12,6 +12,22 @@ import { useWizardStep } from "@/lib/wizard-history";
 
 type AddProductStep = "scan" | "name" | "photo" | "confirm";
 
+function getPreviousAddProductStep(
+  step: AddProductStep,
+  initialBarcode: string,
+): AddProductStep | null {
+  switch (step) {
+    case "confirm":
+      return "photo";
+    case "photo":
+      return "name";
+    case "name":
+      return initialBarcode ? null : "scan";
+    default:
+      return null;
+  }
+}
+
 function AddProductFlow() {
   const router = useRouter();
   const { t } = useT();
@@ -19,8 +35,9 @@ function AddProductFlow() {
   const storeId = searchParams.get("storeId") ?? "";
   const initialBarcode = normalizeBarcode(searchParams.get("barcode") ?? "");
   const initialStep: AddProductStep = initialBarcode ? "name" : "scan";
-  const { step, goToStep } = useWizardStep<AddProductStep>({
+  const { step, goToStep, goBack } = useWizardStep<AddProductStep>({
     initialStep,
+    getPreviousStep: (current) => getPreviousAddProductStep(current, initialBarcode),
   });
   const [barcode, setBarcode] = useState(initialBarcode);
   const [name, setName] = useState("");
@@ -117,7 +134,17 @@ function AddProductFlow() {
           <PrimaryButton onClick={() => goToStep("photo")} disabled={!name.trim()}>
             {t("common.next")}
           </PrimaryButton>
-          <SecondaryButton onClick={() => router.push("/app")}>{t("common.cancel")}</SecondaryButton>
+          <SecondaryButton
+            onClick={() => {
+              if (initialBarcode) {
+                router.back();
+                return;
+              }
+              goBack();
+            }}
+          >
+            {t("common.cancel")}
+          </SecondaryButton>
         </div>
       ) : null}
 
@@ -127,7 +154,7 @@ function AddProductFlow() {
           {uploading ? <p className="text-sm text-muted">{t("addProduct.uploading")}</p> : null}
           <CameraCapture
             onCapture={(dataUrl) => void onPhotoCapture(dataUrl)}
-            onCancel={() => router.push("/app")}
+            onCancel={goBack}
           />
           {error ? <p className="text-sm text-error">{error}</p> : null}
         </div>
@@ -157,7 +184,7 @@ function AddProductFlow() {
           >
             {t("scan.enter")}
           </PrimaryButton>
-          <SecondaryButton onClick={() => router.push("/app")}>{t("common.cancel")}</SecondaryButton>
+          <SecondaryButton onClick={goBack}>{t("common.cancel")}</SecondaryButton>
         </div>
       ) : null}
     </div>

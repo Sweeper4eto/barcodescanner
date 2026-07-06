@@ -16,14 +16,27 @@ import { useWizardStep } from "@/lib/wizard-history";
 
 type ScanStep = "scan" | "qty" | "date" | "missing";
 
+function getPreviousScanStep(step: ScanStep): ScanStep | null {
+  switch (step) {
+    case "date":
+      return "qty";
+    case "qty":
+    case "missing":
+      return "scan";
+    default:
+      return null;
+  }
+}
+
 export function ScanFlow() {
   const searchParams = useSearchParams();
   const storeId = searchParams.get("storeId") ?? "";
   const urlBarcode = normalizeBarcode(searchParams.get("barcode") ?? "");
   const { t } = useT();
   const [barcode, setBarcode] = useState("");
-  const { step, goToStep } = useWizardStep<ScanStep>({
+  const { step, goToStep, goBack } = useWizardStep<ScanStep>({
     initialStep: "scan",
+    getPreviousStep: getPreviousScanStep,
   });
   const [product, setProduct] = useState<{
     id: string;
@@ -128,7 +141,7 @@ export function ScanFlow() {
           >
             {t("common.yes")}
           </PrimaryButton>
-          <SecondaryButton onClick={() => goToStep("scan")}>{t("common.no")}</SecondaryButton>
+          <SecondaryButton onClick={goBack}>{t("common.no")}</SecondaryButton>
         </div>
       ) : null}
 

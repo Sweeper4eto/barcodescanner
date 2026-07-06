@@ -19,6 +19,7 @@ import {
   getStoredExpiryPeriod,
   setStoredExpiryPeriod,
 } from "@/lib/expiry-period";
+import { useBrowserBackStack } from "@/lib/browser-back";
 
 const PAGE_SIZE = 20;
 
@@ -60,7 +61,24 @@ function ExpiryList() {
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const loadingMoreRef = useRef(false);
   const fetchGenerationRef = useRef(0);
-  const detailBackStatePushedRef = useRef(false);
+
+  useBrowserBackStack([
+    {
+      id: "scanner",
+      open: showScanner,
+      close: () => setShowScanner(false),
+    },
+    {
+      id: "detail",
+      open: detailEntry !== null,
+      close: () => setDetailEntry(null),
+    },
+    {
+      id: "confirm",
+      open: confirmId !== null,
+      close: () => setConfirmId(null),
+    },
+  ]);
 
   useEffect(() => {
     setPeriod(getStoredExpiryPeriod());
@@ -155,17 +173,6 @@ function ExpiryList() {
     return () => observer.disconnect();
   }, [debouncedSearch, loading, pagination.page, pagination.totalPages, entries.length]);
 
-  useEffect(() => {
-    const onPopState = () => {
-      if (!detailBackStatePushedRef.current) return;
-      detailBackStatePushedRef.current = false;
-      setDetailEntry(null);
-    };
-
-    window.addEventListener("popstate", onPopState);
-    return () => window.removeEventListener("popstate", onPopState);
-  }, []);
-
   async function removeEntry(entryId: string) {
     await fetch("/api/inventory", {
       method: "PATCH",
@@ -228,19 +235,6 @@ function ExpiryList() {
   function onBarcodeScanned(barcode: string) {
     setSearch(barcode);
     setShowScanner(false);
-  }
-
-  function openDetail(entry: Entry) {
-    setDetailEntry(entry);
-    window.history.pushState({ ...window.history.state, expiryDetail: true }, "");
-    detailBackStatePushedRef.current = true;
-  }
-
-  function closeDetail() {
-    setDetailEntry(null);
-    if (!detailBackStatePushedRef.current) return;
-    detailBackStatePushedRef.current = false;
-    window.history.back();
   }
 
   const isSearching = debouncedSearch.length > 0;
@@ -322,7 +316,7 @@ function ExpiryList() {
             expiryDate={entry.expiryDate}
             enteredAt={entry.enteredAt}
             quantity={entry.quantity}
-            onOpen={() => openDetail(entry)}
+            onOpen={() => setDetailEntry(entry)}
             onRemove={() => setConfirmId(entry.id)}
           />
         ))}
@@ -340,7 +334,7 @@ function ExpiryList() {
         <ExpiryEntryDetailSheet
           entry={detailEntry}
           storeId={storeId}
-          onClose={closeDetail}
+          onClose={() => setDetailEntry(null)}
           onUpdated={handleEntryUpdated}
         />
       ) : null}
