@@ -56,7 +56,6 @@ function ExpiryList() {
   const [page, setPage] = useState(1);
   const [showScanner, setShowScanner] = useState(false);
   const [confirmId, setConfirmId] = useState<string | null>(null);
-  const [priceReduceConfirmId, setPriceReduceConfirmId] = useState<string | null>(null);
   const [detailEntry, setDetailEntry] = useState<ExpiryDetailEntry | null>(null);
   const [loading, setLoading] = useState(() => Boolean(storeId));
   const [period, setPeriod] = useState<ExpiryPeriod>(DEFAULT_EXPIRY_PERIOD);
@@ -79,11 +78,6 @@ function ExpiryList() {
       id: "confirm",
       open: confirmId !== null,
       close: () => setConfirmId(null),
-    },
-    {
-      id: "price-reduce",
-      open: priceReduceConfirmId !== null,
-      close: () => setPriceReduceConfirmId(null),
     },
   ]);
 
@@ -191,21 +185,6 @@ function ExpiryList() {
     setPage(1);
     setEntries([]);
     await loadEntries(1, false);
-  }
-
-  async function reducePriceEntry(entryId: string) {
-    const response = await fetch("/api/inventory", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ entryId, storeId, priceReduced: true }),
-    });
-    const data = (await response.json()) as {
-      entry?: ExpiryDetailEntry;
-    };
-    setPriceReduceConfirmId(null);
-    if (response.ok && data.entry) {
-      handleEntryUpdated(data.entry);
-    }
   }
 
   function handleEntryUpdated(
@@ -343,7 +322,6 @@ function ExpiryList() {
             priceReduced={entry.priceReducedAt !== null}
             onOpen={() => setDetailEntry(entry)}
             onRemove={() => setConfirmId(entry.id)}
-            onReducePrice={() => setPriceReduceConfirmId(entry.id)}
           />
         ))}
 
@@ -385,37 +363,6 @@ function ExpiryList() {
                   onClick={() => void removeEntry(confirmId)}
                 >
                   {t("expiry.remove")}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      {priceReduceConfirmId ? (
-        <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40">
-          <div className="w-full max-w-lg px-3 pb-[calc(var(--app-bottom-nav-height)+env(safe-area-inset-bottom,0px)+0.5rem)]">
-            <div className="rounded-xl border border-card-border bg-card p-3">
-              <p className="text-sm font-semibold">
-                {t("expiry.reducePriceConfirmTitle")}
-              </p>
-              <p className="mt-1 text-xs text-muted">
-                {t("expiry.reducePriceConfirmMessage")}
-              </p>
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  className="rounded-lg border border-input-border bg-card px-3 py-2 text-sm text-foreground"
-                  onClick={() => setPriceReduceConfirmId(null)}
-                >
-                  {t("expiry.confirmCancel")}
-                </button>
-                <button
-                  type="button"
-                  className="rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-fg"
-                  onClick={() => void reducePriceEntry(priceReduceConfirmId)}
-                >
-                  {t("expiry.reducePrice")}
                 </button>
               </div>
             </div>

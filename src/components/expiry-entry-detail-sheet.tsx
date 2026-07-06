@@ -88,8 +88,6 @@ export function ExpiryEntryDetailSheet({
   const [editingQuantity, setEditingQuantity] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showPriceReduceConfirm, setShowPriceReduceConfirm] = useState(false);
-  const [reducingPrice, setReducingPrice] = useState(false);
 
   const savedPriceReduced = entry.priceReducedAt !== null;
   const [priceReducedDraft, setPriceReducedDraft] = useState(savedPriceReduced);
@@ -115,7 +113,6 @@ export function ExpiryEntryDetailSheet({
     setEditingExpiry(false);
     setEditingQuantity(false);
     setError(null);
-    setShowPriceReduceConfirm(false);
   }, [entry.id, entry.quantity, entry.expiryDate, entry.priceReducedAt]);
 
   function revertDraft() {
@@ -142,39 +139,6 @@ export function ExpiryEntryDetailSheet({
       window.removeEventListener("keydown", onKeyDown);
     };
   }, [onClose, saving]);
-
-  async function confirmPriceReduction() {
-    setReducingPrice(true);
-    setError(null);
-
-    try {
-      const response = await fetch("/api/inventory", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          entryId: entry.id,
-          storeId,
-          priceReduced: true,
-        }),
-      });
-      const data = (await response.json()) as {
-        entry?: ExpiryDetailEntry;
-        error?: string;
-      };
-
-      if (!response.ok || !data.entry) {
-        setError(data.error ?? t("expiry.saveFailed"));
-        return;
-      }
-
-      onUpdated(data.entry);
-      setShowPriceReduceConfirm(false);
-    } catch {
-      setError(t("expiry.saveFailed"));
-    } finally {
-      setReducingPrice(false);
-    }
-  }
 
   async function confirmChanges() {
     if (!canConfirm) return;
@@ -274,24 +238,9 @@ export function ExpiryEntryDetailSheet({
           aria-label={t("expiry.closeImage")}
           className="absolute top-2 right-2 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-card-border bg-card text-lg leading-none text-foreground"
           onClick={onClose}
-          disabled={saving || reducingPrice}
+          disabled={saving}
         >
           ×
-        </button>
-
-        <button
-          type="button"
-          aria-label={
-            savedPriceReduced ? t("expiry.priceReduced") : t("expiry.reducePrice")
-          }
-          title={
-            savedPriceReduced ? t("expiry.priceReduced") : t("expiry.reducePrice")
-          }
-          className="absolute top-2 left-2 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-card-border bg-card text-foreground disabled:opacity-50"
-          onClick={() => setShowPriceReduceConfirm(true)}
-          disabled={saving || reducingPrice || savedPriceReduced}
-        >
-          <PriceReduceIcon className="h-4 w-4" />
         </button>
 
         {entry.product.imagePath ? (
@@ -382,7 +331,7 @@ export function ExpiryEntryDetailSheet({
                 setEditingQuantity(false);
                 setEditingExpiry((open) => !open);
               }}
-              disabled={saving || reducingPrice}
+              disabled={saving}
               aria-expanded={editingExpiry}
             >
               <span className="text-sm text-muted">{t("expiry.validUntil")}</span>
@@ -405,7 +354,7 @@ export function ExpiryEntryDetailSheet({
                 setEditingExpiry(false);
                 setEditingQuantity((open) => !open);
               }}
-              disabled={saving || reducingPrice}
+              disabled={saving}
               aria-expanded={editingQuantity}
             >
               <span className="text-sm text-muted">{t("expiry.pieces")}</span>
@@ -433,7 +382,7 @@ export function ExpiryEntryDetailSheet({
                 setEditingQuantity(false);
                 setPriceReducedDraft((current) => !current);
               }}
-              disabled={saving || reducingPrice}
+              disabled={saving}
             >
               <span className="text-sm text-muted">{t("expiry.priceReduction")}</span>
               <span className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
@@ -463,7 +412,7 @@ export function ExpiryEntryDetailSheet({
                 type="button"
                 className="rounded-lg border border-input-border bg-card px-3 py-2 text-sm text-foreground"
                 onClick={revertDraft}
-                disabled={saving || reducingPrice}
+                disabled={saving}
               >
                 {t("expiry.confirmCancel")}
               </button>
@@ -471,7 +420,7 @@ export function ExpiryEntryDetailSheet({
                 type="button"
                 className="rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-fg disabled:opacity-60"
                 onClick={() => void confirmChanges()}
-                disabled={saving || reducingPrice || !canConfirm}
+                disabled={saving || !canConfirm}
               >
                 {saving ? t("expiry.saving") : t("expiry.confirmSave")}
               </button>
@@ -479,39 +428,6 @@ export function ExpiryEntryDetailSheet({
           </div>
         ) : null}
       </div>
-
-      {showPriceReduceConfirm ? (
-        <div className="absolute inset-0 z-20 flex items-end justify-center bg-black/40">
-          <div className="w-full max-w-lg p-3">
-            <div className="rounded-xl border border-card-border bg-card p-3">
-              <p className="text-sm font-semibold">
-                {t("expiry.reducePriceConfirmTitle")}
-              </p>
-              <p className="mt-1 text-xs text-muted">
-                {t("expiry.reducePriceConfirmMessage")}
-              </p>
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  className="rounded-lg border border-input-border bg-card px-3 py-2 text-sm text-foreground"
-                  onClick={() => setShowPriceReduceConfirm(false)}
-                  disabled={reducingPrice}
-                >
-                  {t("expiry.confirmCancel")}
-                </button>
-                <button
-                  type="button"
-                  className="rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-fg disabled:opacity-60"
-                  onClick={() => void confirmPriceReduction()}
-                  disabled={reducingPrice}
-                >
-                  {reducingPrice ? t("expiry.saving") : t("expiry.reducePrice")}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }
