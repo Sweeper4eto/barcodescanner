@@ -264,6 +264,18 @@ test("PATCH /api/inventory marks item for price reduction", async () => {
     reduceAgain.data.entry.priceReducedAt,
     reducePrice.data.entry.priceReducedAt,
   );
+
+  const restorePrice = await jsonRequest(inventoryPatch, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      entryId,
+      storeId: store.id,
+      priceReduced: false,
+    }),
+  });
+  assert.equal(restorePrice.response.status, 200);
+  assert.equal(restorePrice.data.entry.priceReducedAt, null);
 });
 
 test("full inventory flow via APIs", async () => {

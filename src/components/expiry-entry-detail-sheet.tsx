@@ -91,7 +91,8 @@ export function ExpiryEntryDetailSheet({
   const [showPriceReduceConfirm, setShowPriceReduceConfirm] = useState(false);
   const [reducingPrice, setReducingPrice] = useState(false);
 
-  const priceReduced = entry.priceReducedAt !== null;
+  const savedPriceReduced = entry.priceReducedAt !== null;
+  const [priceReducedDraft, setPriceReducedDraft] = useState(savedPriceReduced);
 
   const savedExpiryYmd = expiryIsoToYmd(entry.expiryDate);
   const parsedQuantity = Number(quantity);
@@ -101,7 +102,8 @@ export function ExpiryEntryDetailSheet({
     parsedQuantity >= 1;
   const hasChanges =
     expiryYmd !== savedExpiryYmd ||
-    (quantityValid && parsedQuantity !== entry.quantity);
+    (quantityValid && parsedQuantity !== entry.quantity) ||
+    priceReducedDraft !== savedPriceReduced;
   const canConfirm = hasChanges && quantityValid;
   const compactLayout =
     editingExpiry || editingQuantity || hasChanges;
@@ -109,6 +111,7 @@ export function ExpiryEntryDetailSheet({
   useEffect(() => {
     setQuantity(String(entry.quantity));
     setExpiryYmd(expiryIsoToYmd(entry.expiryDate));
+    setPriceReducedDraft(entry.priceReducedAt !== null);
     setEditingExpiry(false);
     setEditingQuantity(false);
     setError(null);
@@ -118,6 +121,7 @@ export function ExpiryEntryDetailSheet({
   function revertDraft() {
     setQuantity(String(entry.quantity));
     setExpiryYmd(savedExpiryYmd);
+    setPriceReducedDraft(savedPriceReduced);
     setEditingExpiry(false);
     setEditingQuantity(false);
     setError(null);
@@ -197,6 +201,9 @@ export function ExpiryEntryDetailSheet({
       if (updates.expiryDate !== undefined) {
         body.expiryDate = expiryYmdToIso(updates.expiryDate);
       }
+      if (priceReducedDraft !== savedPriceReduced) {
+        body.priceReduced = priceReducedDraft;
+      }
 
       const response = await fetch("/api/inventory", {
         method: "PATCH",
@@ -222,6 +229,7 @@ export function ExpiryEntryDetailSheet({
 
       setQuantity(String(data.entry.quantity));
       setExpiryYmd(expiryIsoToYmd(data.entry.expiryDate));
+      setPriceReducedDraft(data.entry.priceReducedAt !== null);
       setEditingExpiry(false);
       setEditingQuantity(false);
     } catch {
@@ -274,14 +282,14 @@ export function ExpiryEntryDetailSheet({
         <button
           type="button"
           aria-label={
-            priceReduced ? t("expiry.priceReduced") : t("expiry.reducePrice")
+            savedPriceReduced ? t("expiry.priceReduced") : t("expiry.reducePrice")
           }
           title={
-            priceReduced ? t("expiry.priceReduced") : t("expiry.reducePrice")
+            savedPriceReduced ? t("expiry.priceReduced") : t("expiry.reducePrice")
           }
           className="absolute top-2 left-2 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-card-border bg-card text-foreground disabled:opacity-50"
           onClick={() => setShowPriceReduceConfirm(true)}
-          disabled={saving || reducingPrice || priceReduced}
+          disabled={saving || reducingPrice || savedPriceReduced}
         >
           <PriceReduceIcon className="h-4 w-4" />
         </button>
@@ -401,16 +409,8 @@ export function ExpiryEntryDetailSheet({
               aria-expanded={editingQuantity}
             >
               <span className="text-sm text-muted">{t("expiry.pieces")}</span>
-              <span className="flex items-center gap-1.5">
-                {priceReduced ? (
-                  <PriceReduceIcon
-                    className="h-4 w-4 shrink-0 text-muted"
-                    aria-hidden
-                  />
-                ) : null}
-                <span className="text-lg font-bold tabular-nums text-foreground">
-                  {quantity}
-                </span>
+              <span className="text-lg font-bold tabular-nums text-foreground">
+                {quantity}
               </span>
             </button>
             {!compactLayout && editingQuantity ? (
@@ -420,6 +420,33 @@ export function ExpiryEntryDetailSheet({
                 startWithGridOpen={false}
               />
             ) : null}
+
+            <button
+              type="button"
+              className={`flex w-full items-center justify-between rounded-xl border px-3 py-2.5 text-left disabled:opacity-60 ${
+                priceReducedDraft !== savedPriceReduced
+                  ? "border-primary bg-selected"
+                  : "border-card-border bg-subtle"
+              }`}
+              onClick={() => {
+                setEditingExpiry(false);
+                setEditingQuantity(false);
+                setPriceReducedDraft((current) => !current);
+              }}
+              disabled={saving || reducingPrice}
+            >
+              <span className="text-sm text-muted">{t("expiry.priceReduction")}</span>
+              <span className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+                {priceReducedDraft ? (
+                  <>
+                    <PriceReduceIcon className="h-4 w-4 shrink-0" aria-hidden />
+                    {t("expiry.priceReductionYes")}
+                  </>
+                ) : (
+                  t("expiry.priceReductionNo")
+                )}
+              </span>
+            </button>
           </div>
         </div>
 

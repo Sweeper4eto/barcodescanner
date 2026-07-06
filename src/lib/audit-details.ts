@@ -275,6 +275,22 @@ export function auditInventoryPriceReduced(input: {
   ]);
 }
 
+export function auditInventoryPriceRestored(input: {
+  productName: string;
+  barcode: string;
+  quantity: number;
+  storeName: string;
+  expiryDate: Date;
+}): string {
+  return auditJoin([
+    `price reduction cleared for "${input.productName}"`,
+    `barcode ${input.barcode}`,
+    `qty ${input.quantity}`,
+    `store "${input.storeName}"`,
+    `expires ${input.expiryDate.toISOString().slice(0, 10)}`,
+  ]);
+}
+
 export function auditAuthLogin(role: string, clientName?: string | null): string {
   return auditJoin([
     `role ${role}`,

@@ -4,6 +4,7 @@ import {
   auditInventoryAdded,
   auditInventoryMerged,
   auditInventoryPriceReduced,
+  auditInventoryPriceRestored,
   auditInventoryRemoved,
   auditInventoryUpdated,
 } from "@/lib/audit-details";
@@ -257,7 +258,7 @@ const patchSchema = z.object({
   storeId: z.string().min(1),
   quantity: z.number().int().positive().optional(),
   expiryDate: z.string().datetime().optional(),
-  priceReduced: z.literal(true).optional(),
+  priceReduced: z.boolean().optional(),
 });
 
 export async function PATCH(request: Request) {
@@ -288,7 +289,55 @@ export async function PATCH(request: Request) {
     );
   }
 
-  if (parsed.data.priceReduced) {
+  const hasFieldUpdate =
+    parsed.data.quantity !== undefined || parsed.data.expiryDate !== undefined;
+  const onlyPriceFlag =
+    parsed.data.priceReduced !== undefined && !hasFieldUpdate;
+
+  if (onlyPriceFlag && parsed.data.priceReduced === false) {
+    const existing = await db.inventoryEntry.findFirst({
+      where: {
+        id: parsed.data.entryId,
+        storeId: parsed.data.storeId,
+        ...activeInventoryWhere,
+      },
+      include: { product: true },
+    });
+
+    if (!existing) {
+      return NextResponse.json(
+        { error: apiT(request, "errors.entryNotFound") },
+        { status: 404 },
+      );
+    }
+
+    if (!existing.priceReducedAt) {
+      return NextResponse.json({ entry: existing });
+    }
+
+    const entry = await db.inventoryEntry.update({
+      where: { id: existing.id },
+      data: { priceReducedAt: null },
+      include: { product: true },
+    });
+
+    await logAuditEvent(
+      request,
+      session,
+      "inventory_price_restored",
+      auditInventoryPriceRestored({
+        productName: existing.product.name,
+        barcode: existing.barcode,
+        quantity: existing.quantity,
+        storeName: store.name,
+        expiryDate: existing.expiryDate,
+      }),
+    );
+
+    return NextResponse.json({ entry });
+  }
+
+  if (onlyPriceFlag && parsed.data.priceReduced === true) {
     const existing = await db.inventoryEntry.findFirst({
       where: {
         id: parsed.data.entryId,
@@ -332,7 +381,9 @@ export async function PATCH(request: Request) {
   }
 
   const isUpdate =
-    parsed.data.quantity !== undefined || parsed.data.expiryDate !== undefined;
+    parsed.data.quantity !== undefined ||
+    parsed.data.expiryDate !== undefined ||
+    parsed.data.priceReduced !== undefined;
 
   if (isUpdate) {
     const existing = await db.inventoryEntry.findFirst({
@@ -421,24 +472,71 @@ export async function PATCH(request: Request) {
         ...(parsed.data.expiryDate !== undefined
           ? { expiryDate: nextExpiry }
           : {}),
+        ...(parsed.data.priceReduced === true && !existing.priceReducedAt
+          ? { priceReducedAt: new Date() }
+          : {}),
+        ...(parsed.data.priceReduced === false
+          ? { priceReducedAt: null }
+          : {}),
       },
       include: { product: true },
     });
 
-    await logAuditEvent(
-      request,
-      session,
-      "inventory_updated",
-      auditInventoryUpdated({
-        productName: existing.product.name,
-        barcode: existing.barcode,
-        storeName: store.name,
-        beforeQty: existing.quantity,
-        afterQty: entry.quantity,
-        beforeExpiry: existing.expiryDate,
-        afterExpiry: entry.expiryDate,
-      }),
-    );
+    if (
+      parsed.data.quantity !== undefined ||
+      parsed.data.expiryDate !== undefined
+    ) {
+      await logAuditEvent(
+        request,
+        session,
+        "inventory_updated",
+        auditInventoryUpdated({
+          productName: existing.product.name,
+          barcode: existing.barcode,
+          storeName: store.name,
+          beforeQty: existing.quantity,
+          afterQty: entry.quantity,
+          beforeExpiry: existing.expiryDate,
+          afterExpiry: entry.expiryDate,
+        }),
+      );
+    }
+
+    if (
+      parsed.data.priceReduced === true &&
+      !existing.priceReducedAt &&
+      entry.priceReducedAt
+    ) {
+      await logAuditEvent(
+        request,
+        session,
+        "inventory_price_reduced",
+        auditInventoryPriceReduced({
+          productName: existing.product.name,
+          barcode: existing.barcode,
+          quantity: entry.quantity,
+          storeName: store.name,
+          expiryDate: entry.expiryDate,
+        }),
+      );
+    } else if (
+      parsed.data.priceReduced === false &&
+      existing.priceReducedAt &&
+      !entry.priceReducedAt
+    ) {
+      await logAuditEvent(
+        request,
+        session,
+        "inventory_price_restored",
+        auditInventoryPriceRestored({
+          productName: existing.product.name,
+          barcode: existing.barcode,
+          quantity: entry.quantity,
+          storeName: store.name,
+          expiryDate: entry.expiryDate,
+        }),
+      );
+    }
 
     return NextResponse.json({ entry });
   }

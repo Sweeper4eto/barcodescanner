@@ -17,6 +17,7 @@ type Props = {
   priceReduced: boolean;
   onOpen: () => void;
   onRemove: () => void;
+  onReducePrice: () => void;
 };
 
 export function ExpiryListCard({
@@ -28,6 +29,7 @@ export function ExpiryListCard({
   priceReduced,
   onOpen,
   onRemove,
+  onReducePrice,
 }: Props) {
   const { t, dateLocale } = useT();
   const expiry = new Date(expiryDate);
@@ -42,6 +44,24 @@ export function ExpiryListCard({
 
   return (
     <article className="relative overflow-visible">
+        <button
+          type="button"
+          aria-label={
+            priceReduced ? t("expiry.priceReduced") : t("expiry.reducePrice")
+          }
+          title={
+            priceReduced ? t("expiry.priceReduced") : t("expiry.reducePrice")
+          }
+          className="absolute top-0 left-0 z-10 flex h-5 w-5 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-card-border bg-card text-muted disabled:opacity-50"
+          onClick={(event) => {
+            event.stopPropagation();
+            onReducePrice();
+          }}
+          disabled={priceReduced}
+        >
+          <PriceReduceIcon className="h-3 w-3" />
+        </button>
+
         <button
           type="button"
           aria-label={t("expiry.remove")}
@@ -98,15 +118,6 @@ export function ExpiryListCard({
             </div>
 
             <div className="flex shrink-0 items-stretch gap-1">
-              {priceReduced ? (
-                <div
-                  className="flex items-center px-0.5"
-                  title={t("expiry.priceReduced")}
-                  aria-label={t("expiry.priceReduced")}
-                >
-                  <PriceReduceIcon className="h-4 w-4 text-muted" />
-                </div>
-              ) : null}
               <div className="flex min-w-[2.5rem] flex-col items-center justify-center rounded-md border border-card-border bg-subtle px-1.5 py-0.5 text-center">
                 <p className="text-base font-bold leading-none tabular-nums text-foreground">
                   {quantity}
