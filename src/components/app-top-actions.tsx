@@ -58,6 +58,8 @@ export function AppTopActions() {
     router.refresh();
   }
 
+  const selectedStore = stores.find((store) => store.id === storeId);
+
   return (
     <div className="flex w-[min(100%,11rem)] shrink-0 flex-col items-stretch gap-1.5 sm:w-48">
       <div className="flex items-center justify-end gap-1.5">
@@ -75,18 +77,29 @@ export function AppTopActions() {
           <label className="sr-only" htmlFor="app-store-select">
             {t("app.selectStore")}
           </label>
-          <select
-            id="app-store-select"
-            className="w-full rounded-lg border border-input-border bg-input px-2 py-1.5 text-xs text-foreground"
-            value={storeId}
-            onChange={(event) => onStoreChange(event.target.value)}
-          >
-            {stores.map((store) => (
-              <option key={store.id} value={store.id}>
-                {store.name}
-              </option>
-            ))}
-          </select>
+          <div className="relative w-full min-w-0">
+            <select
+              id="app-store-select"
+              className="absolute inset-0 z-10 w-full cursor-pointer opacity-0"
+              value={storeId}
+              onChange={(event) => onStoreChange(event.target.value)}
+            >
+              {stores.map((store) => (
+                <option key={store.id} value={store.id}>
+                  {store.name}
+                </option>
+              ))}
+            </select>
+            <div
+              aria-hidden
+              className="pointer-events-none flex w-full items-center gap-1 rounded-lg border border-input-border bg-input px-2 py-1.5 pr-1 text-xs text-foreground"
+            >
+              <span className="min-w-0 flex-1 truncate">
+                {selectedStore?.name ?? t("app.selectStore")}
+              </span>
+              <span className="shrink-0 text-[0.6rem] text-muted">▼</span>
+            </div>
+          </div>
         </>
       ) : null}
     </div>
