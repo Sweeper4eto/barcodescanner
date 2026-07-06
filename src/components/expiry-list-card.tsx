@@ -1,6 +1,7 @@
 "use client";
 
 import { useT } from "@/components/i18n-provider";
+import { PriceReduceIcon } from "@/components/app-nav-icons";
 import {
   daysUntilExpiry,
   expiryUrgencyBadgeClass,
@@ -13,6 +14,7 @@ type Props = {
   expiryDate: string;
   enteredAt: string;
   quantity: number;
+  priceReduced: boolean;
   onOpen: () => void;
   onRemove: () => void;
 };
@@ -23,6 +25,7 @@ export function ExpiryListCard({
   expiryDate,
   enteredAt,
   quantity,
+  priceReduced,
   onOpen,
   onRemove,
 }: Props) {
@@ -95,6 +98,15 @@ export function ExpiryListCard({
             </div>
 
             <div className="flex shrink-0 items-stretch gap-1">
+              {priceReduced ? (
+                <div
+                  className="flex items-center px-0.5"
+                  title={t("expiry.priceReduced")}
+                  aria-label={t("expiry.priceReduced")}
+                >
+                  <PriceReduceIcon className="h-4 w-4 text-muted" />
+                </div>
+              ) : null}
               <div className="flex min-w-[2.5rem] flex-col items-center justify-center rounded-md border border-card-border bg-subtle px-1.5 py-0.5 text-center">
                 <p className="text-base font-bold leading-none tabular-nums text-foreground">
                   {quantity}

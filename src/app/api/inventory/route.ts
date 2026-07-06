@@ -3,6 +3,7 @@ import { z } from "zod";
 import {
   auditInventoryAdded,
   auditInventoryMerged,
+  auditInventoryPriceReduced,
   auditInventoryRemoved,
   auditInventoryUpdated,
 } from "@/lib/audit-details";
@@ -251,11 +252,12 @@ export async function GET(request: Request) {
   });
 }
 
-const removeSchema = z.object({
+const patchSchema = z.object({
   entryId: z.string().min(1),
   storeId: z.string().min(1),
   quantity: z.number().int().positive().optional(),
   expiryDate: z.string().datetime().optional(),
+  priceReduced: z.literal(true).optional(),
 });
 
 export async function PATCH(request: Request) {
@@ -270,7 +272,7 @@ export async function PATCH(request: Request) {
   }
 
   const json = await request.json().catch(() => null);
-  const parsed = removeSchema.safeParse(json);
+  const parsed = patchSchema.safeParse(json);
   if (!parsed.success) {
     return NextResponse.json(
       { error: apiT(request, "errors.invalidData") },
@@ -284,6 +286,49 @@ export async function PATCH(request: Request) {
       { error: apiT(request, "errors.noStoreAccess") },
       { status: 403 },
     );
+  }
+
+  if (parsed.data.priceReduced) {
+    const existing = await db.inventoryEntry.findFirst({
+      where: {
+        id: parsed.data.entryId,
+        storeId: parsed.data.storeId,
+        ...activeInventoryWhere,
+      },
+      include: { product: true },
+    });
+
+    if (!existing) {
+      return NextResponse.json(
+        { error: apiT(request, "errors.entryNotFound") },
+        { status: 404 },
+      );
+    }
+
+    if (existing.priceReducedAt) {
+      return NextResponse.json({ entry: existing });
+    }
+
+    const entry = await db.inventoryEntry.update({
+      where: { id: existing.id },
+      data: { priceReducedAt: new Date() },
+      include: { product: true },
+    });
+
+    await logAuditEvent(
+      request,
+      session,
+      "inventory_price_reduced",
+      auditInventoryPriceReduced({
+        productName: existing.product.name,
+        barcode: existing.barcode,
+        quantity: existing.quantity,
+        storeName: store.name,
+        expiryDate: existing.expiryDate,
+      }),
+    );
+
+    return NextResponse.json({ entry });
   }
 
   const isUpdate =
@@ -328,7 +373,12 @@ export async function PATCH(request: Request) {
         const mergedEntry = await db.$transaction(async (tx) => {
           await tx.inventoryEntry.update({
             where: { id: conflict.id },
-            data: { quantity: conflict.quantity + nextQuantity },
+            data: {
+              quantity: conflict.quantity + nextQuantity,
+              ...(existing.priceReducedAt && !conflict.priceReducedAt
+                ? { priceReducedAt: existing.priceReducedAt }
+                : {}),
+            },
           });
           await tx.inventoryEntry.update({
             where: { id: existing.id },

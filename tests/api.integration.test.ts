@@ -202,6 +202,70 @@ test("PATCH /api/inventory updates quantity and expiry date", async () => {
   assert.equal(updateExpiry.data.entry.quantity, 5);
 });
 
+test("PATCH /api/inventory marks item for price reduction", async () => {
+  const client = await seedClientWithStore(db);
+  const store = client.stores[0];
+  const user = await seedUserWithAccess(db, client.id, store.id);
+
+  const login = await loginUser(user.username, "password123");
+  assert.equal(login.ok, true);
+  if (!login.ok) return;
+  await setMockSession(login.token);
+
+  const createProduct = await jsonRequest(productsPost, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ barcode: "888", name: "Yogurt" }),
+  });
+  assert.equal(createProduct.response.status, 201);
+
+  const expiry = new Date();
+  expiry.setUTCDate(expiry.getUTCDate() + 5);
+  expiry.setUTCHours(0, 0, 0, 0);
+
+  const createEntry = await jsonRequest(inventoryPost, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      storeId: store.id,
+      barcode: "888",
+      productId: createProduct.data.product.id,
+      quantity: 3,
+      expiryDate: expiry.toISOString(),
+    }),
+  });
+  assert.equal(createEntry.response.status, 201);
+
+  const entryId = createEntry.data.entry.id as string;
+
+  const reducePrice = await jsonRequest(inventoryPatch, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      entryId,
+      storeId: store.id,
+      priceReduced: true,
+    }),
+  });
+  assert.equal(reducePrice.response.status, 200);
+  assert.ok(reducePrice.data.entry.priceReducedAt);
+
+  const reduceAgain = await jsonRequest(inventoryPatch, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      entryId,
+      storeId: store.id,
+      priceReduced: true,
+    }),
+  });
+  assert.equal(reduceAgain.response.status, 200);
+  assert.equal(
+    reduceAgain.data.entry.priceReducedAt,
+    reducePrice.data.entry.priceReducedAt,
+  );
+});
+
 test("full inventory flow via APIs", async () => {
   const client = await seedClientWithStore(db);
   const store = client.stores[0];

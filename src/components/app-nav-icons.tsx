@@ -62,3 +62,24 @@ export function CopyIcon({ className = "h-6 w-6" }: { className?: string }) {
     </svg>
   );
 }
+
+export function PriceReduceIcon({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <path d="M16 9.5a5.5 5.5 0 1 0-7.8 4.9" />
+      <path d="M8.2 14.4v3.4h3.4" />
+      <path d="M12 5.5v13" />
+      <path d="M9.5 9h5" />
+      <path d="M9.5 12h5" />
+    </svg>
+  );
+}

@@ -21,7 +21,8 @@ export type AuditEvent =
   | "inventory_added"
   | "inventory_merged"
   | "inventory_removed"
-  | "inventory_updated";
+  | "inventory_updated"
+  | "inventory_price_reduced";
 
 export type AuditFilter = "all" | "auth" | "inventory" | "products" | "admin";
 
@@ -33,6 +34,7 @@ const INVENTORY_EVENTS: AuditEvent[] = [
   "inventory_merged",
   "inventory_removed",
   "inventory_updated",
+  "inventory_price_reduced",
 ];
 const PRODUCT_EVENTS: AuditEvent[] = [
   "product_created",

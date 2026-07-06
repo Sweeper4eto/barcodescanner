@@ -29,6 +29,7 @@ type Entry = {
   quantity: number;
   enteredAt: string;
   expiryDate: string;
+  priceReducedAt: string | null;
   product: { name: string; imagePath: string | null };
 };
 
@@ -204,6 +205,7 @@ function ExpiryList() {
                 barcode: updated.barcode,
                 quantity: updated.quantity,
                 expiryDate: updated.expiryDate,
+                priceReducedAt: updated.priceReducedAt,
                 product: updated.product,
               }
             : entry,
@@ -220,6 +222,7 @@ function ExpiryList() {
             quantity: updated.quantity,
             enteredAt: new Date().toISOString(),
             expiryDate: updated.expiryDate,
+            priceReducedAt: updated.priceReducedAt,
             product: updated.product,
           },
         ];
@@ -316,6 +319,7 @@ function ExpiryList() {
             expiryDate={entry.expiryDate}
             enteredAt={entry.enteredAt}
             quantity={entry.quantity}
+            priceReduced={entry.priceReducedAt !== null}
             onOpen={() => setDetailEntry(entry)}
             onRemove={() => setConfirmId(entry.id)}
           />

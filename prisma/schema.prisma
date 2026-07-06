@@ -86,6 +86,7 @@ model InventoryEntry {
   expiryDate DateTime
   enteredAt  DateTime  @default(now())
   removedAt  DateTime?
+  priceReducedAt DateTime?
   deletedAt  DateTime?
 
   @@index([storeId, expiryDate])
