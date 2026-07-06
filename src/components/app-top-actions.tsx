@@ -59,36 +59,36 @@ export function AppTopActions() {
   }
 
   return (
-    <div className="flex shrink-0 items-start gap-1.5">
-      <button
-        type="button"
-        onClick={() => void logout()}
-        className="rounded-lg border border-input-border bg-card px-2 py-1.5 text-xs text-foreground"
-      >
-        {t("common.logout")}
-      </button>
-      <div className="flex items-end gap-1.5">
+    <div className="flex w-[min(100%,11rem)] shrink-0 flex-col items-stretch gap-1.5 sm:w-48">
+      <div className="flex items-center justify-end gap-1.5">
+        <button
+          type="button"
+          onClick={() => void logout()}
+          className="shrink-0 rounded-lg border border-input-border bg-card px-2 py-1.5 text-xs text-foreground"
+        >
+          {t("common.logout")}
+        </button>
         <LanguageSwitch />
-        {stores.length > 1 ? (
-          <div className="flex flex-col items-end gap-1">
-            <label className="sr-only" htmlFor="app-store-select">
-              {t("app.selectStore")}
-            </label>
-            <select
-              id="app-store-select"
-              className="max-w-[6.5rem] rounded-lg border border-input-border bg-input px-2 py-1.5 text-xs text-foreground sm:max-w-[8.5rem]"
-              value={storeId}
-              onChange={(event) => onStoreChange(event.target.value)}
-            >
-              {stores.map((store) => (
-                <option key={store.id} value={store.id}>
-                  {store.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        ) : null}
       </div>
+      {stores.length > 1 ? (
+        <>
+          <label className="sr-only" htmlFor="app-store-select">
+            {t("app.selectStore")}
+          </label>
+          <select
+            id="app-store-select"
+            className="w-full rounded-lg border border-input-border bg-input px-2 py-1.5 text-xs text-foreground"
+            value={storeId}
+            onChange={(event) => onStoreChange(event.target.value)}
+          >
+            {stores.map((store) => (
+              <option key={store.id} value={store.id}>
+                {store.name}
+              </option>
+            ))}
+          </select>
+        </>
+      ) : null}
     </div>
   );
 }
