@@ -5,8 +5,8 @@ APP_DIR="${MAGAZIN_APP_DIR:-/var/www/magazin}"
 
 cd "$APP_DIR"
 
-echo "==> Discarding local changes to generated PWA icons (rebuilt on npm install)..."
-git checkout -- public/icons/apple-touch-icon.png public/icons/icon-192.png public/icons/icon-512.png public/icons/icon-512-maskable.png 2>/dev/null || true
+echo "==> Discarding local changes to icon assets..."
+git checkout -- public/favicon.ico public/icons src/app/icon.png 2>/dev/null || true
 
 echo "==> Pulling latest code..."
 git pull
