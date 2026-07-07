@@ -13,7 +13,7 @@ export function AppLogo({
       alt="expire365"
       width={size}
       height={size}
-      className={`rounded-2xl shadow-sm ${className}`}
+      className={`rounded-[22%] ${className}`}
       priority
     />
   );
