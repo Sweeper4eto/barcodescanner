@@ -5,11 +5,9 @@ APP_DIR="${MAGAZIN_APP_DIR:-/var/www/magazin}"
 
 cd "$APP_DIR"
 
-echo "==> Discarding local changes to icon assets..."
-git checkout -- public/favicon.ico public/icons src/app/icon.png 2>/dev/null || true
-
-echo "==> Pulling latest code..."
-git pull
+echo "==> Syncing to latest origin/master..."
+git fetch origin
+git reset --hard origin/master
 
 echo "==> Installing dependencies..."
 npm install

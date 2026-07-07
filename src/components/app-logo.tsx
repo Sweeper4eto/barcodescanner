@@ -1,4 +1,4 @@
-import Image from "next/image";
+const LOGO_SRC = "/icons/icon-192.png?v=2";
 
 export function AppLogo({
   size = 72,
@@ -8,13 +8,14 @@ export function AppLogo({
   className?: string;
 }) {
   return (
-    <Image
-      src="/icons/icon-192.png"
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={LOGO_SRC}
       alt="expire365"
       width={size}
       height={size}
       className={`rounded-[22%] ${className}`}
-      priority
+      decoding="async"
     />
   );
 }

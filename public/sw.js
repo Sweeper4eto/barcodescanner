@@ -1,4 +1,4 @@
-const CACHE_NAME = "expire365-v4";
+const CACHE_NAME = "expire365-v5";
 const OFFLINE_FALLBACKS = ["/app", "/login", "/"];
 
 self.addEventListener("install", (event) => {
@@ -27,6 +27,8 @@ self.addEventListener("fetch", (event) => {
   if (url.origin !== self.location.origin) return;
   if (url.pathname.startsWith("/api/")) return;
   if (url.pathname.startsWith("/uploads/")) return;
+  if (url.pathname.startsWith("/icons/")) return;
+  if (url.pathname === "/favicon.ico") return;
 
   const isDocument =
     request.mode === "navigate" ||
