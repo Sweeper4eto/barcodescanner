@@ -18,17 +18,17 @@ export function AuthShell({
   const { t } = useT();
 
   return (
-    <div className="mx-auto flex min-h-full w-full min-w-0 max-w-md flex-col justify-center px-4 py-10">
-      <div className="rounded-2xl border border-card-border bg-card p-6 shadow-sm">
+    <div className="mx-auto flex min-h-full w-full min-w-0 max-w-md flex-col justify-center px-3 py-6">
+      <div className="rounded-2xl border border-card-border bg-card p-4 shadow-sm">
         <div className="flex flex-col items-center text-center">
           <AppLogo size={56} />
           <p className="mt-3 text-sm font-semibold uppercase tracking-wide text-accent">
             {t("common.appName")}
           </p>
         </div>
-        <h1 className="mt-4 text-center text-2xl font-semibold text-foreground">{title}</h1>
+        <h1 className="mt-3 text-center text-2xl font-semibold text-foreground">{title}</h1>
         {subtitle ? <p className="mt-2 text-center text-sm text-muted">{subtitle}</p> : null}
-        <div className="mt-6">{children}</div>
+        <div className="mt-4">{children}</div>
       </div>
     </div>
   );
@@ -51,7 +51,7 @@ export function TextField({
     <label className="block text-sm font-medium text-foreground">
       {label}
       <input
-        className="mt-1 w-full rounded-xl border border-input-border bg-input px-3 py-3 text-base text-foreground outline-none focus:border-primary"
+        className="mt-1 w-full rounded-xl border border-input-border bg-input px-2.5 py-2 text-base text-foreground outline-none focus:border-primary"
         type={type}
         value={value}
         autoComplete={autoComplete}
@@ -77,7 +77,7 @@ export function PrimaryButton({
       type={type}
       disabled={disabled}
       onClick={onClick}
-      className="w-full rounded-xl bg-primary px-4 py-3 text-base font-medium text-primary-fg disabled:opacity-50"
+      className="w-full rounded-xl bg-primary px-3 py-2 text-base font-medium text-primary-fg disabled:opacity-50"
     >
       {children}
     </button>
@@ -97,7 +97,7 @@ export function SecondaryButton({
     <button
       type={type}
       onClick={onClick}
-      className="w-full rounded-xl border border-input-border bg-card px-4 py-3 text-base font-medium text-foreground"
+      className="w-full rounded-xl border border-input-border bg-card px-3 py-2 text-base font-medium text-foreground"
     >
       {children}
     </button>
@@ -135,7 +135,7 @@ export function LoginForm() {
   }
 
   return (
-    <form className="space-y-4" onSubmit={onSubmit}>
+    <form className="space-y-3" onSubmit={onSubmit}>
       <TextField
         label={t("auth.username")}
         value={username}
@@ -201,7 +201,7 @@ export function RegisterForm() {
   }
 
   return (
-    <form className="space-y-4" onSubmit={onSubmit}>
+    <form className="space-y-3" onSubmit={onSubmit}>
       <TextField
         label={t("auth.username")}
         value={username}
@@ -224,7 +224,7 @@ export function RegisterForm() {
       />
       {error ? <p className="text-sm text-error">{error}</p> : null}
       {success ? (
-        <p className="rounded-xl bg-warning-bg p-3 text-sm text-warning-fg">{success}</p>
+        <p className="rounded-xl bg-warning-bg p-2.5 text-sm text-warning-fg">{success}</p>
       ) : null}
       <PrimaryButton type="submit" disabled={loading}>
         {loading ? t("auth.registering") : t("auth.register")}

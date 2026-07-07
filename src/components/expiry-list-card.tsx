@@ -35,10 +35,11 @@ export function ExpiryListCard({
   const expiry = new Date(expiryDate);
   const entered = new Date(enteredAt);
   const days = daysUntilExpiry(expiry);
+  const absDays = Math.abs(days);
   const daysLabel =
-    days <= 0
+    days === 0
       ? t("expiry.today")
-      : days === 1
+      : absDays === 1
         ? t("expiry.day")
         : t("expiry.days");
 
@@ -139,7 +140,7 @@ export function ExpiryListCard({
               <div
                 className={`flex min-w-[2.5rem] flex-col items-center justify-center rounded-md border px-1.5 py-0.5 text-center ${expiryUrgencyBadgeClass(expiry)}`}
               >
-                {days > 0 ? (
+                {days !== 0 ? (
                   <>
                     <p className="text-base font-bold leading-none tabular-nums">{days}</p>
                     <p className="text-[10px] font-semibold leading-none">{daysLabel}</p>

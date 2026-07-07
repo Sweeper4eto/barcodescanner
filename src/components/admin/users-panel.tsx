@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   AdminEmptyState,
   adminDangerButtonClass,
@@ -115,11 +115,13 @@ export function UsersPanel({ clients, onRefresh }: Props) {
     await loadClientStores(nextClientId);
   }
 
-  async function onSearch(event: FormEvent) {
-    event.preventDefault();
-    setPage(1);
-    setQuery(search.trim());
-  }
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setPage(1);
+      setQuery(search.trim());
+    }, 180);
+    return () => window.clearTimeout(timer);
+  }, [search]);
 
   const currentAssignment: AssignmentState = {
     clientId,
@@ -199,21 +201,15 @@ export function UsersPanel({ clients, onRefresh }: Props) {
     <div className="grid min-w-0 gap-6 lg:grid-cols-2">
       <section className="min-w-0 rounded-2xl border border-card-border p-4">
         <h2 className="font-medium">{t("admin.allUsers")}</h2>
-        <form className="mt-3 flex min-w-0 gap-2" onSubmit={onSearch}>
+        <div className="mt-3 flex min-w-0 gap-2">
           <input
             className={adminSearchInputClass}
             placeholder={t("admin.usersSearchPlaceholder")}
             value={search}
             onChange={(event) => setSearch(event.target.value)}
           />
-          <button
-            type="submit"
-            className="shrink-0 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-fg"
-          >
-            {t("common.search")}
-          </button>
-        </form>
-        <div className="mt-3 max-h-[32rem] space-y-2 overflow-y-auto">
+        </div>
+        <div className="mt-3 max-h-[32rem] space-y-1.5 overflow-y-auto">
           {users.length === 0 ? (
             <AdminEmptyState message={t("admin.noUsersFound")} />
           ) : (
@@ -222,17 +218,12 @@ export function UsersPanel({ clients, onRefresh }: Props) {
                 key={user.id}
                 type="button"
                 onClick={() => selectUser(user)}
-                className={`w-full rounded-xl border p-3 text-left ${selectedUserId === user.id ? "border-primary bg-selected" : "border-card-border"} ${!user.active ? "opacity-60" : ""}`}
+                className={`w-full rounded-xl border px-3 py-2 text-left ${selectedUserId === user.id ? "border-primary bg-selected" : "border-card-border"} ${!user.active ? "opacity-60" : ""}`}
               >
                 <p className="font-medium">{user.username}</p>
                 <p className="text-xs text-muted">
                   {t("admin.clientRow", {
                     name: user.client?.name ?? t("common.none"),
-                  })}
-                </p>
-                <p className="text-xs text-muted">
-                  {t("admin.storesRow", {
-                    names: user.stores.map((s) => s.name).join(", ") || t("common.none"),
                   })}
                 </p>
               </button>
