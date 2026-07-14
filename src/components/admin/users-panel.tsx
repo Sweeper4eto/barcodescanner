@@ -195,6 +195,7 @@ export function UsersPanel({ clients, onRefresh }: Props) {
   }
 
   const selectedUser = users.find((user) => user.id === selectedUserId);
+  const selectedClient = clients.find((client) => client.id === clientId);
   const safePage = Math.min(page, totalPages);
 
   return (
@@ -271,6 +272,9 @@ export function UsersPanel({ clients, onRefresh }: Props) {
             <p className="text-sm text-muted">
               {t("admin.userLabel")}: {selectedUser.username}
             </p>
+            {selectedClient?.homeUser ? (
+              <p className="text-sm font-medium text-primary">{t("admin.homeUser")}</p>
+            ) : null}
             <label className="block text-sm">
               {t("admin.clientLabel")}
               <select

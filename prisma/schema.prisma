@@ -33,6 +33,7 @@ model Client {
   phone              String?
   additionalInfo     String?
   active             Boolean   @default(true)
+  homeUser           Boolean   @default(false)
   monthlyFeePerStore Float     @default(0)
   users              User[]
   stores             Store[]
@@ -52,6 +53,7 @@ model Store {
   active         Boolean          @default(true)
   userLinks      UserStore[]
   inventory      InventoryEntry[]
+  buyList        BuyListEntry[]
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
 }
@@ -71,6 +73,7 @@ model Product {
   name      String
   imagePath String?
   inventory InventoryEntry[]
+  buyList   BuyListEntry[]
   createdAt DateTime         @default(now())
   updatedAt DateTime         @updatedAt
 }
@@ -80,7 +83,7 @@ model InventoryEntry {
   storeId    String
   store      Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
   productId  String
-  product    Product   @relation(fields: [productId], references: [id])
+  product    Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
   barcode    String
   quantity   Int
   expiryDate DateTime
@@ -91,6 +94,20 @@ model InventoryEntry {
 
   @@index([storeId, expiryDate])
   @@index([storeId, removedAt, deletedAt])
+}
+
+model BuyListEntry {
+  id        String    @id @default(cuid())
+  storeId   String
+  store     Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  barcode   String
+  quantity  Int
+  enteredAt DateTime  @default(now())
+  removedAt DateTime?
+
+  @@index([storeId, removedAt])
 }
 
 model Payment {

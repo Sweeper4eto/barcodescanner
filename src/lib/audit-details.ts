@@ -40,6 +40,7 @@ type ClientLike = {
   additionalInfo: string | null;
   monthlyFeePerStore: number;
   active: boolean;
+  homeUser: boolean;
 };
 
 export function auditClientCreated(client: ClientLike): string {
@@ -49,6 +50,7 @@ export function auditClientCreated(client: ClientLike): string {
     client.phone ? `phone ${client.phone}` : null,
     client.additionalInfo ? `info: ${client.additionalInfo}` : null,
     formatAuditValue(client.active),
+    client.homeUser ? "home user" : null,
   ]);
 }
 
@@ -59,6 +61,11 @@ export function auditClientUpdated(before: ClientLike, after: ClientLike): strin
     auditFieldChange("info", before.additionalInfo, after.additionalInfo),
     auditFieldChange("fee/store", before.monthlyFeePerStore, after.monthlyFeePerStore),
     auditFieldChange("status", before.active, after.active),
+    auditFieldChange(
+      "home user",
+      before.homeUser ? "yes" : "no",
+      after.homeUser ? "yes" : "no",
+    ),
   ]);
 }
 
@@ -189,8 +196,20 @@ export function auditProductUpdated(
   ]);
 }
 
-export function auditProductDeleted(product: ProductLike): string {
-  return auditJoin([`product "${product.name}"`, `barcode ${product.barcode}`]);
+export function auditProductDeleted(
+  product: ProductLike,
+  removed?: { inventoryEntries: number; buyListEntries: number },
+): string {
+  return auditJoin([
+    `product "${product.name}"`,
+    `barcode ${product.barcode}`,
+    removed && removed.inventoryEntries > 0
+      ? `inventory entries removed (${removed.inventoryEntries})`
+      : null,
+    removed && removed.buyListEntries > 0
+      ? `buy list entries removed (${removed.buyListEntries})`
+      : null,
+  ]);
 }
 
 export function auditInventoryAdded(input: {
@@ -300,4 +319,61 @@ export function auditAuthLogin(role: string, clientName?: string | null): string
 
 export function auditAuthRegister(username: string): string {
   return `new account "${username}"`;
+}
+
+export function auditBuyListAdded(input: {
+  productName: string;
+  barcode: string;
+  quantity: number;
+  storeName: string;
+}): string {
+  return auditJoin([
+    `buy list "${input.productName}"`,
+    `barcode ${input.barcode}`,
+    `qty ${input.quantity}`,
+    `store "${input.storeName}"`,
+  ]);
+}
+
+export function auditBuyListMerged(input: {
+  productName: string;
+  barcode: string;
+  addedQty: number;
+  totalQty: number;
+  storeName: string;
+}): string {
+  return auditJoin([
+    `buy list "${input.productName}"`,
+    `barcode ${input.barcode}`,
+    `added ${input.addedQty} → total ${input.totalQty}`,
+    `store "${input.storeName}"`,
+  ]);
+}
+
+export function auditBuyListRemoved(input: {
+  productName: string;
+  barcode: string;
+  quantity: number;
+  storeName: string;
+}): string {
+  return auditJoin([
+    `removed buy list "${input.productName}"`,
+    `barcode ${input.barcode}`,
+    `qty ${input.quantity}`,
+    `store "${input.storeName}"`,
+  ]);
+}
+
+export function auditBuyListUpdated(input: {
+  productName: string;
+  barcode: string;
+  storeName: string;
+  beforeQty: number;
+  afterQty: number;
+}): string {
+  return auditSubjectWithChanges(`buy list "${input.productName}"`, [
+    `barcode ${input.barcode}`,
+    `store "${input.storeName}"`,
+    auditFieldChange("qty", input.beforeQty, input.afterQty),
+  ]);
 }

@@ -21,6 +21,7 @@ export function migrateTestDb(): void {
 
 export async function resetTestDb(db: PrismaClient): Promise<void> {
   await db.payment.deleteMany();
+  await db.buyListEntry.deleteMany();
   await db.inventoryEntry.deleteMany();
   await db.userStore.deleteMany();
   await db.product.deleteMany();

@@ -166,7 +166,9 @@ export async function DELETE(request: Request) {
 
   const product = await db.product.findUnique({
     where: { id },
-    include: { _count: { select: { inventory: true } } },
+    include: {
+      _count: { select: { inventory: true, buyList: true } },
+    },
   });
   if (!product) {
     return NextResponse.json(
@@ -175,15 +177,23 @@ export async function DELETE(request: Request) {
     );
   }
 
-  if (product._count.inventory > 0) {
-    return NextResponse.json(
-      { error: apiT(request, "errors.productHasInventory") },
-      { status: 409 },
-    );
-  }
+  const removed = {
+    inventoryEntries: product._count.inventory,
+    buyListEntries: product._count.buyList,
+  };
 
-  await db.product.delete({ where: { id } });
-  await logAuditEvent(request, admin, "product_deleted", auditProductDeleted(product));
+  await db.$transaction(async (tx) => {
+    await tx.inventoryEntry.deleteMany({ where: { productId: id } });
+    await tx.buyListEntry.deleteMany({ where: { productId: id } });
+    await tx.product.delete({ where: { id } });
+  });
+
+  await logAuditEvent(
+    request,
+    admin,
+    "product_deleted",
+    auditProductDeleted(product, removed),
+  );
 
   return NextResponse.json({ ok: true });
 }

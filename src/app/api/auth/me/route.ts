@@ -16,6 +16,7 @@ export async function GET() {
       role: true,
       active: true,
       clientId: true,
+      client: { select: { homeUser: true } },
       storeLinks: {
         where: { store: { active: true } },
         select: {
@@ -31,11 +32,13 @@ export async function GET() {
     return NextResponse.json({ user: null });
   }
 
+  const { client, storeLinks, ...rest } = user;
+
   return NextResponse.json({
     user: {
-      ...user,
-      stores: user.storeLinks.map((link) => link.store),
-      storeLinks: undefined,
+      ...rest,
+      homeUser: client?.homeUser ?? false,
+      stores: storeLinks.map((link) => link.store),
     },
   });
 }

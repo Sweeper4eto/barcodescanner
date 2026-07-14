@@ -20,6 +20,7 @@ export type Client = {
   phone: string | null;
   additionalInfo: string | null;
   active: boolean;
+  homeUser: boolean;
   monthlyFeePerStore: number;
   _count: { stores: number; users: number };
 };
@@ -44,6 +45,7 @@ type EditState = {
   additionalInfo: string;
   monthlyFeePerStore: string;
   active: boolean;
+  homeUser: boolean;
 };
 
 function clientEditState(client: Client): EditState {
@@ -53,6 +55,7 @@ function clientEditState(client: Client): EditState {
     additionalInfo: client.additionalInfo ?? "",
     monthlyFeePerStore: String(client.monthlyFeePerStore),
     active: client.active,
+    homeUser: client.homeUser,
   };
 }
 
@@ -63,7 +66,8 @@ function editIsDirty(current: EditState, saved: EditState | null) {
     current.phone !== saved.phone ||
     current.additionalInfo !== saved.additionalInfo ||
     current.monthlyFeePerStore !== saved.monthlyFeePerStore ||
-    current.active !== saved.active
+    current.active !== saved.active ||
+    current.homeUser !== saved.homeUser
   );
 }
 
@@ -86,6 +90,7 @@ export function ClientsPanel({ onRefresh }: Props) {
     additionalInfo: "",
     monthlyFeePerStore: "0",
     active: true,
+    homeUser: false,
   });
   const [savedEdit, setSavedEdit] = useState<EditState | null>(null);
   const [saving, setSaving] = useState(false);
@@ -176,6 +181,7 @@ export function ClientsPanel({ onRefresh }: Props) {
           additionalInfo: edit.additionalInfo || undefined,
           monthlyFeePerStore: Number(edit.monthlyFeePerStore),
           active: edit.active,
+          homeUser: edit.homeUser,
         }),
       });
       if (!response.ok) {
@@ -354,6 +360,11 @@ export function ClientsPanel({ onRefresh }: Props) {
                       } ${!client.active ? "opacity-60" : ""}`}
                     >
                       <p className="font-medium text-foreground">{client.name}</p>
+                      {client.homeUser ? (
+                        <p className="mt-1 text-xs font-medium text-primary">
+                          {t("admin.homeUser")}
+                        </p>
+                      ) : null}
                       {client.phone ? (
                         <p className="mt-1 text-xs text-muted">{client.phone}</p>
                       ) : null}
@@ -438,6 +449,17 @@ export function ClientsPanel({ onRefresh }: Props) {
                         />
                         {t("admin.activeClient")}
                       </label>
+                      <label className="flex items-center gap-2 text-sm text-foreground">
+                        <input
+                          type="checkbox"
+                          checked={edit.homeUser}
+                          onChange={(event) =>
+                            setEdit({ ...edit, homeUser: event.target.checked })
+                          }
+                        />
+                        {t("admin.homeUser")}
+                      </label>
+                      <p className="text-xs text-muted">{t("admin.homeUserHint")}</p>
                       {saveMessage ? (
                         <p
                           className={`text-sm ${

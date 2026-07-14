@@ -29,12 +29,18 @@ let inventoryPatch: (request: Request) => Promise<Response>;
 let cronPost: (request: Request) => Promise<Response>;
 let clientsGet: (request: Request) => Promise<Response>;
 let clientsPost: (request: Request) => Promise<Response>;
+let clientsPatch: (request: Request) => Promise<Response>;
 let usersGet: (request: Request) => Promise<Response>;
 let usersPatch: (request: Request) => Promise<Response>;
 let usersDelete: (request: Request) => Promise<Response>;
 let paymentsPost: (request: Request) => Promise<Response>;
 let calendarGet: (request: Request) => Promise<Response>;
 let adminProductsPatch: (request: Request) => Promise<Response>;
+let adminProductsDelete: (request: Request) => Promise<Response>;
+let meGet: (request: Request) => Promise<Response>;
+let buyListGet: (request: Request) => Promise<Response>;
+let buyListPost: (request: Request) => Promise<Response>;
+let buyListPatch: (request: Request) => Promise<Response>;
 
 async function jsonRequest(
   handler: (request: Request) => Promise<Response>,
@@ -58,7 +64,7 @@ test.before(async () => {
   ({ POST: inventoryPost, GET: inventoryGet, PATCH: inventoryPatch } =
     await import("../src/app/api/inventory/route"));
   ({ POST: cronPost } = await import("../src/app/api/cron/purge-inventory/route"));
-  ({ GET: clientsGet, POST: clientsPost } = await import(
+  ({ GET: clientsGet, POST: clientsPost, PATCH: clientsPatch } = await import(
     "../src/app/api/admin/clients/route"
   ));
   ({ GET: usersGet, PATCH: usersPatch, DELETE: usersDelete } = await import(
@@ -68,8 +74,12 @@ test.before(async () => {
   ({ GET: calendarGet } = await import(
     "../src/app/api/admin/payments/calendar/route"
   ));
-  ({ PATCH: adminProductsPatch } = await import(
+  ({ PATCH: adminProductsPatch, DELETE: adminProductsDelete } = await import(
     "../src/app/api/admin/products/route"
+  ));
+  ({ GET: meGet } = await import("../src/app/api/auth/me/route"));
+  ({ GET: buyListGet, POST: buyListPost, PATCH: buyListPatch } = await import(
+    "../src/app/api/buy-list/route"
   ));
 });
 
@@ -473,6 +483,99 @@ test("PATCH /api/admin/products updates barcode on all inventory entries", async
   assert.equal(search.data.entries.length, 1);
 });
 
+test("DELETE /api/admin/products removes product from inventory and buy list", async () => {
+  const client = await seedClientWithStore(db);
+  const store = client.stores[0];
+  const homeClient = await db.client.create({
+    data: {
+      name: "Home Client",
+      monthlyFeePerStore: 10,
+      homeUser: true,
+      stores: { create: { name: "Home Store" } },
+    },
+    include: { stores: true },
+  });
+  const homeStore = homeClient.stores[0];
+  const user = await seedUserWithAccess(db, client.id, store.id);
+
+  const login = await loginUser(user.username, "password123");
+  assert.equal(login.ok, true);
+  if (!login.ok) return;
+  await setMockSession(login.token);
+
+  const createProduct = await jsonRequest(productsPost, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ barcode: "555444", name: "Yogurt" }),
+  });
+  assert.equal(createProduct.response.status, 201);
+  const productId = createProduct.data.product.id as string;
+
+  const expiry = new Date();
+  expiry.setUTCDate(expiry.getUTCDate() + 10);
+  expiry.setUTCHours(0, 0, 0, 0);
+
+  const inventory = await jsonRequest(inventoryPost, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      storeId: store.id,
+      barcode: "555444",
+      productId,
+      quantity: 2,
+      expiryDate: expiry.toISOString(),
+    }),
+  });
+  assert.equal(inventory.response.status, 201);
+
+  await inventoryPatch(
+    new Request("http://localhost/api/inventory", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ entryId: inventory.data.entry.id, storeId: store.id }),
+    }),
+  );
+
+  const homeUser = await seedUserWithAccess(
+    db,
+    homeClient.id,
+    homeStore.id,
+    "home_delete_user",
+  );
+  const homeLogin = await loginUser(homeUser.username, "password123");
+  assert.equal(homeLogin.ok, true);
+  if (!homeLogin.ok) return;
+  await setMockSession(homeLogin.token);
+
+  const buyList = await jsonRequest(buyListPost, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      storeId: homeStore.id,
+      barcode: "555444",
+      productId,
+      quantity: 1,
+    }),
+  });
+  assert.equal(buyList.response.status, 201);
+
+  const adminLogin = await loginUser("admin", "admin123");
+  assert.equal(adminLogin.ok, true);
+  if (!adminLogin.ok) return;
+  await setMockSession(adminLogin.token);
+
+  const deleted = await jsonRequest(adminProductsDelete, {
+    method: "DELETE",
+    url: `http://localhost/api/admin/products?id=${productId}`,
+  });
+  assert.equal(deleted.response.status, 200);
+  assert.equal(deleted.data.ok, true);
+
+  assert.equal(await db.product.count({ where: { id: productId } }), 0);
+  assert.equal(await db.inventoryEntry.count({ where: { productId } }), 0);
+  assert.equal(await db.buyListEntry.count({ where: { productId } }), 0);
+});
+
 test("POST /api/inventory does not merge removed entries with same expiry", async () => {
   const client = await seedClientWithStore(db);
   const store = client.stores[0];
@@ -671,6 +774,183 @@ test("admin clients and user assignment APIs", async () => {
   });
   assert.equal(list.response.status, 200);
   assert.equal(list.data.clients.length, 1);
+});
+
+test("home user flag on client is inherited by assigned users", async () => {
+  const adminLogin = await loginUser("admin", "admin123");
+  assert.equal(adminLogin.ok, true);
+  if (!adminLogin.ok) return;
+  await setMockSession(adminLogin.token);
+
+  const createClient = await jsonRequest(clientsPost, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name: "Home Client",
+      monthlyFeePerStore: 10,
+      homeUser: true,
+    }),
+  });
+  assert.equal(createClient.response.status, 201);
+  assert.equal(createClient.data.client.homeUser, true);
+
+  const client = createClient.data.client;
+  const store = await db.store.create({
+    data: { clientId: client.id, name: "Home Store" },
+  });
+  const user = await seedUserWithAccess(db, client.id, store.id, "home_worker");
+
+  const disabled = await jsonRequest(clientsPatch, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id: client.id, homeUser: false }),
+  });
+  assert.equal(disabled.response.status, 200);
+  assert.equal(disabled.data.client.homeUser, false);
+
+  const enabled = await jsonRequest(clientsPatch, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id: client.id, homeUser: true }),
+  });
+  assert.equal(enabled.response.status, 200);
+  assert.equal(enabled.data.client.homeUser, true);
+
+  const workerLogin = await loginUser(user.username, "password123");
+  assert.equal(workerLogin.ok, true);
+  if (!workerLogin.ok) return;
+  await setMockSession(workerLogin.token);
+
+  const me = await jsonRequest(meGet, {
+    url: "http://localhost/api/auth/me",
+  });
+  assert.equal(me.response.status, 200);
+  assert.equal(me.data.user.homeUser, true);
+});
+
+test("buy list API is isolated from inventory and gated by homeUser", async () => {
+  const regularClient = await seedClientWithStore(db);
+  const regularStore = regularClient.stores[0];
+  const regularUser = await seedUserWithAccess(
+    db,
+    regularClient.id,
+    regularStore.id,
+    "regular_worker",
+  );
+  const regularLogin = await loginUser(regularUser.username, "password123");
+  assert.equal(regularLogin.ok, true);
+  if (!regularLogin.ok) return;
+  await setMockSession(regularLogin.token);
+
+  const denied = await jsonRequest(buyListGet, {
+    url: `http://localhost/api/buy-list?storeId=${regularStore.id}`,
+  });
+  assert.equal(denied.response.status, 403);
+
+  const homeClient = await db.client.create({
+    data: {
+      name: "Home Shop",
+      monthlyFeePerStore: 10,
+      homeUser: true,
+      stores: { create: { name: "Home Store" } },
+    },
+    include: { stores: true },
+  });
+  const homeStore = homeClient.stores[0];
+  const homeUser = await seedUserWithAccess(
+    db,
+    homeClient.id,
+    homeStore.id,
+    "home_buyer",
+  );
+  const product = await db.product.create({
+    data: { barcode: "5901234123457", name: "Bread" },
+  });
+
+  const homeLogin = await loginUser(homeUser.username, "password123");
+  assert.equal(homeLogin.ok, true);
+  if (!homeLogin.ok) return;
+  await setMockSession(homeLogin.token);
+
+  const created = await jsonRequest(buyListPost, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      storeId: homeStore.id,
+      barcode: product.barcode,
+      productId: product.id,
+      quantity: 2,
+    }),
+  });
+  assert.equal(created.response.status, 201);
+  assert.equal(created.data.entry.quantity, 2);
+
+  const merged = await jsonRequest(buyListPost, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      storeId: homeStore.id,
+      barcode: product.barcode,
+      productId: product.id,
+      quantity: 3,
+    }),
+  });
+  assert.equal(merged.response.status, 200);
+  assert.equal(merged.data.merged, true);
+  assert.equal(merged.data.entry.quantity, 5);
+
+  const list = await jsonRequest(buyListGet, {
+    url: `http://localhost/api/buy-list?storeId=${homeStore.id}`,
+  });
+  assert.equal(list.response.status, 200);
+  assert.equal(list.data.entries.length, 1);
+  assert.equal(list.data.entries[0].quantity, 5);
+
+  const entryId = list.data.entries[0].id as string;
+
+  const updated = await jsonRequest(buyListPatch, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      entryId,
+      storeId: homeStore.id,
+      quantity: 4,
+    }),
+  });
+  assert.equal(updated.response.status, 200);
+  assert.equal(updated.data.entry.quantity, 4);
+
+  const removed = await jsonRequest(buyListPatch, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ entryId, storeId: homeStore.id }),
+  });
+  assert.equal(removed.response.status, 200);
+  assert.equal(removed.data.ok, true);
+
+  const empty = await jsonRequest(buyListGet, {
+    url: `http://localhost/api/buy-list?storeId=${homeStore.id}`,
+  });
+  assert.equal(empty.data.entries.length, 0);
+
+  const inventory = await jsonRequest(inventoryPost, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      storeId: homeStore.id,
+      barcode: product.barcode,
+      productId: product.id,
+      quantity: 1,
+      expiryDate: new Date("2026-12-31T00:00:00.000Z").toISOString(),
+    }),
+  });
+  assert.equal(inventory.response.status, 201);
+
+  const inventoryList = await jsonRequest(inventoryGet, {
+    url: `http://localhost/api/inventory?storeId=${homeStore.id}&withinDays=all`,
+  });
+  assert.equal(inventoryList.data.entries.length, 1);
+  assert.equal(empty.data.entries.length, 0);
 });
 
 test("GET /api/admin/users supports search and pagination", async () => {
