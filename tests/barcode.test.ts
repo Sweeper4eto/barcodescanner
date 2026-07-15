@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   BarcodeReadConsensus,
+  CrossDecoderBarcodeConsensus,
   barcodeLookupValues,
   isPlausibleBarcode,
   normalizeBarcode,
@@ -28,6 +29,31 @@ test("BarcodeReadConsensus rejects invalid checksum immediately", () => {
   const consensus = new BarcodeReadConsensus();
   assert.equal(consensus.add("4006381333930"), null);
   assert.equal(consensus.add("4006381333930"), null);
+});
+
+test("CrossDecoderBarcodeConsensus accepts cross-decoder agreement", () => {
+  const consensus = new CrossDecoderBarcodeConsensus();
+  assert.equal(consensus.addFromSource("4006381333931", "html5"), null);
+  assert.equal(
+    consensus.addFromSource("4006381333931", "zxing-hybrid"),
+    "4006381333931",
+  );
+});
+
+test("CrossDecoderBarcodeConsensus accepts trusted native checksum reads", () => {
+  const consensus = new CrossDecoderBarcodeConsensus();
+  assert.equal(consensus.addFromSource("4006381333931", "native"), "4006381333931");
+});
+
+test("CrossDecoderBarcodeConsensus accepts trusted wasm checksum reads", () => {
+  const consensus = new CrossDecoderBarcodeConsensus();
+  assert.equal(consensus.addFromSource("4006381333931", "zxing-wasm"), "4006381333931");
+});
+
+test("CrossDecoderBarcodeConsensus still requires repeats from one source", () => {
+  const consensus = new CrossDecoderBarcodeConsensus();
+  assert.equal(consensus.addFromSource("4006381333931", "html5"), null);
+  assert.equal(consensus.addFromSource("4006381333931", "html5"), "4006381333931");
 });
 
 test("normalizeBarcode trims whitespace", () => {

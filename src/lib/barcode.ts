@@ -77,6 +77,10 @@ export class BarcodeReadConsensus {
   }
 
   add(raw: string): string | null {
+    return this.addFromSource(raw, "live");
+  }
+
+  addFromSource(raw: string, _source: string): string | null {
     const code = normalizeBarcode(raw);
     if (!isPlausibleBarcode(code)) {
       this.reset();
@@ -96,6 +100,77 @@ export class BarcodeReadConsensus {
     }
 
     return null;
+  }
+}
+
+type ConsensusEntry = {
+  sources: Set<string>;
+  count: number;
+  lastSeen: number;
+};
+
+const CONSENSUS_WINDOW_MS = 1800;
+
+function isChecksumBarcode(code: string): boolean {
+  return /^\d{8}$/.test(code) || /^\d{12}$/.test(code) || /^\d{13}$/.test(code);
+}
+
+/** Cross-check reads from multiple decoders before accepting a scan. */
+export class CrossDecoderBarcodeConsensus {
+  private recentHits = new Map<string, ConsensusEntry>();
+
+  reset(): void {
+    this.recentHits.clear();
+  }
+
+  private pruneOld(now: number): void {
+    for (const [code, entry] of this.recentHits) {
+      if (now - entry.lastSeen > CONSENSUS_WINDOW_MS) {
+        this.recentHits.delete(code);
+      }
+    }
+  }
+
+  addFromSource(raw: string, source: string): string | null {
+    const code = normalizeBarcode(raw);
+    if (!isPlausibleBarcode(code)) {
+      this.reset();
+      return null;
+    }
+
+    const now = Date.now();
+    const entry = this.recentHits.get(code) ?? {
+      sources: new Set<string>(),
+      count: 0,
+      lastSeen: now,
+    };
+    entry.sources.add(source);
+    entry.count += 1;
+    entry.lastSeen = now;
+    this.recentHits.set(code, entry);
+    this.pruneOld(now);
+
+    if (entry.sources.size >= 2) {
+      this.reset();
+      return code;
+    }
+
+    const trustedSources = new Set(["native", "zxing-wasm", "wasm-detector"]);
+    if (trustedSources.has(source) && isChecksumBarcode(code)) {
+      this.reset();
+      return code;
+    }
+
+    if (entry.count >= 2) {
+      this.reset();
+      return code;
+    }
+
+    return null;
+  }
+
+  add(raw: string): string | null {
+    return this.addFromSource(raw, "live");
   }
 }
 

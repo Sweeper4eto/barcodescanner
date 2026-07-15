@@ -1,5 +1,5 @@
 import type { Html5Qrcode } from "html5-qrcode";
-import { isPlausibleBarcode, normalizeBarcode } from "@/lib/barcode";
+import { decodeBarcodeFromCanvas, decodeBarcodeFromVideo } from "@/lib/barcode-decode";
 
 type EnhanceMode =
   | "contrast"
@@ -8,30 +8,41 @@ type EnhanceMode =
   | "strongSharpen"
   | "unsharp"
   | "grayscaleThreshold"
+  | "adaptiveThreshold"
+  | "localContrast"
   | "invert";
 
 type FrameCapture = {
   cropRatio?: number;
+  cropOffsetY?: number;
   scaleX?: number;
   upscale?: number;
   mode: EnhanceMode;
+  invertDecode?: boolean;
 };
 
 const ENHANCEMENT_PASSES: FrameCapture[] = [
   { mode: "contrast" },
-  { cropRatio: 0.88, mode: "unsharp" },
-  { cropRatio: 0.72, upscale: 1.6, mode: "strongSharpen" },
+  { cropRatio: 0.9, mode: "unsharp" },
+  { cropRatio: 0.72, upscale: 1.8, mode: "strongSharpen" },
   { cropRatio: 0.88, upscale: 1.5, mode: "highContrast" },
-  { cropRatio: 0.72, upscale: 2, mode: "unsharp" },
-  { cropRatio: 0.88, scaleX: 1.22, mode: "sharpen" },
-  { cropRatio: 0.88, scaleX: 0.82, mode: "sharpen" },
+  { cropRatio: 0.72, upscale: 2.2, mode: "unsharp" },
+  { cropRatio: 0.88, scaleX: 1.24, mode: "sharpen" },
+  { cropRatio: 0.88, scaleX: 0.8, mode: "sharpen" },
+  { cropRatio: 0.72, mode: "adaptiveThreshold" },
+  { cropRatio: 0.88, upscale: 2, mode: "localContrast" },
+  { cropRatio: 0.72, upscale: 2.5, mode: "strongSharpen", invertDecode: true },
+  { cropRatio: 0.55, cropOffsetY: -0.12, upscale: 2.2, mode: "unsharp" },
+  { cropRatio: 0.55, cropOffsetY: 0.12, upscale: 2.2, mode: "unsharp" },
   { cropRatio: 0.72, mode: "grayscaleThreshold" },
   { cropRatio: 0.88, upscale: 1.8, mode: "strongSharpen" },
-  { cropRatio: 0.72, mode: "invert" },
+  { cropRatio: 0.72, mode: "invert", invertDecode: true },
 ];
 
-const ENHANCED_SCAN_INTERVAL_MS = 280;
-const AUTO_REFOCUS_INTERVAL_MS = 2200;
+const ENHANCED_SCAN_INTERVAL_MS = 180;
+const FAST_SCAN_INTERVAL_MS = 90;
+const AUTO_REFOCUS_INTERVAL_MS = 2000;
+const PASSES_PER_TICK = 4;
 
 function clamp(value: number): number {
   return Math.max(0, Math.min(255, value));
@@ -124,6 +135,88 @@ function applyUnsharp(
   context.putImageData(imageData, 0, 0);
 }
 
+function applyAdaptiveThreshold(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  window = 15,
+  bias = 8,
+): void {
+  const gray = toGrayscale(data);
+  const radius = Math.max(2, Math.floor(window / 2));
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      let sum = 0;
+      let count = 0;
+      for (let dy = -radius; dy <= radius; dy += 1) {
+        for (let dx = -radius; dx <= radius; dx += 1) {
+          const sampleY = Math.min(height - 1, Math.max(0, y + dy));
+          const sampleX = Math.min(width - 1, Math.max(0, x + dx));
+          sum += gray[sampleY * width + sampleX];
+          count += 1;
+        }
+      }
+      const threshold = sum / count - bias;
+      const value = gray[y * width + x] > threshold ? 255 : 0;
+      const index = (y * width + x) * 4;
+      data[index] = value;
+      data[index + 1] = value;
+      data[index + 2] = value;
+    }
+  }
+}
+
+function applyLocalContrast(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+): void {
+  const blockSize = 4;
+  const blockW = Math.ceil(width / blockSize);
+  const blockH = Math.ceil(height / blockSize);
+
+  for (let blockY = 0; blockY < blockH; blockY += 1) {
+    for (let blockX = 0; blockX < blockW; blockX += 1) {
+      let min = 255;
+      let max = 0;
+      const startX = blockX * blockSize;
+      const startY = blockY * blockSize;
+      const endX = Math.min(width, startX + blockSize);
+      const endY = Math.min(height, startY + blockSize);
+
+      for (let y = startY; y < endY; y += 1) {
+        for (let x = startX; x < endX; x += 1) {
+          const index = (y * width + x) * 4;
+          const gray = Math.round(
+            data[index] * 0.299 +
+              data[index + 1] * 0.587 +
+              data[index + 2] * 0.114,
+          );
+          min = Math.min(min, gray);
+          max = Math.max(max, gray);
+        }
+      }
+
+      const range = Math.max(1, max - min);
+      for (let y = startY; y < endY; y += 1) {
+        for (let x = startX; x < endX; x += 1) {
+          const index = (y * width + x) * 4;
+          const gray = Math.round(
+            data[index] * 0.299 +
+              data[index + 1] * 0.587 +
+              data[index + 2] * 0.114,
+          );
+          const value = clamp(Math.round(((gray - min) / range) * 255));
+          data[index] = value;
+          data[index + 1] = value;
+          data[index + 2] = value;
+        }
+      }
+    }
+  }
+}
+
 function applyEnhancement(
   context: CanvasRenderingContext2D,
   width: number,
@@ -190,6 +283,18 @@ function applyEnhancement(
     return;
   }
 
+  if (mode === "adaptiveThreshold") {
+    applyAdaptiveThreshold(data, width, height);
+    context.putImageData(imageData, 0, 0);
+    return;
+  }
+
+  if (mode === "localContrast") {
+    applyLocalContrast(data, width, height);
+    context.putImageData(imageData, 0, 0);
+    return;
+  }
+
   if (mode === "unsharp") {
     context.putImageData(imageData, 0, 0);
     applyUnsharp(context, width, height);
@@ -219,6 +324,7 @@ function renderVideoFrame(
   capture: FrameCapture,
 ): { width: number; height: number } | null {
   const cropRatio = capture.cropRatio ?? 1;
+  const cropOffsetY = capture.cropOffsetY ?? 0;
   const scaleX = capture.scaleX ?? 1;
   const upscale = capture.upscale ?? 1;
   const sourceWidth = video.videoWidth * cropRatio;
@@ -226,7 +332,11 @@ function renderVideoFrame(
   if (sourceWidth < 8 || sourceHeight < 8) return null;
 
   const sx = (video.videoWidth - sourceWidth) / 2;
-  const sy = (video.videoHeight - sourceHeight) / 2;
+  const sy =
+    (video.videoHeight - sourceHeight) / 2 +
+    video.videoHeight * cropOffsetY;
+  const clampedSy = Math.max(0, Math.min(video.videoHeight - sourceHeight, sy));
+
   canvas.width = Math.max(1, Math.floor(sourceWidth * scaleX * upscale));
   canvas.height = Math.max(1, Math.floor(sourceHeight * upscale));
 
@@ -234,7 +344,7 @@ function renderVideoFrame(
   context.drawImage(
     video,
     sx,
-    sy,
+    clampedSy,
     sourceWidth,
     sourceHeight,
     0,
@@ -245,26 +355,6 @@ function renderVideoFrame(
 
   applyEnhancement(context, canvas.width, canvas.height, capture.mode);
   return { width: canvas.width, height: canvas.height };
-}
-
-async function decodeCanvasFrame(
-  fileDecoder: Html5Qrcode,
-  canvas: HTMLCanvasElement,
-): Promise<string | null> {
-  const blob = await new Promise<Blob | null>((resolve) => {
-    canvas.toBlob(resolve, "image/jpeg", 0.92);
-  });
-  if (!blob) return null;
-
-  const file = new File([blob], "barcode-frame.jpg", { type: "image/jpeg" });
-
-  try {
-    const decoded = await fileDecoder.scanFile(file, false);
-    const code = normalizeBarcode(decoded);
-    return isPlausibleBarcode(code) ? code : null;
-  } catch {
-    return null;
-  }
 }
 
 export async function refocusBarcodeCamera(scanner: Html5Qrcode): Promise<void> {
@@ -322,48 +412,60 @@ async function decodeEnhancedPass(
   canvas: HTMLCanvasElement,
   context: CanvasRenderingContext2D,
   capture: FrameCapture,
-): Promise<string | null> {
+): Promise<Array<{ code: string; source: string }>> {
   const rendered = renderVideoFrame(context, canvas, video, capture);
-  if (!rendered) return null;
-  return decodeCanvasFrame(fileDecoder, canvas);
+  if (!rendered) return [];
+  const hits = await decodeBarcodeFromCanvas(
+    canvas,
+    fileDecoder,
+    capture.invertDecode ?? capture.mode === "invert",
+  );
+  return hits.map((hit) => ({ code: hit.code, source: hit.source }));
 }
 
 export async function decodeEnhancedVideoFrame(
   fileDecoder: Html5Qrcode,
   containerId: string,
   startPassIndex = 0,
-  passesPerTick = 3,
-): Promise<string | null> {
+  passesPerTick = PASSES_PER_TICK,
+): Promise<Array<{ code: string; source: string }>> {
   const video = findScannerVideo(containerId);
   if (!video || video.videoWidth < 1 || video.videoHeight < 1) {
-    return null;
+    return [];
   }
 
   const canvas = document.createElement("canvas");
   const context = canvas.getContext("2d", { willReadFrequently: true });
-  if (!context) return null;
+  if (!context) return [];
 
-  for (let offset = 0; offset < passesPerTick; offset += 1) {
-    const capture =
-      ENHANCEMENT_PASSES[(startPassIndex + offset) % ENHANCEMENT_PASSES.length];
-    const code = await decodeEnhancedPass(
-      fileDecoder,
-      video,
-      canvas,
-      context,
-      capture,
-    );
-    if (code) return code;
+  const results: Array<{ code: string; source: string }> = [];
+  const seen = new Set<string>();
+
+  const passHits = await Promise.all(
+    Array.from({ length: passesPerTick }, (_, offset) => {
+      const capture =
+        ENHANCEMENT_PASSES[(startPassIndex + offset) % ENHANCEMENT_PASSES.length];
+      return decodeEnhancedPass(fileDecoder, video, canvas, context, capture);
+    }),
+  );
+
+  for (const hits of passHits) {
+    for (const hit of hits) {
+      const key = `${hit.source}:${hit.code}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      results.push(hit);
+    }
   }
 
-  return null;
+  return results;
 }
 
 /** Periodically decode enhanced frames for glass, glare, blur, and partial labels. */
 export function startEnhancedAutoScan(
   fileDecoder: Html5Qrcode,
   containerId: string,
-  onCandidate: (code: string) => void,
+  onCandidate: (code: string, source: string) => void,
 ): () => void {
   let busy = false;
   let passIndex = 0;
@@ -371,17 +473,53 @@ export function startEnhancedAutoScan(
   const interval = setInterval(() => {
     if (busy) return;
     busy = true;
-    void decodeEnhancedVideoFrame(fileDecoder, containerId, passIndex, 3)
-      .then((code) => {
-        if (code) onCandidate(code);
+    void decodeEnhancedVideoFrame(fileDecoder, containerId, passIndex, PASSES_PER_TICK)
+      .then((hits) => {
+        for (const hit of hits) {
+          onCandidate(hit.code, hit.source);
+        }
       })
       .finally(() => {
-        passIndex = (passIndex + 3) % ENHANCEMENT_PASSES.length;
+        passIndex = (passIndex + PASSES_PER_TICK) % ENHANCEMENT_PASSES.length;
         busy = false;
       });
   }, ENHANCED_SCAN_INTERVAL_MS);
 
   return () => clearInterval(interval);
+}
+
+/** High-priority full-resolution scan on raw video frames. */
+export function startFastVideoScan(
+  fileDecoder: Html5Qrcode,
+  containerId: string,
+  onCandidate: (code: string, source: string) => void,
+): () => void {
+  let busy = false;
+  let frameId = 0;
+  let lastTick = 0;
+
+  const tick = (now: number) => {
+    frameId = requestAnimationFrame(tick);
+    if (busy || now - lastTick < FAST_SCAN_INTERVAL_MS) return;
+    lastTick = now;
+
+    const video = findScannerVideo(containerId);
+    if (!video || video.videoWidth < 1 || video.videoHeight < 1) return;
+
+    busy = true;
+    void decodeBarcodeFromVideo(video, fileDecoder)
+      .then((hits) => {
+        for (const hit of hits) {
+          onCandidate(hit.code, hit.source);
+        }
+      })
+      .finally(() => {
+        busy = false;
+      });
+  };
+
+  frameId = requestAnimationFrame(tick);
+  return () => cancelAnimationFrame(frameId);
 }
 
 /** Keep autofocus hunting while the label is hard to read. */

@@ -9,8 +9,9 @@ import {
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { PrimaryButton, SecondaryButton } from "@/components/auth-forms";
 import { useT } from "@/components/i18n-provider";
-import { startEnhancedAutoScan, toggleBarcodeTorch, applyBarcodeCameraConstraints, startAutoRefocus } from "@/lib/barcode-camera";
-import { BarcodeReadConsensus, normalizeBarcode } from "@/lib/barcode";
+import { startEnhancedAutoScan, startFastVideoScan, toggleBarcodeTorch, applyBarcodeCameraConstraints, startAutoRefocus } from "@/lib/barcode-camera";
+import { prepareBarcodeDecoders } from "@/lib/barcode-decode";
+import { CrossDecoderBarcodeConsensus, normalizeBarcode } from "@/lib/barcode";
 
 type Props = {
   onScan: (barcode: string) => void | Promise<void>;
@@ -118,18 +119,22 @@ async function startScanner(
   onDecoded: (value: string) => void | Promise<void>,
 ): Promise<() => void> {
   let lastError: unknown;
-  const consensus = new BarcodeReadConsensus();
+  const consensus = new CrossDecoderBarcodeConsensus();
   let stopEnhanced: () => void = () => {};
+  let stopFast: () => void = () => {};
   let stopRefocus: () => void = () => {};
 
   const makeCleanup = () => () => {
     stopEnhanced();
+    stopFast();
     stopRefocus();
   };
 
   const restartEnhancedScan = () => {
     stopEnhanced();
+    stopFast();
     stopEnhanced = startEnhancedAutoScan(fileDecoder, containerId, consider);
+    stopFast = startFastVideoScan(fileDecoder, containerId, consider);
   };
 
   const afterCameraStart = () => {
@@ -172,12 +177,12 @@ async function startScanner(
     })();
   };
 
-  const consider = (decoded: string) => {
-    const accepted = consensus.add(decoded);
+  const consider = (decoded: string, source = "live") => {
+    const accepted = consensus.addFromSource(decoded, source);
     if (accepted) deliver(accepted);
   };
 
-  const onScanSuccess = (decoded: string) => consider(decoded);
+  const onScanSuccess = (decoded: string) => consider(decoded, "live");
 
   await waitForScannerLayout(containerId);
 
@@ -385,6 +390,13 @@ export function BarcodeScanner({
       }
 
       await waitForScannerLayout(elementId);
+
+      if (abortedRef.current) {
+        setScanning(false);
+        return;
+      }
+
+      await prepareBarcodeDecoders();
 
       if (abortedRef.current) {
         setScanning(false);

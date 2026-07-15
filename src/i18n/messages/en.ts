@@ -241,7 +241,7 @@ export const en = {
     noCamera: "No camera found on this device. Enter the barcode manually.",
     manualPlaceholder: "Or enter barcode manually",
     confirmBarcode: "Confirm barcode",
-    tips: "Center the barcode in the frame and hold steady. Focus adjusts automatically. For glass or glare, stay 15–25 cm away and tilt slightly. For blurry, partial, or squeezed labels, move closer until the bars fill the frame.",
+    tips: "Point the camera at the barcode and hold steady.",
     refocus: "Refocus",
     refocusing: "Refocusing...",
     torchOn: "Light on",
