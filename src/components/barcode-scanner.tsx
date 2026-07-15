@@ -9,7 +9,7 @@ import {
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { PrimaryButton, SecondaryButton } from "@/components/auth-forms";
 import { useT } from "@/components/i18n-provider";
-import { startEnhancedAutoScan, toggleBarcodeTorch } from "@/lib/barcode-camera";
+import { startEnhancedAutoScan, toggleBarcodeTorch, applyBarcodeCameraConstraints, startAutoRefocus } from "@/lib/barcode-camera";
 import { BarcodeReadConsensus, normalizeBarcode } from "@/lib/barcode";
 
 type Props = {
@@ -32,19 +32,30 @@ const PRODUCT_BARCODE_FORMATS = [
 ];
 
 const SCAN_CONFIG: Html5QrcodeCameraScanConfig = {
-  fps: 8,
+  fps: 10,
   disableFlip: false,
+  qrbox: (viewfinderWidth, viewfinderHeight) => {
+    const width = Math.floor(viewfinderWidth * 0.94);
+    const height = Math.floor(Math.min(viewfinderHeight * 0.38, 140));
+    return { width, height };
+  },
 };
 
-const CAMERA_CACHE_KEY = "magazin-barcode-camera-id";
-
 const CAMERA_ATTEMPTS: MediaTrackConstraints[] = [
+  {
+    facingMode: { ideal: "environment" },
+    width: { ideal: 1920 },
+    height: { ideal: 1080 },
+    advanced: [{ focusMode: "continuous" }],
+  } as unknown as MediaTrackConstraints,
   { facingMode: { exact: "environment" } },
   { facingMode: { ideal: "environment" } },
   { facingMode: "environment" },
   { facingMode: "user" },
   {},
 ];
+
+const CAMERA_CACHE_KEY = "magazin-barcode-camera-id";
 
 const SCANNER_OPTIONS = {
   verbose: false,
@@ -102,6 +113,25 @@ async function startScanner(
   let lastError: unknown;
   const consensus = new BarcodeReadConsensus();
   let stopEnhanced: () => void = () => {};
+  let stopRefocus: () => void = () => {};
+
+  const makeCleanup = () => () => {
+    stopEnhanced();
+    stopRefocus();
+  };
+
+  const restartEnhancedScan = () => {
+    stopEnhanced();
+    stopEnhanced = startEnhancedAutoScan(fileDecoder, containerId, consider);
+  };
+
+  const afterCameraStart = async () => {
+    await applyBarcodeCameraConstraints(scanner);
+    restartEnhancedScan();
+    stopRefocus();
+    stopRefocus = startAutoRefocus(scanner);
+    return makeCleanup();
+  };
 
   const deliver = (accepted: string) => {
     void (async () => {
@@ -113,6 +143,13 @@ async function startScanner(
       }
       try {
         await onDecoded(accepted);
+        try {
+          if (scanner.isScanning) {
+            restartEnhancedScan();
+          }
+        } catch {
+          // ignore resume/enhanced restart failures
+        }
       } catch {
         consensus.reset();
         try {
@@ -120,7 +157,7 @@ async function startScanner(
         } catch {
           // ignore resume failures during camera startup
         }
-        stopEnhanced = startEnhancedAutoScan(fileDecoder, containerId, consider);
+        restartEnhancedScan();
       }
     })();
   };
@@ -132,17 +169,11 @@ async function startScanner(
 
   const onScanSuccess = (decoded: string) => consider(decoded);
 
-  const beginEnhancedScan = () => {
-    stopEnhanced();
-    stopEnhanced = startEnhancedAutoScan(fileDecoder, containerId, consider);
-  };
-
   const cachedCameraId = readCachedCameraId();
   if (cachedCameraId) {
     try {
       await scanner.start(cachedCameraId, SCAN_CONFIG, onScanSuccess, () => undefined);
-      beginEnhancedScan();
-      return () => stopEnhanced();
+      return await afterCameraStart();
     } catch (error) {
       lastError = error;
       await resetScanner(scanner);
@@ -157,8 +188,7 @@ async function startScanner(
   for (const camera of CAMERA_ATTEMPTS) {
     try {
       await scanner.start(camera, SCAN_CONFIG, onScanSuccess, () => undefined);
-      beginEnhancedScan();
-      return () => stopEnhanced();
+      return await afterCameraStart();
     } catch (error) {
       lastError = error;
       await resetScanner(scanner);
@@ -176,8 +206,7 @@ async function startScanner(
       try {
         await scanner.start(cameraId, SCAN_CONFIG, onScanSuccess, () => undefined);
         cacheCameraId(cameraId);
-        beginEnhancedScan();
-        return () => stopEnhanced();
+        return await afterCameraStart();
       } catch (error) {
         lastError = error;
         await resetScanner(scanner);
