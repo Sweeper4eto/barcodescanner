@@ -287,20 +287,19 @@ export async function applyBarcodeCameraConstraints(
 ): Promise<void> {
   try {
     await scanner.applyVideoConstraints({
-      focusMode: { ideal: "continuous" },
-      width: { ideal: 1920 },
-      height: { ideal: 1080 },
-      advanced: [
-        { focusMode: "continuous" },
-        { exposureMode: "continuous" },
-        { whiteBalanceMode: "continuous" },
-      ],
+      width: { ideal: 1280 },
+      height: { ideal: 720 },
+      advanced: [{ focusMode: "continuous" }],
     } as unknown as MediaTrackConstraints);
   } catch {
     // Constraint support varies by device/browser.
   }
 
-  await refocusBarcodeCamera(scanner);
+  try {
+    await refocusBarcodeCamera(scanner);
+  } catch {
+    // Focus nudge is best-effort only.
+  }
 }
 
 export async function toggleBarcodeTorch(

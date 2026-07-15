@@ -109,6 +109,7 @@ body {
 }
 
 .barcode-scanner-view {
+  min-height: min(38vh, 280px);
   max-height: min(38vh, 280px);
 }
 

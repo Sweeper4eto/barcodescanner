@@ -34,23 +34,12 @@ const PRODUCT_BARCODE_FORMATS = [
 const SCAN_CONFIG: Html5QrcodeCameraScanConfig = {
   fps: 10,
   disableFlip: false,
-  qrbox: (viewfinderWidth, viewfinderHeight) => {
-    const width = Math.floor(viewfinderWidth * 0.94);
-    const height = Math.floor(Math.min(viewfinderHeight * 0.38, 140));
-    return { width, height };
-  },
 };
 
 const CAMERA_ATTEMPTS: MediaTrackConstraints[] = [
-  {
-    facingMode: { ideal: "environment" },
-    width: { ideal: 1920 },
-    height: { ideal: 1080 },
-    advanced: [{ focusMode: "continuous" }],
-  } as unknown as MediaTrackConstraints,
-  { facingMode: { exact: "environment" } },
-  { facingMode: { ideal: "environment" } },
   { facingMode: "environment" },
+  { facingMode: { ideal: "environment" } },
+  { facingMode: { ideal: "user" } },
   { facingMode: "user" },
   {},
 ];
@@ -104,6 +93,24 @@ async function resetScanner(scanner: Html5Qrcode): Promise<void> {
   await safeStopScanner(scanner);
 }
 
+async function waitForScannerLayout(containerId: string): Promise<void> {
+  for (let attempt = 0; attempt < 24; attempt += 1) {
+    const element = document.getElementById(containerId);
+    const parent = element?.parentElement;
+    if (
+      element &&
+      parent &&
+      parent.offsetWidth > 0 &&
+      parent.offsetHeight > 0
+    ) {
+      return;
+    }
+    await new Promise<void>((resolve) => {
+      requestAnimationFrame(() => resolve());
+    });
+  }
+}
+
 async function startScanner(
   scanner: Html5Qrcode,
   fileDecoder: Html5Qrcode,
@@ -125,11 +132,14 @@ async function startScanner(
     stopEnhanced = startEnhancedAutoScan(fileDecoder, containerId, consider);
   };
 
-  const afterCameraStart = async () => {
-    await applyBarcodeCameraConstraints(scanner);
+  const afterCameraStart = () => {
     restartEnhancedScan();
-    stopRefocus();
-    stopRefocus = startAutoRefocus(scanner);
+    window.setTimeout(() => {
+      if (!scanner.isScanning) return;
+      void applyBarcodeCameraConstraints(scanner).catch(() => undefined);
+      stopRefocus();
+      stopRefocus = startAutoRefocus(scanner);
+    }, 400);
     return makeCleanup();
   };
 
@@ -169,11 +179,13 @@ async function startScanner(
 
   const onScanSuccess = (decoded: string) => consider(decoded);
 
+  await waitForScannerLayout(containerId);
+
   const cachedCameraId = readCachedCameraId();
   if (cachedCameraId) {
     try {
       await scanner.start(cachedCameraId, SCAN_CONFIG, onScanSuccess, () => undefined);
-      return await afterCameraStart();
+      return afterCameraStart();
     } catch (error) {
       lastError = error;
       await resetScanner(scanner);
@@ -188,7 +200,7 @@ async function startScanner(
   for (const camera of CAMERA_ATTEMPTS) {
     try {
       await scanner.start(camera, SCAN_CONFIG, onScanSuccess, () => undefined);
-      return await afterCameraStart();
+      return afterCameraStart();
     } catch (error) {
       lastError = error;
       await resetScanner(scanner);
@@ -206,7 +218,7 @@ async function startScanner(
       try {
         await scanner.start(cameraId, SCAN_CONFIG, onScanSuccess, () => undefined);
         cacheCameraId(cameraId);
-        return await afterCameraStart();
+        return afterCameraStart();
       } catch (error) {
         lastError = error;
         await resetScanner(scanner);
@@ -300,18 +312,14 @@ export function BarcodeScanner({
 
     abortedRef.current = false;
 
-    if (!scannerRef.current) {
-      scannerRef.current = new Html5Qrcode(elementId, SCANNER_OPTIONS);
-    }
-    if (!fileDecoderRef.current) {
-      fileDecoderRef.current = new Html5Qrcode(fileDecoderId, SCANNER_OPTIONS);
-    }
-
     const stopCamera = () => {
       abortedRef.current = true;
       scanCleanupRef.current?.();
       scanCleanupRef.current = null;
       void safeStopScanner(scannerRef.current);
+      scannerRef.current = null;
+      fileDecoderRef.current?.clear();
+      fileDecoderRef.current = null;
     };
 
     const onPageHide = () => {
@@ -323,11 +331,8 @@ export function BarcodeScanner({
     return () => {
       window.removeEventListener("pagehide", onPageHide);
       stopCamera();
-      scannerRef.current = null;
-      fileDecoderRef.current?.clear();
-      fileDecoderRef.current = null;
     };
-  }, [elementId, fileDecoderId]);
+  }, []);
 
   const deliverBarcode = useCallback(async (value: string) => {
     const barcode = normalizeBarcode(value);
@@ -353,13 +358,14 @@ export function BarcodeScanner({
   }, []);
 
   const startCamera = useCallback(async () => {
-    if (starting || scanning || abortedRef.current) return;
+    if (starting || scanning) return;
 
     if (typeof window !== "undefined" && !window.isSecureContext) {
       setError(t("scanner.insecureContext"));
       return;
     }
 
+    abortedRef.current = false;
     handledRef.current = false;
     setStarting(true);
     setError("");
@@ -371,15 +377,22 @@ export function BarcodeScanner({
     try {
       if (scannerRef.current) {
         await resetScanner(scannerRef.current);
-      } else {
-        scannerRef.current = new Html5Qrcode(elementId, SCANNER_OPTIONS);
+        scannerRef.current = null;
+      }
+      if (fileDecoderRef.current) {
+        fileDecoderRef.current.clear();
+        fileDecoderRef.current = null;
       }
 
-      if (abortedRef.current) return;
+      await waitForScannerLayout(elementId);
 
-      if (!fileDecoderRef.current) {
-        fileDecoderRef.current = new Html5Qrcode(fileDecoderId, SCANNER_OPTIONS);
+      if (abortedRef.current) {
+        setScanning(false);
+        return;
       }
+
+      scannerRef.current = new Html5Qrcode(elementId, SCANNER_OPTIONS);
+      fileDecoderRef.current = new Html5Qrcode(fileDecoderId, SCANNER_OPTIONS);
 
       scanCleanupRef.current = await startScanner(
         scannerRef.current,
@@ -392,6 +405,9 @@ export function BarcodeScanner({
         scanCleanupRef.current?.();
         scanCleanupRef.current = null;
         await resetScanner(scannerRef.current);
+        scannerRef.current = null;
+        fileDecoderRef.current?.clear();
+        fileDecoderRef.current = null;
         setScanning(false);
         return;
       }
@@ -442,7 +458,7 @@ export function BarcodeScanner({
     <div className="space-y-3">
       <div
         className={
-          scanning
+          scanning || starting
             ? "barcode-scanner-view overflow-hidden rounded-xl border border-card-border"
             : "h-0 overflow-hidden"
         }
