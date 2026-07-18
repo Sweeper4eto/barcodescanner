@@ -15,11 +15,12 @@ npm install
 echo "==> Generating Prisma client..."
 npx prisma generate
 
+# SQLite cannot migrate while the app holds a write lock.
+echo "==> Stopping app before migrate/build..."
+pm2 stop magazin 2>/dev/null || true
+
 echo "==> Applying migrations..."
 npx prisma migrate deploy
-
-echo "==> Stopping app for clean build..."
-pm2 stop magazin 2>/dev/null || true
 
 echo "==> Removing old .next build..."
 rm -rf .next
@@ -29,7 +30,7 @@ export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=1536}"
 npm run build
 
 echo "==> Restarting PM2..."
-pm2 restart magazin
+pm2 restart magazin || pm2 start npm --name magazin -- start
 
 echo "==> Done. Verify register page has confirmPassword:"
 grep -n confirmPassword src/components/auth-forms.tsx || true

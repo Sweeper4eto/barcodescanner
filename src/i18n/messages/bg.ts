@@ -9,6 +9,7 @@ export const bg = {
     edit: "Редакция",
     create: "Създай",
     search: "Търсене",
+    loading: "Зареждане...",
     back: "Назад",
     home: "Начало",
     logout: "Изход",

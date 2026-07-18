@@ -7,6 +7,7 @@ export const en = {
     edit: "Edit",
     create: "Create",
     search: "Search",
+    loading: "Loading...",
     back: "Back",
     home: "Home",
     logout: "Log out",

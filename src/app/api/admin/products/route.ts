@@ -6,6 +6,7 @@ import {
 } from "@/lib/audit-details";
 import { logAuditEvent } from "@/lib/audit-log";
 import { requireAdmin } from "@/lib/auth";
+import { searchAdminProducts } from "@/lib/admin-product-search";
 import { barcodeLookupValues, normalizeBarcode } from "@/lib/barcode";
 import { db } from "@/lib/db";
 import { deleteLocalUpload } from "@/lib/upload";
@@ -27,6 +28,29 @@ export async function GET(request: Request) {
   if (admin instanceof NextResponse) return admin;
 
   const { searchParams } = new URL(request.url);
+  const id = searchParams.get("id")?.trim();
+
+  // Single-product meta (inventory count) for the edit pane.
+  if (id) {
+    const product = await db.product.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        name: true,
+        barcode: true,
+        imagePath: true,
+        _count: { select: { inventory: true } },
+      },
+    });
+    if (!product) {
+      return NextResponse.json(
+        { error: apiT(request, "errors.productNotFound") },
+        { status: 404 },
+      );
+    }
+    return NextResponse.json({ product });
+  }
+
   const q = searchParams.get("q")?.trim();
   const page = Math.max(1, Number.parseInt(searchParams.get("page") ?? "1", 10) || 1);
   const pageSize = Math.min(
@@ -34,35 +58,13 @@ export async function GET(request: Request) {
     Math.max(1, Number.parseInt(searchParams.get("pageSize") ?? "20", 10) || 20),
   );
 
-  const where = q
-    ? {
-        OR: [
-          { name: { contains: q } },
-          { barcode: { contains: q } },
-          { barcode: q },
-        ],
-      }
-    : undefined;
-
-  const [products, total] = await Promise.all([
-    db.product.findMany({
-      where,
-      orderBy: { name: "asc" },
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-      include: { _count: { select: { inventory: true } } },
-    }),
-    db.product.count({ where }),
-  ]);
-
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const { products, hasMore } = await searchAdminProducts(q, page, pageSize);
 
   return NextResponse.json({
     products,
-    total,
     page,
     pageSize,
-    totalPages,
+    hasMore,
   });
 }
 

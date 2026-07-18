@@ -102,18 +102,25 @@ function toRows(payload: unknown): DocumentOcrRow[] {
     .filter((row) => row.name || row.barcode || row.articul || row.expiryYmd);
 }
 
-const SYSTEM_PROMPT = `You extract product rows from a photo of a store document / invoice / delivery note / expiry list.
+const SYSTEM_PROMPT = `You extract product rows from a photo of a store document / invoice / delivery note / warehouse write-off (изписване) / expiry list.
+Documents may be in Bulgarian. Common columns:
+- Артикул = internal article/SKU (NOT an EAN barcode) → put in "articul"
+- Наименование = product name → "name" (keep Cyrillic as-is)
+- Заявени / Количество / Брой = quantity → "quantity"
+- Годност = expiry date (DD.MM.YYYY) → "expiryDate"
+- Баркод / EAN = real barcode if present → "barcode"
+
 Return ONLY valid JSON with this shape:
 {"items":[{"name":"string","barcode":"string|null","articul":"string|null","expiryDate":"YYYY-MM-DD or DD.MM.YYYY","quantity":1}]}
 
 Rules:
-- Each row is one product line from the table/list.
-- name = product name (keep original language).
-- barcode = EAN/UPC digits if present, else null. Digits only, no spaces.
-- articul = article/SKU/арт. number if present, else null (not the same as barcode).
-- expiryDate = best expiry/best-before/годност date for that row. Prefer YYYY-MM-DD.
-- quantity = pieces if present, else 1.
-- Ignore headers, totals, store addresses, signatures.
+- Extract EVERY product row in the table (do not stop early).
+- name = product name (keep original language / Cyrillic).
+- barcode = EAN/UPC digits only if a real barcode column exists; else null. Never put Артикул into barcode.
+- articul = Артикул / SKU / арт. number if present, else null.
+- expiryDate = Годност / best-before for that row. Prefer YYYY-MM-DD. If the cell is blank, "1", or not a date, use null.
+- quantity = Заявени / pieces if present, else 1. Ignore Разлика (difference) column.
+- Ignore headers, client address, totals, signatures, batch/Партида unless needed for clarity.
 - If a field is missing or unreadable, use null (quantity defaults to 1).
 - Do not invent barcodes or dates.`;
 

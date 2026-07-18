@@ -27,7 +27,6 @@ type Product = {
   name: string;
   barcode: string;
   imagePath: string | null;
-  _count: { inventory: number };
 };
 
 type Props = {
@@ -41,9 +40,10 @@ export function ItemsPanel({ onRefresh }: Props) {
   const [search, setSearch] = useState("");
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [inventoryCount, setInventoryCount] = useState(0);
   const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [total, setTotal] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [edit, setEdit] = useState({ name: "", barcode: "", imagePath: "" });
   const [savedEdit, setSavedEdit] = useState<typeof edit | null>(null);
   const [saveMessage, setSaveMessage] = useState("");
@@ -52,16 +52,20 @@ export function ItemsPanel({ onRefresh }: Props) {
   const [showCamera, setShowCamera] = useState(false);
 
   const loadProducts = useCallback(async () => {
-    const params = new URLSearchParams({
-      page: String(page),
-      pageSize: "20",
-    });
-    if (query) params.set("q", query);
-    const response = await fetch(`/api/admin/products?${params}`);
-    const data = await response.json();
-    setProducts(data.products ?? []);
-    setTotal(data.total ?? 0);
-    setTotalPages(data.totalPages ?? 1);
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({
+        page: String(page),
+        pageSize: "20",
+      });
+      if (query) params.set("q", query);
+      const response = await fetch(`/api/admin/products?${params}`);
+      const data = await response.json();
+      setProducts(data.products ?? []);
+      setHasMore(Boolean(data.hasMore));
+    } finally {
+      setLoading(false);
+    }
   }, [page, query]);
 
   const itemDirty =
@@ -81,9 +85,10 @@ export function ItemsPanel({ onRefresh }: Props) {
     }
   }, [itemDirty, saveMessage, t]);
 
-  function selectProduct(product: Product) {
+  async function selectProduct(product: Product) {
     setSelectedId(product.id);
     setShowCamera(false);
+    setInventoryCount(0);
     const snapshot = {
       name: product.name,
       barcode: product.barcode,
@@ -92,6 +97,18 @@ export function ItemsPanel({ onRefresh }: Props) {
     setEdit(snapshot);
     setSavedEdit(snapshot);
     setSaveMessage("");
+
+    try {
+      const response = await fetch(
+        `/api/admin/products?id=${encodeURIComponent(product.id)}`,
+      );
+      const data = await response.json();
+      if (response.ok && data.product?._count?.inventory != null) {
+        setInventoryCount(data.product._count.inventory);
+      }
+    } catch {
+      // Count is informational only.
+    }
   }
 
   async function onSearch(event: FormEvent) {
@@ -220,9 +237,6 @@ export function ItemsPanel({ onRefresh }: Props) {
     onRefresh?.();
   }
 
-  const selectedProduct = products.find((product) => product.id === selectedId);
-  const safePage = Math.min(page, totalPages);
-
   return (
     <div className="grid min-w-0 gap-6 md:grid-cols-12">
       <div className="min-w-0 md:col-span-4">
@@ -236,20 +250,25 @@ export function ItemsPanel({ onRefresh }: Props) {
             />
             <button
               type="submit"
-              className="shrink-0 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-fg"
+              disabled={loading}
+              className="shrink-0 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-fg disabled:opacity-60"
             >
-              {t("common.search")}
+              {loading ? t("common.loading") : t("common.search")}
             </button>
           </form>
           <div className="space-y-2">
             {products.length === 0 ? (
-              <AdminEmptyState message={t("admin.noItemsFound")} />
+              <AdminEmptyState
+                message={
+                  loading ? t("common.loading") : t("admin.noItemsFound")
+                }
+              />
             ) : (
               products.map((product) => (
                 <button
                   key={product.id}
                   type="button"
-                  onClick={() => selectProduct(product)}
+                  onClick={() => void selectProduct(product)}
                   className={`flex w-full items-center gap-3 rounded-xl border p-3 text-left transition-colors ${
                     selectedId === product.id
                       ? "border-primary bg-primary/5"
@@ -276,15 +295,15 @@ export function ItemsPanel({ onRefresh }: Props) {
               ))
             )}
           </div>
-          {totalPages > 1 ? (
+          {page > 1 || hasMore ? (
             <div className={`mt-4 ${adminPaginationClass}`}>
               <p className="text-sm text-muted">
-                {t("admin.pageOf", { page: safePage, totalPages })}
+                {t("admin.pageOf", { page, totalPages: hasMore ? page + 1 : page })}
               </p>
               <div className="flex gap-2">
                 <button
                   type="button"
-                  disabled={safePage <= 1}
+                  disabled={page <= 1 || loading}
                   onClick={() => setPage((value) => Math.max(1, value - 1))}
                   className="rounded-lg border border-input-border px-3 py-1.5 text-sm disabled:opacity-40"
                 >
@@ -292,19 +311,14 @@ export function ItemsPanel({ onRefresh }: Props) {
                 </button>
                 <button
                   type="button"
-                  disabled={safePage >= totalPages}
-                  onClick={() => setPage((value) => Math.min(totalPages, value + 1))}
+                  disabled={!hasMore || loading}
+                  onClick={() => setPage((value) => value + 1)}
                   className="rounded-lg border border-input-border px-3 py-1.5 text-sm disabled:opacity-40"
                 >
                   {t("admin.next")}
                 </button>
               </div>
             </div>
-          ) : null}
-          {total > 0 ? (
-            <p className="mt-2 text-xs text-muted">
-              {t("admin.itemsTotal", { count: total })}
-            </p>
           ) : null}
         </AdminSection>
       </div>
@@ -394,10 +408,10 @@ export function ItemsPanel({ onRefresh }: Props) {
                   onChange={(event) => setEdit({ ...edit, barcode: event.target.value })}
                 />
               </AdminField>
-              {selectedProduct ? (
+              {selectedId ? (
                 <p className="text-sm text-muted">
                   {t("admin.itemInventoryCount", {
-                    count: selectedProduct._count.inventory,
+                    count: inventoryCount,
                   })}
                 </p>
               ) : null}
