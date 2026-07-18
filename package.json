@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "prebuild": "node -e \"try{require('fs').rmSync('.next',{recursive:true,force:true})}catch(e){}\"",
-    "build": "next build --webpack",
+    "build": "node scripts/build.mjs",
     "start": "next start",
     "dev:lan": "node scripts/lan-https.mjs dev",
     "start:lan": "node scripts/lan-https.mjs start",
