@@ -146,7 +146,10 @@ export const en = {
   addProduct: {
     title: "Add new item",
     productName: "Product name",
-    takePhoto: "Take a photo of the product",
+    takePhoto: "Take a photo of the product (optional)",
+    skipPhoto: "Skip photo",
+    noPhoto: "No photo — product will be saved with name only.",
+    lookingUpName: "Looking up product name...",
     uploading: "Uploading...",
   },
   expiry: {
@@ -369,6 +372,9 @@ export const en = {
       "Delete this product from the catalog? It will be removed from all stores, expiry lists, and buy lists.",
     confirmDeleteUser: "Delete this user?",
     changeImage: "Change image",
+    takePhoto: "Take photo",
+    removeImage: "Remove image",
+    confirmRemoveImage: "Remove this product image?",
     uploadingImage: "Uploading…",
     noImage: "No image",
     itemInventoryCount: "{count} inventory entries",

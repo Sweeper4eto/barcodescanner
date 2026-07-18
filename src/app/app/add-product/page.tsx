@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useCallback, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import { PrimaryButton, SecondaryButton } from "@/components/auth-forms";
 import { BarcodeScanner } from "@/components/barcode-scanner";
 import { CameraCapture, uploadImage } from "@/components/camera-capture";
@@ -45,6 +45,36 @@ function AddProductFlow() {
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [lookingUpName, setLookingUpName] = useState(false);
+
+  useEffect(() => {
+    if (!initialBarcode) return;
+
+    let cancelled = false;
+    setLookingUpName(true);
+    void fetch("/api/products/resolve", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify({ barcode: initialBarcode, importExternal: false }),
+    })
+      .then(async (response) => {
+        const data = await response.json().catch(() => null);
+        if (cancelled || !data) return;
+        if (data.status === "suggestion" && data.suggestion?.name) {
+          setName(data.suggestion.name);
+        } else if (data.status === "found" && data.product?.name) {
+          setName(data.product.name);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLookingUpName(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [initialBarcode]);
 
   const checkBarcode = useCallback(async (value: string) => {
     const normalized = normalizeBarcode(value);
@@ -80,6 +110,13 @@ function AddProductFlow() {
     }
   }
 
+  function skipPhoto() {
+    setPhotoPreview(null);
+    setImagePath("");
+    setError("");
+    goToStep("confirm");
+  }
+
   const confirmPhotoSrc = photoPreview || imagePath;
 
   async function saveProduct() {
@@ -88,7 +125,11 @@ function AddProductFlow() {
     const response = await fetch("/api/products", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ barcode: normalizedBarcode, name, imagePath: imagePath || undefined }),
+      body: JSON.stringify({
+        barcode: normalizedBarcode,
+        name,
+        imagePath: imagePath || undefined,
+      }),
     });
     const data = await response.json();
     if (!response.ok) {
@@ -125,6 +166,9 @@ function AddProductFlow() {
               onChange={(event) => setBarcode(event.target.value)}
             />
           </label>
+          {lookingUpName ? (
+            <p className="text-sm text-muted">{t("addProduct.lookingUpName")}</p>
+          ) : null}
           <input
             className="w-full rounded-xl border border-input-border bg-input px-3 py-3 text-foreground"
             placeholder={t("addProduct.productName")}
@@ -156,6 +200,7 @@ function AddProductFlow() {
             onCapture={(dataUrl) => void onPhotoCapture(dataUrl)}
             onCancel={goBack}
           />
+          <SecondaryButton onClick={skipPhoto}>{t("addProduct.skipPhoto")}</SecondaryButton>
           {error ? <p className="text-sm text-error">{error}</p> : null}
         </div>
       ) : null}
@@ -169,7 +214,9 @@ function AddProductFlow() {
               alt={name}
               className="mx-auto max-h-64 w-full rounded-xl border border-card-border object-contain"
             />
-          ) : null}
+          ) : (
+            <p className="text-sm text-muted">{t("addProduct.noPhoto")}</p>
+          )}
           {uploading ? (
             <p className="text-sm text-muted">{t("addProduct.uploading")}</p>
           ) : null}
@@ -180,7 +227,7 @@ function AddProductFlow() {
           {error ? <p className="text-sm text-error">{error}</p> : null}
           <PrimaryButton
             onClick={() => void saveProduct()}
-            disabled={uploading || !imagePath}
+            disabled={uploading || !name.trim()}
           >
             {t("scan.enter")}
           </PrimaryButton>

@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from "fs/promises";
+import { mkdir, unlink, writeFile } from "fs/promises";
 import path from "path";
 import type { MessageKey } from "@/i18n";
 
@@ -7,6 +7,41 @@ const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads");
 export class UploadError extends Error {
   constructor(public readonly errorKey: MessageKey) {
     super(errorKey);
+  }
+}
+
+export function isLocalUploadPath(value: string | null | undefined): boolean {
+  return Boolean(value && /^\/uploads\/[^/]+$/.test(value));
+}
+
+/** Resolve a /uploads/... path to an absolute file under public/uploads, or null. */
+export function resolveLocalUploadPath(
+  imagePath: string | null | undefined,
+): string | null {
+  if (!isLocalUploadPath(imagePath)) return null;
+  const filename = imagePath!.slice("/uploads/".length);
+  if (
+    !filename ||
+    filename.includes("..") ||
+    filename.includes("/") ||
+    filename.includes("\\")
+  ) {
+    return null;
+  }
+  return path.join(UPLOAD_DIR, filename);
+}
+
+/** Delete a local upload file if it lives under public/uploads. Ignores CDN URLs. */
+export async function deleteLocalUpload(
+  imagePath: string | null | undefined,
+): Promise<boolean> {
+  const filePath = resolveLocalUploadPath(imagePath);
+  if (!filePath) return false;
+  try {
+    await unlink(filePath);
+    return true;
+  } catch {
+    return false;
   }
 }
 

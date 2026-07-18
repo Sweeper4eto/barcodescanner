@@ -24,7 +24,11 @@ test("lookupProductByBarcode returns found product", async () => {
   };
   const result = await lookupProductByBarcode(
     "1234567890123",
-    mockFetch({ ok: true, status: 200, body: { product } }),
+    mockFetch({
+      ok: true,
+      status: 200,
+      body: { status: "found", source: "local", product },
+    }),
   );
   assert.equal(result.status, "found");
   if (result.status === "found") {
@@ -36,7 +40,7 @@ test("lookupProductByBarcode returns found product", async () => {
 test("lookupProductByBarcode returns missing without throwing", async () => {
   const result = await lookupProductByBarcode(
     "999",
-    mockFetch({ ok: true, status: 200, body: { product: null } }),
+    mockFetch({ ok: true, status: 200, body: { status: "missing", barcode: "999" } }),
   );
   assert.equal(result.status, "missing");
 });

@@ -147,7 +147,10 @@ export const bg = {
   addProduct: {
     title: "Добави нов продукт",
     productName: "Име на продукт",
-    takePhoto: "Направете снимка на продукта",
+    takePhoto: "Направете снимка на продукта (по желание)",
+    skipPhoto: "Без снимка",
+    noPhoto: "Без снимка — продуктът ще се запише само с име.",
+    lookingUpName: "Търсене на име на продукта...",
     uploading: "Качване...",
   },
   expiry: {
@@ -371,6 +374,9 @@ export const bg = {
       "Изтриване на този продукт от каталога? Ще бъде премахнат от всички магазини, списъци с годност и списъци за покупки.",
     confirmDeleteUser: "Изтриване на този потребител?",
     changeImage: "Смени снимка",
+    takePhoto: "Снимай",
+    removeImage: "Премахни снимка",
+    confirmRemoveImage: "Премахване на снимката на продукта?",
     uploadingImage: "Качване…",
     noImage: "Няма снимка",
     itemInventoryCount: "{count} записа в инвентара",

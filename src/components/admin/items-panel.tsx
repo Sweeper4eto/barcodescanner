@@ -1,6 +1,13 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useState, type ChangeEvent } from "react";
+import {
+  FormEvent,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+} from "react";
 import {
   AdminEmptyState,
   AdminField,
@@ -11,7 +18,8 @@ import {
   adminPaginationClass,
   adminSearchInputClass,
 } from "@/components/admin/admin-ui";
-import { PrimaryButton } from "@/components/auth-forms";
+import { PrimaryButton, SecondaryButton } from "@/components/auth-forms";
+import { CameraCapture } from "@/components/camera-capture";
 import { useT } from "@/components/i18n-provider";
 
 type Product = {
@@ -28,6 +36,7 @@ type Props = {
 
 export function ItemsPanel({ onRefresh }: Props) {
   const { t } = useT();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [search, setSearch] = useState("");
   const [query, setQuery] = useState("");
@@ -40,6 +49,7 @@ export function ItemsPanel({ onRefresh }: Props) {
   const [saveMessage, setSaveMessage] = useState("");
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [showCamera, setShowCamera] = useState(false);
 
   const loadProducts = useCallback(async () => {
     const params = new URLSearchParams({
@@ -73,6 +83,7 @@ export function ItemsPanel({ onRefresh }: Props) {
 
   function selectProduct(product: Product) {
     setSelectedId(product.id);
+    setShowCamera(false);
     const snapshot = {
       name: product.name,
       barcode: product.barcode,
@@ -89,6 +100,35 @@ export function ItemsPanel({ onRefresh }: Props) {
     setQuery(search.trim());
   }
 
+  async function persistImagePath(imagePath: string | null) {
+    if (!selectedId) return false;
+    setUploading(true);
+    setSaveMessage("");
+    try {
+      const response = await fetch("/api/admin/products", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: selectedId, imagePath }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        setSaveMessage(data.error ?? t("errors.saveFailed"));
+        return false;
+      }
+      const nextPath = imagePath ?? "";
+      setEdit((current) => ({ ...current, imagePath: nextPath }));
+      setSavedEdit((current) =>
+        current ? { ...current, imagePath: nextPath } : current,
+      );
+      setSaveMessage(t("admin.saveSuccess"));
+      await loadProducts();
+      onRefresh?.();
+      return true;
+    } finally {
+      setUploading(false);
+    }
+  }
+
   async function onImageChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -99,13 +139,38 @@ export function ItemsPanel({ onRefresh }: Props) {
       const response = await fetch("/api/upload", { method: "POST", body: form });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error ?? t("errors.uploadFailed"));
-      setEdit((current) => ({ ...current, imagePath: data.path }));
+      await persistImagePath(data.path as string);
     } catch (error) {
       alert(error instanceof Error ? error.message : t("errors.uploadFailed"));
     } finally {
       setUploading(false);
       event.target.value = "";
     }
+  }
+
+  async function onCameraCapture(dataUrl: string) {
+    setShowCamera(false);
+    setUploading(true);
+    try {
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dataUrl }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? t("errors.uploadFailed"));
+      await persistImagePath(data.path as string);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : t("errors.uploadFailed"));
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function removeImage() {
+    if (!edit.imagePath) return;
+    if (!confirm(t("admin.confirmRemoveImage"))) return;
+    await persistImagePath(null);
   }
 
   async function saveProduct() {
@@ -150,6 +215,7 @@ export function ItemsPanel({ onRefresh }: Props) {
       return;
     }
     setSelectedId(null);
+    setShowCamera(false);
     await loadProducts();
     onRefresh?.();
   }
@@ -191,6 +257,7 @@ export function ItemsPanel({ onRefresh }: Props) {
                   }`}
                 >
                   {product.imagePath ? (
+                    // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={product.imagePath}
                       alt=""
@@ -251,31 +318,68 @@ export function ItemsPanel({ onRefresh }: Props) {
               {t("admin.editItem")}
             </h2>
             <div className="mx-auto max-w-md space-y-4">
-              <div className="flex justify-center">
-                {edit.imagePath ? (
-                  <img
-                    src={edit.imagePath}
-                    alt=""
-                    className="h-40 w-40 rounded-2xl object-cover"
-                  />
-                ) : (
-                  <div className="flex h-40 w-40 items-center justify-center rounded-2xl bg-subtle text-sm text-muted">
-                    {t("admin.noImage")}
-                  </div>
-                )}
-              </div>
-              <AdminField label={t("admin.changeImage")}>
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp,image/gif"
-                  className="block w-full text-sm text-foreground"
-                  disabled={uploading}
-                  onChange={(event) => void onImageChange(event)}
+              {showCamera ? (
+                <CameraCapture
+                  onCapture={(dataUrl) => void onCameraCapture(dataUrl)}
+                  onCancel={() => setShowCamera(false)}
                 />
-                {uploading ? (
-                  <p className="mt-1 text-xs text-muted">{t("admin.uploadingImage")}</p>
-                ) : null}
-              </AdminField>
+              ) : (
+                <>
+                  <div className="flex justify-center">
+                    {edit.imagePath ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={edit.imagePath}
+                        alt=""
+                        className="h-40 w-40 rounded-2xl object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-40 w-40 items-center justify-center rounded-2xl bg-subtle text-sm text-muted">
+                        {t("admin.noImage")}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap justify-center gap-2 [&>button]:w-auto [&>button]:px-4">
+                    <SecondaryButton
+                      type="button"
+                      disabled={uploading}
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      {t("admin.changeImage")}
+                    </SecondaryButton>
+                    <SecondaryButton
+                      type="button"
+                      disabled={uploading}
+                      onClick={() => setShowCamera(true)}
+                    >
+                      {t("admin.takePhoto")}
+                    </SecondaryButton>
+                    {edit.imagePath ? (
+                      <button
+                        type="button"
+                        className={adminDangerButtonClass}
+                        disabled={uploading}
+                        onClick={() => void removeImage()}
+                      >
+                        {t("admin.removeImage")}
+                      </button>
+                    ) : null}
+                  </div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/gif"
+                    className="hidden"
+                    disabled={uploading}
+                    onChange={(event) => void onImageChange(event)}
+                  />
+                  {uploading ? (
+                    <p className="text-center text-xs text-muted">
+                      {t("admin.uploadingImage")}
+                    </p>
+                  ) : null}
+                </>
+              )}
               <AdminField label={t("common.name")}>
                 <input
                   className={adminInputClass}

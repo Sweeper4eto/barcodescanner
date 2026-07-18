@@ -88,16 +88,19 @@ export function SecondaryButton({
   children,
   onClick,
   type = "button",
+  disabled = false,
 }: {
   children: React.ReactNode;
   onClick?: () => void;
   type?: "button" | "submit";
+  disabled?: boolean;
 }) {
   return (
     <button
       type={type}
       onClick={onClick}
-      className="w-full rounded-xl border border-input-border bg-card px-3 py-2 text-base font-medium text-foreground"
+      disabled={disabled}
+      className="w-full rounded-xl border border-input-border bg-card px-3 py-2 text-base font-medium text-foreground disabled:opacity-40"
     >
       {children}
     </button>

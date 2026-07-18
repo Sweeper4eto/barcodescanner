@@ -8,6 +8,7 @@ import { logAuditEvent } from "@/lib/audit-log";
 import { requireAdmin } from "@/lib/auth";
 import { barcodeLookupValues, normalizeBarcode } from "@/lib/barcode";
 import { db } from "@/lib/db";
+import { deleteLocalUpload } from "@/lib/upload";
 import { apiT } from "@/i18n";
 
 async function requireAdminResponse(request: Request) {
@@ -141,6 +142,14 @@ export async function PATCH(request: Request) {
     return updated;
   });
 
+  if (
+    updateData.imagePath !== undefined &&
+    before.imagePath &&
+    before.imagePath !== product.imagePath
+  ) {
+    await deleteLocalUpload(before.imagePath);
+  }
+
   await logAuditEvent(
     request,
     admin,
@@ -187,6 +196,8 @@ export async function DELETE(request: Request) {
     await tx.buyListEntry.deleteMany({ where: { productId: id } });
     await tx.product.delete({ where: { id } });
   });
+
+  await deleteLocalUpload(product.imagePath);
 
   await logAuditEvent(
     request,
