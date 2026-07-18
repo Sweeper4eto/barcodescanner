@@ -2,6 +2,7 @@ import { barcodeLookupValues, normalizeBarcode } from "@/lib/barcode";
 
 export type InventorySearchEntry = {
   barcode: string;
+  articul?: string | null;
   product: { name: string };
 };
 
@@ -18,9 +19,11 @@ export function matchesInventorySearch(
 
   const name = entry.product.name.toLowerCase();
   const barcode = entry.barcode.toLowerCase();
+  const articul = (entry.articul ?? "").toLowerCase();
   const normalizedBarcode = normalizeBarcode(query)?.toLowerCase() ?? "";
 
   if (name.includes(needle)) return true;
+  if (articul && articul.includes(needle)) return true;
 
   if (barcode.includes(needle)) return true;
 

@@ -44,7 +44,7 @@ function parseArgs(argv: string[]): Args {
     download: false,
     dryRun: false,
     delayMs: 150,
-    preferSmall: true,
+    preferSmall: false,
   };
 
   for (let i = 0; i < argv.length; i += 1) {
@@ -165,7 +165,7 @@ async function populateFromFile(
       continue;
     }
 
-    let imagePath = remoteUrl;
+    let imagePath = remoteUrl.replace(/\.(100|200)\./g, ".400.");
     if (args.download) {
       const local = await saveRemoteProductImage(remoteUrl);
       if (!local) {

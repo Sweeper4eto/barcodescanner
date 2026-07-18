@@ -47,6 +47,23 @@ export function ScanNavIcon({ className = "h-6 w-6" }: { className?: string }) {
   );
 }
 
+export function DocumentNavIcon({ className = "h-6 w-6" }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      className={className}
+    >
+      <path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+      <path d="M14 2v6h6" />
+      <path d="M9 13h6M9 17h6" />
+    </svg>
+  );
+}
+
 export function CopyIcon({ className = "h-6 w-6" }: { className?: string }) {
   return (
     <svg
@@ -77,6 +94,84 @@ export function PriceReduceIcon({ className = "h-4 w-4" }: { className?: string 
     >
       <path d="M12 2v20" />
       <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+    </svg>
+  );
+}
+
+export function StarFavouriteIcon({
+  className = "h-4 w-4",
+  filled = false,
+}: {
+  className?: string;
+  filled?: boolean;
+}) {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 24 24"
+      fill={filled ? "currentColor" : "none"}
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <path d="M12 3.5l2.7 5.5 6 .9-4.4 4.3 1 6-5.3-2.8L6.7 20.2l1-6L3.3 9.9l6-.9L12 3.5z" />
+    </svg>
+  );
+}
+
+export function OrdersNavIcon({ className = "h-6 w-6" }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      className={className}
+    >
+      <path d="M6 7h15l-1.5 9h-12z" />
+      <path d="M6 7L5 3H2" />
+      <circle cx="9" cy="20" r="1.25" fill="currentColor" stroke="none" />
+      <circle cx="17" cy="20" r="1.25" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+export function MoveToOrdersIcon({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <path d="M6 7h15l-1.5 9h-12z" />
+      <path d="M6 7L5 3H2" />
+      <path d="M12 11v5M9.5 13.5L12 16l2.5-2.5" />
+    </svg>
+  );
+}
+
+export function MoveToExpiryIcon({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <rect x="3" y="5" width="18" height="16" rx="2" />
+      <path d="M16 3v4M8 3v4M3 11h18" />
+      <path d="M12 14v4M9.5 16.5L12 19l2.5-2.5" />
     </svg>
   );
 }

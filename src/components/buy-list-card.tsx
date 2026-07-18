@@ -1,14 +1,22 @@
 "use client";
 
 import { useT } from "@/components/i18n-provider";
+import { ProductImage } from "@/components/product-image";
+import {
+  MoveToExpiryIcon,
+  StarFavouriteIcon,
+} from "@/components/app-nav-icons";
 
 type Props = {
   name: string;
   imagePath: string | null;
   enteredAt: string;
   quantity: number;
+  favourite?: boolean;
   onOpen: () => void;
   onRemove: () => void;
+  onMoveToExpiry: () => void;
+  onToggleFavourite: () => void;
 };
 
 export function BuyListCard({
@@ -16,14 +24,45 @@ export function BuyListCard({
   imagePath,
   enteredAt,
   quantity,
+  favourite = false,
   onOpen,
   onRemove,
+  onMoveToExpiry,
+  onToggleFavourite,
 }: Props) {
   const { t, dateLocale } = useT();
   const entered = new Date(enteredAt);
 
   return (
     <article className="relative overflow-visible">
+      <button
+        type="button"
+        aria-label={t("buyList.moveToExpiry")}
+        title={t("buyList.moveToExpiry")}
+        className="absolute top-0 left-0 z-10 flex h-5 w-5 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-card-border bg-card text-muted"
+        onClick={(event) => {
+          event.stopPropagation();
+          onMoveToExpiry();
+        }}
+      >
+        <MoveToExpiryIcon className="h-3 w-3" />
+      </button>
+
+      <button
+        type="button"
+        aria-label={favourite ? t("favourites.remove") : t("favourites.add")}
+        title={favourite ? t("favourites.remove") : t("favourites.add")}
+        className={`absolute top-0 left-1/2 z-10 flex h-5 w-5 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-card-border bg-card ${
+          favourite ? "text-amber-400" : "text-muted"
+        }`}
+        onClick={(event) => {
+          event.stopPropagation();
+          onToggleFavourite();
+        }}
+      >
+        <StarFavouriteIcon className="h-3 w-3" filled={favourite} />
+      </button>
+
       <button
         type="button"
         aria-label={t("buyList.remove")}
@@ -45,21 +84,12 @@ export function BuyListCard({
           className="flex min-w-0 flex-1 items-center gap-2 px-2 py-1 text-left"
           onClick={onOpen}
         >
-          {imagePath ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={imagePath}
-              alt=""
-              className="h-10 w-10 shrink-0 rounded-md object-cover"
-            />
-          ) : (
-            <div
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-subtle text-sm font-semibold text-muted"
-              aria-hidden
-            >
-              {name.charAt(0).toUpperCase()}
-            </div>
-          )}
+          <ProductImage
+            src={imagePath}
+            alt=""
+            className="h-10 w-10 shrink-0 rounded-md object-cover"
+            placeholderClassName="h-10 w-10 shrink-0 rounded-md text-[9px]"
+          />
 
           <div className="min-w-0 flex-1">
             <p className="line-clamp-2 text-xs font-semibold leading-tight text-foreground">

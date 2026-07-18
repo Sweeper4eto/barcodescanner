@@ -9,9 +9,12 @@ import {
   BuyListEntryDetailSheet,
   type BuyListDetailEntry,
 } from "@/components/buy-list-entry-detail-sheet";
+import { ExpiryDatePicker } from "@/components/expiry-date-picker";
 import { MobilePageHeader } from "@/components/mobile-page-header";
+import { ProductImage } from "@/components/product-image";
 import { useT } from "@/components/i18n-provider";
 import { useBrowserBackStack } from "@/lib/browser-back";
+import { expiryYmdToIso } from "@/lib/inventory";
 
 const PAGE_SIZE = 20;
 
@@ -20,7 +23,14 @@ type Entry = {
   barcode: string;
   quantity: number;
   enteredAt: string;
-  product: { name: string; imagePath: string | null };
+  product: { id: string; name: string; imagePath: string | null };
+};
+
+type FavouriteProduct = {
+  id: string;
+  name: string;
+  barcode: string;
+  imagePath: string | null;
 };
 
 type Pagination = {
@@ -47,7 +57,14 @@ function BuyListContent() {
   const [page, setPage] = useState(1);
   const [showScanner, setShowScanner] = useState(false);
   const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [moveToExpiryId, setMoveToExpiryId] = useState<string | null>(null);
+  const [moveExpiryYmd, setMoveExpiryYmd] = useState("");
+  const [moveSaving, setMoveSaving] = useState(false);
   const [detailEntry, setDetailEntry] = useState<BuyListDetailEntry | null>(null);
+  const [favouriteProductIds, setFavouriteProductIds] = useState<
+    Record<string, true>
+  >({});
+  const [favourites, setFavourites] = useState<FavouriteProduct[]>([]);
   const [loading, setLoading] = useState(() => Boolean(storeId));
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const loadingMoreRef = useRef(false);
@@ -69,6 +86,14 @@ function BuyListContent() {
       open: confirmId !== null,
       close: () => setConfirmId(null),
     },
+    {
+      id: "move-to-expiry",
+      open: moveToExpiryId !== null,
+      close: () => {
+        setMoveToExpiryId(null);
+        setMoveExpiryYmd("");
+      },
+    },
   ]);
 
   useEffect(() => {
@@ -87,6 +112,33 @@ function BuyListContent() {
       cancelled = true;
     };
   }, []);
+
+  const loadFavourites = useCallback(async () => {
+    if (!storeId || homeUser !== true) return;
+
+    const response = await fetch(
+      `/api/favourites?storeId=${encodeURIComponent(storeId)}`,
+    );
+    const data = (await response.json()) as {
+      favourites?: Array<{ product: FavouriteProduct }>;
+      productIds?: string[];
+    };
+
+    if (!response.ok) return;
+
+    setFavourites((data.favourites ?? []).map((item) => item.product));
+    const nextIds: Record<string, true> = {};
+    for (const id of data.productIds ?? []) {
+      nextIds[id] = true;
+    }
+    setFavouriteProductIds(nextIds);
+  }, [storeId, homeUser]);
+
+  useEffect(() => {
+    if (storeId && homeUser === true) {
+      void loadFavourites();
+    }
+  }, [storeId, homeUser, loadFavourites]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -176,6 +228,12 @@ function BuyListContent() {
     entries.length,
   ]);
 
+  async function reloadList() {
+    setPage(1);
+    setEntries([]);
+    await loadEntries(1, false);
+  }
+
   async function removeEntry(entryId: string) {
     await fetch("/api/buy-list", {
       method: "PATCH",
@@ -184,9 +242,60 @@ function BuyListContent() {
     });
     setConfirmId(null);
     setDetailEntry((current) => (current?.id === entryId ? null : current));
-    setPage(1);
-    setEntries([]);
-    await loadEntries(1, false);
+    await reloadList();
+  }
+
+  async function confirmMoveToExpiry() {
+    if (!moveToExpiryId || !moveExpiryYmd || moveSaving) return;
+
+    setMoveSaving(true);
+    try {
+      const response = await fetch("/api/buy-list/move-to-expiry", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          storeId,
+          entryId: moveToExpiryId,
+          expiryDate: expiryYmdToIso(moveExpiryYmd),
+        }),
+      });
+      if (!response.ok) return;
+
+      setMoveToExpiryId(null);
+      setMoveExpiryYmd("");
+      setDetailEntry((current) =>
+        current?.id === moveToExpiryId ? null : current,
+      );
+      await reloadList();
+    } finally {
+      setMoveSaving(false);
+    }
+  }
+
+  async function toggleFavourite(productId: string) {
+    const isFavourite = Boolean(favouriteProductIds[productId]);
+    const response = await fetch("/api/favourites", {
+      method: isFavourite ? "DELETE" : "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ storeId, productId }),
+    });
+    if (!response.ok) return;
+    await loadFavourites();
+  }
+
+  async function addFavouriteToOrders(product: FavouriteProduct) {
+    const response = await fetch("/api/buy-list", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        storeId,
+        productId: product.id,
+        barcode: product.barcode,
+        quantity: 1,
+      }),
+    });
+    if (!response.ok) return;
+    await reloadList();
   }
 
   function handleEntryUpdated(updated: BuyListDetailEntry) {
@@ -284,6 +393,43 @@ function BuyListContent() {
         </div>
       ) : null}
 
+      <section className="mb-4">
+        <h2 className="mb-2 text-sm font-semibold text-foreground">
+          {t("buyList.favouritesTitle")}
+        </h2>
+        {favourites.length === 0 ? (
+          <p className="rounded-xl bg-subtle p-3 text-xs text-muted">
+            {t("buyList.favouritesEmpty")}
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {favourites.map((product) => (
+              <div
+                key={product.id}
+                className="flex items-center gap-2 rounded-lg border border-card-border bg-card px-2 py-1.5"
+              >
+                <ProductImage
+                  src={product.imagePath}
+                  alt=""
+                  className="h-10 w-10 shrink-0 rounded-md object-cover"
+                  placeholderClassName="h-10 w-10 shrink-0 rounded-md text-[9px]"
+                />
+                <p className="min-w-0 flex-1 line-clamp-2 text-xs font-semibold leading-tight text-foreground">
+                  {product.name}
+                </p>
+                <button
+                  type="button"
+                  className="shrink-0 rounded-lg bg-primary px-2.5 py-1.5 text-[11px] font-medium text-primary-fg"
+                  onClick={() => void addFavouriteToOrders(product)}
+                >
+                  {t("buyList.addFavouriteToOrders")}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
       <div className="space-y-1 pt-1">
         {loading && page === 1 && entries.length === 0 ? (
           <p className="rounded-xl bg-subtle p-4 text-sm text-muted">
@@ -308,8 +454,14 @@ function BuyListContent() {
             imagePath={entry.product.imagePath}
             enteredAt={entry.enteredAt}
             quantity={entry.quantity}
+            favourite={Boolean(favouriteProductIds[entry.product.id])}
             onOpen={() => setDetailEntry(entry)}
             onRemove={() => setConfirmId(entry.id)}
+            onMoveToExpiry={() => {
+              setMoveToExpiryId(entry.id);
+              setMoveExpiryYmd("");
+            }}
+            onToggleFavourite={() => void toggleFavourite(entry.product.id)}
           />
         ))}
 
@@ -351,6 +503,50 @@ function BuyListContent() {
                   onClick={() => void removeEntry(confirmId)}
                 >
                   {t("buyList.remove")}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {moveToExpiryId ? (
+        <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40">
+          <div className="w-full max-w-lg px-3 pb-[calc(var(--app-bottom-nav-height)+env(safe-area-inset-bottom,0px)+0.5rem)]">
+            <div className="rounded-xl border border-card-border bg-card p-3">
+              <p className="text-sm font-semibold">
+                {t("buyList.moveToExpiryTitle")}
+              </p>
+              <p className="mt-1 text-xs text-muted">
+                {t("buyList.moveToExpiryMessage")}
+              </p>
+              <div className="mt-3">
+                <ExpiryDatePicker
+                  value={moveExpiryYmd}
+                  onChange={setMoveExpiryYmd}
+                />
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  className="rounded-lg border border-input-border bg-card px-3 py-2 text-sm text-foreground"
+                  onClick={() => {
+                    setMoveToExpiryId(null);
+                    setMoveExpiryYmd("");
+                  }}
+                  disabled={moveSaving}
+                >
+                  {t("buyList.confirmCancel")}
+                </button>
+                <button
+                  type="button"
+                  className="rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-fg disabled:opacity-60"
+                  onClick={() => void confirmMoveToExpiry()}
+                  disabled={!moveExpiryYmd || moveSaving}
+                >
+                  {moveSaving
+                    ? t("buyList.saving")
+                    : t("buyList.moveToExpiryConfirm")}
                 </button>
               </div>
             </div>

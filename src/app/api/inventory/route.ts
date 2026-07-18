@@ -20,6 +20,8 @@ import {
 } from "@/lib/inventory";
 import { filterInventoryEntriesBySearch } from "@/lib/inventory-search";
 import { db } from "@/lib/db";
+import { deleteLocalUpload } from "@/lib/upload";
+import { makeAdhocBarcode } from "@/lib/inventory-entry-display";
 import { apiT } from "@/i18n";
 
 async function userCanAccessStore(userId: string, storeId: string) {
@@ -32,8 +34,11 @@ async function userCanAccessStore(userId: string, storeId: string) {
 
 const createSchema = z.object({
   storeId: z.string().min(1),
-  barcode: z.string().min(1),
-  productId: z.string().min(1),
+  barcode: z.string().optional(),
+  productId: z.string().optional(),
+  name: z.string().optional(),
+  articul: z.string().optional(),
+  imagePath: z.string().nullable().optional(),
   quantity: z.number().int().positive(),
   expiryDate: z.string().datetime(),
 });
@@ -58,14 +63,6 @@ export async function POST(request: Request) {
     );
   }
 
-  const barcode = normalizeBarcode(parsed.data.barcode);
-  if (!barcode) {
-    return NextResponse.json(
-      { error: apiT(request, "errors.invalidData") },
-      { status: 400 },
-    );
-  }
-
   const store = await userCanAccessStore(session.userId, parsed.data.storeId);
   if (!store) {
     return NextResponse.json(
@@ -74,17 +71,31 @@ export async function POST(request: Request) {
     );
   }
 
-  const product = await db.product.findFirst({
-    where: {
-      id: parsed.data.productId,
-      barcode: { in: barcodeLookupValues(barcode) },
-    },
-  });
+  const articul = parsed.data.articul?.trim() || null;
+  const entryImagePath = parsed.data.imagePath?.trim() || null;
+  let product = parsed.data.productId
+    ? await db.product.findUnique({ where: { id: parsed.data.productId } })
+    : null;
+
+  const barcode = normalizeBarcode(parsed.data.barcode ?? "") || null;
+  if (product && barcode) {
+    const ok = barcodeLookupValues(barcode).includes(product.barcode);
+    if (!ok) {
+      return NextResponse.json(
+        { error: apiT(request, "errors.productNotFound") },
+        { status: 404 },
+      );
+    }
+  }
+
   if (!product) {
-    return NextResponse.json(
-      { error: apiT(request, "errors.productNotFound") },
-      { status: 404 },
-    );
+    product = await db.product.create({
+      data: {
+        barcode: barcode || makeAdhocBarcode(),
+        name: parsed.data.name?.trim() ?? "",
+        imagePath: null,
+      },
+    });
   }
 
   const expiryDate = normalizeExpiryDate(new Date(parsed.data.expiryDate));
@@ -106,6 +117,8 @@ export async function POST(request: Request) {
       data: {
         quantity: existing.quantity + parsed.data.quantity,
         expiryDate,
+        ...(articul ? { articul } : {}),
+        ...(entryImagePath ? { imagePath: entryImagePath } : {}),
       },
       include: { product: true },
     });
@@ -132,6 +145,8 @@ export async function POST(request: Request) {
       storeId: parsed.data.storeId,
       productId: product.id,
       barcode: product.barcode,
+      articul,
+      imagePath: entryImagePath,
       quantity: parsed.data.quantity,
       expiryDate,
     },
@@ -259,6 +274,10 @@ const patchSchema = z.object({
   quantity: z.number().int().positive().optional(),
   expiryDate: z.string().datetime().optional(),
   priceReduced: z.boolean().optional(),
+  articul: z.string().nullable().optional(),
+  imagePath: z.string().nullable().optional(),
+  name: z.string().nullable().optional(),
+  barcode: z.string().nullable().optional(),
 });
 
 export async function PATCH(request: Request) {
@@ -290,7 +309,12 @@ export async function PATCH(request: Request) {
   }
 
   const hasFieldUpdate =
-    parsed.data.quantity !== undefined || parsed.data.expiryDate !== undefined;
+    parsed.data.quantity !== undefined ||
+    parsed.data.expiryDate !== undefined ||
+    parsed.data.articul !== undefined ||
+    parsed.data.imagePath !== undefined ||
+    parsed.data.name !== undefined ||
+    parsed.data.barcode !== undefined;
   const onlyPriceFlag =
     parsed.data.priceReduced !== undefined && !hasFieldUpdate;
 
@@ -383,7 +407,11 @@ export async function PATCH(request: Request) {
   const isUpdate =
     parsed.data.quantity !== undefined ||
     parsed.data.expiryDate !== undefined ||
-    parsed.data.priceReduced !== undefined;
+    parsed.data.priceReduced !== undefined ||
+    parsed.data.articul !== undefined ||
+    parsed.data.imagePath !== undefined ||
+    parsed.data.name !== undefined ||
+    parsed.data.barcode !== undefined;
 
   if (isUpdate) {
     const existing = await db.inventoryEntry.findFirst({
@@ -400,6 +428,63 @@ export async function PATCH(request: Request) {
         { error: apiT(request, "errors.entryNotFound") },
         { status: 404 },
       );
+    }
+
+    if (parsed.data.name !== undefined || parsed.data.barcode !== undefined) {
+      const nextName =
+        parsed.data.name !== undefined
+          ? (parsed.data.name?.trim() ?? "")
+          : existing.product.name;
+      let nextBarcode = existing.barcode;
+      if (parsed.data.barcode !== undefined) {
+        const normalized = normalizeBarcode(parsed.data.barcode ?? "");
+        nextBarcode = normalized || makeAdhocBarcode();
+        if (nextBarcode !== existing.barcode) {
+          const clash = await db.product.findFirst({
+            where: {
+              barcode: { in: barcodeLookupValues(nextBarcode) },
+              NOT: { id: existing.productId },
+            },
+          });
+          if (clash) {
+            return NextResponse.json(
+              { error: apiT(request, "errors.productExistsGlobal") },
+              { status: 409 },
+            );
+          }
+        }
+      }
+      await db.product.update({
+        where: { id: existing.productId },
+        data: {
+          name: nextName,
+          barcode: nextBarcode,
+        },
+      });
+      if (nextBarcode !== existing.barcode) {
+        await db.inventoryEntry.updateMany({
+          where: { productId: existing.productId },
+          data: { barcode: nextBarcode },
+        });
+      }
+      existing.barcode = nextBarcode;
+      existing.product.name = nextName;
+      existing.product.barcode = nextBarcode;
+    }
+
+    const entryFieldUpdate =
+      parsed.data.quantity !== undefined ||
+      parsed.data.expiryDate !== undefined ||
+      parsed.data.articul !== undefined ||
+      parsed.data.imagePath !== undefined ||
+      parsed.data.priceReduced !== undefined;
+
+    if (!entryFieldUpdate) {
+      const entry = await db.inventoryEntry.findUniqueOrThrow({
+        where: { id: existing.id },
+        include: { product: true },
+      });
+      return NextResponse.json({ entry });
     }
 
     const nextQuantity = parsed.data.quantity ?? existing.quantity;
@@ -472,6 +557,12 @@ export async function PATCH(request: Request) {
         ...(parsed.data.expiryDate !== undefined
           ? { expiryDate: nextExpiry }
           : {}),
+        ...(parsed.data.articul !== undefined
+          ? { articul: parsed.data.articul?.trim() || null }
+          : {}),
+        ...(parsed.data.imagePath !== undefined
+          ? { imagePath: parsed.data.imagePath?.trim() || null }
+          : {}),
         ...(parsed.data.priceReduced === true && !existing.priceReducedAt
           ? { priceReducedAt: new Date() }
           : {}),
@@ -481,6 +572,14 @@ export async function PATCH(request: Request) {
       },
       include: { product: true },
     });
+
+    if (
+      parsed.data.imagePath !== undefined &&
+      existing.imagePath &&
+      existing.imagePath !== entry.imagePath
+    ) {
+      await deleteLocalUpload(existing.imagePath);
+    }
 
     if (
       parsed.data.quantity !== undefined ||
@@ -564,6 +663,10 @@ export async function PATCH(request: Request) {
       { error: apiT(request, "errors.entryNotFound") },
       { status: 404 },
     );
+  }
+
+  if (removed?.imagePath) {
+    await deleteLocalUpload(removed.imagePath);
   }
 
   if (removed) {

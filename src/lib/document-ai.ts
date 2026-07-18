@@ -1,0 +1,296 @@
+import { readFile } from "node:fs/promises";
+import { z } from "zod";
+import { resolveLocalUploadPath } from "@/lib/upload";
+
+const rowSchema = z.object({
+  name: z.string().optional().nullable(),
+  barcode: z.string().optional().nullable(),
+  articul: z.string().optional().nullable(),
+  expiryDate: z.string().optional().nullable(),
+  quantity: z.union([z.number(), z.string()]).optional().nullable(),
+});
+
+const rowsSchema = z.object({
+  items: z.array(rowSchema),
+});
+
+export type DocumentOcrRow = {
+  name: string;
+  barcode: string | null;
+  articul: string | null;
+  expiryYmd: string | null;
+  quantity: number;
+};
+
+function stripDataUrl(dataUrl: string): { mime: string; base64: string } {
+  const match = /^data:([^;]+);base64,([\s\S]+)$/.exec(dataUrl.trim());
+  if (!match) {
+    throw new Error("INVALID_IMAGE");
+  }
+  return { mime: match[1], base64: match[2] };
+}
+
+/** Parse common EU/BG date strings into YYYY-MM-DD. */
+export function parseDocumentExpiry(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const raw = value.trim();
+  if (!raw) return null;
+
+  const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
+  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+
+  const dmy = /^(\d{1,2})[./\-](\d{1,2})[./\-](\d{2,4})$/.exec(raw);
+  if (dmy) {
+    const day = Number(dmy[1]);
+    const month = Number(dmy[2]);
+    let year = Number(dmy[3]);
+    if (year < 100) year += 2000;
+    if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+    return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  }
+
+  const mdy = /^(\d{1,2})[./\-](\d{1,2})[./\-](\d{4})$/.exec(raw);
+  if (mdy) {
+    // Prefer DMY for EU docs; already handled above with same pattern.
+  }
+
+  return null;
+}
+
+function normalizeQuantity(value: unknown): number {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    const rounded = Math.round(value);
+    return rounded >= 1 ? rounded : 1;
+  }
+  if (typeof value === "string") {
+    const match = value.replace(",", ".").match(/\d+(\.\d+)?/);
+    if (match) {
+      const n = Math.round(Number(match[0]));
+      return n >= 1 ? n : 1;
+    }
+  }
+  return 1;
+}
+
+function extractJsonObject(text: string): unknown {
+  const trimmed = text.trim();
+  const fenced = /^```(?:json)?\s*([\s\S]*?)```$/i.exec(trimmed);
+  const body = fenced ? fenced[1].trim() : trimmed;
+  const start = body.indexOf("{");
+  const end = body.lastIndexOf("}");
+  if (start < 0 || end < start) {
+    throw new Error("OCR_PARSE_FAILED");
+  }
+  return JSON.parse(body.slice(start, end + 1));
+}
+
+function toRows(payload: unknown): DocumentOcrRow[] {
+  const parsed = rowsSchema.safeParse(payload);
+  if (!parsed.success) {
+    throw new Error("OCR_PARSE_FAILED");
+  }
+
+  return parsed.data.items
+    .map((item) => {
+      const name = item.name?.trim() ?? "";
+      const barcode = item.barcode?.trim() || null;
+      const articul = item.articul?.trim() || null;
+      const expiryYmd = parseDocumentExpiry(item.expiryDate);
+      const quantity = normalizeQuantity(item.quantity);
+      return { name, barcode, articul, expiryYmd, quantity };
+    })
+    .filter((row) => row.name || row.barcode || row.articul || row.expiryYmd);
+}
+
+const SYSTEM_PROMPT = `You extract product rows from a photo of a store document / invoice / delivery note / expiry list.
+Return ONLY valid JSON with this shape:
+{"items":[{"name":"string","barcode":"string|null","articul":"string|null","expiryDate":"YYYY-MM-DD or DD.MM.YYYY","quantity":1}]}
+
+Rules:
+- Each row is one product line from the table/list.
+- name = product name (keep original language).
+- barcode = EAN/UPC digits if present, else null. Digits only, no spaces.
+- articul = article/SKU/арт. number if present, else null (not the same as barcode).
+- expiryDate = best expiry/best-before/годност date for that row. Prefer YYYY-MM-DD.
+- quantity = pieces if present, else 1.
+- Ignore headers, totals, store addresses, signatures.
+- If a field is missing or unreadable, use null (quantity defaults to 1).
+- Do not invent barcodes or dates.`;
+
+function documentAiConfigured(): {
+  provider: "gemini" | "openai";
+  apiKey: string;
+  model: string;
+} | null {
+  const geminiKey = process.env.GEMINI_API_KEY?.trim();
+  const openaiKey = process.env.OPENAI_API_KEY?.trim();
+  const preferred = process.env.DOCUMENT_AI_PROVIDER?.trim().toLowerCase();
+
+  if (preferred === "openai" && openaiKey) {
+    return {
+      provider: "openai",
+      apiKey: openaiKey,
+      model: process.env.DOCUMENT_AI_MODEL?.trim() || "gpt-4o-mini",
+    };
+  }
+  if (preferred === "gemini" && geminiKey) {
+    return {
+      provider: "gemini",
+      apiKey: geminiKey,
+      model: process.env.DOCUMENT_AI_MODEL?.trim() || "gemini-2.0-flash",
+    };
+  }
+  if (geminiKey) {
+    return {
+      provider: "gemini",
+      apiKey: geminiKey,
+      model: process.env.DOCUMENT_AI_MODEL?.trim() || "gemini-2.0-flash",
+    };
+  }
+  if (openaiKey) {
+    return {
+      provider: "openai",
+      apiKey: openaiKey,
+      model: process.env.DOCUMENT_AI_MODEL?.trim() || "gpt-4o-mini",
+    };
+  }
+  return null;
+}
+
+export function isDocumentAiConfigured(): boolean {
+  return documentAiConfigured() !== null;
+}
+
+async function extractWithGemini(
+  apiKey: string,
+  model: string,
+  mime: string,
+  base64: string,
+): Promise<string> {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      contents: [
+        {
+          role: "user",
+          parts: [
+            { text: SYSTEM_PROMPT },
+            { inlineData: { mimeType: mime, data: base64 } },
+          ],
+        },
+      ],
+      generationConfig: {
+        temperature: 0.1,
+        responseMimeType: "application/json",
+      },
+    }),
+  });
+
+  const data = (await response.json().catch(() => null)) as {
+    error?: { message?: string };
+    candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+  } | null;
+
+  if (!response.ok) {
+    throw new Error(data?.error?.message || "OCR_PROVIDER_ERROR");
+  }
+
+  const text = data?.candidates?.[0]?.content?.parts
+    ?.map((part) => part.text ?? "")
+    .join("\n")
+    .trim();
+  if (!text) throw new Error("OCR_EMPTY");
+  return text;
+}
+
+async function extractWithOpenAI(
+  apiKey: string,
+  model: string,
+  mime: string,
+  base64: string,
+): Promise<string> {
+  const baseUrl =
+    process.env.DOCUMENT_AI_BASE_URL?.trim().replace(/\/$/, "") ||
+    "https://api.openai.com/v1";
+  const response = await fetch(`${baseUrl}/chat/completions`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model,
+      temperature: 0.1,
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: SYSTEM_PROMPT },
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: "Extract all product rows from this document photo.",
+            },
+            {
+              type: "image_url",
+              image_url: { url: `data:${mime};base64,${base64}` },
+            },
+          ],
+        },
+      ],
+    }),
+  });
+
+  const data = (await response.json().catch(() => null)) as {
+    error?: { message?: string };
+    choices?: Array<{ message?: { content?: string } }>;
+  } | null;
+
+  if (!response.ok) {
+    throw new Error(data?.error?.message || "OCR_PROVIDER_ERROR");
+  }
+
+  const text = data?.choices?.[0]?.message?.content?.trim();
+  if (!text) throw new Error("OCR_EMPTY");
+  return text;
+}
+
+export async function extractDocumentRows(
+  dataUrl: string,
+): Promise<DocumentOcrRow[]> {
+  const config = documentAiConfigured();
+  if (!config) {
+    throw new Error("OCR_NOT_CONFIGURED");
+  }
+
+  const { mime, base64 } = stripDataUrl(dataUrl);
+  const text =
+    config.provider === "gemini"
+      ? await extractWithGemini(config.apiKey, config.model, mime, base64)
+      : await extractWithOpenAI(config.apiKey, config.model, mime, base64);
+
+  return toRows(extractJsonObject(text));
+}
+
+export async function extractDocumentRowsFromPath(
+  imagePath: string,
+): Promise<DocumentOcrRow[]> {
+  const filePath = resolveLocalUploadPath(imagePath);
+  if (!filePath) {
+    throw new Error("INVALID_IMAGE");
+  }
+  const buffer = await readFile(filePath);
+  const ext = filePath.split(".").pop()?.toLowerCase() || "jpg";
+  const mime =
+    ext === "png"
+      ? "image/png"
+      : ext === "webp"
+        ? "image/webp"
+        : ext === "gif"
+          ? "image/gif"
+          : "image/jpeg";
+  const dataUrl = `data:${mime};base64,${buffer.toString("base64")}`;
+  return extractDocumentRows(dataUrl);
+}

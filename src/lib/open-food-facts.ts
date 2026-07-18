@@ -1,4 +1,9 @@
 import { barcodeLookupValues, normalizeBarcode } from "@/lib/barcode";
+import {
+  cleanProductName,
+  isLowQualityProductName,
+  pickBestProductName,
+} from "@/lib/product-name";
 
 export type OpenFoodFactsProduct = {
   barcode: string;
@@ -27,37 +32,41 @@ const OFF_USER_AGENT =
   "Magazin/1.0 (https://github.com/Sweeper4eto/barcodescanner; barcode inventory app)";
 
 export function pickOpenFoodFactsName(product: OffProductPayload): string {
-  const candidates = [
-    product.product_name_bg,
+  const bg = cleanProductName(product.product_name_bg || "");
+  if (bg && !isLowQualityProductName(bg)) return bg;
+
+  return pickBestProductName([
     product.product_name,
     product.product_name_en,
     product.generic_name,
     product.brands,
-  ];
-  for (const candidate of candidates) {
-    const name = candidate?.trim();
-    if (name) return name.slice(0, 200);
-  }
-  return "";
+  ]);
+}
+
+/** Prefer larger CDN variants; OFF often returns tiny .200 thumbnails. */
+export function preferLargerProductImageUrl(url: string): string {
+  return url.replace(/\.(100|200)\./g, ".400.");
 }
 
 export function pickOpenFoodFactsImageUrl(
   product: OffProductPayload,
 ): string | null {
+  // Prefer normal front/url over small thumbnails.
   const candidates = [
-    product.image_front_small_url,
-    product.image_small_url,
     product.image_front_url,
     product.image_url,
+    product.image_front_small_url,
+    product.image_small_url,
   ];
   for (const candidate of candidates) {
     const url = candidate?.trim();
-    if (url && /^https?:\/\//i.test(url)) return url;
+    if (url && /^https?:\/\//i.test(url)) {
+      return preferLargerProductImageUrl(url);
+    }
   }
   return null;
 }
 
-/** Look up a product on Open Food Facts (name + optional image URL). */
 export async function lookupOpenFoodFactsProduct(
   value: string,
   fetchImpl: typeof fetch = fetch,
@@ -91,7 +100,7 @@ export async function lookupOpenFoodFactsProduct(
         imageUrl: pickOpenFoodFactsImageUrl(data.product),
       };
     } catch {
-      // Try next barcode form / fail soft.
+      // try next
     }
   }
 

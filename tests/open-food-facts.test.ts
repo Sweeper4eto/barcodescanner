@@ -9,21 +9,21 @@ import {
   isRemoteImageUrl,
 } from "../src/lib/product-image";
 
-test("pickOpenFoodFactsName prefers Bulgarian then generic name", () => {
+test("pickOpenFoodFactsName prefers Bulgarian then cleans display name", () => {
   assert.equal(
     pickOpenFoodFactsName({
-      product_name_bg: "Мляко",
+      product_name_bg: "\u041C\u043B\u044F\u043A\u043E",
       product_name: "Milk",
       product_name_en: "Milk EN",
     }),
-    "Мляко",
+    "\u041C\u043B\u044F\u043A\u043E",
   );
   assert.equal(
     pickOpenFoodFactsName({
-      product_name: "Yogurt",
+      product_name: "!Ajua!, Caffeine Free Soda",
       brands: "Brand",
     }),
-    "Yogurt",
+    "Ajua, Caffeine Free Soda",
   );
   assert.equal(pickOpenFoodFactsName({ brands: "Only Brand" }), "Only Brand");
   assert.equal(pickOpenFoodFactsName({}), "");

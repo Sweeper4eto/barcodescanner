@@ -7,7 +7,18 @@ import { useT } from "@/components/i18n-provider";
 type Props = {
   onCapture: (dataUrl: string) => void;
   onCancel?: () => void;
+  autoStart?: boolean;
+  allowFileUpload?: boolean;
 };
+
+const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
+const ACCEPTED_TYPES = new Set([
+  "image/jpeg",
+  "image/jpg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+]);
 
 function cameraErrorKey(
   error: unknown,
@@ -54,15 +65,34 @@ async function openCameraStream(): Promise<MediaStream> {
   throw lastError ?? new Error("CAMERA_UNAVAILABLE");
 }
 
-export function CameraCapture({ onCapture, onCancel }: Props) {
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") resolve(reader.result);
+      else reject(new Error("READ_FAILED"));
+    };
+    reader.onerror = () => reject(reader.error ?? new Error("READ_FAILED"));
+    reader.readAsDataURL(file);
+  });
+}
+
+export function CameraCapture({
+  onCapture,
+  onCancel,
+  autoStart = false,
+  allowFileUpload = false,
+}: Props) {
   const { t } = useT();
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const [active, setActive] = useState(false);
   const [starting, setStarting] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const autoStartedRef = useRef(false);
 
   const stopCamera = useCallback(() => {
     streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -114,6 +144,12 @@ export function CameraCapture({ onCapture, onCancel }: Props) {
     }
   }, [active, starting, stopCamera, t]);
 
+  useEffect(() => {
+    if (!autoStart || autoStartedRef.current) return;
+    autoStartedRef.current = true;
+    void startCamera();
+  }, [autoStart, startCamera]);
+
   function takePhoto() {
     const video = videoRef.current;
     const canvas = canvasRef.current;
@@ -127,6 +163,30 @@ export function CameraCapture({ onCapture, onCancel }: Props) {
     const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
     setPreview(dataUrl);
     stopCamera();
+  }
+
+  async function onFileSelected(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    if (!ACCEPTED_TYPES.has(file.type)) {
+      setError(t("errors.invalidFileFormat"));
+      return;
+    }
+    if (file.size > MAX_UPLOAD_BYTES) {
+      setError(t("errors.fileTooLarge"));
+      return;
+    }
+
+    setError("");
+    try {
+      const dataUrl = await readFileAsDataUrl(file);
+      stopCamera();
+      setPreview(dataUrl);
+    } catch {
+      setError(t("errors.uploadFailed"));
+    }
   }
 
   async function uploadAndContinue() {
@@ -158,6 +218,23 @@ export function CameraCapture({ onCapture, onCancel }: Props) {
           ) : (
             <PrimaryButton onClick={takePhoto}>{t("camera.capture")}</PrimaryButton>
           )}
+          {allowFileUpload ? (
+            <>
+              <SecondaryButton
+                onClick={() => fileInputRef.current?.click()}
+                disabled={starting}
+              >
+                {t("camera.uploadExisting")}
+              </SecondaryButton>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                className="hidden"
+                onChange={(event) => void onFileSelected(event)}
+              />
+            </>
+          ) : null}
         </>
       ) : (
         <>
@@ -176,6 +253,20 @@ export function CameraCapture({ onCapture, onCancel }: Props) {
           >
             {t("camera.newPhoto")}
           </SecondaryButton>
+          {allowFileUpload ? (
+            <>
+              <SecondaryButton onClick={() => fileInputRef.current?.click()}>
+                {t("camera.uploadExisting")}
+              </SecondaryButton>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                className="hidden"
+                onChange={(event) => void onFileSelected(event)}
+              />
+            </>
+          ) : null}
         </>
       )}
 

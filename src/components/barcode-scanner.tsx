@@ -20,6 +20,8 @@ type Props = {
   autoStart?: boolean;
   /** When false, camera scan fills the barcode field for manual edit before confirm. */
   submitOnScan?: boolean;
+  /** Double-tap the preview to continue without a barcode. */
+  onSkipWithoutBarcode?: () => void;
 };
 
 const PRODUCT_BARCODE_FORMATS = [
@@ -286,6 +288,7 @@ export function BarcodeScanner({
   onCancel,
   autoStart = false,
   submitOnScan = false,
+  onSkipWithoutBarcode,
 }: Props) {
   const { t } = useT();
   const elementId = useId().replace(/:/g, "");
@@ -295,6 +298,7 @@ export function BarcodeScanner({
   const scanCleanupRef = useRef<(() => void) | null>(null);
   const onScanRef = useRef(onScan);
   const submitOnScanRef = useRef(submitOnScan);
+  const lastTapRef = useRef(0);
   const handledRef = useRef(false);
   const abortedRef = useRef(false);
   const [manual, setManual] = useState("");
@@ -474,14 +478,27 @@ export function BarcodeScanner({
             ? "barcode-scanner-view overflow-hidden rounded-xl border border-card-border"
             : "h-0 overflow-hidden"
         }
+        onClick={() => {
+          if (!onSkipWithoutBarcode || !(scanning || starting)) return;
+          const now = Date.now();
+          if (now - lastTapRef.current < 350) {
+            lastTapRef.current = 0;
+            onSkipWithoutBarcode();
+            return;
+          }
+          lastTapRef.current = now;
+        }}
       >
         <div id={elementId} className="w-full max-w-full" />
       </div>
       <div id={fileDecoderId} className="hidden" aria-hidden />
       {scanning ? (
-        <p className="text-sm text-muted">
-          {starting ? t("scanner.starting") : t("scanner.tips")}
-        </p>
+        <div className="space-y-0.5 text-center text-[11px] leading-snug text-muted">
+          <p>{starting ? t("scanner.starting") : t("scanner.tips")}</p>
+          {onSkipWithoutBarcode && !starting ? (
+            <p>{t("scanner.doubleTapHint")}</p>
+          ) : null}
+        </div>
       ) : null}
       {!scanning ? (
         <PrimaryButton onClick={() => void startCamera()} disabled={starting}>

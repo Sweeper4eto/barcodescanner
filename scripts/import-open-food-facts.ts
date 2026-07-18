@@ -18,6 +18,7 @@ import path from "node:path";
 import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
 import { PrismaClient } from "../src/generated/prisma/client";
 import { normalizeBarcode } from "../src/lib/barcode";
+import { cleanProductName } from "../src/lib/product-name";
 
 const OFF_USER_AGENT =
   "Magazin/1.0 (https://github.com/Sweeper4eto/barcodescanner; product import)";
@@ -199,8 +200,8 @@ async function importFile(
     for (const index of nameIndexes) {
       const candidate = cols[index]?.trim();
       if (candidate) {
-        name = candidate.slice(0, 200);
-        break;
+        name = cleanProductName(candidate);
+        if (name) break;
       }
     }
     if (!name) {

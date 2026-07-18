@@ -11,6 +11,7 @@ import {
 } from "@/components/expiry-entry-detail-sheet";
 import { ExpiryPeriodFilter } from "@/components/expiry-period-filter";
 import { MobilePageHeader } from "@/components/mobile-page-header";
+import { QuantityPicker } from "@/components/quantity-picker";
 import { useT } from "@/components/i18n-provider";
 import {
   type ExpiryPeriod,
@@ -20,17 +21,20 @@ import {
   setStoredExpiryPeriod,
 } from "@/lib/expiry-period";
 import { useBrowserBackStack } from "@/lib/browser-back";
+import { resolveEntryImagePath } from "@/lib/inventory-entry-display";
 
 const PAGE_SIZE = 20;
 
 type Entry = {
   id: string;
   barcode: string;
+  articul: string | null;
+  imagePath: string | null;
   quantity: number;
   enteredAt: string;
   expiryDate: string;
   priceReducedAt: string | null;
-  product: { name: string; imagePath: string | null };
+  product: { id: string; name: string; imagePath: string | null };
 };
 
 type Pagination = {
@@ -44,6 +48,7 @@ function ExpiryList() {
   const { t } = useT();
   const searchParams = useSearchParams();
   const storeId = searchParams.get("storeId") ?? "";
+  const [homeUser, setHomeUser] = useState<boolean | null>(null);
   const [entries, setEntries] = useState<Entry[]>([]);
   const [pagination, setPagination] = useState<Pagination>({
     page: 1,
@@ -57,7 +62,13 @@ function ExpiryList() {
   const [showScanner, setShowScanner] = useState(false);
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [priceReduceConfirmId, setPriceReduceConfirmId] = useState<string | null>(null);
+  const [moveToOrdersEntry, setMoveToOrdersEntry] = useState<Entry | null>(null);
+  const [moveOrdersQty, setMoveOrdersQty] = useState("1");
+  const [moveOrdersSaving, setMoveOrdersSaving] = useState(false);
   const [detailEntry, setDetailEntry] = useState<ExpiryDetailEntry | null>(null);
+  const [favouriteProductIds, setFavouriteProductIds] = useState<
+    Record<string, true>
+  >({});
   const [loading, setLoading] = useState(() => Boolean(storeId));
   const [period, setPeriod] = useState<ExpiryPeriod>(DEFAULT_EXPIRY_PERIOD);
   const loadMoreRef = useRef<HTMLDivElement>(null);
@@ -85,11 +96,58 @@ function ExpiryList() {
       open: priceReduceConfirmId !== null,
       close: () => setPriceReduceConfirmId(null),
     },
+    {
+      id: "move-to-orders",
+      open: moveToOrdersEntry !== null,
+      close: () => {
+        setMoveToOrdersEntry(null);
+        setMoveOrdersQty("1");
+      },
+    },
   ]);
 
   useEffect(() => {
     setPeriod(getStoredExpiryPeriod());
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadUser() {
+      const response = await fetch("/api/auth/me");
+      const data = await response.json();
+      if (!cancelled) {
+        setHomeUser(Boolean(data.user?.homeUser));
+      }
+    }
+
+    void loadUser();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const loadFavourites = useCallback(async () => {
+    if (!storeId || homeUser !== true) return;
+
+    const response = await fetch(
+      `/api/favourites?storeId=${encodeURIComponent(storeId)}`,
+    );
+    const data = (await response.json()) as { productIds?: string[] };
+    if (!response.ok) return;
+
+    const nextIds: Record<string, true> = {};
+    for (const id of data.productIds ?? []) {
+      nextIds[id] = true;
+    }
+    setFavouriteProductIds(nextIds);
+  }, [storeId, homeUser]);
+
+  useEffect(() => {
+    if (storeId && homeUser === true) {
+      void loadFavourites();
+    }
+  }, [storeId, homeUser, loadFavourites]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -134,7 +192,11 @@ function ExpiryList() {
 
         if (generation !== fetchGenerationRef.current) return;
 
-        const nextEntries = data.entries ?? [];
+        const nextEntries = (data.entries ?? []).map((entry) => ({
+          ...entry,
+          articul: entry.articul ?? null,
+          imagePath: entry.imagePath ?? null,
+        }));
         setEntries((current) => (append ? [...current, ...nextEntries] : nextEntries));
         setPagination(
           data.pagination ?? {
@@ -208,6 +270,44 @@ function ExpiryList() {
     }
   }
 
+  async function confirmMoveToOrders() {
+    if (!moveToOrdersEntry || moveOrdersSaving) return;
+
+    const quantity = Number(moveOrdersQty);
+    if (!Number.isInteger(quantity) || quantity < 1) return;
+
+    setMoveOrdersSaving(true);
+    try {
+      const response = await fetch("/api/buy-list", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          storeId,
+          productId: moveToOrdersEntry.product.id,
+          barcode: moveToOrdersEntry.barcode,
+          quantity,
+        }),
+      });
+      if (!response.ok) return;
+
+      setMoveToOrdersEntry(null);
+      setMoveOrdersQty("1");
+    } finally {
+      setMoveOrdersSaving(false);
+    }
+  }
+
+  async function toggleFavourite(productId: string) {
+    const isFavourite = Boolean(favouriteProductIds[productId]);
+    const response = await fetch("/api/favourites", {
+      method: isFavourite ? "DELETE" : "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ storeId, productId }),
+    });
+    if (!response.ok) return;
+    await loadFavourites();
+  }
+
   function handleEntryUpdated(
     updated: ExpiryDetailEntry,
     meta?: { merged?: boolean; removedId?: string },
@@ -224,6 +324,8 @@ function ExpiryList() {
             ? {
                 ...entry,
                 barcode: updated.barcode,
+                articul: updated.articul ?? null,
+                imagePath: updated.imagePath ?? null,
                 quantity: updated.quantity,
                 expiryDate: updated.expiryDate,
                 priceReducedAt: updated.priceReducedAt,
@@ -240,6 +342,8 @@ function ExpiryList() {
           {
             id: updated.id,
             barcode: updated.barcode,
+            articul: updated.articul ?? null,
+            imagePath: updated.imagePath ?? null,
             quantity: updated.quantity,
             enteredAt: new Date().toISOString(),
             expiryDate: updated.expiryDate,
@@ -263,6 +367,7 @@ function ExpiryList() {
 
   const isSearching = debouncedSearch.length > 0;
   const emptyMessage = isSearching ? t("expiry.noResults") : t("expiry.empty");
+  const isHomeUser = homeUser === true;
 
   return (
     <div className="mx-auto min-w-0 max-w-lg px-4 py-3">
@@ -335,15 +440,27 @@ function ExpiryList() {
         {entries.map((entry) => (
           <ExpiryListCard
             key={entry.id}
-            name={entry.product.name}
-            imagePath={entry.product.imagePath}
+            name={entry.product.name.trim() || t("common.noName")}
+            imagePath={resolveEntryImagePath(entry.imagePath, entry.product.imagePath)}
+            articul={entry.articul}
             expiryDate={entry.expiryDate}
             enteredAt={entry.enteredAt}
             quantity={entry.quantity}
             priceReduced={entry.priceReducedAt !== null}
+            homeUser={isHomeUser}
+            favourite={Boolean(favouriteProductIds[entry.product.id])}
             onOpen={() => setDetailEntry(entry)}
             onRemove={() => setConfirmId(entry.id)}
             onReducePrice={() => setPriceReduceConfirmId(entry.id)}
+            onMoveToOrders={() => {
+              setMoveToOrdersEntry(entry);
+              setMoveOrdersQty("1");
+            }}
+            onToggleFavourite={
+              isHomeUser
+                ? () => void toggleFavourite(entry.product.id)
+                : undefined
+            }
           />
         ))}
 
@@ -416,6 +533,56 @@ function ExpiryList() {
                   onClick={() => void reducePriceEntry(priceReduceConfirmId)}
                 >
                   {t("expiry.reducePrice")}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {moveToOrdersEntry ? (
+        <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40">
+          <div className="w-full max-w-lg px-3 pb-[calc(var(--app-bottom-nav-height)+env(safe-area-inset-bottom,0px)+0.5rem)]">
+            <div className="rounded-xl border border-card-border bg-card p-3">
+              <p className="text-sm font-semibold">
+                {t("expiry.moveToOrdersTitle")}
+              </p>
+              <p className="mt-1 text-xs text-muted">
+                {t("expiry.moveToOrdersMessage")}
+              </p>
+              <div className="mt-3">
+                <QuantityPicker
+                  value={moveOrdersQty}
+                  onChange={setMoveOrdersQty}
+                  startWithGridOpen
+                />
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  className="rounded-lg border border-input-border bg-card px-3 py-2 text-sm text-foreground"
+                  onClick={() => {
+                    setMoveToOrdersEntry(null);
+                    setMoveOrdersQty("1");
+                  }}
+                  disabled={moveOrdersSaving}
+                >
+                  {t("expiry.confirmCancel")}
+                </button>
+                <button
+                  type="button"
+                  className="rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-fg disabled:opacity-60"
+                  onClick={() => void confirmMoveToOrders()}
+                  disabled={
+                    moveOrdersSaving ||
+                    !moveOrdersQty ||
+                    !Number.isInteger(Number(moveOrdersQty)) ||
+                    Number(moveOrdersQty) < 1
+                  }
+                >
+                  {moveOrdersSaving
+                    ? t("expiry.saving")
+                    : t("expiry.moveToOrdersConfirm")}
                 </button>
               </div>
             </div>

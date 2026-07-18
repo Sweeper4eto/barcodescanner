@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { QuantityPicker } from "@/components/quantity-picker";
+import { ProductImage } from "@/components/product-image";
 import { CopyIcon } from "@/components/app-nav-icons";
 import { useT } from "@/components/i18n-provider";
 
@@ -56,7 +57,7 @@ export type BuyListDetailEntry = {
   id: string;
   barcode: string;
   quantity: number;
-  product: { name: string; imagePath: string | null };
+  product: { id: string; name: string; imagePath: string | null };
 };
 
 type Props = {
@@ -178,27 +179,20 @@ export function BuyListEntryDetailSheet({
           ×
         </button>
 
-        {entry.product.imagePath ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={entry.product.imagePath}
-            alt={entry.product.name}
-            className={
-              compactLayout
-                ? "h-full max-h-20 w-auto max-w-[45%] object-contain"
-                : "h-full w-full object-contain p-3"
-            }
-          />
-        ) : (
-          <div
-            className={`flex items-center justify-center rounded-2xl bg-subtle font-bold text-muted ${
-              compactLayout ? "h-14 w-14 text-2xl" : "h-28 w-28 text-4xl"
-            }`}
-            aria-hidden
-          >
-            {entry.product.name.charAt(0).toUpperCase()}
-          </div>
-        )}
+        <ProductImage
+          src={entry.product.imagePath}
+          alt={entry.product.name}
+          className={
+            compactLayout
+              ? "h-full max-h-20 w-auto max-w-[45%] object-contain"
+              : "h-full w-full object-contain p-3"
+          }
+          placeholderClassName={
+            compactLayout
+              ? "h-14 w-14 rounded-2xl text-[10px]"
+              : "h-28 w-28 rounded-2xl text-sm"
+          }
+        />
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden border-t border-card-border">

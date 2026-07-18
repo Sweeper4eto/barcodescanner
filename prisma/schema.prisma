@@ -54,6 +54,7 @@ model Store {
   userLinks      UserStore[]
   inventory      InventoryEntry[]
   buyList        BuyListEntry[]
+  favourites     FavouriteProduct[]
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
 }
@@ -74,6 +75,7 @@ model Product {
   imagePath String?
   inventory InventoryEntry[]
   buyList   BuyListEntry[]
+  favourites FavouriteProduct[]
   createdAt DateTime         @default(now())
   updatedAt DateTime         @updatedAt
 }
@@ -85,6 +87,8 @@ model InventoryEntry {
   productId  String
   product    Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
   barcode    String
+  articul    String?
+  imagePath  String?
   quantity   Int
   expiryDate DateTime
   enteredAt  DateTime  @default(now())
@@ -94,6 +98,18 @@ model InventoryEntry {
 
   @@index([storeId, expiryDate])
   @@index([storeId, removedAt, deletedAt])
+}
+
+model FavouriteProduct {
+  id        String   @id @default(cuid())
+  storeId   String
+  store     Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([storeId, productId])
+  @@index([storeId])
 }
 
 model BuyListEntry {
