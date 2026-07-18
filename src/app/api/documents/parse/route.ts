@@ -5,6 +5,7 @@ import { userCanAccessRetailStore } from "@/lib/store-access";
 import {
   extractDocumentRows,
   extractDocumentRowsFromPath,
+  getDocumentAiStatus,
   isDocumentAiConfigured,
 } from "@/lib/document-ai";
 import { matchDocumentRows } from "@/lib/document-match";
@@ -20,6 +21,25 @@ const parseSchema = z
   .refine((value) => Boolean(value.dataUrl || value.imagePath), {
     message: "image required",
   });
+
+function publicOcrError(request: Request, message: string): string {
+  if (message.startsWith("OCR_PROVIDER:")) {
+    const detail = message.slice("OCR_PROVIDER:".length).trim();
+    return detail
+      ? `Document AI error: ${detail}`
+      : apiT(request, "errors.documentParseFailed");
+  }
+  if (message.startsWith("OCR_EMPTY:")) {
+    return apiT(request, "errors.documentParseFailed");
+  }
+  if (message === "OCR_PARSE_FAILED") {
+    return apiT(request, "errors.documentParseFailed");
+  }
+  if (message === "OCR_NOT_CONFIGURED") {
+    return apiT(request, "errors.documentAiNotConfigured");
+  }
+  return apiT(request, "errors.documentParseFailed");
+}
 
 export async function POST(request: Request) {
   let session;
@@ -81,9 +101,15 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
-    console.error("document parse failed", error);
+    const status = getDocumentAiStatus();
+    console.error("document parse failed", {
+      message,
+      provider: status.provider,
+      model: status.model,
+      error,
+    });
     return NextResponse.json(
-      { error: apiT(request, "errors.documentParseFailed") },
+      { error: publicOcrError(request, message) },
       { status: 502 },
     );
   }

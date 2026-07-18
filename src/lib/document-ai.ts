@@ -144,14 +144,14 @@ function documentAiConfigured(): {
     return {
       provider: "gemini",
       apiKey: geminiKey,
-      model: process.env.DOCUMENT_AI_MODEL?.trim() || "gemini-2.0-flash",
+      model: process.env.DOCUMENT_AI_MODEL?.trim() || "gemini-2.5-flash",
     };
   }
   if (geminiKey) {
     return {
       provider: "gemini",
       apiKey: geminiKey,
-      model: process.env.DOCUMENT_AI_MODEL?.trim() || "gemini-2.0-flash",
+      model: process.env.DOCUMENT_AI_MODEL?.trim() || "gemini-2.5-flash",
     };
   }
   if (openaiKey) {
@@ -166,6 +166,22 @@ function documentAiConfigured(): {
 
 export function isDocumentAiConfigured(): boolean {
   return documentAiConfigured() !== null;
+}
+
+export function getDocumentAiStatus(): {
+  configured: boolean;
+  provider: string | null;
+  model: string | null;
+} {
+  const config = documentAiConfigured();
+  if (!config) {
+    return { configured: false, provider: null, model: null };
+  }
+  return {
+    configured: true,
+    provider: config.provider,
+    model: config.model,
+  };
 }
 
 async function extractWithGemini(
@@ -196,19 +212,27 @@ async function extractWithGemini(
   });
 
   const data = (await response.json().catch(() => null)) as {
-    error?: { message?: string };
-    candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+    error?: { message?: string; status?: string };
+    candidates?: Array<{
+      finishReason?: string;
+      content?: { parts?: Array<{ text?: string }> };
+    }>;
   } | null;
 
   if (!response.ok) {
-    throw new Error(data?.error?.message || "OCR_PROVIDER_ERROR");
+    const detail =
+      data?.error?.message || data?.error?.status || "OCR_PROVIDER_ERROR";
+    throw new Error(`OCR_PROVIDER:${detail}`);
   }
 
-  const text = data?.candidates?.[0]?.content?.parts
+  const candidate = data?.candidates?.[0];
+  const text = candidate?.content?.parts
     ?.map((part) => part.text ?? "")
     .join("\n")
     .trim();
-  if (!text) throw new Error("OCR_EMPTY");
+  if (!text) {
+    throw new Error(`OCR_EMPTY:${candidate?.finishReason || "EMPTY"}`);
+  }
   return text;
 }
 
@@ -256,11 +280,13 @@ async function extractWithOpenAI(
   } | null;
 
   if (!response.ok) {
-    throw new Error(data?.error?.message || "OCR_PROVIDER_ERROR");
+    throw new Error(
+      `OCR_PROVIDER:${data?.error?.message || "OCR_PROVIDER_ERROR"}`,
+    );
   }
 
   const text = data?.choices?.[0]?.message?.content?.trim();
-  if (!text) throw new Error("OCR_EMPTY");
+  if (!text) throw new Error("OCR_EMPTY:EMPTY");
   return text;
 }
 
