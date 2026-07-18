@@ -3,6 +3,7 @@ set -euo pipefail
 
 APP_DIR="${MAGAZIN_APP_DIR:-/var/www/magazin}"
 SCRIPT_PATH="${APP_DIR}/scripts/update-magazin.sh"
+DB_PATH="${MAGAZIN_DB_PATH:-/var/lib/magazin/data.db}"
 
 cd "$APP_DIR"
 
@@ -22,14 +23,44 @@ npm install
 echo "==> Generating Prisma client..."
 npx prisma generate
 
-# SQLite cannot migrate while the app holds a write lock.
-echo "==> Stopping app before migrate/build..."
-pm2 stop magazin 2>/dev/null || true
-# Extra safety: wait briefly for WAL/lock release
-sleep 1
+release_db_lock() {
+  echo "==> Stopping app and any DB lock holders..."
+  pm2 stop magazin 2>/dev/null || true
 
-echo "==> Applying migrations..."
-npx prisma migrate deploy
+  # Name-fix / import scripts also open the SQLite file and block migrate.
+  pkill -f "tsx scripts/fix-names-from-internet" 2>/dev/null || true
+  pkill -f "tsx scripts/fix-images-from-internet" 2>/dev/null || true
+  pkill -f "tsx scripts/clean-product-names" 2>/dev/null || true
+  pkill -f "tsx scripts/refresh-product-names" 2>/dev/null || true
+
+  if command -v fuser >/dev/null 2>&1 && [[ -e "$DB_PATH" ]]; then
+    echo "    Processes using ${DB_PATH}:"
+    fuser -v "$DB_PATH" "$DB_PATH-wal" "$DB_PATH-shm" 2>&1 || true
+    # Kill remaining holders (e.g. stray node/prisma).
+    fuser -k "$DB_PATH" "$DB_PATH-wal" "$DB_PATH-shm" 2>/dev/null || true
+  fi
+
+  sleep 2
+}
+
+migrate_with_retry() {
+  local attempt
+  for attempt in 1 2 3 4 5; do
+    echo "==> Applying migrations (attempt ${attempt}/5)..."
+    if npx prisma migrate deploy; then
+      return 0
+    fi
+    echo "    Database still locked; waiting and retrying..."
+    release_db_lock
+    sleep $((attempt * 2))
+  done
+  echo "ERROR: prisma migrate deploy failed after retries."
+  echo "Check lock holders with: fuser -v $DB_PATH"
+  return 1
+}
+
+release_db_lock
+migrate_with_retry
 
 echo "==> Removing old .next build..."
 rm -rf .next
