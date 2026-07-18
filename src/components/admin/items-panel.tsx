@@ -141,7 +141,7 @@ export function ItemsPanel({ onRefresh }: Props) {
       if (!response.ok) throw new Error(data.error ?? t("errors.uploadFailed"));
       await persistImagePath(data.path as string);
     } catch (error) {
-      alert(error instanceof Error ? error.message : t("errors.uploadFailed"));
+      setSaveMessage(error instanceof Error ? error.message : t("errors.uploadFailed"));
     } finally {
       setUploading(false);
       event.target.value = "";
@@ -161,7 +161,7 @@ export function ItemsPanel({ onRefresh }: Props) {
       if (!response.ok) throw new Error(data.error ?? t("errors.uploadFailed"));
       await persistImagePath(data.path as string);
     } catch (error) {
-      alert(error instanceof Error ? error.message : t("errors.uploadFailed"));
+      setSaveMessage(error instanceof Error ? error.message : t("errors.uploadFailed"));
     } finally {
       setUploading(false);
     }
@@ -211,7 +211,7 @@ export function ItemsPanel({ onRefresh }: Props) {
     });
     const data = await response.json();
     if (!response.ok) {
-      alert(data.error ?? t("errors.invalidData"));
+      setSaveMessage(data.error ?? t("errors.invalidData"));
       return;
     }
     setSelectedId(null);

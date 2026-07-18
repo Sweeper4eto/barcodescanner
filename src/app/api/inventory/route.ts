@@ -20,17 +20,10 @@ import {
 } from "@/lib/inventory";
 import { filterInventoryEntriesBySearch } from "@/lib/inventory-search";
 import { db } from "@/lib/db";
+import { userCanAccessStore } from "@/lib/store-access";
 import { deleteLocalUpload } from "@/lib/upload";
 import { makeAdhocBarcode } from "@/lib/inventory-entry-display";
 import { apiT } from "@/i18n";
-
-async function userCanAccessStore(userId: string, storeId: string) {
-  const link = await db.userStore.findUnique({
-    where: { userId_storeId: { userId, storeId } },
-    include: { store: true },
-  });
-  return link?.store.active ? link.store : null;
-}
 
 const createSchema = z.object({
   storeId: z.string().min(1),

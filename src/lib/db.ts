@@ -12,8 +12,9 @@ function createClient() {
 
 function getClient(): PrismaClient {
   const cached = globalForPrisma.prisma;
-  // Recreate after schema changes (e.g. new AuditLog model) without a full server restart.
-  if (cached && "auditLog" in cached) {
+  // Recreate after schema changes without a full server restart (dev hot-reload).
+  // Check the newest model added to the schema so this keeps working as models are added.
+  if (cached && "favouriteProduct" in cached) {
     return cached;
   }
   const client = createClient();

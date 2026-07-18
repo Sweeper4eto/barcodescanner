@@ -29,13 +29,13 @@ test("pickOpenFoodFactsName prefers Bulgarian then cleans display name", () => {
   assert.equal(pickOpenFoodFactsName({}), "");
 });
 
-test("pickOpenFoodFactsImageUrl prefers small front image", () => {
+test("pickOpenFoodFactsImageUrl prefers larger front image", () => {
   assert.equal(
     pickOpenFoodFactsImageUrl({
       image_front_small_url: "https://images.openfoodfacts.org/small.jpg",
       image_url: "https://images.openfoodfacts.org/large.jpg",
     }),
-    "https://images.openfoodfacts.org/small.jpg",
+    "https://images.openfoodfacts.org/large.jpg",
   );
   assert.equal(
     pickOpenFoodFactsImageUrl({

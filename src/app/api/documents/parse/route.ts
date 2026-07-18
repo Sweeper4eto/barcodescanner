@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireSession } from "@/lib/auth";
-import { db } from "@/lib/db";
+import { userCanAccessRetailStore } from "@/lib/store-access";
 import {
   extractDocumentRows,
   extractDocumentRowsFromPath,
@@ -20,19 +20,6 @@ const parseSchema = z
   .refine((value) => Boolean(value.dataUrl || value.imagePath), {
     message: "image required",
   });
-
-async function userCanAccessStore(userId: string, storeId: string) {
-  const link = await db.userStore.findUnique({
-    where: { userId_storeId: { userId, storeId } },
-    include: {
-      store: true,
-      user: { include: { client: { select: { homeUser: true, active: true } } } },
-    },
-  });
-  if (!link?.store.active) return null;
-  if (link.user.client?.homeUser) return null;
-  return link.store;
-}
 
 export async function POST(request: Request) {
   let session;
@@ -61,7 +48,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const store = await userCanAccessStore(session.userId, parsed.data.storeId);
+  const store = await userCanAccessRetailStore(session.userId, parsed.data.storeId);
   if (!store) {
     return NextResponse.json(
       { error: apiT(request, "errors.noStoreAccess") },

@@ -80,7 +80,8 @@ export class BarcodeReadConsensus {
     return this.addFromSource(raw, "live");
   }
 
-  addFromSource(raw: string, _source: string): string | null {
+  addFromSource(raw: string, _source?: string): string | null {
+    void _source;
     const code = normalizeBarcode(raw);
     if (!isPlausibleBarcode(code)) {
       this.reset();

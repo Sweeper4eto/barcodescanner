@@ -9,24 +9,12 @@ import { MobilePageHeader } from "@/components/mobile-page-header";
 import { useT } from "@/components/i18n-provider";
 import { normalizeBarcode } from "@/lib/barcode";
 import { useWizardStep } from "@/lib/wizard-history";
+import {
+  getPreviousAddProductStep,
+  type AddProductWizardStep,
+} from "@/lib/wizard-steps";
 
-type AddProductStep = "scan" | "name" | "photo" | "confirm";
-
-function getPreviousAddProductStep(
-  step: AddProductStep,
-  initialBarcode: string,
-): AddProductStep | null {
-  switch (step) {
-    case "confirm":
-      return "photo";
-    case "photo":
-      return "name";
-    case "name":
-      return initialBarcode ? null : "scan";
-    default:
-      return null;
-  }
-}
+type AddProductStep = AddProductWizardStep;
 
 function AddProductFlow() {
   const router = useRouter();
@@ -80,15 +68,23 @@ function AddProductFlow() {
     const normalized = normalizeBarcode(value);
     if (!normalized) return;
 
-    const response = await fetch(`/api/products?barcode=${encodeURIComponent(normalized)}`);
-    const data = await response.json();
-    if (data.product) {
-      setError(t("errors.productExistsGlobal"));
-      return;
+    try {
+      const response = await fetch(`/api/products?barcode=${encodeURIComponent(normalized)}`);
+      if (!response.ok) {
+        setError(t("errors.lookupFailed"));
+        return;
+      }
+      const data = await response.json();
+      if (data.product) {
+        setError(t("errors.productExistsGlobal"));
+        return;
+      }
+      setBarcode(normalized);
+      setError("");
+      goToStep("name");
+    } catch {
+      setError(t("errors.networkError"));
     }
-    setBarcode(normalized);
-    setError("");
-    goToStep("name");
   }, [goToStep, t]);
 
   async function onPhotoCapture(dataUrl: string) {
@@ -122,23 +118,27 @@ function AddProductFlow() {
   async function saveProduct() {
     const normalizedBarcode = normalizeBarcode(barcode);
     if (!normalizedBarcode) return;
-    const response = await fetch("/api/products", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        barcode: normalizedBarcode,
-        name,
-        imagePath: imagePath || undefined,
-      }),
-    });
-    const data = await response.json();
-    if (!response.ok) {
-      setError(data.error ?? t("errors.saveFailed"));
-      return;
+    try {
+      const response = await fetch("/api/products", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          barcode: normalizedBarcode,
+          name,
+          imagePath: imagePath || undefined,
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setError(data.error ?? t("errors.saveFailed"));
+        return;
+      }
+      window.location.replace(
+        `/app/scan?storeId=${encodeURIComponent(storeId)}&barcode=${encodeURIComponent(data.product.barcode)}`,
+      );
+    } catch {
+      setError(t("errors.networkError"));
     }
-    window.location.replace(
-      `/app/scan?storeId=${encodeURIComponent(storeId)}&barcode=${encodeURIComponent(data.product.barcode)}`,
-    );
   }
 
   return (

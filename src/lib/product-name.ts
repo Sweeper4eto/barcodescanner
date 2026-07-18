@@ -111,6 +111,76 @@ export function isLowQualityProductName(name: string): boolean {
   return false;
 }
 
+/**
+ * Titles from free barcode sites that are usually wrong for a grocery catalog:
+ * collectors, empties, Amazon SEO spam, tools, electronics, etc.
+ */
+export function isSuspiciousRemoteProductName(name: string): boolean {
+  const cleaned = cleanProductName(name);
+  if (!cleaned) return false;
+
+  if (
+    /\b(empty|unused|collectors?|collectibles?|collect|inscribed|бутылки|пляшка)\b/i.test(
+      cleaned,
+    )
+  ) {
+    return true;
+  }
+  if (/\buk\s*import\b|\bacc\s*new\b|\bbrand\s*new\s*in\s*box\b/i.test(cleaned)) {
+    return true;
+  }
+  if (
+    /\b(cnc|end\s*mill|mud\s*flap|capture\s*card|led\s*(tube|smd)|fluorescent|carton\s*cutter|replacement\s*blades)\b/i.test(
+      cleaned,
+    )
+  ) {
+    return true;
+  }
+  if (/\b(shoe\s*size|crew\s*socks|homeopathic)\b/i.test(cleaned)) {
+    return true;
+  }
+  if (/\b(package\s*may\s*vary|see\s*below|dimensions\s*:)\b/i.test(cleaned)) {
+    return true;
+  }
+  if (/\bcan\s+from\b/i.test(cleaned) && /\b(ml|litre|liter)\b/i.test(cleaned)) {
+    return true;
+  }
+  if (
+    /\b(new-warheads|wsf-tools|elgato|genuine\s+volkswagen)\b/i.test(
+      cleaned.toLowerCase(),
+    )
+  ) {
+    return true;
+  }
+  return false;
+}
+
+/** Extra marketplace/SEO noise — used when accepting live internet titles. */
+export function isMarketplaceSeoProductName(name: string): boolean {
+  const cleaned = cleanProductName(name);
+  if (!cleaned) return true;
+  if (cleaned.length > 90) return true;
+  if ((cleaned.match(/,/g) || []).length >= 3) return true;
+  if ((cleaned.match(/\(/g) || []).length >= 2) return true;
+  if (/\bpack\s+of\s+\d+/i.test(cleaned) && cleaned.length > 55) return true;
+  if (/\b\d+\s*[-–]\s*pack\b/i.test(cleaned) && cleaned.length > 55) return true;
+  if (cleaned.length > 70) {
+    const words = cleaned.split(/\s+/).filter(Boolean);
+    if (words.length >= 12) return true;
+  }
+  return false;
+}
+
+/** Remote internet title safe enough to write into the catalog. */
+export function isAcceptableInternetProductName(name: string): boolean {
+  const cleaned = cleanProductName(name);
+  if (!cleaned || cleaned.length < 3) return false;
+  if (isLowQualityProductName(cleaned)) return false;
+  if (isSuspiciousRemoteProductName(cleaned)) return false;
+  if (isMarketplaceSeoProductName(cleaned)) return false;
+  return true;
+}
+
 function scoreName(name: string): number {
   const cleaned = cleanProductName(name);
   if (!cleaned) return -1000;

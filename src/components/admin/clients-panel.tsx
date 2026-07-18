@@ -125,17 +125,8 @@ export function ClientsPanel({ onRefresh }: Props) {
   }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    async function run() {
-      const response = await fetch("/api/admin/clients");
-      const data = await response.json();
-      if (!cancelled) setClients(data.clients ?? []);
-    }
-    void run();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    void loadClients("");
+  }, [loadClients]);
 
   function selectClient(client: Client) {
     setSelectedId(client.id);
@@ -150,20 +141,28 @@ export function ClientsPanel({ onRefresh }: Props) {
 
   async function createClient(event: FormEvent) {
     event.preventDefault();
-    await fetch("/api/admin/clients", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: newClient.name,
-        phone: newClient.phone || undefined,
-        additionalInfo: newClient.additionalInfo || undefined,
-        monthlyFeePerStore: Number(newClient.monthlyFeePerStore),
-      }),
-    });
-    setNewClient({ name: "", phone: "", additionalInfo: "", monthlyFeePerStore: "10" });
-    await loadClients();
-    onRefresh();
-    setSubview("current");
+    try {
+      const response = await fetch("/api/admin/clients", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: newClient.name,
+          phone: newClient.phone || undefined,
+          additionalInfo: newClient.additionalInfo || undefined,
+          monthlyFeePerStore: Number(newClient.monthlyFeePerStore),
+        }),
+      });
+      if (!response.ok) {
+        setSaveMessage(t("errors.saveFailed"));
+        return;
+      }
+      setNewClient({ name: "", phone: "", additionalInfo: "", monthlyFeePerStore: "10" });
+      await loadClients();
+      onRefresh();
+      setSubview("current");
+    } catch {
+      setSaveMessage(t("errors.networkError"));
+    }
   }
 
   async function saveClient() {
@@ -209,35 +208,61 @@ export function ClientsPanel({ onRefresh }: Props) {
   async function createStore(event: FormEvent) {
     event.preventDefault();
     if (!selectedId) return;
-    await fetch("/api/admin/stores", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ clientId: selectedId, ...newStore }),
-    });
-    setNewStore({ name: "", address: "", phone: "", additionalInfo: "" });
-    const list = await loadStores(selectedId);
-    await loadClients();
-    onRefresh();
-    setDetailTab("stores");
-    setStorePage(Math.max(1, Math.ceil(list.length / STORES_PER_PAGE)));
+    try {
+      const response = await fetch("/api/admin/stores", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clientId: selectedId, ...newStore }),
+      });
+      if (!response.ok) {
+        setSaveMessage(t("errors.saveFailed"));
+        return;
+      }
+      setNewStore({ name: "", address: "", phone: "", additionalInfo: "" });
+      const list = await loadStores(selectedId);
+      await loadClients();
+      onRefresh();
+      setDetailTab("stores");
+      setStorePage(Math.max(1, Math.ceil(list.length / STORES_PER_PAGE)));
+    } catch {
+      setSaveMessage(t("errors.networkError"));
+    }
   }
 
   async function toggleStore(store: Store) {
-    await fetch("/api/admin/stores", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: store.id, active: !store.active }),
-    });
-    if (selectedId) await loadStores(selectedId);
-    onRefresh();
+    try {
+      const response = await fetch("/api/admin/stores", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: store.id, active: !store.active }),
+      });
+      if (!response.ok) {
+        setSaveMessage(t("errors.saveFailed"));
+        return;
+      }
+      if (selectedId) await loadStores(selectedId);
+      onRefresh();
+    } catch {
+      setSaveMessage(t("errors.networkError"));
+    }
   }
 
   async function deleteStore(storeId: string) {
     if (!confirm(t("admin.confirmDeleteStore"))) return;
-    await fetch(`/api/admin/stores?id=${storeId}`, { method: "DELETE" });
-    if (selectedId) await loadStores(selectedId);
-    await loadClients();
-    onRefresh();
+    try {
+      const response = await fetch(`/api/admin/stores?id=${storeId}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) {
+        setSaveMessage(t("errors.saveFailed"));
+        return;
+      }
+      if (selectedId) await loadStores(selectedId);
+      await loadClients();
+      onRefresh();
+    } catch {
+      setSaveMessage(t("errors.networkError"));
+    }
   }
 
   const selectedClient = clients.find((client) => client.id === selectedId);

@@ -11,14 +11,17 @@ import { requireSession } from "@/lib/auth";
 import { barcodeLookupValues, normalizeBarcode } from "@/lib/barcode";
 import { activeBuyListWhere } from "@/lib/buy-list";
 import { userCanAccessHomeStore } from "@/lib/home-user";
+import { makeAdhocBarcode } from "@/lib/inventory-entry-display";
 import { filterInventoryEntriesBySearch } from "@/lib/inventory-search";
 import { db } from "@/lib/db";
 import { apiT } from "@/i18n";
 
 const createSchema = z.object({
   storeId: z.string().min(1),
-  barcode: z.string().min(1),
-  productId: z.string().min(1),
+  barcode: z.string().optional(),
+  productId: z.string().optional(),
+  name: z.string().optional(),
+  imagePath: z.string().nullable().optional(),
   quantity: z.number().int().positive(),
 });
 
@@ -42,14 +45,6 @@ export async function POST(request: Request) {
     );
   }
 
-  const barcode = normalizeBarcode(parsed.data.barcode);
-  if (!barcode) {
-    return NextResponse.json(
-      { error: apiT(request, "errors.invalidData") },
-      { status: 400 },
-    );
-  }
-
   const store = await userCanAccessHomeStore(session.userId, parsed.data.storeId);
   if (!store) {
     return NextResponse.json(
@@ -58,17 +53,44 @@ export async function POST(request: Request) {
     );
   }
 
-  const product = await db.product.findFirst({
-    where: {
-      id: parsed.data.productId,
-      barcode: { in: barcodeLookupValues(barcode) },
-    },
-  });
+  const barcode = normalizeBarcode(parsed.data.barcode ?? "") || null;
+  const name = parsed.data.name?.trim() ?? "";
+  const imagePath = parsed.data.imagePath?.trim() || null;
+
+  let product = parsed.data.productId
+    ? await db.product.findUnique({ where: { id: parsed.data.productId } })
+    : null;
+
+  if (product && barcode) {
+    const ok = barcodeLookupValues(barcode).includes(product.barcode);
+    if (!ok) {
+      return NextResponse.json(
+        { error: apiT(request, "errors.productNotFound") },
+        { status: 404 },
+      );
+    }
+  }
+
+  if (!product && barcode) {
+    product = await db.product.findFirst({
+      where: { barcode: { in: barcodeLookupValues(barcode) } },
+    });
+  }
+
   if (!product) {
-    return NextResponse.json(
-      { error: apiT(request, "errors.productNotFound") },
-      { status: 404 },
-    );
+    if (!name && !imagePath) {
+      return NextResponse.json(
+        { error: apiT(request, "errors.invalidData") },
+        { status: 400 },
+      );
+    }
+    product = await db.product.create({
+      data: {
+        barcode: barcode || makeAdhocBarcode(),
+        name,
+        imagePath,
+      },
+    });
   }
 
   const existing = await db.buyListEntry.findFirst({

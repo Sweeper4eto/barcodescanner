@@ -1,11 +1,19 @@
+import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { purgeExpiredInventory } from "@/lib/inventory-purge";
 import { sendExpiryDigests } from "@/lib/push-expiry";
 import { apiT } from "@/i18n";
 
+function secretsEqual(provided: string | null, expected: string | undefined): boolean {
+  if (!provided || !expected) return false;
+  const a = Buffer.from(provided);
+  const b = Buffer.from(expected);
+  if (a.length !== b.length) return false;
+  return timingSafeEqual(a, b);
+}
+
 export async function POST(request: Request) {
-  const secret = request.headers.get("x-cron-secret");
-  if (!secret || secret !== process.env.CRON_SECRET) {
+  if (!secretsEqual(request.headers.get("x-cron-secret"), process.env.CRON_SECRET)) {
     return NextResponse.json(
       { error: apiT(request, "errors.forbidden") },
       { status: 403 },

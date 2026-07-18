@@ -8,6 +8,7 @@ import { logAuditEvent } from "@/lib/audit-log";
 import { requireSession } from "@/lib/auth";
 import { barcodeLookupValues, normalizeBarcode } from "@/lib/barcode";
 import { db } from "@/lib/db";
+import { userCanAccessRetailStore } from "@/lib/store-access";
 import { makeAdhocBarcode } from "@/lib/inventory-entry-display";
 import {
   activeInventoryWhere,
@@ -31,19 +32,6 @@ const importSchema = z.object({
   items: z.array(itemSchema).min(1).max(200),
 });
 
-async function userCanAccessStore(userId: string, storeId: string) {
-  const link = await db.userStore.findUnique({
-    where: { userId_storeId: { userId, storeId } },
-    include: {
-      store: true,
-      user: { include: { client: { select: { homeUser: true } } } },
-    },
-  });
-  if (!link?.store.active) return null;
-  if (link.user.client?.homeUser) return null;
-  return link.store;
-}
-
 export async function POST(request: Request) {
   let session;
   try {
@@ -64,7 +52,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const store = await userCanAccessStore(session.userId, parsed.data.storeId);
+  const store = await userCanAccessRetailStore(session.userId, parsed.data.storeId);
   if (!store) {
     return NextResponse.json(
       { error: apiT(request, "errors.noStoreAccess") },

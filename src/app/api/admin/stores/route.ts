@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import {
-  auditPaymentRecorded,
   auditStoreCreated,
   auditStoreDeleted,
   auditStoreUpdated,

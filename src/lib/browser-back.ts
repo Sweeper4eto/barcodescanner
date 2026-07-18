@@ -19,7 +19,9 @@ export type BrowserBackLayer = {
 /** Sync stacked overlays/modals with the phone/browser back button. */
 export function useBrowserBackStack(layers: BrowserBackLayer[]): void {
   const layersRef = useRef(layers);
-  layersRef.current = layers;
+  useEffect(() => {
+    layersRef.current = layers;
+  }, [layers]);
 
   const openCount = layers.filter((layer) => layer.open).length;
   const prevOpenCountRef = useRef(0);
@@ -81,13 +83,20 @@ export function useWizardBrowserBack<T extends string>(
   { initialStep, getPreviousStep }: WizardBackOptions<T>,
 ): { goBack: () => void } {
   const stepRef = useRef(step);
-  stepRef.current = step;
-
   const goToStepRef = useRef(goToStep);
-  goToStepRef.current = goToStep;
-
   const getPreviousStepRef = useRef(getPreviousStep);
-  getPreviousStepRef.current = getPreviousStep;
+
+  useEffect(() => {
+    stepRef.current = step;
+  }, [step]);
+
+  useEffect(() => {
+    goToStepRef.current = goToStep;
+  }, [goToStep]);
+
+  useEffect(() => {
+    getPreviousStepRef.current = getPreviousStep;
+  }, [getPreviousStep]);
 
   const prevStepRef = useRef(step);
   const fromPopRef = useRef(false);

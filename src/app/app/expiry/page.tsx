@@ -10,6 +10,7 @@ import {
   type ExpiryDetailEntry,
 } from "@/components/expiry-entry-detail-sheet";
 import { ExpiryPeriodFilter } from "@/components/expiry-period-filter";
+import { ActionFlash } from "@/components/action-flash";
 import { MobilePageHeader } from "@/components/mobile-page-header";
 import { QuantityPicker } from "@/components/quantity-picker";
 import { useT } from "@/components/i18n-provider";
@@ -69,9 +70,12 @@ function ExpiryList() {
   const [favouriteProductIds, setFavouriteProductIds] = useState<
     Record<string, true>
   >({});
+  const [flashMessage, setFlashMessage] = useState<string | null>(null);
+  const [flashTone, setFlashTone] = useState<"success" | "error">("success");
   const [loading, setLoading] = useState(() => Boolean(storeId));
   const [period, setPeriod] = useState<ExpiryPeriod>(DEFAULT_EXPIRY_PERIOD);
   const loadMoreRef = useRef<HTMLDivElement>(null);
+  const clearFlash = useCallback(() => setFlashMessage(null), []);
   const loadingMoreRef = useRef(false);
   const fetchGenerationRef = useRef(0);
 
@@ -243,16 +247,24 @@ function ExpiryList() {
   }, [debouncedSearch, loading, pagination.page, pagination.totalPages, entries.length]);
 
   async function removeEntry(entryId: string) {
-    await fetch("/api/inventory", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ entryId, storeId }),
-    });
-    setConfirmId(null);
-    setDetailEntry((current) => (current?.id === entryId ? null : current));
-    setPage(1);
-    setEntries([]);
-    await loadEntries(1, false);
+    try {
+      const response = await fetch("/api/inventory", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ entryId, storeId }),
+      });
+      if (!response.ok) {
+        setFlashTone("error");
+        setFlashMessage(t("errors.networkError"));
+        return;
+      }
+      setConfirmId(null);
+      setDetailEntry((current) => (current?.id === entryId ? null : current));
+      setEntries((current) => current.filter((entry) => entry.id !== entryId));
+    } catch {
+      setFlashTone("error");
+      setFlashMessage(t("errors.networkError"));
+    }
   }
 
   async function reducePriceEntry(entryId: string) {
@@ -288,10 +300,16 @@ function ExpiryList() {
           quantity,
         }),
       });
-      if (!response.ok) return;
+      if (!response.ok) {
+        setFlashTone("error");
+        setFlashMessage(t("expiry.addToOrdersFailed"));
+        return;
+      }
 
       setMoveToOrdersEntry(null);
       setMoveOrdersQty("1");
+      setFlashTone("success");
+      setFlashMessage(t("expiry.addedToOrders"));
     } finally {
       setMoveOrdersSaving(false);
     }
@@ -299,13 +317,22 @@ function ExpiryList() {
 
   async function toggleFavourite(productId: string) {
     const isFavourite = Boolean(favouriteProductIds[productId]);
-    const response = await fetch("/api/favourites", {
-      method: isFavourite ? "DELETE" : "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ storeId, productId }),
-    });
-    if (!response.ok) return;
-    await loadFavourites();
+    try {
+      const response = await fetch("/api/favourites", {
+        method: isFavourite ? "DELETE" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ storeId, productId }),
+      });
+      if (!response.ok) {
+        setFlashTone("error");
+        setFlashMessage(t("errors.networkError"));
+        return;
+      }
+      await loadFavourites();
+    } catch {
+      setFlashTone("error");
+      setFlashMessage(t("errors.networkError"));
+    }
   }
 
   function handleEntryUpdated(
@@ -373,11 +400,18 @@ function ExpiryList() {
     <div className="mx-auto min-w-0 max-w-lg px-4 py-3">
       <MobilePageHeader title={t("expiry.title")} />
 
+      <ActionFlash
+        message={flashMessage}
+        tone={flashTone}
+        onClear={clearFlash}
+      />
+
       <ExpiryPeriodFilter value={period} onChange={onPeriodChange} />
 
       <div className="mb-3 flex gap-2">
         <input
           className="min-w-0 flex-1 rounded-xl border border-input-border bg-input px-3 py-3 text-base text-foreground"
+          aria-label={t("expiry.searchPlaceholder")}
           placeholder={t("expiry.searchPlaceholder")}
           value={search}
           onChange={(event) => setSearch(event.target.value)}
@@ -483,10 +517,15 @@ function ExpiryList() {
       ) : null}
 
       {confirmId ? (
-        <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40">
+        <div
+          className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="expiry-confirm-title"
+        >
           <div className="w-full max-w-lg px-3 pb-[calc(var(--app-bottom-nav-height)+env(safe-area-inset-bottom,0px)+0.5rem)]">
             <div className="rounded-xl border border-card-border bg-card p-3">
-              <p className="text-sm font-semibold">{t("expiry.confirmTitle")}</p>
+              <p id="expiry-confirm-title" className="text-sm font-semibold">{t("expiry.confirmTitle")}</p>
               <p className="mt-1 text-xs text-muted">{t("expiry.confirmMessage")}</p>
               <div className="mt-3 grid grid-cols-2 gap-2">
                 <button

@@ -84,9 +84,8 @@ function pickRearCamera(cameras: CameraDevice[]): string | undefined {
 async function safeStopScanner(scanner: Html5Qrcode | null | undefined): Promise<void> {
   if (!scanner) return;
   try {
-    if (scanner.isScanning) {
-      await scanner.stop().catch(() => undefined);
-    }
+    // Always attempt stop — isScanning can still be false while start() is in-flight.
+    await scanner.stop().catch(() => undefined);
   } catch {
     // html5-qrcode may throw synchronously if stop runs before start finishes
   }
@@ -325,8 +324,12 @@ export function BarcodeScanner({
       abortedRef.current = true;
       scanCleanupRef.current?.();
       scanCleanupRef.current = null;
-      void safeStopScanner(scannerRef.current);
-      scannerRef.current = null;
+      const scanner = scannerRef.current;
+      void safeStopScanner(scanner).finally(() => {
+        if (scannerRef.current === scanner) {
+          scannerRef.current = null;
+        }
+      });
       fileDecoderRef.current?.clear();
       fileDecoderRef.current = null;
     };
@@ -407,12 +410,14 @@ export function BarcodeScanner({
         return;
       }
 
-      scannerRef.current = new Html5Qrcode(elementId, SCANNER_OPTIONS);
-      fileDecoderRef.current = new Html5Qrcode(fileDecoderId, SCANNER_OPTIONS);
+      const scanner = new Html5Qrcode(elementId, SCANNER_OPTIONS);
+      const fileDecoder = new Html5Qrcode(fileDecoderId, SCANNER_OPTIONS);
+      scannerRef.current = scanner;
+      fileDecoderRef.current = fileDecoder;
 
       scanCleanupRef.current = await startScanner(
-        scannerRef.current,
-        fileDecoderRef.current,
+        scanner,
+        fileDecoder,
         elementId,
         deliverBarcode,
       );
@@ -420,16 +425,21 @@ export function BarcodeScanner({
       if (abortedRef.current) {
         scanCleanupRef.current?.();
         scanCleanupRef.current = null;
-        await resetScanner(scannerRef.current);
-        scannerRef.current = null;
-        fileDecoderRef.current?.clear();
-        fileDecoderRef.current = null;
+        await resetScanner(scanner);
+        if (scannerRef.current === scanner) {
+          scannerRef.current = null;
+        }
+        fileDecoder.clear();
+        if (fileDecoderRef.current === fileDecoder) {
+          fileDecoderRef.current = null;
+        }
         setScanning(false);
+        setStarting(false);
         return;
       }
 
       try {
-        const torch = scannerRef.current.getRunningTrackCameraCapabilities().torchFeature();
+        const torch = scanner.getRunningTrackCameraCapabilities().torchFeature();
         setTorchAvailable(torch.isSupported());
       } catch {
         setTorchAvailable(false);
@@ -440,9 +450,7 @@ export function BarcodeScanner({
         setError(t(scannerErrorKey(caught)));
       }
     } finally {
-      if (!abortedRef.current) {
-        setStarting(false);
-      }
+      setStarting(false);
     }
   }, [deliverBarcode, elementId, fileDecoderId, scanning, starting, t]);
 

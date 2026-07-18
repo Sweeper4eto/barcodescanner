@@ -15,8 +15,9 @@ import { normalizeBarcode } from "@/lib/barcode";
 import { isAdhocBarcode } from "@/lib/inventory-entry-display";
 import { lookupProductByBarcode } from "@/lib/scan-barcode-lookup";
 import { useWizardStep } from "@/lib/wizard-history";
+import { getPreviousScanStep, type ScanWizardStep } from "@/lib/wizard-steps";
 
-type ScanStep = "scan" | "missing" | "name" | "qty" | "date";
+type ScanStep = ScanWizardStep;
 
 export function ScanFlow() {
   const searchParams = useSearchParams();
@@ -24,28 +25,16 @@ export function ScanFlow() {
   const urlBarcode = normalizeBarcode(searchParams.get("barcode") ?? "");
   const { t } = useT();
   const [barcode, setBarcode] = useState("");
-  const { step, goToStep, goBack } = useWizardStep<ScanStep>({
-    initialStep: "scan",
-    getPreviousStep: (current) => {
-      switch (current) {
-        case "date":
-          return "qty";
-        case "qty":
-          return product ? "scan" : "name";
-        case "name":
-        case "missing":
-          return "scan";
-        default:
-          return null;
-      }
-    },
-  });
   const [product, setProduct] = useState<{
     id: string;
     name: string;
     imagePath: string | null;
     barcode: string;
   } | null>(null);
+  const { step, goToStep, goBack } = useWizardStep<ScanStep>({
+    initialStep: "scan",
+    getPreviousStep: (current) => getPreviousScanStep(current, Boolean(product)),
+  });
   const [name, setName] = useState("");
   const [articul, setArticul] = useState("");
   const [entryImagePath, setEntryImagePath] = useState<string | null>(null);

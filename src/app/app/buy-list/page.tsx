@@ -2,6 +2,9 @@
 
 import { useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { ActionFlash } from "@/components/action-flash";
+import { SecondaryButton } from "@/components/auth-forms";
+import { CameraCapture, uploadImage } from "@/components/camera-capture";
 import { BarcodeScanner } from "@/components/barcode-scanner";
 import { ScanNavIcon } from "@/components/app-nav-icons";
 import { BuyListCard } from "@/components/buy-list-card";
@@ -12,6 +15,7 @@ import {
 import { ExpiryDatePicker } from "@/components/expiry-date-picker";
 import { MobilePageHeader } from "@/components/mobile-page-header";
 import { ProductImage } from "@/components/product-image";
+import { QuantityPicker } from "@/components/quantity-picker";
 import { useT } from "@/components/i18n-provider";
 import { useBrowserBackStack } from "@/lib/browser-back";
 import { expiryYmdToIso } from "@/lib/inventory";
@@ -65,8 +69,18 @@ function BuyListContent() {
     Record<string, true>
   >({});
   const [favourites, setFavourites] = useState<FavouriteProduct[]>([]);
+  const [flashMessage, setFlashMessage] = useState<string | null>(null);
+  const [flashTone, setFlashTone] = useState<"success" | "error">("success");
+  const [addingFavouriteId, setAddingFavouriteId] = useState<string | null>(null);
+  const [showManualAdd, setShowManualAdd] = useState(false);
+  const [manualName, setManualName] = useState("");
+  const [manualQty, setManualQty] = useState("1");
+  const [manualImagePath, setManualImagePath] = useState<string | null>(null);
+  const [manualCapturing, setManualCapturing] = useState(false);
+  const [manualSaving, setManualSaving] = useState(false);
   const [loading, setLoading] = useState(() => Boolean(storeId));
   const loadMoreRef = useRef<HTMLDivElement>(null);
+  const clearFlash = useCallback(() => setFlashMessage(null), []);
   const loadingMoreRef = useRef(false);
   const fetchGenerationRef = useRef(0);
 
@@ -92,6 +106,14 @@ function BuyListContent() {
       close: () => {
         setMoveToExpiryId(null);
         setMoveExpiryYmd("");
+      },
+    },
+    {
+      id: "manual-add",
+      open: showManualAdd,
+      close: () => {
+        setShowManualAdd(false);
+        setManualCapturing(false);
       },
     },
   ]);
@@ -235,14 +257,24 @@ function BuyListContent() {
   }
 
   async function removeEntry(entryId: string) {
-    await fetch("/api/buy-list", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ entryId, storeId }),
-    });
-    setConfirmId(null);
-    setDetailEntry((current) => (current?.id === entryId ? null : current));
-    await reloadList();
+    try {
+      const response = await fetch("/api/buy-list", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ entryId, storeId }),
+      });
+      if (!response.ok) {
+        setFlashTone("error");
+        setFlashMessage(t("errors.networkError"));
+        return;
+      }
+      setConfirmId(null);
+      setDetailEntry((current) => (current?.id === entryId ? null : current));
+      setEntries((current) => current.filter((entry) => entry.id !== entryId));
+    } catch {
+      setFlashTone("error");
+      setFlashMessage(t("errors.networkError"));
+    }
   }
 
   async function confirmMoveToExpiry() {
@@ -259,7 +291,11 @@ function BuyListContent() {
           expiryDate: expiryYmdToIso(moveExpiryYmd),
         }),
       });
-      if (!response.ok) return;
+      if (!response.ok) {
+        setFlashTone("error");
+        setFlashMessage(t("buyList.moveToExpiryFailed"));
+        return;
+      }
 
       setMoveToExpiryId(null);
       setMoveExpiryYmd("");
@@ -267,6 +303,8 @@ function BuyListContent() {
         current?.id === moveToExpiryId ? null : current,
       );
       await reloadList();
+      setFlashTone("success");
+      setFlashMessage(t("buyList.movedToExpiry"));
     } finally {
       setMoveSaving(false);
     }
@@ -274,28 +312,49 @@ function BuyListContent() {
 
   async function toggleFavourite(productId: string) {
     const isFavourite = Boolean(favouriteProductIds[productId]);
-    const response = await fetch("/api/favourites", {
-      method: isFavourite ? "DELETE" : "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ storeId, productId }),
-    });
-    if (!response.ok) return;
-    await loadFavourites();
+    try {
+      const response = await fetch("/api/favourites", {
+        method: isFavourite ? "DELETE" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ storeId, productId }),
+      });
+      if (!response.ok) {
+        setFlashTone("error");
+        setFlashMessage(t("errors.networkError"));
+        return;
+      }
+      await loadFavourites();
+    } catch {
+      setFlashTone("error");
+      setFlashMessage(t("errors.networkError"));
+    }
   }
 
   async function addFavouriteToOrders(product: FavouriteProduct) {
-    const response = await fetch("/api/buy-list", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        storeId,
-        productId: product.id,
-        barcode: product.barcode,
-        quantity: 1,
-      }),
-    });
-    if (!response.ok) return;
-    await reloadList();
+    if (addingFavouriteId) return;
+    setAddingFavouriteId(product.id);
+    try {
+      const response = await fetch("/api/buy-list", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          storeId,
+          productId: product.id,
+          barcode: product.barcode,
+          quantity: 1,
+        }),
+      });
+      if (!response.ok) {
+        setFlashTone("error");
+        setFlashMessage(t("buyList.addFailed"));
+        return;
+      }
+      await reloadList();
+      setFlashTone("success");
+      setFlashMessage(t("buyList.addedFromFavourite"));
+    } finally {
+      setAddingFavouriteId(null);
+    }
   }
 
   function handleEntryUpdated(updated: BuyListDetailEntry) {
@@ -312,6 +371,51 @@ function BuyListContent() {
           : entry,
       ),
     );
+  }
+
+  function resetManualAdd() {
+    setShowManualAdd(false);
+    setManualName("");
+    setManualQty("1");
+    setManualImagePath(null);
+    setManualCapturing(false);
+    setManualSaving(false);
+  }
+
+  async function confirmManualAdd() {
+    const quantity = Number(manualQty);
+    if (!Number.isInteger(quantity) || quantity < 1) return;
+    if (!manualName.trim() && !manualImagePath) {
+      setFlashTone("error");
+      setFlashMessage(t("errors.invalidData"));
+      return;
+    }
+    if (manualSaving) return;
+
+    setManualSaving(true);
+    try {
+      const response = await fetch("/api/buy-list", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          storeId,
+          name: manualName.trim() || undefined,
+          imagePath: manualImagePath,
+          quantity,
+        }),
+      });
+      if (!response.ok) {
+        setFlashTone("error");
+        setFlashMessage(t("buyList.addFailed"));
+        return;
+      }
+      resetManualAdd();
+      await reloadList();
+      setFlashTone("success");
+      setFlashMessage(t("buyList.addedManual"));
+    } finally {
+      setManualSaving(false);
+    }
   }
 
   function onBarcodeScanned(barcode: string) {
@@ -348,9 +452,16 @@ function BuyListContent() {
     <div className="mx-auto min-w-0 max-w-lg px-4 py-3">
       <MobilePageHeader title={t("buyList.title")} />
 
+      <ActionFlash
+        message={flashMessage}
+        tone={flashTone}
+        onClear={clearFlash}
+      />
+
       <div className="mb-3 flex gap-2">
         <input
           className="min-w-0 flex-1 rounded-xl border border-input-border bg-input px-3 py-3 text-base text-foreground"
+          aria-label={t("buyList.searchPlaceholder")}
           placeholder={t("buyList.searchPlaceholder")}
           value={search}
           onChange={(event) => setSearch(event.target.value)}
@@ -366,6 +477,17 @@ function BuyListContent() {
         >
           <ScanNavIcon className="h-6 w-6" />
           <span>{t("app.navScan")}</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setShowScanner(false);
+            setShowManualAdd(true);
+          }}
+          className="flex shrink-0 flex-col items-center justify-center gap-0.5 rounded-xl border border-primary bg-selected px-3 py-2 text-xs font-medium text-primary"
+        >
+          <span className="text-lg leading-none">+</span>
+          <span>{t("buyList.addManual")}</span>
         </button>
       </div>
 
@@ -419,10 +541,13 @@ function BuyListContent() {
                 </p>
                 <button
                   type="button"
-                  className="shrink-0 rounded-lg bg-primary px-2.5 py-1.5 text-[11px] font-medium text-primary-fg"
+                  className="shrink-0 rounded-lg bg-primary px-2.5 py-1.5 text-[11px] font-medium text-primary-fg disabled:opacity-60"
+                  disabled={addingFavouriteId === product.id}
                   onClick={() => void addFavouriteToOrders(product)}
                 >
-                  {t("buyList.addFavouriteToOrders")}
+                  {addingFavouriteId === product.id
+                    ? t("buyList.adding")
+                    : t("buyList.addFavouriteToOrders")}
                 </button>
               </div>
             ))}
@@ -484,10 +609,15 @@ function BuyListContent() {
       ) : null}
 
       {confirmId ? (
-        <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40">
+        <div
+          className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="orders-confirm-title"
+        >
           <div className="w-full max-w-lg px-3 pb-[calc(var(--app-bottom-nav-height)+env(safe-area-inset-bottom,0px)+0.5rem)]">
             <div className="rounded-xl border border-card-border bg-card p-3">
-              <p className="text-sm font-semibold">{t("buyList.confirmTitle")}</p>
+              <p id="orders-confirm-title" className="text-sm font-semibold">{t("buyList.confirmTitle")}</p>
               <p className="mt-1 text-xs text-muted">{t("buyList.confirmMessage")}</p>
               <div className="mt-3 grid grid-cols-2 gap-2">
                 <button
@@ -553,6 +683,95 @@ function BuyListContent() {
           </div>
         </div>
       ) : null}
+      {showManualAdd ? (
+        <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40">
+          <div className="w-full max-w-lg px-3 pb-[calc(var(--app-bottom-nav-height)+env(safe-area-inset-bottom,0px)+0.5rem)]">
+            <div className="max-h-[80vh] space-y-3 overflow-y-auto rounded-xl border border-card-border bg-card p-3">
+              <p className="text-sm font-semibold">{t("buyList.addManualTitle")}</p>
+              <p className="text-xs text-muted">{t("buyList.addManualHint")}</p>
+
+              {manualCapturing ? (
+                <CameraCapture
+                  allowFileUpload
+                  onCapture={(dataUrl) => {
+                    void (async () => {
+                      try {
+                        const path = await uploadImage(dataUrl);
+                        setManualImagePath(path);
+                        setManualCapturing(false);
+                      } catch {
+                        setFlashTone("error");
+                        setFlashMessage(t("errors.uploadFailed"));
+                      }
+                    })();
+                  }}
+                  onCancel={() => setManualCapturing(false)}
+                />
+              ) : (
+                <>
+                  <ProductImage
+                    src={manualImagePath}
+                    alt=""
+                    className="mx-auto h-28 w-28 rounded-xl object-cover"
+                    placeholderClassName="mx-auto h-28 w-28 rounded-xl"
+                  />
+                  <SecondaryButton onClick={() => setManualCapturing(true)}>
+                    {manualImagePath
+                      ? t("expiry.changePicture")
+                      : t("buyList.addManualPhoto")}
+                  </SecondaryButton>
+                </>
+              )}
+
+              <label className="block text-sm font-medium text-foreground">
+                {t("buyList.addManualName")}
+                <input
+                  className="mt-1 w-full rounded-xl border border-input-border bg-input px-3 py-2 text-foreground"
+                  value={manualName}
+                  onChange={(event) => setManualName(event.target.value)}
+                  placeholder={t("common.noName")}
+                  disabled={manualSaving || manualCapturing}
+                />
+              </label>
+
+              <QuantityPicker
+                value={manualQty}
+                onChange={setManualQty}
+                startWithGridOpen={false}
+              />
+
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  className="rounded-lg border border-input-border bg-card px-3 py-2 text-sm text-foreground"
+                  onClick={resetManualAdd}
+                  disabled={manualSaving}
+                >
+                  {t("buyList.confirmCancel")}
+                </button>
+                <button
+                  type="button"
+                  className="rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-fg disabled:opacity-60"
+                  disabled={
+                    manualSaving ||
+                    manualCapturing ||
+                    (!manualName.trim() && !manualImagePath) ||
+                    !manualQty ||
+                    !Number.isInteger(Number(manualQty)) ||
+                    Number(manualQty) < 1
+                  }
+                  onClick={() => void confirmManualAdd()}
+                >
+                  {manualSaving
+                    ? t("buyList.adding")
+                    : t("buyList.addManualConfirm")}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
     </div>
   );
 }

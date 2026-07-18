@@ -1,4 +1,4 @@
-const CACHE_NAME = "expire365-v6";
+const CACHE_NAME = "expire365-v7";
 const OFFLINE_FALLBACKS = ["/app", "/login", "/"];
 
 self.addEventListener("install", (event) => {
@@ -34,8 +34,21 @@ self.addEventListener("fetch", (event) => {
     request.mode === "navigate" ||
     request.headers.get("accept")?.includes("text/html");
 
-  // Let the browser handle navigations; Next.js needs a live network response.
   if (isDocument) {
+    // Network-first for navigations; fall back to cached shell when offline.
+    event.respondWith(
+      fetch(request)
+        .then((response) => response)
+        .catch(() =>
+          caches.match(request).then(
+            (cached) =>
+              cached ||
+              caches.match("/app") ||
+              caches.match("/") ||
+              caches.match("/login"),
+          ),
+        ),
+    );
     return;
   }
 

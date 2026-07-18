@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { PrimaryButton } from "@/components/auth-forms";
 import { useT } from "@/components/i18n-provider";
 
@@ -30,28 +30,17 @@ export function PaymentsPanel() {
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState("");
 
-  async function loadCalendar(y = year, m = month) {
+  const loadCalendar = useCallback(async (y = year, m = month) => {
     const response = await fetch(
       `/api/admin/payments/calendar?year=${y}&month=${m}&calendar=1`,
     );
     const data = await response.json();
     setRows(data.rows ?? []);
-  }
+  }, [year, month]);
 
   useEffect(() => {
-    let cancelled = false;
-    async function run() {
-      const response = await fetch(
-        `/api/admin/payments/calendar?year=${year}&month=${month}&calendar=1`,
-      );
-      const data = await response.json();
-      if (!cancelled) setRows(data.rows ?? []);
-    }
-    void run();
-    return () => {
-      cancelled = true;
-    };
-  }, [year, month]);
+    void loadCalendar();
+  }, [loadCalendar]);
 
   function shiftMonth(delta: number) {
     const date = new Date(year, month - 1 + delta, 1);

@@ -1,9 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import {
-  auditInventoryAdded,
-  auditInventoryMerged,
-  auditInventoryRemoved,
   auditProductCreated,
 } from "@/lib/audit-details";
 import { logAuditEvent } from "@/lib/audit-log";

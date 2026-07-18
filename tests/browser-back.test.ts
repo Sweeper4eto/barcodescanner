@@ -1,39 +1,16 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-
-function getPreviousScanStep(step: "scan" | "qty" | "date" | "missing") {
-  switch (step) {
-    case "date":
-      return "qty";
-    case "qty":
-    case "missing":
-      return "scan";
-    default:
-      return null;
-  }
-}
-
-function getPreviousAddProductStep(
-  step: "scan" | "name" | "photo" | "confirm",
-  initialBarcode: string,
-) {
-  switch (step) {
-    case "confirm":
-      return "photo";
-    case "photo":
-      return "name";
-    case "name":
-      return initialBarcode ? null : "scan";
-    default:
-      return null;
-  }
-}
+import {
+  getPreviousAddProductStep,
+  getPreviousScanStep,
+} from "../src/lib/wizard-steps";
 
 test("scan wizard previous step mapping", () => {
-  assert.equal(getPreviousScanStep("date"), "qty");
-  assert.equal(getPreviousScanStep("qty"), "scan");
-  assert.equal(getPreviousScanStep("missing"), "scan");
-  assert.equal(getPreviousScanStep("scan"), null);
+  assert.equal(getPreviousScanStep("date", true), "qty");
+  assert.equal(getPreviousScanStep("qty", true), "scan");
+  assert.equal(getPreviousScanStep("qty", false), "name");
+  assert.equal(getPreviousScanStep("missing", false), "scan");
+  assert.equal(getPreviousScanStep("scan", false), null);
 });
 
 test("add-product wizard previous step mapping", () => {
