@@ -1,4 +1,4 @@
-const { spawnSync } = require("node:child_process");
+import { spawnSync } from "node:child_process";
 
 function run(args) {
   console.log(`> next ${args.join(" ")}`);
