@@ -17,6 +17,14 @@ if [[ "${MAGAZIN_UPDATE_REEXEC:-}" != "1" ]]; then
   exec bash "$SCRIPT_PATH"
 fi
 
+# prisma migrate deploy needs DATABASE_URL in the env (prisma.config.ts reads
+# it). If .env doesn't provide one, fall back to the known DB path so a missing
+# var never blocks migrations.
+if [[ -z "${DATABASE_URL:-}" ]]; then
+  export DATABASE_URL="file:${DB_PATH}"
+  echo "==> DATABASE_URL not set; using ${DATABASE_URL}"
+fi
+
 echo "==> Installing dependencies..."
 npm install
 
