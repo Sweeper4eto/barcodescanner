@@ -1,4 +1,5 @@
 import { readFile } from "node:fs/promises";
+import "dotenv/config";
 import { z } from "zod";
 import { resolveLocalUploadPath } from "@/lib/upload";
 
@@ -124,6 +125,19 @@ Rules:
 - If a field is missing or unreadable, use null (quantity defaults to 1).
 - Do not invent barcodes or dates.`;
 
+const DEFAULT_GEMINI_MODEL = "gemini-2.5-flash";
+const DEFAULT_OPENAI_MODEL = "gpt-4o-mini";
+
+function resolveModel(
+  raw: string | undefined,
+  fallback: string,
+): string {
+  const model = raw?.trim() ?? "";
+  // Reject broken .env values like: DOCUMENT_AI_MODEL=gemini 1.5 flash
+  if (!model || /\s/.test(model)) return fallback;
+  return model;
+}
+
 function documentAiConfigured(): {
   provider: "gemini" | "openai";
   apiKey: string;
@@ -137,28 +151,28 @@ function documentAiConfigured(): {
     return {
       provider: "openai",
       apiKey: openaiKey,
-      model: process.env.DOCUMENT_AI_MODEL?.trim() || "gpt-4o-mini",
+      model: resolveModel(process.env.DOCUMENT_AI_MODEL, DEFAULT_OPENAI_MODEL),
     };
   }
   if (preferred === "gemini" && geminiKey) {
     return {
       provider: "gemini",
       apiKey: geminiKey,
-      model: process.env.DOCUMENT_AI_MODEL?.trim() || "gemini-2.5-flash",
+      model: resolveModel(process.env.DOCUMENT_AI_MODEL, DEFAULT_GEMINI_MODEL),
     };
   }
   if (geminiKey) {
     return {
       provider: "gemini",
       apiKey: geminiKey,
-      model: process.env.DOCUMENT_AI_MODEL?.trim() || "gemini-2.5-flash",
+      model: resolveModel(process.env.DOCUMENT_AI_MODEL, DEFAULT_GEMINI_MODEL),
     };
   }
   if (openaiKey) {
     return {
       provider: "openai",
       apiKey: openaiKey,
-      model: process.env.DOCUMENT_AI_MODEL?.trim() || "gpt-4o-mini",
+      model: resolveModel(process.env.DOCUMENT_AI_MODEL, DEFAULT_OPENAI_MODEL),
     };
   }
   return null;
