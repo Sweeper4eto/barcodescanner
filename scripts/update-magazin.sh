@@ -53,6 +53,16 @@ release_db_lock() {
 
 migrate_with_retry() {
   local attempt
+  local status_out
+
+  # Fast path: nothing pending — don't touch the DB (avoids lock failures).
+  status_out="$(npx prisma migrate status 2>&1 || true)"
+  echo "$status_out"
+  if echo "$status_out" | grep -qi "Database schema is up to date"; then
+    echo "==> Schema already up to date; skipping migrate deploy."
+    return 0
+  fi
+
   for attempt in 1 2 3 4 5; do
     echo "==> Applying migrations (attempt ${attempt}/5)..."
     if npx prisma migrate deploy; then
@@ -62,6 +72,14 @@ migrate_with_retry() {
     release_db_lock
     sleep $((attempt * 2))
   done
+
+  # Last chance: if status is current despite deploy errors, continue the update.
+  status_out="$(npx prisma migrate status 2>&1 || true)"
+  if echo "$status_out" | grep -qi "Database schema is up to date"; then
+    echo "==> migrate deploy failed but schema is up to date; continuing."
+    return 0
+  fi
+
   echo "ERROR: prisma migrate deploy failed after retries."
   echo "Check lock holders with: fuser -v $DB_PATH"
   return 1
