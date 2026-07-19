@@ -89,10 +89,21 @@ function AddDocumentContent() {
         setStep("camera");
         return;
       }
+      type ParsedItem = {
+        name?: string;
+        barcode?: string | null;
+        articul?: string | null;
+        expiryYmd?: string | null;
+        quantity?: number;
+        productId?: string | null;
+        productImagePath?: string | null;
+        matchSource?: "barcode" | "articul" | "name" | null;
+      };
+
       const rawText = await response.text();
-      let data: { error?: string; items?: unknown } | null = null;
+      let data: { error?: string; items?: ParsedItem[] } | null = null;
       try {
-        data = JSON.parse(rawText) as { error?: string; items?: unknown };
+        data = JSON.parse(rawText) as { error?: string; items?: ParsedItem[] };
       } catch {
         setError(
           response.ok
@@ -113,16 +124,7 @@ function AddDocumentContent() {
       }
 
       const next: DraftItem[] = data.items.map(
-        (item: {
-          name?: string;
-          barcode?: string | null;
-          articul?: string | null;
-          expiryYmd?: string | null;
-          quantity?: number;
-          productId?: string | null;
-          productImagePath?: string | null;
-          matchSource?: "barcode" | "articul" | "name" | null;
-        }) => ({
+        (item: ParsedItem) => ({
           key: newKey(),
           name: item.name ?? "",
           barcode: item.barcode ?? "",
