@@ -73,16 +73,81 @@ function normalizeQuantity(value: unknown): number {
   return 1;
 }
 
+function tryParseJson(text: string): unknown {
+  return JSON.parse(text);
+}
+
+/** Recover rows when the model truncates mid-array (common on long tables). */
+export function repairTruncatedItemsJson(raw: string): string | null {
+  const itemsKey = raw.indexOf('"items"');
+  if (itemsKey < 0) return null;
+  const arrayStart = raw.indexOf("[", itemsKey);
+  if (arrayStart < 0) return null;
+
+  let lastCompleteObjectEnd = -1;
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+
+  for (let i = arrayStart + 1; i < raw.length; i += 1) {
+    const ch = raw[i];
+    if (inString) {
+      if (escape) {
+        escape = false;
+      } else if (ch === "\\") {
+        escape = true;
+      } else if (ch === '"') {
+        inString = false;
+      }
+      continue;
+    }
+    if (ch === '"') {
+      inString = true;
+      continue;
+    }
+    if (ch === "{") depth += 1;
+    else if (ch === "}") {
+      depth -= 1;
+      if (depth === 0) lastCompleteObjectEnd = i;
+    } else if (ch === "]" && depth === 0) {
+      return null; // already closed
+    }
+  }
+
+  if (lastCompleteObjectEnd < 0) return null;
+  return `{"items":${raw.slice(arrayStart, lastCompleteObjectEnd + 1)}]}`;
+}
+
 function extractJsonObject(text: string): unknown {
   const trimmed = text.trim();
   const fenced = /^```(?:json)?\s*([\s\S]*?)```$/i.exec(trimmed);
   const body = fenced ? fenced[1].trim() : trimmed;
   const start = body.indexOf("{");
-  const end = body.lastIndexOf("}");
-  if (start < 0 || end < start) {
+  if (start < 0) {
     throw new Error("OCR_PARSE_FAILED");
   }
-  return JSON.parse(body.slice(start, end + 1));
+
+  const slice = body.slice(start);
+  const attempts = [slice];
+  const end = slice.lastIndexOf("}");
+  if (end > 0) attempts.push(slice.slice(0, end + 1));
+  const repaired = repairTruncatedItemsJson(slice);
+  if (repaired) attempts.push(repaired);
+
+  let lastError: unknown;
+  for (const candidate of attempts) {
+    try {
+      return tryParseJson(candidate);
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  console.error(
+    "document AI JSON parse failed",
+    lastError instanceof Error ? lastError.message : lastError,
+  );
+  throw new Error("OCR_PARSE_FAILED");
 }
 
 function toRows(payload: unknown): DocumentOcrRow[] {
@@ -111,11 +176,11 @@ Documents may be in Bulgarian. Common columns:
 - Годност = expiry date (DD.MM.YYYY) → "expiryDate"
 - Баркод / EAN = real barcode if present → "barcode"
 
-Return ONLY valid JSON with this shape:
-{"items":[{"name":"string","barcode":"string|null","articul":"string|null","expiryDate":"YYYY-MM-DD or DD.MM.YYYY","quantity":1}]}
+Return ONLY compact valid JSON (no markdown, no extra spaces) with this shape:
+{"items":[{"name":"...","barcode":null,"articul":"...","expiryDate":"YYYY-MM-DD","quantity":1}]}
 
 Rules:
-- Extract EVERY product row in the table (do not stop early).
+- Extract EVERY product row in the table (do not stop early). Keep each object short.
 - name = product name (keep original language / Cyrillic).
 - barcode = EAN/UPC digits only if a real barcode column exists; else null. Never put Артикул into barcode.
 - articul = Артикул / SKU / арт. number if present, else null.
@@ -123,7 +188,8 @@ Rules:
 - quantity = Заявени / pieces if present, else 1. Ignore Разлика (difference) column.
 - Ignore headers, client address, totals, signatures, batch/Партида unless needed for clarity.
 - If a field is missing or unreadable, use null (quantity defaults to 1).
-- Do not invent barcodes or dates.`;
+- Do not invent barcodes or dates.
+- Output must be complete closable JSON even if the page is long.`;
 
 const DEFAULT_GEMINI_MODEL = "gemini-3.5-flash";
 const DEFAULT_OPENAI_MODEL = "gpt-4o-mini";
@@ -239,7 +305,7 @@ async function extractWithGeminiOnce(
       ],
       generationConfig: {
         temperature: 0.1,
-        maxOutputTokens: 8192,
+        maxOutputTokens: 65536,
         // Avoid forcing JSON MIME on Gemini 3.x thinking models — they often
         // return empty candidates. We still ask for JSON in the prompt.
         responseMimeType: model.includes("2.0") ? "application/json" : undefined,
