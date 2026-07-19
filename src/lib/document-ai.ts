@@ -385,8 +385,12 @@ async function extractWithGemini(
   let lastError: Error | null = null;
 
   for (const model of models) {
+    const startedAt = Date.now();
     try {
       const text = await extractWithGeminiOnce(apiKey, model, mime, base64);
+      console.log(
+        `document AI: model "${model}" ok in ${Date.now() - startedAt}ms`,
+      );
       if (model !== preferredModel) {
         console.warn(
           `document AI: preferred model "${preferredModel}" failed; used "${model}"`,
@@ -394,6 +398,9 @@ async function extractWithGemini(
       }
       return text;
     } catch (error) {
+      console.warn(
+        `document AI: model "${model}" failed in ${Date.now() - startedAt}ms`,
+      );
       const message = error instanceof Error ? error.message : String(error);
       lastError = error instanceof Error ? error : new Error(message);
       if (isUnavailableModelError(message) || message.startsWith("OCR_EMPTY:")) {

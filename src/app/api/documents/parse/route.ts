@@ -100,9 +100,11 @@ export async function POST(request: Request) {
     }
 
     try {
+      const extractStart = Date.now();
       const rows = parsed.data.imagePath
         ? await extractDocumentRowsFromPath(parsed.data.imagePath)
         : await extractDocumentRows(parsed.data.dataUrl!);
+      const extractMs = Date.now() - extractStart;
 
       if (parsed.data.imagePath) {
         await deleteLocalUpload(parsed.data.imagePath);
@@ -114,7 +116,11 @@ export async function POST(request: Request) {
           { status: 422 },
         );
       }
+      const matchStart = Date.now();
       const items = await matchDocumentRows(parsed.data.storeId, rows);
+      console.log(
+        `document parse timing: extract=${extractMs}ms match=${Date.now() - matchStart}ms rows=${rows.length}`,
+      );
       return NextResponse.json({ items });
     } catch (error) {
       const message = error instanceof Error ? error.message : "";
