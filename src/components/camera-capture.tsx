@@ -283,11 +283,45 @@ async function uploadImage(dataUrl: string): Promise<string> {
     credentials: "same-origin",
     body: JSON.stringify({ dataUrl }),
   });
-  const data = await response.json();
+  const data = await response.json().catch(() => null);
   if (!response.ok) {
-    throw new Error(data.error ?? "Upload failed");
+    throw new Error(
+      typeof data?.error === "string" && data.error
+        ? data.error
+        : "Upload failed",
+    );
   }
-  return data.path as string;
+  if (typeof data?.path !== "string" || !data.path) {
+    throw new Error("Upload failed");
+  }
+  return data.path;
+}
+
+/** Shrink phone photos so upload + Gemini stay under size/time limits. */
+export function prepareDocumentImage(dataUrl: string): Promise<string> {
+  const MAX_EDGE = 2000;
+  const QUALITY = 0.82;
+
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => {
+      const scale = Math.min(1, MAX_EDGE / Math.max(image.width, image.height));
+      const width = Math.max(1, Math.round(image.width * scale));
+      const height = Math.max(1, Math.round(image.height * scale));
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        reject(new Error("Upload failed"));
+        return;
+      }
+      ctx.drawImage(image, 0, 0, width, height);
+      resolve(canvas.toDataURL("image/jpeg", QUALITY));
+    };
+    image.onerror = () => reject(new Error("Upload failed"));
+    image.src = dataUrl;
+  });
 }
 
 export { uploadImage };

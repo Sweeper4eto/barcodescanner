@@ -1,4 +1,4 @@
-const CACHE_NAME = "expire365-v7";
+const CACHE_NAME = "expire365-v8";
 const OFFLINE_FALLBACKS = ["/app", "/login", "/"];
 
 self.addEventListener("install", (event) => {

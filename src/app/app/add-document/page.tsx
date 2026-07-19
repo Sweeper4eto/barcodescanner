@@ -3,7 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { PrimaryButton, SecondaryButton } from "@/components/auth-forms";
-import { CameraCapture, uploadImage } from "@/components/camera-capture";
+import { CameraCapture, prepareDocumentImage, uploadImage } from "@/components/camera-capture";
 import { ExpiryDatePicker } from "@/components/expiry-date-picker";
 import { MobilePageHeader } from "@/components/mobile-page-header";
 import { ProductImage } from "@/components/product-image";
@@ -74,7 +74,8 @@ function AddDocumentContent() {
     setError("");
     setStep("processing");
     try {
-      const imagePath = await uploadImage(dataUrl);
+      const prepared = await prepareDocumentImage(dataUrl);
+      const imagePath = await uploadImage(prepared);
       const response = await fetch("/api/documents/parse", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -82,7 +83,11 @@ function AddDocumentContent() {
       });
       const data = await response.json().catch(() => null);
       if (!response.ok || !data?.items) {
-        setError(data?.error ?? t("errors.documentParseFailed"));
+        setError(
+          typeof data?.error === "string" && data.error
+            ? data.error
+            : t("errors.documentParseFailed"),
+        );
         setStep("camera");
         return;
       }
@@ -111,8 +116,9 @@ function AddDocumentContent() {
       );
       setItems(next);
       setStep("review");
-    } catch {
-      setError(t("errors.documentParseFailed"));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "";
+      setError(message || t("errors.documentParseFailed"));
       setStep("camera");
     }
   }
