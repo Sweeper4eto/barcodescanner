@@ -1,3 +1,4 @@
+import { Prisma } from "@/generated/prisma/client";
 import { barcodeLookupValues, normalizeBarcode } from "@/lib/barcode";
 import { db } from "@/lib/db";
 import type { DocumentOcrRow } from "@/lib/document-ai";
@@ -21,82 +22,18 @@ export type DocumentDraftItem = {
   matchSource: "barcode" | "articul" | "name" | null;
 };
 
-async function findProductByBarcode(
-  barcode: string,
-): Promise<MatchedProduct | null> {
-  const normalized = normalizeBarcode(barcode);
-  if (!normalized) return null;
-  const product = await db.product.findFirst({
-    where: { barcode: { in: barcodeLookupValues(normalized) } },
-    select: { id: true, name: true, imagePath: true, barcode: true },
-  });
-  return product;
-}
+type ProductSelect = MatchedProduct;
 
-async function findProductByArticul(
-  storeId: string,
-  articul: string,
-): Promise<MatchedProduct | null> {
-  const trimmed = articul.trim();
-  if (!trimmed) return null;
-  const entry = await db.inventoryEntry.findFirst({
-    where: {
-      storeId,
-      articul: trimmed,
-      ...activeInventoryWhere,
-    },
-    orderBy: { enteredAt: "desc" },
-    include: {
-      product: {
-        select: { id: true, name: true, imagePath: true, barcode: true },
-      },
-    },
-  });
-  return entry?.product ?? null;
-}
-
-async function findProductByName(name: string): Promise<MatchedProduct | null> {
-  const trimmed = name.trim();
-  if (!trimmed) return null;
-
-  const exact = await db.$queryRaw<
-    Array<{
-      id: string;
-      name: string;
-      imagePath: string | null;
-      barcode: string;
-    }>
-  >`SELECT id, name, imagePath, barcode FROM Product WHERE lower(name) = lower(${trimmed}) LIMIT 1`;
-
-  if (exact[0]) return exact[0];
-  return null;
-}
-
-export async function matchDocumentRow(
-  storeId: string,
+function draftFromRow(
   row: DocumentOcrRow,
-): Promise<DocumentDraftItem> {
-  let product: MatchedProduct | null = null;
-  let matchSource: DocumentDraftItem["matchSource"] = null;
-
-  if (row.barcode) {
-    product = await findProductByBarcode(row.barcode);
-    if (product) matchSource = "barcode";
-  }
-
-  if (!product && row.articul) {
-    product = await findProductByArticul(storeId, row.articul);
-    if (product) matchSource = "articul";
-  }
-
-  if (!product && row.name) {
-    product = await findProductByName(row.name);
-    if (product) matchSource = "name";
-  }
-
+  product: MatchedProduct | null,
+  matchSource: DocumentDraftItem["matchSource"],
+): DocumentDraftItem {
   return {
     name: product?.name || row.name,
-    barcode: product?.barcode || (row.barcode ? normalizeBarcode(row.barcode) || row.barcode : null),
+    barcode:
+      product?.barcode ||
+      (row.barcode ? normalizeBarcode(row.barcode) || row.barcode : null),
     articul: row.articul,
     expiryYmd: row.expiryYmd,
     quantity: row.quantity,
@@ -106,13 +43,152 @@ export async function matchDocumentRow(
   };
 }
 
+async function loadProductsByBarcodes(
+  barcodes: string[],
+): Promise<Map<string, ProductSelect>> {
+  const lookup = new Map<string, ProductSelect>();
+  if (barcodes.length === 0) return lookup;
+
+  const products = await db.product.findMany({
+    where: { barcode: { in: barcodes } },
+    select: { id: true, name: true, imagePath: true, barcode: true },
+  });
+
+  for (const product of products) {
+    for (const value of barcodeLookupValues(product.barcode)) {
+      if (!lookup.has(value)) lookup.set(value, product);
+    }
+  }
+  return lookup;
+}
+
+async function loadProductsByArticuls(
+  storeId: string,
+  articuls: string[],
+): Promise<Map<string, ProductSelect>> {
+  const lookup = new Map<string, ProductSelect>();
+  if (articuls.length === 0) return lookup;
+
+  const entries = await db.inventoryEntry.findMany({
+    where: {
+      storeId,
+      articul: { in: articuls },
+      ...activeInventoryWhere,
+    },
+    orderBy: { enteredAt: "desc" },
+    include: {
+      product: {
+        select: { id: true, name: true, imagePath: true, barcode: true },
+      },
+    },
+  });
+
+  for (const entry of entries) {
+    const key = entry.articul?.trim();
+    if (!key || lookup.has(key) || !entry.product) continue;
+    lookup.set(key, entry.product);
+  }
+  return lookup;
+}
+
+async function loadProductsByNames(
+  names: string[],
+): Promise<Map<string, ProductSelect>> {
+  const lookup = new Map<string, ProductSelect>();
+  if (names.length === 0) return lookup;
+
+  const products = await db.$queryRaw<ProductSelect[]>`
+    SELECT id, name, imagePath, barcode
+    FROM Product
+    WHERE lower(name) IN (${Prisma.join(names.map((n) => n.toLowerCase()))})
+  `;
+
+  for (const product of products) {
+    const key = product.name.trim().toLowerCase();
+    if (!lookup.has(key)) lookup.set(key, product);
+  }
+  return lookup;
+}
+
+function resolveRow(
+  row: DocumentOcrRow,
+  byBarcode: Map<string, ProductSelect>,
+  byArticul: Map<string, ProductSelect>,
+  byName: Map<string, ProductSelect>,
+): DocumentDraftItem {
+  let product: ProductSelect | null = null;
+  let matchSource: DocumentDraftItem["matchSource"] = null;
+
+  if (row.barcode) {
+    for (const value of barcodeLookupValues(row.barcode)) {
+      const hit = byBarcode.get(value);
+      if (hit) {
+        product = hit;
+        matchSource = "barcode";
+        break;
+      }
+    }
+  }
+
+  if (!product && row.articul) {
+    const hit = byArticul.get(row.articul.trim());
+    if (hit) {
+      product = hit;
+      matchSource = "articul";
+    }
+  }
+
+  if (!product && row.name) {
+    const hit = byName.get(row.name.trim().toLowerCase());
+    if (hit) {
+      product = hit;
+      matchSource = "name";
+    }
+  }
+
+  return draftFromRow(row, product, matchSource);
+}
+
+/** Match one OCR row (uses the batched path under the hood). */
+export async function matchDocumentRow(
+  storeId: string,
+  row: DocumentOcrRow,
+): Promise<DocumentDraftItem> {
+  const [item] = await matchDocumentRows(storeId, [row]);
+  return item;
+}
+
+/**
+ * Match many OCR rows with a few batch queries instead of N sequential
+ * lookups (each of which previously scanned Product for lower(name)).
+ */
 export async function matchDocumentRows(
   storeId: string,
   rows: DocumentOcrRow[],
 ): Promise<DocumentDraftItem[]> {
-  const items: DocumentDraftItem[] = [];
+  if (rows.length === 0) return [];
+
+  const barcodeValues = new Set<string>();
+  const articuls = new Set<string>();
+  const names = new Set<string>();
+
   for (const row of rows) {
-    items.push(await matchDocumentRow(storeId, row));
+    if (row.barcode) {
+      for (const value of barcodeLookupValues(row.barcode)) {
+        barcodeValues.add(value);
+      }
+    }
+    const articul = row.articul?.trim();
+    if (articul) articuls.add(articul);
+    const name = row.name?.trim();
+    if (name) names.add(name);
   }
-  return items;
+
+  const [byBarcode, byArticul, byName] = await Promise.all([
+    loadProductsByBarcodes([...barcodeValues]),
+    loadProductsByArticuls(storeId, [...articuls]),
+    loadProductsByNames([...names]),
+  ]);
+
+  return rows.map((row) => resolveRow(row, byBarcode, byArticul, byName));
 }
