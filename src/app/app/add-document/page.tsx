@@ -3,7 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { PrimaryButton, SecondaryButton } from "@/components/auth-forms";
-import { CameraCapture, prepareDocumentImage, uploadImage } from "@/components/camera-capture";
+import { CameraCapture, prepareDocumentImage } from "@/components/camera-capture";
 import { ExpiryDatePicker } from "@/components/expiry-date-picker";
 import { MobilePageHeader } from "@/components/mobile-page-header";
 import { ProductImage } from "@/components/product-image";
@@ -74,12 +74,13 @@ function AddDocumentContent() {
     setError("");
     setStep("processing");
     try {
+      // Send image in the parse request (same path as the working server test).
+      // Skipping /api/upload avoids disk/cwd/size failures that only hit phones.
       const prepared = await prepareDocumentImage(dataUrl);
-      const imagePath = await uploadImage(prepared);
       const response = await fetch("/api/documents/parse", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ storeId, imagePath }),
+        body: JSON.stringify({ storeId, dataUrl: prepared }),
       });
       const data = await response.json().catch(() => null);
       if (!response.ok || !data?.items) {

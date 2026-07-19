@@ -2,7 +2,9 @@ import { mkdir, unlink, writeFile } from "fs/promises";
 import path from "path";
 import type { MessageKey } from "@/i18n";
 
-const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads");
+const UPLOAD_DIR =
+  process.env.MAGAZIN_UPLOAD_DIR?.trim() ||
+  path.join(process.cwd(), "public", "uploads");
 
 export class UploadError extends Error {
   constructor(public readonly errorKey: MessageKey) {
