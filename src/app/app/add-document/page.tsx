@@ -224,6 +224,7 @@ function AddDocumentContent() {
           <CameraCapture
             autoStart
             allowFileUpload
+            compact
             onCapture={(dataUrl) => void onCapture(dataUrl)}
             onCancel={() =>
               goBackOrApp(

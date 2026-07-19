@@ -9,6 +9,11 @@ type Props = {
   onCancel?: () => void;
   autoStart?: boolean;
   allowFileUpload?: boolean;
+  /**
+   * Cap the live/preview image height so Capture / Upload / Cancel stay on
+   * screen (needed on Add document where the phone camera is otherwise huge).
+   */
+  compact?: boolean;
 };
 
 const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
@@ -82,6 +87,7 @@ export function CameraCapture({
   onCancel,
   autoStart = false,
   allowFileUpload = false,
+  compact = false,
 }: Props) {
   const { t } = useT();
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -194,47 +200,52 @@ export function CameraCapture({
     onCapture(preview);
   }
 
+  const previewFrameClass = compact
+    ? "mx-auto max-h-[min(38vh,16rem)] w-full rounded-xl border border-card-border bg-black object-contain"
+    : "max-w-full rounded-xl border border-card-border";
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {error ? <p className="text-sm text-error">{error}</p> : null}
 
       {!preview ? (
         <>
           <video
             ref={videoRef}
-            className={
-              active
-                ? "max-w-full rounded-xl border border-card-border"
-                : "hidden"
-            }
+            className={active ? previewFrameClass : "hidden"}
             playsInline
             muted
             autoPlay
           />
-          {!active ? (
-            <PrimaryButton onClick={() => void startCamera()} disabled={starting}>
-              {starting ? t("scanner.starting") : t("camera.start")}
-            </PrimaryButton>
-          ) : (
-            <PrimaryButton onClick={takePhoto}>{t("camera.capture")}</PrimaryButton>
-          )}
-          {allowFileUpload ? (
-            <>
-              <SecondaryButton
-                onClick={() => fileInputRef.current?.click()}
-                disabled={starting}
-              >
-                {t("camera.uploadExisting")}
-              </SecondaryButton>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/jpeg,image/png,image/webp,image/gif"
-                className="hidden"
-                onChange={(event) => void onFileSelected(event)}
-              />
-            </>
-          ) : null}
+          <div className="flex flex-col gap-2">
+            {!active ? (
+              <PrimaryButton onClick={() => void startCamera()} disabled={starting}>
+                {starting ? t("scanner.starting") : t("camera.start")}
+              </PrimaryButton>
+            ) : (
+              <PrimaryButton onClick={takePhoto}>{t("camera.capture")}</PrimaryButton>
+            )}
+            {allowFileUpload ? (
+              <>
+                <SecondaryButton
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={starting}
+                >
+                  {t("camera.uploadExisting")}
+                </SecondaryButton>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  className="hidden"
+                  onChange={(event) => void onFileSelected(event)}
+                />
+              </>
+            ) : null}
+            {onCancel ? (
+              <SecondaryButton onClick={onCancel}>{t("common.cancel")}</SecondaryButton>
+            ) : null}
+          </div>
         </>
       ) : (
         <>
@@ -242,36 +253,46 @@ export function CameraCapture({
           <img
             src={preview}
             alt={t("camera.productPhoto")}
-            className="w-full rounded-xl border border-card-border"
+            className={
+              compact
+                ? previewFrameClass
+                : "w-full rounded-xl border border-card-border"
+            }
           />
-          <PrimaryButton onClick={() => void uploadAndContinue()}>{t("common.next")}</PrimaryButton>
-          <SecondaryButton
-            onClick={() => {
-              setPreview(null);
-              void startCamera();
-            }}
-          >
-            {t("camera.newPhoto")}
-          </SecondaryButton>
-          {allowFileUpload ? (
-            <>
-              <SecondaryButton onClick={() => fileInputRef.current?.click()}>
-                {t("camera.uploadExisting")}
-              </SecondaryButton>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/jpeg,image/png,image/webp,image/gif"
-                className="hidden"
-                onChange={(event) => void onFileSelected(event)}
-              />
-            </>
-          ) : null}
+          <div className="flex flex-col gap-2">
+            <PrimaryButton onClick={() => void uploadAndContinue()}>
+              {t("common.next")}
+            </PrimaryButton>
+            <SecondaryButton
+              onClick={() => {
+                setPreview(null);
+                void startCamera();
+              }}
+            >
+              {t("camera.newPhoto")}
+            </SecondaryButton>
+            {allowFileUpload ? (
+              <>
+                <SecondaryButton onClick={() => fileInputRef.current?.click()}>
+                  {t("camera.uploadExisting")}
+                </SecondaryButton>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  className="hidden"
+                  onChange={(event) => void onFileSelected(event)}
+                />
+              </>
+            ) : null}
+            {onCancel ? (
+              <SecondaryButton onClick={onCancel}>{t("common.cancel")}</SecondaryButton>
+            ) : null}
+          </div>
         </>
       )}
 
       <canvas ref={canvasRef} className="hidden" />
-      {onCancel ? <SecondaryButton onClick={onCancel}>{t("common.cancel")}</SecondaryButton> : null}
     </div>
   );
 }
