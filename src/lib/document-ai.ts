@@ -239,16 +239,22 @@ async function extractWithGeminiOnce(
       ],
       generationConfig: {
         temperature: 0.1,
-        responseMimeType: "application/json",
+        maxOutputTokens: 8192,
+        // Avoid forcing JSON MIME on Gemini 3.x thinking models — they often
+        // return empty candidates. We still ask for JSON in the prompt.
+        responseMimeType: model.includes("2.0") ? "application/json" : undefined,
       },
     }),
   });
 
   const data = (await response.json().catch(() => null)) as {
     error?: { message?: string; status?: string };
+    promptFeedback?: { blockReason?: string };
     candidates?: Array<{
       finishReason?: string;
-      content?: { parts?: Array<{ text?: string }> };
+      content?: {
+        parts?: Array<{ text?: string; thought?: boolean }>;
+      };
     }>;
   } | null;
 
@@ -258,9 +264,14 @@ async function extractWithGeminiOnce(
     throw new Error(`OCR_PROVIDER:${detail}`);
   }
 
+  if (data?.promptFeedback?.blockReason) {
+    throw new Error(`OCR_EMPTY:BLOCKED_${data.promptFeedback.blockReason}`);
+  }
+
   const candidate = data?.candidates?.[0];
   const text = candidate?.content?.parts
-    ?.map((part) => part.text ?? "")
+    ?.filter((part) => part.text && !part.thought)
+    .map((part) => part.text ?? "")
     .join("\n")
     .trim();
   if (!text) {
