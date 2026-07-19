@@ -83,9 +83,12 @@ function AddDocumentContent() {
         body: JSON.stringify({ storeId, dataUrl: prepared }),
       });
       if (response.status === 413) {
-        setError(
-          "Photo is too large for the server. Ask admin to raise nginx client_max_body_size.",
-        );
+        setError(t("errors.documentTooLarge"));
+        setStep("camera");
+        return;
+      }
+      if (response.status === 504) {
+        setError(t("errors.documentTimeout"));
         setStep("camera");
         return;
       }
@@ -108,7 +111,9 @@ function AddDocumentContent() {
         setError(
           response.ok
             ? t("errors.documentParseFailed")
-            : `Server error ${response.status}. If this is 413, raise nginx client_max_body_size.`,
+            : response.status === 502 || response.status === 503
+              ? t("errors.documentTimeout")
+              : t("errors.documentParseFailed"),
         );
         setStep("camera");
         return;

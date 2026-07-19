@@ -111,6 +111,10 @@ export const en = {
       "Document scanning is not configured. Set GEMINI_API_KEY or OPENAI_API_KEY on the server.",
     documentParseFailed: "Could not read the document. Try a clearer photo.",
     documentNoItems: "No products were found on this document.",
+    documentTooLarge:
+      "The photo is too large. Try again with a smaller or clearer photo.",
+    documentTimeout:
+      "Reading the document took too long. Try a clearer photo or a page with fewer items.",
   },
   app: {
     greeting: "Hello, {username}",
