@@ -147,6 +147,11 @@ function extractJsonObject(text: string): unknown {
     "document AI JSON parse failed",
     lastError instanceof Error ? lastError.message : lastError,
   );
+  if (process.env.OCR_DEBUG) {
+    console.error("OCR_DEBUG rawLength", body.length);
+    console.error("OCR_DEBUG head", body.slice(0, 300));
+    console.error("OCR_DEBUG tail", body.slice(-300));
+  }
   throw new Error("OCR_PARSE_FAILED");
 }
 
