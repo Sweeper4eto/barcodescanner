@@ -82,7 +82,26 @@ function AddDocumentContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ storeId, dataUrl: prepared }),
       });
-      const data = await response.json().catch(() => null);
+      if (response.status === 413) {
+        setError(
+          "Photo is too large for the server. Ask admin to raise nginx client_max_body_size.",
+        );
+        setStep("camera");
+        return;
+      }
+      const rawText = await response.text();
+      let data: { error?: string; items?: unknown } | null = null;
+      try {
+        data = JSON.parse(rawText) as { error?: string; items?: unknown };
+      } catch {
+        setError(
+          response.ok
+            ? t("errors.documentParseFailed")
+            : `Server error ${response.status}. If this is 413, raise nginx client_max_body_size.`,
+        );
+        setStep("camera");
+        return;
+      }
       if (!response.ok || !data?.items) {
         setError(
           typeof data?.error === "string" && data.error

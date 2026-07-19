@@ -297,29 +297,51 @@ async function uploadImage(dataUrl: string): Promise<string> {
   return data.path;
 }
 
-/** Shrink phone photos so upload + Gemini stay under size/time limits. */
+/** Shrink phone photos so the JSON body stays under typical nginx 1MB limits. */
 export function prepareDocumentImage(dataUrl: string): Promise<string> {
-  const MAX_EDGE = 2000;
-  const QUALITY = 0.82;
+  const TARGET_BYTES = 700_000; // base64 JSON must stay under ~1MB nginx default
+  const STEPS: Array<{ maxEdge: number; quality: number }> = [
+    { maxEdge: 1600, quality: 0.75 },
+    { maxEdge: 1280, quality: 0.7 },
+    { maxEdge: 1024, quality: 0.65 },
+    { maxEdge: 900, quality: 0.55 },
+  ];
 
   return new Promise((resolve, reject) => {
     const image = new Image();
     image.onload = () => {
-      const scale = Math.min(1, MAX_EDGE / Math.max(image.width, image.height));
-      const width = Math.max(1, Math.round(image.width * scale));
-      const height = Math.max(1, Math.round(image.height * scale));
-      const canvas = document.createElement("canvas");
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) {
-        reject(new Error("Upload failed"));
-        return;
+      try {
+        let best = "";
+        for (const step of STEPS) {
+          const scale = Math.min(
+            1,
+            step.maxEdge / Math.max(image.width, image.height),
+          );
+          const width = Math.max(1, Math.round(image.width * scale));
+          const height = Math.max(1, Math.round(image.height * scale));
+          const canvas = document.createElement("canvas");
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) {
+            reject(new Error("Could not prepare photo"));
+            return;
+          }
+          ctx.drawImage(image, 0, 0, width, height);
+          best = canvas.toDataURL("image/jpeg", step.quality);
+          // data:image/jpeg;base64, ≈ 23 chars + 4/3 raw bytes
+          const approxBytes = Math.floor(((best.length - 23) * 3) / 4);
+          if (approxBytes <= TARGET_BYTES) {
+            resolve(best);
+            return;
+          }
+        }
+        resolve(best || dataUrl);
+      } catch {
+        reject(new Error("Could not prepare photo"));
       }
-      ctx.drawImage(image, 0, 0, width, height);
-      resolve(canvas.toDataURL("image/jpeg", QUALITY));
     };
-    image.onerror = () => reject(new Error("Upload failed"));
+    image.onerror = () => reject(new Error("Could not prepare photo"));
     image.src = dataUrl;
   });
 }
