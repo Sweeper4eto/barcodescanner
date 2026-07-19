@@ -110,7 +110,9 @@ export function repairTruncatedItemsJson(raw: string): string | null {
       depth -= 1;
       if (depth === 0) lastCompleteObjectEnd = i;
     } else if (ch === "]" && depth === 0) {
-      return null; // already closed
+      // End of the array. We have all complete objects; reconstruct a valid
+      // wrapper (the model sometimes omits the closing root brace).
+      break;
     }
   }
 

@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { parseDocumentExpiry } from "../src/lib/document-ai";
+import {
+  parseDocumentExpiry,
+  repairTruncatedItemsJson,
+} from "../src/lib/document-ai";
 
 describe("parseDocumentExpiry", () => {
   it("parses ISO dates", () => {
@@ -18,5 +21,27 @@ describe("parseDocumentExpiry", () => {
   it("returns null for empty or invalid", () => {
     assert.equal(parseDocumentExpiry(""), null);
     assert.equal(parseDocumentExpiry("n/a"), null);
+  });
+});
+
+describe("repairTruncatedItemsJson", () => {
+  it("reconstructs when the closing root brace is missing", () => {
+    const raw = '{\n"items":[{"name":"A"},{"name":"B"}]';
+    const repaired = repairTruncatedItemsJson(raw);
+    assert.ok(repaired);
+    const parsed = JSON.parse(repaired!);
+    assert.deepEqual(parsed.items, [{ name: "A" }, { name: "B" }]);
+  });
+
+  it("drops an incomplete trailing object", () => {
+    const raw = '{"items":[{"name":"A"},{"name":"B"},{"name":"C';
+    const repaired = repairTruncatedItemsJson(raw);
+    assert.ok(repaired);
+    const parsed = JSON.parse(repaired!);
+    assert.deepEqual(parsed.items, [{ name: "A" }, { name: "B" }]);
+  });
+
+  it("returns null when there is no complete object", () => {
+    assert.equal(repairTruncatedItemsJson('{"items":[{"name":"A'), null);
   });
 });
