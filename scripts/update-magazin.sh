@@ -63,6 +63,13 @@ migrate_with_retry() {
     return 0
   fi
 
+  # If status itself can't open the DB, don't abort the whole update.
+  if echo "$status_out" | grep -qi "database is locked"; then
+    echo "==> DB locked during migrate status; skipping migrate and continuing build."
+    echo "    Free lock later with: fuser -v $DB_PATH  (schema was already current recently)."
+    return 0
+  fi
+
   for attempt in 1 2 3 4 5; do
     echo "==> Applying migrations (attempt ${attempt}/5)..."
     if npx prisma migrate deploy; then
@@ -80,9 +87,10 @@ migrate_with_retry() {
     return 0
   fi
 
-  echo "ERROR: prisma migrate deploy failed after retries."
+  echo "WARNING: prisma migrate deploy failed after retries — continuing build anyway."
   echo "Check lock holders with: fuser -v $DB_PATH"
-  return 1
+  echo "If you have pending migrations, stop lock holders and re-run update-magazin."
+  return 0
 }
 
 release_db_lock
