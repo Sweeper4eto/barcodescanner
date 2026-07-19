@@ -128,6 +128,15 @@ Rules:
 const DEFAULT_GEMINI_MODEL = "gemini-3.5-flash";
 const DEFAULT_OPENAI_MODEL = "gpt-4o-mini";
 
+/** Tried in order when the preferred model returns 404 / unavailable. */
+const GEMINI_MODEL_FALLBACKS = [
+  "gemini-3.5-flash",
+  "gemini-3.1-flash-lite",
+  "gemini-3-flash-preview",
+  "gemini-2.0-flash",
+  "gemini-flash-latest",
+];
+
 function resolveModel(
   raw: string | undefined,
   fallback: string,
@@ -136,6 +145,16 @@ function resolveModel(
   // Reject broken .env values like: DOCUMENT_AI_MODEL=gemini 1.5 flash
   if (!model || /\s/.test(model)) return fallback;
   return model;
+}
+
+function geminiModelsToTry(preferred: string): string[] {
+  const out: string[] = [];
+  const push = (model: string) => {
+    if (model && !out.includes(model)) out.push(model);
+  };
+  push(preferred);
+  for (const model of GEMINI_MODEL_FALLBACKS) push(model);
+  return out;
 }
 
 function documentAiConfigured(): {
@@ -198,7 +217,7 @@ export function getDocumentAiStatus(): {
   };
 }
 
-async function extractWithGemini(
+async function extractWithGeminiOnce(
   apiKey: string,
   model: string,
   mime: string,
@@ -248,6 +267,48 @@ async function extractWithGemini(
     throw new Error(`OCR_EMPTY:${candidate?.finishReason || "EMPTY"}`);
   }
   return text;
+}
+
+function isUnavailableModelError(message: string): boolean {
+  const lower = message.toLowerCase();
+  return (
+    lower.includes("not_found") ||
+    lower.includes("not found") ||
+    lower.includes("no longer available") ||
+    lower.includes("is not found")
+  );
+}
+
+async function extractWithGemini(
+  apiKey: string,
+  preferredModel: string,
+  mime: string,
+  base64: string,
+): Promise<string> {
+  const models = geminiModelsToTry(preferredModel);
+  let lastError: Error | null = null;
+
+  for (const model of models) {
+    try {
+      const text = await extractWithGeminiOnce(apiKey, model, mime, base64);
+      if (model !== preferredModel) {
+        console.warn(
+          `document AI: preferred model "${preferredModel}" failed; used "${model}"`,
+        );
+      }
+      return text;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      lastError = error instanceof Error ? error : new Error(message);
+      if (isUnavailableModelError(message)) {
+        console.warn(`document AI: model "${model}" unavailable, trying next`);
+        continue;
+      }
+      throw lastError;
+    }
+  }
+
+  throw lastError ?? new Error("OCR_PROVIDER:No Gemini model available");
 }
 
 async function extractWithOpenAI(
