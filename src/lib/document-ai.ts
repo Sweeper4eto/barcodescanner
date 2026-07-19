@@ -125,7 +125,7 @@ Rules:
 - If a field is missing or unreadable, use null (quantity defaults to 1).
 - Do not invent barcodes or dates.`;
 
-const DEFAULT_GEMINI_MODEL = "gemini-2.5-flash";
+const DEFAULT_GEMINI_MODEL = "gemini-3.5-flash";
 const DEFAULT_OPENAI_MODEL = "gpt-4o-mini";
 
 function resolveModel(

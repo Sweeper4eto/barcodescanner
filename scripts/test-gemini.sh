@@ -6,14 +6,14 @@ node --input-type=module <<'EOF'
 import "dotenv/config";
 
 const key = process.env.GEMINI_API_KEY?.trim() || "";
-let model = process.env.DOCUMENT_AI_MODEL?.trim() || "gemini-2.5-flash";
+let model = process.env.DOCUMENT_AI_MODEL?.trim() || "gemini-3.5-flash";
 if (!key) {
   console.error("FAIL: GEMINI_API_KEY is empty in .env");
   process.exit(1);
 }
 if (/\s/.test(model)) {
-  console.warn(`WARN: DOCUMENT_AI_MODEL has spaces ('${model}') — using gemini-2.5-flash`);
-  model = "gemini-2.5-flash";
+  console.warn(`WARN: DOCUMENT_AI_MODEL has spaces ('${model}') — using gemini-3.5-flash`);
+  model = "gemini-3.5-flash";
 }
 
 console.log(`Key length: ${key.length}`);
