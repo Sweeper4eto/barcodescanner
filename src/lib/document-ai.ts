@@ -290,6 +290,24 @@ async function extractWithGeminiOnce(
   base64: string,
 ): Promise<string> {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+
+  // gemini-2.5 / 3.x are "thinking" models: reasoning tokens count against
+  // maxOutputTokens and add large latency (~2 min). For structured table OCR we
+  // don't need it — disabling thinking makes it fast AND stops the model from
+  // burning the token budget on thoughts (which truncated long tables).
+  const isThinkingModel = /gemini-(?:3|2\.5)/i.test(model);
+
+  const generationConfig: Record<string, unknown> = {
+    temperature: 0.1,
+    maxOutputTokens: 65536,
+    // With thinking off there are no "thought" parts, so forcing JSON is safe
+    // and more reliable than parsing free text.
+    responseMimeType: "application/json",
+  };
+  if (isThinkingModel) {
+    generationConfig.thinkingConfig = { thinkingBudget: 0 };
+  }
+
   const response = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -303,13 +321,7 @@ async function extractWithGeminiOnce(
           ],
         },
       ],
-      generationConfig: {
-        temperature: 0.1,
-        maxOutputTokens: 65536,
-        // Avoid forcing JSON MIME on Gemini 3.x thinking models — they often
-        // return empty candidates. We still ask for JSON in the prompt.
-        responseMimeType: model.includes("2.0") ? "application/json" : undefined,
-      },
+      generationConfig,
     }),
   });
 
@@ -377,8 +389,10 @@ async function extractWithGemini(
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       lastError = error instanceof Error ? error : new Error(message);
-      if (isUnavailableModelError(message)) {
-        console.warn(`document AI: model "${model}" unavailable, trying next`);
+      if (isUnavailableModelError(message) || message.startsWith("OCR_EMPTY:")) {
+        console.warn(
+          `document AI: model "${model}" failed (${message}), trying next`,
+        );
         continue;
       }
       throw lastError;
