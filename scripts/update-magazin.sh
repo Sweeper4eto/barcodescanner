@@ -25,12 +25,7 @@ if [[ -z "${DATABASE_URL:-}" ]]; then
   echo "==> DATABASE_URL not set; using ${DATABASE_URL}"
 fi
 
-echo "==> Installing dependencies..."
-npm install
-
-echo "==> Generating Prisma client..."
-npx prisma generate
-
+# Stop the app (and stray scripts) before any step touches the SQLite file.
 release_db_lock() {
   echo "==> Stopping app and any DB lock holders..."
   pm2 stop magazin 2>/dev/null || true
@@ -44,7 +39,6 @@ release_db_lock() {
   if command -v fuser >/dev/null 2>&1 && [[ -e "$DB_PATH" ]]; then
     echo "    Processes using ${DB_PATH}:"
     fuser -v "$DB_PATH" "$DB_PATH-wal" "$DB_PATH-shm" 2>&1 || true
-    # Kill remaining holders (e.g. stray node/prisma).
     fuser -k "$DB_PATH" "$DB_PATH-wal" "$DB_PATH-shm" 2>/dev/null || true
   fi
 
@@ -52,49 +46,70 @@ release_db_lock() {
 }
 
 migrate_with_retry() {
+  if [[ "${MAGAZIN_SKIP_MIGRATE:-}" == "1" ]]; then
+    echo "==> MAGAZIN_SKIP_MIGRATE=1; skipping migrations."
+    return 0
+  fi
+
   local attempt
   local status_out
+  local deploy_out
 
-  # Fast path: nothing pending — don't touch the DB (avoids lock failures).
+  release_db_lock
+
   status_out="$(npx prisma migrate status 2>&1 || true)"
   echo "$status_out"
   if echo "$status_out" | grep -qi "Database schema is up to date"; then
     echo "==> Schema already up to date; skipping migrate deploy."
     return 0
   fi
-
-  # If status itself can't open the DB, don't abort the whole update.
   if echo "$status_out" | grep -qi "database is locked"; then
     echo "==> DB locked during migrate status; skipping migrate and continuing build."
-    echo "    Free lock later with: fuser -v $DB_PATH  (schema was already current recently)."
     return 0
   fi
 
   for attempt in 1 2 3 4 5; do
     echo "==> Applying migrations (attempt ${attempt}/5)..."
-    if npx prisma migrate deploy; then
+    deploy_out="$(npx prisma migrate deploy 2>&1)" && {
+      echo "$deploy_out"
       return 0
+    }
+    echo "$deploy_out"
+    if echo "$deploy_out" | grep -qi "database is locked"; then
+      echo "    Database locked; retrying..."
+    else
+      echo "    migrate deploy failed; retrying..."
     fi
-    echo "    Database still locked; waiting and retrying..."
     release_db_lock
     sleep $((attempt * 2))
   done
 
-  # Last chance: if status is current despite deploy errors, continue the update.
   status_out="$(npx prisma migrate status 2>&1 || true)"
   if echo "$status_out" | grep -qi "Database schema is up to date"; then
     echo "==> migrate deploy failed but schema is up to date; continuing."
     return 0
   fi
+  if echo "$status_out" | grep -qi "database is locked"; then
+    echo "==> DB still locked; skipping migrate and continuing build."
+    return 0
+  fi
 
-  echo "WARNING: prisma migrate deploy failed after retries — continuing build anyway."
+  echo "WARNING: prisma migrate deploy failed — continuing build anyway."
   echo "Check lock holders with: fuser -v $DB_PATH"
-  echo "If you have pending migrations, stop lock holders and re-run update-magazin."
   return 0
 }
 
 release_db_lock
-migrate_with_retry
+
+echo "==> Installing dependencies..."
+npm install
+
+echo "==> Generating Prisma client..."
+npx prisma generate
+
+migrate_with_retry || {
+  echo "WARNING: migrate step failed unexpectedly; continuing build anyway."
+}
 
 echo "==> Removing old .next build..."
 rm -rf .next
