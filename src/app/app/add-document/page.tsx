@@ -1,27 +1,20 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { PrimaryButton, SecondaryButton } from "@/components/auth-forms";
 import { CameraCapture, prepareDocumentImage } from "@/components/camera-capture";
-import { ExpiryDatePicker } from "@/components/expiry-date-picker";
+import { DocumentDraftDetailSheet } from "@/components/document-draft-detail-sheet";
+import { DocumentDraftListCard } from "@/components/document-draft-list-card";
 import { MobilePageHeader } from "@/components/mobile-page-header";
-import { ProductImage } from "@/components/product-image";
-import { QuantityPicker } from "@/components/quantity-picker";
 import { useT } from "@/components/i18n-provider";
 import { goBackOrApp, navigateApp } from "@/lib/app-navigation";
-
-type DraftItem = {
-  key: string;
-  name: string;
-  barcode: string;
-  articul: string;
-  expiryYmd: string;
-  quantity: string;
-  productId: string | null;
-  productImagePath: string | null;
-  matchSource: "barcode" | "articul" | "name" | null;
-};
+import { useBrowserBackStack } from "@/lib/browser-back";
+import {
+  type DocumentDraftItem,
+  draftItemValid,
+  draftMatchesSearch,
+} from "@/lib/document-draft";
 
 type Step = "camera" | "processing" | "review";
 
@@ -36,9 +29,30 @@ function AddDocumentContent() {
   const storeId = searchParams.get("storeId") ?? "";
   const [checking, setChecking] = useState(true);
   const [step, setStep] = useState<Step>("camera");
-  const [items, setItems] = useState<DraftItem[]>([]);
+  const [items, setItems] = useState<DocumentDraftItem[]>([]);
   const [error, setError] = useState("");
   const [importing, setImporting] = useState(false);
+  const [search, setSearch] = useState("");
+  const [detailKey, setDetailKey] = useState<string | null>(null);
+  const [removeKey, setRemoveKey] = useState<string | null>(null);
+
+  const detailItem = useMemo(
+    () => items.find((item) => item.key === detailKey) ?? null,
+    [detailKey, items],
+  );
+
+  useBrowserBackStack([
+    {
+      id: "draft-detail",
+      open: detailKey !== null,
+      close: () => setDetailKey(null),
+    },
+    {
+      id: "draft-remove",
+      open: removeKey !== null,
+      close: () => setRemoveKey(null),
+    },
+  ]);
 
   useEffect(() => {
     let cancelled = false;
@@ -74,8 +88,6 @@ function AddDocumentContent() {
     setError("");
     setStep("processing");
     try {
-      // Send image in the parse request (same path as the working server test).
-      // Skipping /api/upload avoids disk/cwd/size failures that only hit phones.
       const prepared = await prepareDocumentImage(dataUrl);
       const response = await fetch("/api/documents/parse", {
         method: "POST",
@@ -128,20 +140,19 @@ function AddDocumentContent() {
         return;
       }
 
-      const next: DraftItem[] = data.items.map(
-        (item: ParsedItem) => ({
-          key: newKey(),
-          name: item.name ?? "",
-          barcode: item.barcode ?? "",
-          articul: item.articul ?? "",
-          expiryYmd: item.expiryYmd ?? "",
-          quantity: String(item.quantity && item.quantity >= 1 ? item.quantity : 1),
-          productId: item.productId ?? null,
-          productImagePath: item.productImagePath ?? null,
-          matchSource: item.matchSource ?? null,
-        }),
-      );
+      const next: DocumentDraftItem[] = data.items.map((item: ParsedItem) => ({
+        key: newKey(),
+        name: item.name ?? "",
+        barcode: item.barcode ?? "",
+        articul: item.articul ?? "",
+        expiryYmd: item.expiryYmd ?? "",
+        quantity: String(item.quantity && item.quantity >= 1 ? item.quantity : 1),
+        productId: item.productId ?? null,
+        productImagePath: item.productImagePath ?? null,
+        matchSource: item.matchSource ?? null,
+      }));
       setItems(next);
+      setSearch("");
       setStep("review");
     } catch (error) {
       const message = error instanceof Error ? error.message : "";
@@ -150,7 +161,7 @@ function AddDocumentContent() {
     }
   }
 
-  function updateItem(key: string, patch: Partial<DraftItem>) {
+  function updateItem(key: string, patch: Partial<DocumentDraftItem>) {
     setItems((current) =>
       current.map((item) => (item.key === key ? { ...item, ...patch } : item)),
     );
@@ -158,18 +169,17 @@ function AddDocumentContent() {
 
   function removeItem(key: string) {
     setItems((current) => current.filter((item) => item.key !== key));
+    setRemoveKey(null);
+    if (detailKey === key) setDetailKey(null);
   }
 
+  const filteredItems = useMemo(
+    () => items.filter((item) => draftMatchesSearch(item, search)),
+    [items, search],
+  );
+
   const canImport =
-    items.length > 0 &&
-    items.every((item) => {
-      const qty = Number(item.quantity);
-      return (
-        /^\d{4}-\d{2}-\d{2}$/.test(item.expiryYmd) &&
-        Number.isInteger(qty) &&
-        qty >= 1
-      );
-    });
+    items.length > 0 && items.every((item) => draftItemValid(item));
 
   async function confirmImport() {
     if (!canImport || !storeId || importing) return;
@@ -214,7 +224,7 @@ function AddDocumentContent() {
   }
 
   return (
-    <div className="mx-auto min-w-0 max-w-lg px-4 py-6">
+    <div className="mx-auto min-w-0 max-w-lg px-4 py-3">
       <MobilePageHeader title={t("addDocument.title")} />
 
       {step === "camera" ? (
@@ -244,7 +254,7 @@ function AddDocumentContent() {
       ) : null}
 
       {step === "review" ? (
-        <div className="space-y-4">
+        <div className="space-y-3">
           <div>
             <h2 className="text-base font-semibold text-foreground">
               {t("addDocument.reviewTitle")}
@@ -253,116 +263,104 @@ function AddDocumentContent() {
           </div>
           {error ? <p className="text-sm text-error">{error}</p> : null}
 
-          <div className="space-y-3">
-            {items.map((item) => {
-              const expiryOk = /^\d{4}-\d{2}-\d{2}$/.test(item.expiryYmd);
-              return (
-                <article
-                  key={item.key}
-                  className="space-y-3 rounded-2xl border border-card-border p-3"
-                >
-                  <div className="flex items-start gap-3">
-                    <ProductImage
-                      src={item.productImagePath}
-                      alt=""
-                      className="h-14 w-14 shrink-0 rounded-lg object-cover"
-                      placeholderClassName="h-14 w-14 shrink-0 rounded-lg text-[9px]"
-                    />
-                    <div className="min-w-0 flex-1">
-                      <p
-                        className={`text-[11px] font-semibold ${
-                          item.matchSource ? "text-primary" : "text-muted"
-                        }`}
-                      >
-                        {item.matchSource
-                          ? t("addDocument.matched")
-                          : t("addDocument.unmatched")}
-                      </p>
-                      <label className="mt-1 block text-sm font-medium text-foreground">
-                        {t("common.name")}
-                        <input
-                          className="mt-1 w-full rounded-xl border border-input-border bg-input px-3 py-2 text-foreground"
-                          value={item.name}
-                          onChange={(event) =>
-                            updateItem(item.key, { name: event.target.value })
-                          }
-                          placeholder={t("common.noName")}
-                        />
-                      </label>
-                    </div>
-                  </div>
+          <input
+            className="w-full rounded-xl border border-input-border bg-input px-3 py-3 text-base text-foreground"
+            aria-label={t("addDocument.searchPlaceholder")}
+            placeholder={t("addDocument.searchPlaceholder")}
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+          />
+          {search ? (
+            <button
+              type="button"
+              className="text-sm text-accent"
+              onClick={() => setSearch("")}
+            >
+              {t("expiry.clearSearch")}
+            </button>
+          ) : null}
 
-                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                    <label className="block text-sm font-medium text-foreground">
-                      {t("common.barcode")}
-                      <input
-                        className="mt-1 w-full rounded-xl border border-input-border bg-input px-3 py-2 font-mono text-sm text-foreground"
-                        value={item.barcode}
-                        onChange={(event) =>
-                          updateItem(item.key, {
-                            barcode: event.target.value,
-                            productId: null,
-                            productImagePath: null,
-                            matchSource: null,
-                          })
-                        }
-                      />
-                    </label>
-                    <label className="block text-sm font-medium text-foreground">
-                      {t("common.articul")}
-                      <input
-                        className="mt-1 w-full rounded-xl border border-input-border bg-input px-3 py-2 text-foreground"
-                        value={item.articul}
-                        onChange={(event) =>
-                          updateItem(item.key, { articul: event.target.value })
-                        }
-                      />
-                    </label>
-                  </div>
-
-                  <QuantityPicker
-                    value={item.quantity}
-                    onChange={(value) => updateItem(item.key, { quantity: value })}
-                    startWithGridOpen={false}
-                  />
-
-                  <div>
-                    {!expiryOk ? (
-                      <p className="mb-1 text-xs text-error">
-                        {t("addDocument.missingExpiry")}
-                      </p>
-                    ) : null}
-                    <ExpiryDatePicker
-                      value={item.expiryYmd}
-                      onChange={(value) =>
-                        updateItem(item.key, { expiryYmd: value })
-                      }
-                    />
-                  </div>
-
-                  <SecondaryButton onClick={() => removeItem(item.key)}>
-                    {t("addDocument.removeRow")}
-                  </SecondaryButton>
-                </article>
-              );
-            })}
+          <div className="space-y-1 pt-1">
+            {filteredItems.length === 0 ? (
+              <p className="rounded-xl bg-subtle p-4 text-sm text-muted">
+                {items.length === 0
+                  ? t("addDocument.emptyReview")
+                  : t("addDocument.noResults")}
+              </p>
+            ) : null}
+            {filteredItems.map((item) => (
+              <DocumentDraftListCard
+                key={item.key}
+                item={item}
+                onOpen={() => setDetailKey(item.key)}
+                onRemove={() => setRemoveKey(item.key)}
+              />
+            ))}
           </div>
 
-          <PrimaryButton
-            onClick={() => void confirmImport()}
-            disabled={!canImport || importing}
-          >
-            {importing ? t("addDocument.importing") : t("addDocument.confirmImport")}
-          </PrimaryButton>
-          <SecondaryButton
-            onClick={() => {
-              setItems([]);
-              setError("");
-              setStep("camera");
-            }}
-          >
-            {t("addDocument.retake")}
-          </SecondaryButton>
+          <div className="sticky bottom-[calc(var(--app-bottom-nav-height)+env(safe-area-inset-bottom,0px))] z-10 space-y-2 border-t border-card-border bg-background pt-3 pb-2">
+            <PrimaryButton
+              onClick={() => void confirmImport()}
+              disabled={!canImport || importing}
+            >
+              {importing ? t("addDocument.importing") : t("addDocument.confirmImport")}
+            </PrimaryButton>
+            <SecondaryButton
+              onClick={() => {
+                setItems([]);
+                setSearch("");
+                setDetailKey(null);
+                setError("");
+                setStep("camera");
+              }}
+            >
+              {t("addDocument.retake")}
+            </SecondaryButton>
+          </div>
+        </div>
+      ) : null}
+
+      {detailItem ? (
+        <DocumentDraftDetailSheet
+          item={detailItem}
+          onClose={() => setDetailKey(null)}
+          onSave={(patch) => updateItem(detailItem.key, patch)}
+        />
+      ) : null}
+
+      {removeKey ? (
+        <div
+          className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="doc-remove-title"
+        >
+          <div className="w-full max-w-lg px-3 pb-[calc(var(--app-bottom-nav-height)+env(safe-area-inset-bottom,0px)+0.5rem)]">
+            <div className="rounded-xl border border-card-border bg-card p-3">
+              <p id="doc-remove-title" className="text-sm font-semibold">
+                {t("expiry.confirmTitle")}
+              </p>
+              <p className="mt-1 text-xs text-muted">
+                {t("addDocument.removeConfirmMessage")}
+              </p>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  className="rounded-lg border border-input-border bg-card px-3 py-2 text-sm text-foreground"
+                  onClick={() => setRemoveKey(null)}
+                >
+                  {t("expiry.confirmCancel")}
+                </button>
+                <button
+                  type="button"
+                  className="rounded-lg bg-danger px-3 py-2 text-sm text-danger-fg"
+                  onClick={() => removeItem(removeKey)}
+                >
+                  {t("expiry.remove")}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       ) : null}
     </div>
