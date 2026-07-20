@@ -318,53 +318,73 @@ async function uploadImage(dataUrl: string): Promise<string> {
   return data.path;
 }
 
-/** Shrink phone photos so the JSON body stays under typical nginx 1MB limits. */
-export function prepareDocumentImage(dataUrl: string): Promise<string> {
-  const TARGET_BYTES = 700_000; // base64 JSON must stay under ~1MB nginx default
+/** Shrink and enhance phone photos for better OCR and nginx body limits. */
+export async function prepareDocumentImage(dataUrl: string): Promise<string> {
+  const TARGET_BYTES = 700_000;
   const STEPS: Array<{ maxEdge: number; quality: number }> = [
-    { maxEdge: 1600, quality: 0.75 },
-    { maxEdge: 1280, quality: 0.7 },
-    { maxEdge: 1024, quality: 0.65 },
-    { maxEdge: 900, quality: 0.55 },
+    { maxEdge: 1600, quality: 0.78 },
+    { maxEdge: 1280, quality: 0.72 },
+    { maxEdge: 1024, quality: 0.68 },
+    { maxEdge: 900, quality: 0.58 },
   ];
 
-  return new Promise((resolve, reject) => {
-    const image = new Image();
-    image.onload = () => {
-      try {
-        let best = "";
-        for (const step of STEPS) {
-          const scale = Math.min(
-            1,
-            step.maxEdge / Math.max(image.width, image.height),
-          );
-          const width = Math.max(1, Math.round(image.width * scale));
-          const height = Math.max(1, Math.round(image.height * scale));
-          const canvas = document.createElement("canvas");
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext("2d");
-          if (!ctx) {
-            reject(new Error("Could not prepare photo"));
-            return;
-          }
-          ctx.drawImage(image, 0, 0, width, height);
-          best = canvas.toDataURL("image/jpeg", step.quality);
-          // data:image/jpeg;base64, ≈ 23 chars + 4/3 raw bytes
-          const approxBytes = Math.floor(((best.length - 23) * 3) / 4);
-          if (approxBytes <= TARGET_BYTES) {
-            resolve(best);
-            return;
-          }
-        }
-        resolve(best || dataUrl);
-      } catch {
-        reject(new Error("Could not prepare photo"));
-      }
-    };
-    image.onerror = () => reject(new Error("Could not prepare photo"));
-    image.src = dataUrl;
+  const blob = await fetch(dataUrl).then((response) => response.blob());
+  const bitmap = await createImageBitmap(blob, {
+    imageOrientation: "from-image",
   });
+
+  try {
+    let best = dataUrl;
+    for (const step of STEPS) {
+      const scale = Math.min(
+        1,
+        step.maxEdge / Math.max(bitmap.width, bitmap.height),
+      );
+      const width = Math.max(1, Math.round(bitmap.width * scale));
+      const height = Math.max(1, Math.round(bitmap.height * scale));
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        throw new Error("Could not prepare photo");
+      }
+      ctx.drawImage(bitmap, 0, 0, width, height);
+      enhanceDocumentContrast(ctx, width, height);
+      best = canvas.toDataURL("image/jpeg", step.quality);
+      const approxBytes = Math.floor(((best.length - 23) * 3) / 4);
+      if (approxBytes <= TARGET_BYTES) {
+        return best;
+      }
+    }
+    return best;
+  } finally {
+    bitmap.close();
+  }
+}
+
+function enhanceDocumentContrast(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+): void {
+  const imageData = ctx.getImageData(0, 0, width, height);
+  const { data } = imageData;
+  const contrast = 1.18;
+
+  for (let i = 0; i < data.length; i += 4) {
+    const gray =
+      0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+    const boosted = Math.min(
+      255,
+      Math.max(0, (gray - 128) * contrast + 128),
+    );
+    data[i] = boosted;
+    data[i + 1] = boosted;
+    data[i + 2] = boosted;
+  }
+
+  ctx.putImageData(imageData, 0, 0);
 }
 
 export { uploadImage };

@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import "dotenv/config";
 import { z } from "zod";
+import { sanitizeDocumentRows } from "@/lib/document-row-sanitize";
 import { resolveLocalUploadPath } from "@/lib/upload";
 
 const rowSchema = z.object({
@@ -163,7 +164,7 @@ function toRows(payload: unknown): DocumentOcrRow[] {
     throw new Error("OCR_PARSE_FAILED");
   }
 
-  return parsed.data.items
+  const rows = parsed.data.items
     .map((item) => {
       const name = item.name?.trim() ?? "";
       const barcode = item.barcode?.trim() || null;
@@ -173,6 +174,8 @@ function toRows(payload: unknown): DocumentOcrRow[] {
       return { name, barcode, articul, expiryYmd, quantity };
     })
     .filter((row) => row.name || row.barcode || row.articul || row.expiryYmd);
+
+  return sanitizeDocumentRows(rows);
 }
 
 const SYSTEM_PROMPT = `You extract product rows from a photo of a store document / invoice / delivery note / warehouse write-off (изписване) / expiry list.
@@ -290,6 +293,66 @@ export function getDocumentAiStatus(): {
   };
 }
 
+const PROVIDER_RETRY_DELAYS_MS = [2000, 5000, 10000];
+
+async function sleep(ms: number): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isRetryableProviderError(message: string): boolean {
+  if (isUnavailableModelError(message)) return false;
+  if (message.startsWith("OCR_EMPTY:")) return false;
+
+  const statusMatch = /^OCR_PROVIDER:(\d{3}):/.exec(message);
+  if (statusMatch) {
+    const status = Number(statusMatch[1]);
+    if (status === 429 || status === 500 || status === 502 || status === 503) {
+      return true;
+    }
+  }
+
+  const lower = message.toLowerCase();
+  return (
+    lower.includes("resource_exhausted") ||
+    lower.includes("rate limit") ||
+    lower.includes("quota") ||
+    lower.includes("overloaded") ||
+    lower.includes("too many requests") ||
+    lower.includes("unavailable") ||
+    lower.includes("try again") ||
+    lower.includes("deadline exceeded") ||
+    lower.includes("internal error") ||
+    lower.includes("high demand")
+  );
+}
+
+async function withProviderRetries<T>(
+  label: string,
+  fn: () => Promise<T>,
+): Promise<T> {
+  let lastError: Error | null = null;
+  const attempts = PROVIDER_RETRY_DELAYS_MS.length + 1;
+
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      return await fn();
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      lastError = err;
+      const canRetry =
+        attempt < attempts - 1 && isRetryableProviderError(err.message);
+      if (!canRetry) throw err;
+      const delay = PROVIDER_RETRY_DELAYS_MS[attempt];
+      console.warn(
+        `document AI: ${label} retry ${attempt + 1}/${attempts - 1} in ${delay}ms (${err.message})`,
+      );
+      await sleep(delay);
+    }
+  }
+
+  throw lastError ?? new Error("OCR_PROVIDER:Retries exhausted");
+}
+
 async function extractWithGeminiOnce(
   apiKey: string,
   model: string,
@@ -346,7 +409,7 @@ async function extractWithGeminiOnce(
   if (!response.ok) {
     const detail =
       data?.error?.message || data?.error?.status || "OCR_PROVIDER_ERROR";
-    throw new Error(`OCR_PROVIDER:${detail}`);
+    throw new Error(`OCR_PROVIDER:${response.status}:${detail}`);
   }
 
   if (data?.promptFeedback?.blockReason) {
@@ -387,7 +450,9 @@ async function extractWithGemini(
   for (const model of models) {
     const startedAt = Date.now();
     try {
-      const text = await extractWithGeminiOnce(apiKey, model, mime, base64);
+      const text = await withProviderRetries(`gemini:${model}`, () =>
+        extractWithGeminiOnce(apiKey, model, mime, base64),
+      );
       console.log(
         `document AI: model "${model}" ok in ${Date.now() - startedAt}ms`,
       );
@@ -403,7 +468,11 @@ async function extractWithGemini(
       );
       const message = error instanceof Error ? error.message : String(error);
       lastError = error instanceof Error ? error : new Error(message);
-      if (isUnavailableModelError(message) || message.startsWith("OCR_EMPTY:")) {
+      if (
+        isUnavailableModelError(message) ||
+        message.startsWith("OCR_EMPTY:") ||
+        isRetryableProviderError(message)
+      ) {
         console.warn(
           `document AI: model "${model}" failed (${message}), trying next`,
         );
@@ -461,7 +530,7 @@ async function extractWithOpenAI(
 
   if (!response.ok) {
     throw new Error(
-      `OCR_PROVIDER:${data?.error?.message || "OCR_PROVIDER_ERROR"}`,
+      `OCR_PROVIDER:${response.status}:${data?.error?.message || "OCR_PROVIDER_ERROR"}`,
     );
   }
 
@@ -482,7 +551,9 @@ export async function extractDocumentRows(
   const text =
     config.provider === "gemini"
       ? await extractWithGemini(config.apiKey, config.model, mime, base64)
-      : await extractWithOpenAI(config.apiKey, config.model, mime, base64);
+      : await withProviderRetries(`openai:${config.model}`, () =>
+          extractWithOpenAI(config.apiKey, config.model, mime, base64),
+        );
 
   return toRows(extractJsonObject(text));
 }

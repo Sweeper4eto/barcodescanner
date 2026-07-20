@@ -1,6 +1,6 @@
 "use client";
 
-import { MissingInfoIcon } from "@/components/app-nav-icons";
+import { MissingInfoIcon, WarningIcon } from "@/components/app-nav-icons";
 import { ProductImage } from "@/components/product-image";
 import { useT } from "@/components/i18n-provider";
 import {
@@ -10,9 +10,12 @@ import {
 } from "@/lib/expiry";
 import {
   type DocumentDraftItem,
+  type DocumentDraftWarning,
   draftHasMissingInfo,
+  draftHasWarnings,
   draftMissingExpiry,
   draftMissingName,
+  draftWarnings,
 } from "@/lib/document-draft";
 
 type Props = {
@@ -21,15 +24,38 @@ type Props = {
   onRemove: () => void;
 };
 
+function warningLabel(
+  warning: DocumentDraftWarning,
+  t: (key: string) => string,
+): string {
+  switch (warning) {
+    case "invalidBarcode":
+      return t("addDocument.warnInvalidBarcode");
+    case "noProductMatch":
+      return t("addDocument.warnNoProductMatch");
+    case "expiryPast":
+      return t("addDocument.warnExpiryPast");
+    case "expiryFarFuture":
+      return t("addDocument.warnExpiryFarFuture");
+    case "quantityHigh":
+      return t("addDocument.warnQuantityHigh");
+    default:
+      return t("addDocument.checkRow");
+  }
+}
+
 export function DocumentDraftListCard({ item, onOpen, onRemove }: Props) {
   const { t, dateLocale } = useT();
   const hasMissing = draftHasMissingInfo(item);
+  const warnings = draftWarnings(item);
+  const hasWarnings = draftHasWarnings(item);
   const missingSummary = [
     draftMissingName(item) ? t("addDocument.missingName") : null,
     draftMissingExpiry(item) ? t("addDocument.missingExpiry") : null,
   ]
     .filter(Boolean)
-    .join(" ? ");
+    .join(" · ");
+  const warningSummary = warnings.map((w) => warningLabel(w, t)).join(" · ");
   const displayName = item.name.trim() || t("common.noName");
   const qty = Number(item.quantity);
   const quantityDisplay =
@@ -48,6 +74,20 @@ export function DocumentDraftListCard({ item, onOpen, onRemove }: Props) {
         ? t("expiry.day")
         : t("expiry.days");
 
+  const stripeClass = hasMissing
+    ? "bg-danger"
+    : hasWarnings
+      ? "bg-[var(--urgency-warning-border)]"
+      : expiry
+        ? expiryUrgencyStripeClass(expiry)
+        : "bg-card-border";
+
+  const cardBorderClass = hasMissing
+    ? "border-danger-border bg-danger/5"
+    : hasWarnings
+      ? "border-[var(--urgency-warning-border)] bg-[var(--urgency-warning-bg)]"
+      : "border-card-border";
+
   return (
     <article className="relative overflow-visible">
       {hasMissing ? (
@@ -57,6 +97,14 @@ export function DocumentDraftListCard({ item, onOpen, onRemove }: Props) {
           aria-label={missingSummary}
         >
           <MissingInfoIcon className="h-3 w-3" />
+        </div>
+      ) : hasWarnings ? (
+        <div
+          className="absolute top-0 left-0 z-10 flex h-5 w-5 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--urgency-warning-border)] bg-[var(--urgency-warning-bg)] text-warning-fg"
+          title={warningSummary}
+          aria-label={warningSummary}
+        >
+          <WarningIcon className="h-3 w-3" />
         </div>
       ) : null}
 
@@ -69,26 +117,13 @@ export function DocumentDraftListCard({ item, onOpen, onRemove }: Props) {
           onRemove();
         }}
       >
-        ?
+        ×
       </button>
 
       <div
-        className={`flex overflow-hidden rounded-lg border bg-card ${
-          hasMissing
-            ? "border-danger-border bg-danger/5"
-            : "border-card-border"
-        }`}
+        className={`flex overflow-hidden rounded-lg border bg-card ${cardBorderClass}`}
       >
-        <div
-          className={`w-1 shrink-0 ${
-            hasMissing
-              ? "bg-danger"
-              : expiry
-                ? expiryUrgencyStripeClass(expiry)
-                : "bg-card-border"
-          }`}
-          aria-hidden
-        />
+        <div className={`w-1 shrink-0 ${stripeClass}`} aria-hidden />
 
         <button
           type="button"
@@ -116,14 +151,23 @@ export function DocumentDraftListCard({ item, onOpen, onRemove }: Props) {
                 {t("common.articul")}: {item.articul}
               </p>
             ) : null}
+            {item.barcode ? (
+              <p className="text-[10px] leading-tight text-muted">
+                {t("common.barcode")}: {item.barcode}
+              </p>
+            ) : null}
             {hasMissing ? (
               <p className="mt-0.5 text-[10px] font-semibold leading-tight text-error">
                 {missingSummary}
               </p>
+            ) : hasWarnings ? (
+              <p className="mt-0.5 text-[10px] font-semibold leading-tight text-warning-fg">
+                {warningSummary}
+              </p>
             ) : expiry ? (
               <p className="mt-0.5 text-[11px] leading-tight text-foreground">
                 <span className="font-bold">{t("expiry.validUntil")}</span>
-                {" ? "}
+                {" · "}
                 {expiry.toLocaleDateString(dateLocale, { timeZone: "UTC" })}
               </p>
             ) : null}

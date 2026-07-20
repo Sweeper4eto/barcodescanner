@@ -2,8 +2,10 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   draftHasMissingInfo,
+  draftHasWarnings,
   draftItemValid,
   draftMatchesSearch,
+  draftWarnings,
   type DocumentDraftItem,
 } from "../src/lib/document-draft";
 
@@ -29,6 +31,17 @@ describe("document-draft", () => {
   it("validates complete rows", () => {
     assert.equal(draftItemValid(base), true);
     assert.equal(draftItemValid({ ...base, quantity: "0" }), false);
+  });
+
+  it("flags suspicious rows without blocking import", () => {
+    const warnings = draftWarnings({
+      ...base,
+      barcode: "1234567890123",
+      productId: null,
+    });
+    assert.ok(warnings.includes("invalidBarcode"));
+    assert.ok(warnings.includes("noProductMatch"));
+    assert.equal(draftHasWarnings({ ...base, barcode: "1234567890123" }), true);
   });
 
   it("filters by search needle", () => {

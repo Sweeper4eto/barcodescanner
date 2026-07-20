@@ -83,17 +83,30 @@ function AddDocumentContent() {
     };
   }, [router, storeId]);
 
+  async function parseDocument(dataUrl: string, attempt = 0): Promise<Response> {
+    return fetch("/api/documents/parse", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ storeId, dataUrl }),
+    }).then(async (response) => {
+      if (
+        attempt < 1 &&
+        (response.status === 502 || response.status === 503 || response.status === 504)
+      ) {
+        await new Promise((resolve) => setTimeout(resolve, 3000));
+        return parseDocument(dataUrl, attempt + 1);
+      }
+      return response;
+    });
+  }
+
   async function onCapture(dataUrl: string) {
     if (!storeId) return;
     setError("");
     setStep("processing");
     try {
       const prepared = await prepareDocumentImage(dataUrl);
-      const response = await fetch("/api/documents/parse", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ storeId, dataUrl: prepared }),
-      });
+      const response = await parseDocument(prepared);
       if (response.status === 413) {
         setError(t("errors.documentTooLarge"));
         setStep("camera");

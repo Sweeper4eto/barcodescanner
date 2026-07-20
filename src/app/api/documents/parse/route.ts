@@ -24,9 +24,15 @@ const parseSchema = z
     message: "image required",
   });
 
+function providerErrorDetail(message: string): string {
+  if (!message.startsWith("OCR_PROVIDER:")) return message;
+  const rest = message.slice("OCR_PROVIDER:".length);
+  return /^\d{3}:/.test(rest) ? rest.slice(4).trim() : rest.trim();
+}
+
 function publicOcrError(request: Request, message: string): string {
   if (message.startsWith("OCR_PROVIDER:")) {
-    const detail = message.slice("OCR_PROVIDER:".length).trim();
+    const detail = providerErrorDetail(message);
     return detail
       ? `Document AI error: ${detail}`
       : apiT(request, "errors.documentParseFailed");
