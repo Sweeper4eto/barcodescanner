@@ -3,6 +3,7 @@
 import { MissingInfoIcon, WarningIcon } from "@/components/app-nav-icons";
 import { ProductImage } from "@/components/product-image";
 import { useT } from "@/components/i18n-provider";
+import type { MessageKey } from "@/i18n";
 import {
   daysUntilExpiry,
   expiryUrgencyBadgeClass,
@@ -26,7 +27,7 @@ type Props = {
 
 function warningLabel(
   warning: DocumentDraftWarning,
-  t: (key: string) => string,
+  t: (key: MessageKey) => string,
 ): string {
   switch (warning) {
     case "invalidBarcode":

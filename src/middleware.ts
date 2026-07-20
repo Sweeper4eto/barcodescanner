@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { verifySessionToken, COOKIE_NAME } from "@/lib/session";
+import { verifySessionToken, COOKIE_NAME } from "@/lib/session-token";
 import { publicUrl } from "@/lib/request-origin";
 
 const publicPaths = ["/", "/login", "/register"];
