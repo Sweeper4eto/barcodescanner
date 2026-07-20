@@ -147,11 +147,6 @@ export function DocumentDraftListCard({ item, onOpen, onRemove }: Props) {
             >
               {displayName}
             </p>
-            {item.barcode ? (
-              <p className="text-[10px] leading-tight text-muted">
-                {t("common.barcode")}: {item.barcode}
-              </p>
-            ) : null}
             {hasMissing ? (
               <p className="mt-0.5 text-[10px] font-semibold leading-tight text-error">
                 {missingSummary}
