@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   expiryListVisible,
   expiryUrgencyClass,
+  formatLocaleDay,
   paymentAmount,
 } from "../src/lib/expiry";
 
@@ -27,4 +28,9 @@ test("expiryUrgencyClass colors by days remaining", () => {
   assert.equal(expiryUrgencyClass(new Date("2026-06-05"), now), "urgency-critical");
   assert.equal(expiryUrgencyClass(new Date("2026-06-12"), now), "urgency-warning");
   assert.equal(expiryUrgencyClass(new Date("2026-06-20"), now), "urgency-soon");
+});
+
+test("formatLocaleDay pads day and month for en and bg", () => {
+  assert.equal(formatLocaleDay("2027-04-15", "en-US"), "04/15/2027");
+  assert.match(formatLocaleDay("2027-04-15", "bg-BG"), /^15\.04\.2027/);
 });

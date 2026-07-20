@@ -1,6 +1,7 @@
 "use client";
 
 import { useT } from "@/components/i18n-provider";
+import { formatLocaleDay } from "@/lib/expiry";
 import { ProductImage } from "@/components/product-image";
 import {
   MoveToExpiryIcon,
@@ -96,7 +97,7 @@ export function BuyListCard({
               {name}
             </p>
             <p className="mt-0.5 text-[10px] leading-tight text-muted">
-              {t("buyList.enteredOn")} {entered.toLocaleDateString(dateLocale)}
+              {t("buyList.enteredOn")} {formatLocaleDay(entered, dateLocale)}
             </p>
           </div>
 

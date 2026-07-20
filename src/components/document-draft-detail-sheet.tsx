@@ -6,6 +6,7 @@ import { ExpiryDatePicker } from "@/components/expiry-date-picker";
 import { QuantityPicker } from "@/components/quantity-picker";
 import { ProductImage } from "@/components/product-image";
 import { useT } from "@/components/i18n-provider";
+import { formatLocaleDay } from "@/lib/expiry";
 import {
   type DocumentDraftItem,
   draftHasMissingInfo,
@@ -49,11 +50,7 @@ export function DocumentDraftDetailSheet({ item, onClose, onSave }: Props) {
 
   const expiryDisplay = useMemo(() => {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(expiryYmd)) return t("addDocument.missingExpiry");
-    const [year, month, day] = expiryYmd.split("-").map(Number);
-    return new Date(Date.UTC(year, month - 1, day)).toLocaleDateString(
-      dateLocale,
-      { timeZone: "UTC" },
-    );
+    return formatLocaleDay(expiryYmd, dateLocale, { utc: true });
   }, [expiryYmd, dateLocale, t]);
 
   function handleSave() {

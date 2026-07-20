@@ -11,6 +11,7 @@ import {
   daysUntilExpiry,
   expiryUrgencyBadgeClass,
   expiryUrgencyStripeClass,
+  formatLocaleDay,
 } from "@/lib/expiry";
 
 type Props = {
@@ -149,7 +150,7 @@ export function ExpiryListCard({
             </p>
             <p className="mt-0.5 text-[10px] leading-tight text-muted">
               {t("expiry.enteredOn")}{" "}
-              {entered.toLocaleDateString(dateLocale)}
+              {formatLocaleDay(entered, dateLocale)}
             </p>
             <p className="text-[13px] leading-tight text-foreground">
               <span className="text-[10px] font-semibold text-muted">
@@ -157,7 +158,7 @@ export function ExpiryListCard({
               </span>
               {" "}
               <span className="font-bold tabular-nums">
-                {expiry.toLocaleDateString(dateLocale)}
+                {formatLocaleDay(expiry, dateLocale)}
               </span>
             </p>
           </div>

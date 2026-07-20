@@ -8,6 +8,7 @@ import {
   daysUntilExpiry,
   expiryUrgencyBadgeClass,
   expiryUrgencyStripeClass,
+  formatLocaleDay,
 } from "@/lib/expiry";
 import {
   type DocumentDraftItem,
@@ -162,7 +163,7 @@ export function DocumentDraftListCard({ item, onOpen, onRemove }: Props) {
                 </span>
                 {" "}
                 <span className="font-bold tabular-nums">
-                  {expiry.toLocaleDateString(dateLocale, { timeZone: "UTC" })}
+                  {formatLocaleDay(item.expiryYmd, dateLocale, { utc: true })}
                 </span>
               </p>
             ) : null}

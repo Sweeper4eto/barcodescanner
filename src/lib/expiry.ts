@@ -106,6 +106,43 @@ export function daysUntilExpiry(expiryDate: Date, now = new Date()): number {
   );
 }
 
+/**
+ * Locale calendar day with leading zeros (e.g. en: 04/15/2027, bg: 15.04.2027).
+ * Order still follows the UI language locale.
+ */
+export function formatLocaleDay(
+  input: Date | string,
+  locale: string,
+  options?: { utc?: boolean },
+): string {
+  let date: Date;
+  if (typeof input === "string") {
+    const ymd = /^(\d{4})-(\d{2})-(\d{2})$/.exec(input.trim());
+    if (ymd) {
+      date = new Date(
+        Date.UTC(Number(ymd[1]), Number(ymd[2]) - 1, Number(ymd[3])),
+      );
+      return date.toLocaleDateString(locale, {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        timeZone: "UTC",
+      });
+    }
+    date = new Date(input);
+    if (Number.isNaN(date.getTime())) return input;
+  } else {
+    date = input;
+  }
+
+  return date.toLocaleDateString(locale, {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    ...(options?.utc ? { timeZone: "UTC" } : {}),
+  });
+}
+
 export function paymentAmount(
   activeStoreCount: number,
   feePerStore: number,

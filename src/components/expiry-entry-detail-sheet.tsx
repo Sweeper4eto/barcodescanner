@@ -7,6 +7,7 @@ import { CopyIcon, PriceReduceIcon } from "@/components/app-nav-icons";
 import { CameraCapture, uploadImage } from "@/components/camera-capture";
 import { ProductImage } from "@/components/product-image";
 import { useT } from "@/components/i18n-provider";
+import { formatLocaleDay } from "@/lib/expiry";
 import { isAdhocBarcode, resolveEntryImagePath } from "@/lib/inventory-entry-display";
 import { expiryIsoToYmd, expiryYmdToIso } from "@/lib/inventory";
 
@@ -264,11 +265,7 @@ export function ExpiryEntryDetailSheet({
   }
 
   const expiryDisplay = useMemo(() => {
-    const [year, month, day] = expiryYmd.split("-").map(Number);
-    return new Date(Date.UTC(year, month - 1, day)).toLocaleDateString(
-      dateLocale,
-      { timeZone: "UTC" },
-    );
+    return formatLocaleDay(expiryYmd, dateLocale, { utc: true });
   }, [expiryYmd, dateLocale]);
 
   return (

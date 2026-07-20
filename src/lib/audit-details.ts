@@ -50,7 +50,7 @@ export function auditClientCreated(client: ClientLike): string {
     client.phone ? `phone ${client.phone}` : null,
     client.additionalInfo ? `info: ${client.additionalInfo}` : null,
     formatAuditValue(client.active),
-    client.homeUser ? "home user" : null,
+    client.homeUser ? "household" : null,
   ]);
 }
 
@@ -62,7 +62,7 @@ export function auditClientUpdated(before: ClientLike, after: ClientLike): strin
     auditFieldChange("fee/store", before.monthlyFeePerStore, after.monthlyFeePerStore),
     auditFieldChange("status", before.active, after.active),
     auditFieldChange(
-      "home user",
+      "household",
       before.homeUser ? "yes" : "no",
       after.homeUser ? "yes" : "no",
     ),
