@@ -33,7 +33,7 @@ type Props = {
 export function ExpiryListCard({
   name,
   imagePath,
-  articul,
+  articul: _articul,
   expiryDate,
   enteredAt,
   quantity,
@@ -147,19 +147,18 @@ export function ExpiryListCard({
             <p className="line-clamp-2 text-xs font-semibold leading-tight text-foreground">
               {name}
             </p>
-            {articul ? (
-              <p className="text-[10px] leading-tight text-muted">
-                {t("common.articul")}: {articul}
-              </p>
-            ) : null}
-            <p className="mt-0.5 text-[11px] leading-tight text-foreground">
-              <span className="font-bold">{t("expiry.validUntil")}</span>
-              {" · "}
-              {expiry.toLocaleDateString(dateLocale)}
-            </p>
-            <p className="text-[10px] leading-tight text-muted">
+            <p className="mt-0.5 text-[10px] leading-tight text-muted">
               {t("expiry.enteredOn")}{" "}
               {entered.toLocaleDateString(dateLocale)}
+            </p>
+            <p className="text-[13px] leading-tight text-foreground">
+              <span className="text-[10px] font-semibold text-muted">
+                {t("expiry.validUntil")}
+              </span>
+              {" "}
+              <span className="font-bold tabular-nums">
+                {expiry.toLocaleDateString(dateLocale)}
+              </span>
             </p>
           </div>
 

@@ -32,6 +32,17 @@ function stripDataUrl(dataUrl: string): { mime: string; base64: string } {
   return { mime: match[1], base64: match[2] };
 }
 
+function isValidCalendarYmd(year: number, month: number, day: number): boolean {
+  if (month < 1 || month > 12 || day < 1 || day > 31) return false;
+  if (year < 2000 || year > 2100) return false;
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return (
+    date.getUTCFullYear() === year &&
+    date.getUTCMonth() === month - 1 &&
+    date.getUTCDate() === day
+  );
+}
+
 /** Parse common EU/BG date strings into YYYY-MM-DD. */
 export function parseDocumentExpiry(value: string | null | undefined): string | null {
   if (!value) return null;
@@ -39,21 +50,23 @@ export function parseDocumentExpiry(value: string | null | undefined): string | 
   if (!raw) return null;
 
   const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
-  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+  if (iso) {
+    const year = Number(iso[1]);
+    const month = Number(iso[2]);
+    const day = Number(iso[3]);
+    if (!isValidCalendarYmd(year, month, day)) return null;
+    return `${iso[1]}-${iso[2]}-${iso[3]}`;
+  }
 
+  // Bulgarian / EU documents use day.month.year (not US month/day).
   const dmy = /^(\d{1,2})[./\-](\d{1,2})[./\-](\d{2,4})$/.exec(raw);
   if (dmy) {
     const day = Number(dmy[1]);
     const month = Number(dmy[2]);
     let year = Number(dmy[3]);
     if (year < 100) year += 2000;
-    if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+    if (!isValidCalendarYmd(year, month, day)) return null;
     return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-  }
-
-  const mdy = /^(\d{1,2})[./\-](\d{1,2})[./\-](\d{4})$/.exec(raw);
-  if (mdy) {
-    // Prefer DMY for EU docs; already handled above with same pattern.
   }
 
   return null;
@@ -194,7 +207,11 @@ Rules:
 - name = product name (keep original language / Cyrillic).
 - barcode = EAN/UPC digits only if a real barcode column exists; else null. Never put Артикул into barcode.
 - articul = Артикул / SKU / арт. number if present, else null.
-- expiryDate = Годност / best-before for that row. Prefer YYYY-MM-DD. If the cell is blank, "1", or not a date, use null.
+- expiryDate = ONLY the Годност / best-before cell for THAT same row. Prefer YYYY-MM-DD.
+- Dates on these documents are DD.MM.YYYY (day first). Never treat them as MM.DD.YYYY.
+- Never copy a date from the row above or below. Never invent a date.
+- If Годност is blank, "1", or unreadable for that row, set expiryDate to null.
+- After finishing, re-check the LAST 3 rows: each name must keep its own printed expiryDate.
 - quantity = Заявени / pieces if present, else 1. Ignore Разлика (difference) column.
 - Ignore headers, client address, totals, signatures, batch/Партида unless needed for clarity.
 - If a field is missing or unreadable, use null (quantity defaults to 1).
@@ -204,13 +221,13 @@ Rules:
 const DEFAULT_GEMINI_MODEL = "gemini-3.5-flash";
 const DEFAULT_OPENAI_MODEL = "gpt-4o-mini";
 
-/** Tried in order when the preferred model returns 404 / unavailable. */
+/** Tried in order when the preferred model is busy / unavailable. Lite last = less accurate on tables. */
 const GEMINI_MODEL_FALLBACKS = [
   "gemini-3.5-flash",
-  "gemini-3.1-flash-lite",
-  "gemini-3-flash-preview",
   "gemini-2.0-flash",
   "gemini-flash-latest",
+  "gemini-3-flash-preview",
+  "gemini-3.1-flash-lite",
 ];
 
 function resolveModel(
@@ -293,10 +310,21 @@ export function getDocumentAiStatus(): {
   };
 }
 
-const PROVIDER_RETRY_DELAYS_MS = [2000, 5000, 10000];
+const PROVIDER_RETRY_DELAYS_MS = [1500, 4000];
+/** High-demand 503: one short retry, then switch model (avoid ~2 min on a busy model). */
+const HIGH_DEMAND_RETRY_DELAYS_MS = [1200];
 
 async function sleep(ms: number): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isHighDemandError(message: string): boolean {
+  const lower = message.toLowerCase();
+  return (
+    lower.includes("high demand") ||
+    lower.includes("overloaded") ||
+    /^OCR_PROVIDER:503:/.test(message)
+  );
 }
 
 function isRetryableProviderError(message: string): boolean {
@@ -331,20 +359,24 @@ async function withProviderRetries<T>(
   fn: () => Promise<T>,
 ): Promise<T> {
   let lastError: Error | null = null;
-  const attempts = PROVIDER_RETRY_DELAYS_MS.length + 1;
+  let delays = PROVIDER_RETRY_DELAYS_MS;
+  const maxAttempts = Math.max(PROVIDER_RETRY_DELAYS_MS.length, HIGH_DEMAND_RETRY_DELAYS_MS.length) + 1;
 
-  for (let attempt = 0; attempt < attempts; attempt += 1) {
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
     try {
       return await fn();
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
       lastError = err;
+      if (isHighDemandError(err.message)) {
+        delays = HIGH_DEMAND_RETRY_DELAYS_MS;
+      }
       const canRetry =
-        attempt < attempts - 1 && isRetryableProviderError(err.message);
+        attempt < delays.length && isRetryableProviderError(err.message);
       if (!canRetry) throw err;
-      const delay = PROVIDER_RETRY_DELAYS_MS[attempt];
+      const delay = delays[attempt] ?? delays[delays.length - 1];
       console.warn(
-        `document AI: ${label} retry ${attempt + 1}/${attempts - 1} in ${delay}ms (${err.message})`,
+        `document AI: ${label} retry ${attempt + 1}/${delays.length} in ${delay}ms (${err.message})`,
       );
       await sleep(delay);
     }

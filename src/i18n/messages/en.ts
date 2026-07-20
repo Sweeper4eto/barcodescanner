@@ -177,7 +177,7 @@ export const en = {
     hint: "Photograph a page, or upload an existing photo of the document with names, barcodes/articuls, and expiry dates.",
     processing: "Reading document...",
     reviewTitle: "Review items",
-    reviewHint: "Tap a row to edit. Fix red rows before adding. Orange rows may need a check.",
+    reviewHint: "Tap a row to edit. Fix red rows before adding. Orange rows may need a check — especially dates near the end of the list.",
     matched: "Matched",
     unmatched: "New",
     missingInfo: "Missing info",

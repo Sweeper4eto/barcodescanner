@@ -147,11 +147,6 @@ export function DocumentDraftListCard({ item, onOpen, onRemove }: Props) {
             >
               {displayName}
             </p>
-            {item.articul ? (
-              <p className="text-[10px] leading-tight text-muted">
-                {t("common.articul")}: {item.articul}
-              </p>
-            ) : null}
             {item.barcode ? (
               <p className="text-[10px] leading-tight text-muted">
                 {t("common.barcode")}: {item.barcode}
@@ -166,15 +161,14 @@ export function DocumentDraftListCard({ item, onOpen, onRemove }: Props) {
                 {warningSummary}
               </p>
             ) : expiry ? (
-              <p className="mt-0.5 text-[11px] leading-tight text-foreground">
-                <span className="font-bold">{t("expiry.validUntil")}</span>
-                {" · "}
-                {expiry.toLocaleDateString(dateLocale, { timeZone: "UTC" })}
-              </p>
-            ) : null}
-            {item.matchSource ? (
-              <p className="text-[10px] leading-tight text-primary">
-                {t("addDocument.matched")}
+              <p className="mt-0.5 text-[13px] leading-tight text-foreground">
+                <span className="text-[10px] font-semibold text-muted">
+                  {t("expiry.validUntil")}
+                </span>
+                {" "}
+                <span className="font-bold tabular-nums">
+                  {expiry.toLocaleDateString(dateLocale, { timeZone: "UTC" })}
+                </span>
               </p>
             ) : null}
           </div>

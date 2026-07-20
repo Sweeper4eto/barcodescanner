@@ -22,6 +22,11 @@ describe("parseDocumentExpiry", () => {
     assert.equal(parseDocumentExpiry(""), null);
     assert.equal(parseDocumentExpiry("n/a"), null);
   });
+
+  it("rejects impossible calendar dates", () => {
+    assert.equal(parseDocumentExpiry("31.02.2026"), null);
+    assert.equal(parseDocumentExpiry("2026-02-31"), null);
+  });
 });
 
 describe("repairTruncatedItemsJson", () => {
