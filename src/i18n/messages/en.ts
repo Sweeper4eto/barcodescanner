@@ -28,7 +28,7 @@ export const en = {
     noName: "No name",
     optional: "optional",
     none: "none",
-    currency: "BGN",
+    currency: "€",
   },
   metadata: {
     title: "expire365",

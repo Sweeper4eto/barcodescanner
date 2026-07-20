@@ -1115,7 +1115,7 @@ test("payments calendar and mark paid APIs", async () => {
     }),
   });
   assert.equal(markPaid.response.status, 201);
-  assert.equal(markPaid.data.payment.amountPaid, 10);
+  assert.equal(markPaid.data.payment.amountPaid, 20);
 });
 
 test("cron purge endpoint requires secret", async () => {

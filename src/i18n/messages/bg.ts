@@ -30,7 +30,7 @@ export const bg = {
     noName: "Без име",
     optional: "по желание",
     none: "няма",
-    currency: "лв.",
+    currency: "€",
   },
   metadata: {
     title: "expire365",

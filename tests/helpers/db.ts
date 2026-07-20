@@ -47,7 +47,7 @@ export async function seedClientWithStore(db: PrismaClient) {
   const client = await db.client.create({
     data: {
       name: "Test Client",
-      monthlyFeePerStore: 10,
+      monthlyFeePerStore: 20,
       stores: { create: { name: "Store A" } },
     },
     include: { stores: true },

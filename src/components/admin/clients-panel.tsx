@@ -99,7 +99,7 @@ export function ClientsPanel({ onRefresh }: Props) {
     name: "",
     phone: "",
     additionalInfo: "",
-    monthlyFeePerStore: "10",
+    monthlyFeePerStore: "20",
   });
   const [newStore, setNewStore] = useState({
     name: "",
@@ -156,7 +156,7 @@ export function ClientsPanel({ onRefresh }: Props) {
         setSaveMessage(t("errors.saveFailed"));
         return;
       }
-      setNewClient({ name: "", phone: "", additionalInfo: "", monthlyFeePerStore: "10" });
+      setNewClient({ name: "", phone: "", additionalInfo: "", monthlyFeePerStore: "20" });
       await loadClients();
       onRefresh();
       setSubview("current");

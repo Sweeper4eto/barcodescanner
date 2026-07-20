@@ -37,7 +37,7 @@ model Client {
   additionalInfo     String?
   active             Boolean   @default(true)
   homeUser           Boolean   @default(false)
-  monthlyFeePerStore Float     @default(0)
+  monthlyFeePerStore Float     @default(20)
   users              User[]
   stores             Store[]
   payments           Payment[]

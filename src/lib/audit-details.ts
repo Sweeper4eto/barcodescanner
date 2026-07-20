@@ -46,7 +46,7 @@ type ClientLike = {
 export function auditClientCreated(client: ClientLike): string {
   return auditJoin([
     `client "${client.name}"`,
-    `fee ${client.monthlyFeePerStore} BGN/store`,
+    `fee ${client.monthlyFeePerStore} €/store`,
     client.phone ? `phone ${client.phone}` : null,
     client.additionalInfo ? `info: ${client.additionalInfo}` : null,
     formatAuditValue(client.active),
@@ -73,7 +73,7 @@ export function auditClientDeleted(client: ClientLike): string {
   return auditJoin([
     `client "${client.name}"`,
     client.phone ? `phone ${client.phone}` : null,
-    `fee ${client.monthlyFeePerStore} BGN/store`,
+    `fee ${client.monthlyFeePerStore} €/store`,
   ]);
 }
 
@@ -131,9 +131,9 @@ export function auditPaymentRecorded(input: {
   return auditJoin([
     `client "${input.clientName}"`,
     `period ${period}`,
-    `${input.activeStoreCount} stores × ${input.feePerStore} BGN`,
-    input.discount > 0 ? `discount ${input.discount} BGN` : null,
-    `paid ${input.amountPaid} BGN`,
+    `${input.activeStoreCount} stores × ${input.feePerStore} €`,
+    input.discount > 0 ? `discount ${input.discount} €` : null,
+    `paid ${input.amountPaid} €`,
     input.notes?.trim() ? `notes: ${input.notes.trim()}` : null,
   ]);
 }
