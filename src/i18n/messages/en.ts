@@ -124,7 +124,7 @@ export const en = {
     addStock: "New product",
     expiry: "Expiry",
     navExpiry: "Expiry",
-    navAdd: "New",
+    navAdd: "Add",
     navScan: "Scan",
     navDocument: "Document",
     navOrders: "List",

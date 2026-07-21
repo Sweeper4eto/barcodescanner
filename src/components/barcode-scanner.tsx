@@ -9,7 +9,7 @@ import {
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { PrimaryButton, SecondaryButton } from "@/components/auth-forms";
 import { useT } from "@/components/i18n-provider";
-import { startEnhancedAutoScan, startFastVideoScan, toggleBarcodeTorch, applyBarcodeCameraConstraints, startAutoRefocus } from "@/lib/barcode-camera";
+import { startEnhancedAutoScan, startFastVideoScan, toggleBarcodeTorch, applyBarcodeCameraConstraints, startAutoRefocus, captureScannerPreview } from "@/lib/barcode-camera";
 import { prepareBarcodeDecoders } from "@/lib/barcode-decode";
 import { CrossDecoderBarcodeConsensus, normalizeBarcode } from "@/lib/barcode";
 
@@ -20,8 +20,8 @@ type Props = {
   autoStart?: boolean;
   /** When false, camera scan fills the barcode field for manual edit before confirm. */
   submitOnScan?: boolean;
-  /** Double-tap the preview to continue without a barcode. */
-  onSkipWithoutBarcode?: () => void;
+  /** Double-tap the preview to continue without a barcode (passes a live photo when possible). */
+  onSkipWithoutBarcode?: (photoDataUrl?: string) => void;
 };
 
 const PRODUCT_BARCODE_FORMATS = [
@@ -491,7 +491,8 @@ export function BarcodeScanner({
           const now = Date.now();
           if (now - lastTapRef.current < 350) {
             lastTapRef.current = 0;
-            onSkipWithoutBarcode();
+            const photo = captureScannerPreview(elementId) ?? undefined;
+            onSkipWithoutBarcode(photo);
             return;
           }
           lastTapRef.current = now;

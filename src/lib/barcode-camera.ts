@@ -317,6 +317,25 @@ function findScannerVideo(containerId: string): HTMLVideoElement | null {
   return container?.querySelector("video") ?? null;
 }
 
+/** Snapshot the live barcode preview as a JPEG data URL (for double-tap direct picture). */
+export function captureScannerPreview(containerId: string): string | null {
+  const video = findScannerVideo(containerId);
+  if (!video || video.videoWidth < 8 || video.videoHeight < 8) return null;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  const context = canvas.getContext("2d");
+  if (!context) return null;
+
+  context.drawImage(video, 0, 0, canvas.width, canvas.height);
+  try {
+    return canvas.toDataURL("image/jpeg", 0.85);
+  } catch {
+    return null;
+  }
+}
+
 function renderVideoFrame(
   context: CanvasRenderingContext2D,
   canvas: HTMLCanvasElement,

@@ -126,7 +126,7 @@ export const bg = {
     addStock: "Нов продукт",
     expiry: "Годност",
     navExpiry: "Годност",
-    navAdd: "Нов",
+    navAdd: "Добави",
     navScan: "Сканирай",
     navDocument: "Документ",
     navOrders: "Списък",

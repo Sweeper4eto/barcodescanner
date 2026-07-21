@@ -82,6 +82,38 @@ export function ScanFlow() {
     [goToStep],
   );
 
+  const beginDirectPicture = useCallback(
+    (photoDataUrl?: string) => {
+      setProduct(null);
+      setBarcode("");
+      setName("");
+      setMessage("");
+      goToStep("name");
+
+      if (!photoDataUrl) {
+        setEntryImagePath(null);
+        setCapturingPhoto(true);
+        return;
+      }
+
+      setCapturingPhoto(false);
+      setUploadingPhoto(true);
+      void (async () => {
+        try {
+          const path = await uploadImage(photoDataUrl);
+          setEntryImagePath(path);
+        } catch {
+          setEntryImagePath(null);
+          setCapturingPhoto(true);
+          setMessage(t("errors.uploadFailed"));
+        } finally {
+          setUploadingPhoto(false);
+        }
+      })();
+    },
+    [goToStep, t],
+  );
+
   const lookupBarcode = useCallback(
     async (value: string) => {
       setLookingUp(true);
@@ -190,7 +222,7 @@ export function ScanFlow() {
           <BarcodeScanner
             autoStart={!urlBarcode}
             onScan={lookupBarcode}
-            onSkipWithoutBarcode={() => beginManualEntry("")}
+            onSkipWithoutBarcode={(photo) => beginDirectPicture(photo)}
             onCancel={() =>
               goBackOrApp(
                 storeId
