@@ -8,6 +8,7 @@ import {
   adminSearchInputClass,
 } from "@/components/admin/admin-ui";
 import { PrimaryButton } from "@/components/auth-forms";
+import { SearchField } from "@/components/search-field";
 import { useT } from "@/components/i18n-provider";
 import type { Client } from "@/components/admin/clients-panel";
 
@@ -203,11 +204,11 @@ export function UsersPanel({ clients, onRefresh }: Props) {
       <section className="min-w-0 rounded-2xl border border-card-border p-4">
         <h2 className="font-medium">{t("admin.allUsers")}</h2>
         <div className="mt-3 flex min-w-0 gap-2">
-          <input
-            className={adminSearchInputClass}
-            placeholder={t("admin.usersSearchPlaceholder")}
+          <SearchField
             value={search}
-            onChange={(event) => setSearch(event.target.value)}
+            onChange={setSearch}
+            placeholder={t("admin.usersSearchPlaceholder")}
+            inputClassName={adminSearchInputClass}
           />
         </div>
         <div className="mt-3 max-h-[32rem] space-y-1.5 overflow-y-auto">

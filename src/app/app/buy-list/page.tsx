@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActionFlash } from "@/components/action-flash";
 import { SecondaryButton } from "@/components/auth-forms";
 import { CameraCapture, uploadImage } from "@/components/camera-capture";
@@ -16,6 +16,7 @@ import { ExpiryDatePicker } from "@/components/expiry-date-picker";
 import { MobilePageHeader } from "@/components/mobile-page-header";
 import { ProductImage } from "@/components/product-image";
 import { QuantityPicker } from "@/components/quantity-picker";
+import { SearchField } from "@/components/search-field";
 import { useT } from "@/components/i18n-provider";
 import { useBrowserBackStack } from "@/lib/browser-back";
 import { expiryYmdToIso } from "@/lib/inventory";
@@ -161,6 +162,16 @@ function BuyListContent() {
       void loadFavourites();
     }
   }, [storeId, homeUser, loadFavourites]);
+
+  const filteredFavourites = useMemo(() => {
+    const q = debouncedSearch.trim().toLowerCase();
+    if (!q) return favourites;
+    return favourites.filter((product) => {
+      const name = product.name.toLowerCase();
+      const barcode = product.barcode.toLowerCase();
+      return name.includes(q) || barcode.includes(q);
+    });
+  }, [favourites, debouncedSearch]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -459,12 +470,13 @@ function BuyListContent() {
       />
 
       <div className="mb-2 flex items-stretch gap-1.5">
-        <input
-          className="min-w-0 flex-1 rounded-lg border border-input-border bg-input px-2.5 py-2 text-sm text-foreground"
-          aria-label={t("buyList.searchPlaceholder")}
-          placeholder={t("buyList.searchPlaceholder")}
+        <SearchField
           value={search}
-          onChange={(event) => setSearch(event.target.value)}
+          onChange={setSearch}
+          placeholder={t("buyList.searchPlaceholder")}
+          aria-label={t("buyList.searchPlaceholder")}
+          inputClassName="rounded-lg border border-input-border bg-input px-2.5 py-2 text-sm text-foreground"
+          onClear={() => setShowScanner(false)}
         />
         <button
           type="button"
@@ -491,19 +503,6 @@ function BuyListContent() {
         </button>
       </div>
 
-      {search ? (
-        <button
-          type="button"
-          className="mb-2 text-xs text-accent"
-          onClick={() => {
-            setSearch("");
-            setShowScanner(false);
-          }}
-        >
-          {t("buyList.clearSearch")}
-        </button>
-      ) : null}
-
       {showScanner ? (
         <div className="mb-2 rounded-xl border border-card-border p-2">
           <BarcodeScanner
@@ -515,16 +514,21 @@ function BuyListContent() {
         </div>
       ) : null}
 
-      {favourites.length > 0 ? (
+      {filteredFavourites.length > 0 ? (
         <section className="mb-2" aria-label={t("buyList.favouritesTitle")}>
           <div className="mb-1 flex items-baseline justify-between gap-2">
             <h2 className="text-[11px] font-semibold uppercase tracking-wide text-muted">
               {t("buyList.favouritesTitle")}
             </h2>
-            <span className="text-[10px] text-muted">{favourites.length}</span>
+            <span className="text-[10px] text-muted">
+              {filteredFavourites.length}
+              {debouncedSearch && filteredFavourites.length !== favourites.length
+                ? ` / ${favourites.length}`
+                : ""}
+            </span>
           </div>
           <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {favourites.map((product) => (
+            {filteredFavourites.map((product) => (
               <button
                 key={product.id}
                 type="button"

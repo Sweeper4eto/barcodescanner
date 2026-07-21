@@ -12,6 +12,7 @@ import {
   adminPaginationClass,
 } from "@/components/admin/admin-ui";
 import { PrimaryButton } from "@/components/auth-forms";
+import { SearchField } from "@/components/search-field";
 import { useT } from "@/components/i18n-provider";
 
 export type Client = {
@@ -356,11 +357,11 @@ export function ClientsPanel({ onRefresh }: Props) {
                   void loadClients();
                 }}
               >
-                <input
-                  className={`${adminInputClass} min-w-0 flex-1`}
+                <SearchField
                   value={query}
-                  onChange={(event) => setQuery(event.target.value)}
+                  onChange={setQuery}
                   placeholder={t("admin.searchPlaceholder")}
+                  inputClassName={`${adminInputClass} min-w-0 flex-1`}
                 />
                 <button
                   type="submit"

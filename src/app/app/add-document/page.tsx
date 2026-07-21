@@ -7,6 +7,7 @@ import { CameraCapture, prepareDocumentImage } from "@/components/camera-capture
 import { DocumentDraftDetailSheet } from "@/components/document-draft-detail-sheet";
 import { DocumentDraftListCard } from "@/components/document-draft-list-card";
 import { MobilePageHeader } from "@/components/mobile-page-header";
+import { SearchField } from "@/components/search-field";
 import { useT } from "@/components/i18n-provider";
 import { goBackOrApp, navigateApp } from "@/lib/app-navigation";
 import { useBrowserBackStack } from "@/lib/browser-back";
@@ -276,22 +277,13 @@ function AddDocumentContent() {
           </div>
           {error ? <p className="text-sm text-error">{error}</p> : null}
 
-          <input
-            className="w-full rounded-xl border border-input-border bg-input px-3 py-3 text-base text-foreground"
-            aria-label={t("addDocument.searchPlaceholder")}
-            placeholder={t("addDocument.searchPlaceholder")}
+          <SearchField
             value={search}
-            onChange={(event) => setSearch(event.target.value)}
+            onChange={setSearch}
+            placeholder={t("addDocument.searchPlaceholder")}
+            aria-label={t("addDocument.searchPlaceholder")}
+            inputClassName="rounded-xl border border-input-border bg-input px-3 py-3 text-base text-foreground"
           />
-          {search ? (
-            <button
-              type="button"
-              className="text-sm text-accent"
-              onClick={() => setSearch("")}
-            >
-              {t("expiry.clearSearch")}
-            </button>
-          ) : null}
 
           <div className="space-y-1 pt-1">
             {filteredItems.length === 0 ? (

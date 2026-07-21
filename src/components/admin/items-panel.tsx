@@ -20,6 +20,7 @@ import {
 } from "@/components/admin/admin-ui";
 import { PrimaryButton, SecondaryButton } from "@/components/auth-forms";
 import { CameraCapture } from "@/components/camera-capture";
+import { SearchField } from "@/components/search-field";
 import { useT } from "@/components/i18n-provider";
 
 type Product = {
@@ -242,11 +243,11 @@ export function ItemsPanel({ onRefresh }: Props) {
       <div className="min-w-0 md:col-span-4">
         <AdminSection title={t("admin.items")}>
           <form className="mb-4 flex min-w-0 gap-2" onSubmit={onSearch}>
-            <input
-              className={adminSearchInputClass}
-              placeholder={t("admin.searchPlaceholder")}
+            <SearchField
               value={search}
-              onChange={(event) => setSearch(event.target.value)}
+              onChange={setSearch}
+              placeholder={t("admin.searchPlaceholder")}
+              inputClassName={adminSearchInputClass}
             />
             <button
               type="submit"

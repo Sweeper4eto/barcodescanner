@@ -13,6 +13,7 @@ import { ExpiryPeriodFilter } from "@/components/expiry-period-filter";
 import { ActionFlash } from "@/components/action-flash";
 import { MobilePageHeader } from "@/components/mobile-page-header";
 import { QuantityPicker } from "@/components/quantity-picker";
+import { SearchField } from "@/components/search-field";
 import { useT } from "@/components/i18n-provider";
 import {
   type ExpiryPeriod,
@@ -409,12 +410,13 @@ function ExpiryList() {
       <ExpiryPeriodFilter value={period} onChange={onPeriodChange} />
 
       <div className="mb-3 flex gap-2">
-        <input
-          className="min-w-0 flex-1 rounded-xl border border-input-border bg-input px-3 py-3 text-base text-foreground"
-          aria-label={t("expiry.searchPlaceholder")}
-          placeholder={t("expiry.searchPlaceholder")}
+        <SearchField
           value={search}
-          onChange={(event) => setSearch(event.target.value)}
+          onChange={setSearch}
+          placeholder={t("expiry.searchPlaceholder")}
+          aria-label={t("expiry.searchPlaceholder")}
+          inputClassName="rounded-xl border border-input-border bg-input px-3 py-3 text-base text-foreground"
+          onClear={() => setShowScanner(false)}
         />
         <button
           type="button"
@@ -429,19 +431,6 @@ function ExpiryList() {
           <span>{t("app.navScan")}</span>
         </button>
       </div>
-
-      {search ? (
-        <button
-          type="button"
-          className="mb-4 text-sm text-accent"
-          onClick={() => {
-            setSearch("");
-            setShowScanner(false);
-          }}
-        >
-          {t("expiry.clearSearch")}
-        </button>
-      ) : null}
 
       {showScanner ? (
         <div className="mb-4 rounded-2xl border border-card-border p-4">

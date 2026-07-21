@@ -2,6 +2,7 @@
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { AdminField, adminInputClass, adminPaginationClass, adminSearchInputClass } from "@/components/admin/admin-ui";
+import { SearchField } from "@/components/search-field";
 import { useT } from "@/components/i18n-provider";
 import type { MessageKey } from "@/i18n";
 
@@ -231,11 +232,12 @@ export function AuditLogPanel() {
       </div>
 
       <form className="flex min-w-0 flex-wrap gap-2" onSubmit={onSearch}>
-        <input
-          className={adminSearchInputClass}
-          placeholder={t("admin.auditSearchPlaceholder")}
+        <SearchField
           value={search}
-          onChange={(event) => setSearch(event.target.value)}
+          onChange={setSearch}
+          placeholder={t("admin.auditSearchPlaceholder")}
+          inputClassName={adminSearchInputClass}
+          className="min-w-[12rem] flex-1"
         />
         <button
           type="submit"
