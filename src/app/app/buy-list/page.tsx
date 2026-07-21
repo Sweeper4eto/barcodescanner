@@ -458,9 +458,9 @@ function BuyListContent() {
         onClear={clearFlash}
       />
 
-      <div className="mb-3 flex gap-2">
+      <div className="mb-2 flex items-stretch gap-1.5">
         <input
-          className="min-w-0 flex-1 rounded-xl border border-input-border bg-input px-3 py-3 text-base text-foreground"
+          className="min-w-0 flex-1 rounded-lg border border-input-border bg-input px-2.5 py-2 text-sm text-foreground"
           aria-label={t("buyList.searchPlaceholder")}
           placeholder={t("buyList.searchPlaceholder")}
           value={search}
@@ -469,13 +469,13 @@ function BuyListContent() {
         <button
           type="button"
           onClick={() => setShowScanner((open) => !open)}
-          className={`flex shrink-0 flex-col items-center justify-center gap-0.5 rounded-xl border px-3 py-2 text-xs font-medium ${
+          className={`flex shrink-0 flex-col items-center justify-center gap-0.5 rounded-lg border px-2 py-1.5 text-[10px] font-medium leading-none ${
             showScanner
               ? "border-primary bg-selected text-primary"
               : "border-input-border bg-card text-muted"
           }`}
         >
-          <ScanNavIcon className="h-6 w-6" />
+          <ScanNavIcon className="h-5 w-5" />
           <span>{t("app.navScan")}</span>
         </button>
         <button
@@ -484,9 +484,9 @@ function BuyListContent() {
             setShowScanner(false);
             setShowManualAdd(true);
           }}
-          className="flex shrink-0 flex-col items-center justify-center gap-0.5 rounded-xl border border-primary bg-selected px-3 py-2 text-xs font-medium text-primary"
+          className="flex shrink-0 flex-col items-center justify-center gap-0.5 rounded-lg border border-primary bg-selected px-2 py-1.5 text-[10px] font-medium leading-none text-primary"
         >
-          <span className="text-lg leading-none">+</span>
+          <span className="text-base leading-none">+</span>
           <span>{t("buyList.addManual")}</span>
         </button>
       </div>
@@ -494,7 +494,7 @@ function BuyListContent() {
       {search ? (
         <button
           type="button"
-          className="mb-4 text-sm text-accent"
+          className="mb-2 text-xs text-accent"
           onClick={() => {
             setSearch("");
             setShowScanner(false);
@@ -505,7 +505,7 @@ function BuyListContent() {
       ) : null}
 
       {showScanner ? (
-        <div className="mb-4 rounded-2xl border border-card-border p-4">
+        <div className="mb-2 rounded-xl border border-card-border p-2">
           <BarcodeScanner
             autoStart
             submitOnScan
@@ -515,47 +515,43 @@ function BuyListContent() {
         </div>
       ) : null}
 
-      <section className="mb-4">
-        <h2 className="mb-2 text-sm font-semibold text-foreground">
-          {t("buyList.favouritesTitle")}
-        </h2>
-        {favourites.length === 0 ? (
-          <p className="rounded-xl bg-subtle p-3 text-xs text-muted">
-            {t("buyList.favouritesEmpty")}
-          </p>
-        ) : (
-          <div className="space-y-2">
+      {favourites.length > 0 ? (
+        <section className="mb-2" aria-label={t("buyList.favouritesTitle")}>
+          <div className="mb-1 flex items-baseline justify-between gap-2">
+            <h2 className="text-[11px] font-semibold uppercase tracking-wide text-muted">
+              {t("buyList.favouritesTitle")}
+            </h2>
+            <span className="text-[10px] text-muted">{favourites.length}</span>
+          </div>
+          <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {favourites.map((product) => (
-              <div
+              <button
                 key={product.id}
-                className="flex items-center gap-2 rounded-lg border border-card-border bg-card px-2 py-1.5"
+                type="button"
+                disabled={addingFavouriteId === product.id}
+                onClick={() => void addFavouriteToOrders(product)}
+                title={t("buyList.addFavouriteToOrders")}
+                aria-label={`${t("buyList.addFavouriteToOrders")}: ${product.name}`}
+                className="flex w-[4.5rem] shrink-0 flex-col items-center gap-1 rounded-lg border border-card-border bg-card p-1.5 text-center disabled:opacity-60"
               >
                 <ProductImage
                   src={product.imagePath}
                   alt=""
-                  className="h-10 w-10 shrink-0 rounded-md object-cover"
-                  placeholderClassName="h-10 w-10 shrink-0 rounded-md text-[9px]"
+                  className="h-11 w-11 rounded-md object-cover"
+                  placeholderClassName="h-11 w-11 rounded-md text-[8px]"
                 />
-                <p className="min-w-0 flex-1 line-clamp-2 text-xs font-semibold leading-tight text-foreground">
-                  {product.name}
-                </p>
-                <button
-                  type="button"
-                  className="shrink-0 rounded-lg bg-primary px-2.5 py-1.5 text-[11px] font-medium text-primary-fg disabled:opacity-60"
-                  disabled={addingFavouriteId === product.id}
-                  onClick={() => void addFavouriteToOrders(product)}
-                >
+                <span className="line-clamp-2 w-full text-[10px] font-medium leading-tight text-foreground">
                   {addingFavouriteId === product.id
                     ? t("buyList.adding")
-                    : t("buyList.addFavouriteToOrders")}
-                </button>
-              </div>
+                    : product.name}
+                </span>
+              </button>
             ))}
           </div>
-        )}
-      </section>
+        </section>
+      ) : null}
 
-      <div className="space-y-1 pt-1">
+      <div className="space-y-1 pt-0.5">
         {loading && page === 1 && entries.length === 0 ? (
           <p className="rounded-xl bg-subtle p-4 text-sm text-muted">
             {isSearching ? t("buyList.searching") : t("buyList.loading")}
