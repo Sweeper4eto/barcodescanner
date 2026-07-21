@@ -147,7 +147,7 @@ export const bg = {
     digestCriticalSingle: "{productName} изтича скоро",
     digestCriticalSingleBody:
       "{quantity} в {storeName} · остават {days} ден(а)",
-    digestCriticalMany: "{count} продукта изтичат до 7 дни",
+    digestCriticalMany: "{count} продукта изтичат до 5 дни",
     digestCriticalManyBody: "Включително {productName} в {storeName}",
     digestSoonTitle: "{count} продукта с наближаваща годност",
     digestSoonBody: "Следващ: {productName} в {storeName}",

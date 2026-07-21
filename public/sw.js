@@ -1,4 +1,4 @@
-const CACHE_NAME = "expire365-v9";
+const CACHE_NAME = "expire365-v10";
 const OFFLINE_FALLBACKS = ["/app", "/login", "/"];
 
 self.addEventListener("install", (event) => {
@@ -69,11 +69,12 @@ self.addEventListener("push", (event) => {
   const fallback = { title: "expire365", body: "", url: "/app" };
   const data = event.data?.json() ?? fallback;
 
+  // Do not set `icon` here: on Android PWAs Chrome already shows the app
+  // icon, and a second `icon` makes two logos (often one stale + one new).
   event.waitUntil(
     self.registration.showNotification(data.title ?? fallback.title, {
       body: data.body ?? "",
-      icon: "/icons/icon-192.png",
-      badge: "/icons/icon-192.png",
+      badge: "/icons/icon-192.png?v=4",
       data: { url: data.url ?? fallback.url },
     }),
   );

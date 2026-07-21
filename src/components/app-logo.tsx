@@ -1,4 +1,4 @@
-const LOGO_SRC = "/icons/icon-192.png?v=3";
+const LOGO_SRC = "/icons/icon-192.png?v=4";
 
 export function AppLogo({
   size = 72,

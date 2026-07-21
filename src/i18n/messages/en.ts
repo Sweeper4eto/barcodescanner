@@ -146,7 +146,7 @@ export const en = {
     digestCriticalSingle: "{productName} expires soon",
     digestCriticalSingleBody:
       "{quantity} at {storeName} · {days} day(s) left",
-    digestCriticalMany: "{count} products expire within 7 days",
+    digestCriticalMany: "{count} products expire within 5 days",
     digestCriticalManyBody: "Includes {productName} at {storeName}",
     digestSoonTitle: "{count} products expiring soon",
     digestSoonBody: "Next: {productName} at {storeName}",

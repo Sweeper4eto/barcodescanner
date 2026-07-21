@@ -9,7 +9,9 @@ import { t, type Locale } from "@/i18n";
 
 const DIGEST_KIND = "expiry-digest";
 const MIN_INTERVAL_MS = 20 * 60 * 60 * 1000;
-const NOTIFY_WITHIN_DAYS = 28;
+/** Notify only for products expiring within this many days (inclusive). */
+const NOTIFY_WITHIN_DAYS = 5;
+const CRITICAL_WITHIN_DAYS = 5;
 
 export type ExpiryDigestItem = {
   productName: string;
@@ -27,7 +29,9 @@ export function buildExpiryDigestPayload(
 ): PushPayload | null {
   if (items.length === 0) return null;
 
-  const critical = items.filter((item) => item.daysUntilExpiry <= 7);
+  const critical = items.filter(
+    (item) => item.daysUntilExpiry <= CRITICAL_WITHIN_DAYS,
+  );
   const storeIds = [...new Set(items.map((item) => item.storeId))];
   const url =
     storeIds.length === 1
