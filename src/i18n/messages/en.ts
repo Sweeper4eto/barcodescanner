@@ -337,7 +337,7 @@ export const en = {
     unavailable: "Camera unavailable.",
     start: "Start camera",
     capture: "Take photo",
-    newPhoto: "New photo",
+    newPhoto: "New picture",
     uploadExisting: "Choose from gallery",
     productPhoto: "Product photo",
   },

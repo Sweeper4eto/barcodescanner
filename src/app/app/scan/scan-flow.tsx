@@ -36,7 +36,6 @@ export function ScanFlow() {
     getPreviousStep: (current) => getPreviousScanStep(current, Boolean(product)),
   });
   const [name, setName] = useState("");
-  const [articul, setArticul] = useState("");
   const [entryImagePath, setEntryImagePath] = useState<string | null>(null);
   const [capturingPhoto, setCapturingPhoto] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -167,7 +166,6 @@ export function ScanFlow() {
         storeId,
         quantity: qty,
         expiryDate: new Date(expiryDate).toISOString(),
-        articul: articul.trim() || undefined,
       };
 
       if (product?.id) {
@@ -289,7 +287,7 @@ export function ScanFlow() {
                 disabled={uploadingPhoto}
               >
                 {entryImagePath
-                  ? t("expiry.changePicture")
+                  ? t("camera.newPhoto")
                   : t("scan.takePhotoOptional")}
               </PrimaryButton>
             </>
@@ -314,14 +312,6 @@ export function ScanFlow() {
               value={name}
               onChange={(event) => setName(event.target.value)}
               autoFocus
-            />
-          </label>
-          <label className="block text-sm font-medium text-foreground">
-            {t("common.articul")}
-            <input
-              className="mt-1 w-full rounded-xl border border-input-border bg-input px-3 py-3 text-foreground"
-              value={articul}
-              onChange={(event) => setArticul(event.target.value)}
             />
           </label>
           <p className="text-xs text-muted">{t("scan.skipPhotoHint")}</p>
@@ -355,15 +345,11 @@ export function ScanFlow() {
               />
             </label>
           ) : null}
-          <label className="block text-sm font-medium text-foreground">
-            {t("common.articul")}
-            <input
-              className="mt-1 w-full rounded-xl border border-input-border bg-input px-3 py-3 text-foreground"
-              value={articul}
-              onChange={(event) => setArticul(event.target.value)}
-            />
-          </label>
-          <QuantityPicker value={quantity} onChange={setQuantity} />
+          <QuantityPicker
+            value={quantity}
+            onChange={setQuantity}
+            onGridSelect={() => goToStep("date")}
+          />
           <PrimaryButton
             onClick={() => goToStep("date")}
             disabled={!quantity || Number(quantity) < 1}
@@ -387,11 +373,6 @@ export function ScanFlow() {
           <p className="font-medium">{displayName}</p>
           {showBarcode ? (
             <p className="font-mono text-xs text-muted">{displayBarcode}</p>
-          ) : null}
-          {articul.trim() ? (
-            <p className="text-sm text-muted">
-              {t("common.articul")}: {articul.trim()}
-            </p>
           ) : null}
           <QuantityPicker
             value={quantity}

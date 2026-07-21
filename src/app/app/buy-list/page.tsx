@@ -717,7 +717,7 @@ function BuyListContent() {
                   />
                   <SecondaryButton onClick={() => setManualCapturing(true)}>
                     {manualImagePath
-                      ? t("expiry.changePicture")
+                      ? t("camera.newPhoto")
                       : t("buyList.addManualPhoto")}
                   </SecondaryButton>
                 </>

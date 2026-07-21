@@ -9,6 +9,8 @@ type Props = {
   max?: number;
   /** When false, starts collapsed so the user can tap the value to reopen the grid. */
   startWithGridOpen?: boolean;
+  /** Called when a number is chosen from the grid (not the manual field). */
+  onGridSelect?: (value: string) => void;
 };
 
 export function QuantityPicker({
@@ -16,6 +18,7 @@ export function QuantityPicker({
   onChange,
   max = 20,
   startWithGridOpen = true,
+  onGridSelect,
 }: Props) {
   const { t } = useT();
   const [gridOpen, setGridOpen] = useState(startWithGridOpen);
@@ -28,8 +31,10 @@ export function QuantityPicker({
   }, [value]);
 
   function pick(next: number) {
-    onChange(String(next));
+    const nextValue = String(next);
+    onChange(nextValue);
     setGridOpen(false);
+    onGridSelect?.(nextValue);
   }
 
   function onManualChange(raw: string) {
