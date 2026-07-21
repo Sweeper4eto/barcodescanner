@@ -54,13 +54,16 @@ export const en = {
     confirmPassword: "Confirm password",
     passwordMismatch: "Passwords do not match",
     loginSubtitle: "Mobile-optimized web access to your stores",
+    registerSubtitle:
+      "After registration, an administrator must assign you to a client",
     noAccount: "Don't have an account?",
     hasAccount: "Already have an account?",
     loginError: "Login failed",
     registerError: "Registration failed",
+    registerSuccess:
+      "Account created. Please contact an administrator for client assignment.",
     usernameTooShort: "Username must be at least 3 characters",
     passwordTooShort: "Password must be at least 6 characters",
-    passwordTooLong: "Password is too long (max 72 characters)",
     usernameTaken: "This username is already taken",
     invalidCredentials: "Invalid username or password",
     accountDeactivated: "Account is deactivated. Contact an administrator.",
@@ -69,14 +72,6 @@ export const en = {
     clientDeactivated: "Client is deactivated. Contact an administrator.",
     tooManyAttempts:
       "Too many failed login attempts. Try again in a few minutes.",
-    accountType: "Account type",
-    accountTypeHome: "Household",
-    accountTypeRetail: "Store / business",
-    organizationName: "Name (optional)",
-    organizationNameHint: "Your household or business name",
-    registerSubtitle:
-      "Create your household or store account and start right away",
-    registerSuccess: "Account created. You are signed in.",
   },
   errors: {
     invalidData: "Invalid data",
@@ -98,8 +93,6 @@ export const en = {
     userNeedsClientForStores: "Assign a client before selecting stores",
     cannotDeleteSelf: "You cannot delete your own account",
     cannotDeleteAdminUser: "Admin accounts cannot be deleted",
-    cannotDeactivateSelf: "You cannot deactivate your own account",
-    cannotDeactivateLastOwner: "Cannot deactivate the only owner of this account",
     clientNotFound: "Client not found",
     uploadFailed: "Upload failed",
     saveFailed: "Save failed",
@@ -139,8 +132,6 @@ export const en = {
     bottomNav: "Main navigation",
     noStores:
       "You have no assigned stores. Contact an administrator.",
-    team: "Team",
-    teamHint: "Add or disable users for your account",
   },
   push: {
     title: "Expiry alerts",
@@ -319,29 +310,9 @@ export const en = {
     addManualConfirm: "Add",
     addedManual: "Added to cart",
   },
-    favourites: {
+  favourites: {
     add: "Add to favourites",
     remove: "Remove from favourites",
-  },
-  team: {
-    title: "Team",
-    members: "Members",
-    addMember: "Add user",
-    username: "Username",
-    password: "Password",
-    stores: "Stores",
-    active: "Active",
-    inactive: "Inactive",
-    owner: "Owner",
-    member: "Member",
-    deactivate: "Deactivate",
-    activate: "Activate",
-    create: "Create user",
-    empty: "No other users yet.",
-    created: "User created",
-    saveFailed: "Could not update user",
-    createFailed: "Could not create user",
-    loading: "Loading team...",
   },
   scanner: {
     startCamera: "Start camera",

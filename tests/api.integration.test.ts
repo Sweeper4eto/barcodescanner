@@ -89,23 +89,16 @@ test.beforeEach(async () => {
   await seedAdmin(db);
 });
 
-test("POST /api/auth/register creates client and signs user in", async () => {
+test("POST /api/auth/register creates user and returns English message", async () => {
   const { response, data } = await jsonRequest(registerPost, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      username: "newbie",
-      password: "password123",
-      accountType: "home",
-      organizationName: "Family Home",
-    }),
+    body: JSON.stringify({ username: "newbie", password: "password123" }),
   });
 
   assert.equal(response.status, 200);
   assert.equal(data.user.username, "newbie");
-  assert.equal(data.user.clientRole, "OWNER");
-  assert.ok(data.user.clientId);
-  assert.match(data.message, /signed in/i);
+  assert.match(data.message, /administrator/i);
 });
 
 test("POST /api/auth/login sets session for admin", async () => {

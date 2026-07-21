@@ -20,14 +20,12 @@ test.describe("Public pages", () => {
     await expect(page.getByRole("link", { name: "Register" })).toBeVisible();
   });
 
-  test("registration creates account and opens the app", async ({ page }) => {
+  test("registration form shows English success message", async ({ page }) => {
     const username = `reg${Date.now()}`;
     await page.goto("/register");
-    await page.getByLabel("Household").check();
     await page.getByLabel("Username").fill(username);
-    await page.getByLabel("Password", { exact: true }).fill("password123");
-    await page.getByLabel("Confirm password").fill("password123");
+    await page.getByLabel("Password").fill("password123");
     await page.getByRole("button", { name: "Register" }).click();
-    await expect(page).toHaveURL(/\/app/);
+    await expect(page.getByText(/administrator/i)).toBeVisible();
   });
 });

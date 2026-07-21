@@ -21,9 +21,6 @@ export function migrateTestDb(): void {
 
 export async function resetTestDb(db: PrismaClient): Promise<void> {
   await db.payment.deleteMany();
-  await db.pushNotificationLog.deleteMany().catch(() => undefined);
-  await db.pushSubscription.deleteMany().catch(() => undefined);
-  await db.favouriteProduct.deleteMany();
   await db.buyListEntry.deleteMany();
   await db.inventoryEntry.deleteMany();
   await db.userStore.deleteMany();
@@ -71,30 +68,9 @@ export async function seedUserWithAccess(
       username: resolvedUsername,
       passwordHash: await hashPassword("password123"),
       role: "USER",
-      clientRole: "MEMBER",
       clientId,
       storeLinks: { create: { storeId } },
     },
   });
   return user;
-}
-
-export async function seedOwnerWithAccess(
-  db: PrismaClient,
-  clientId: string,
-  storeId: string,
-  username?: string,
-) {
-  const { hashPassword } = await import("@/lib/password");
-  const resolvedUsername = username ?? `owner-${Date.now()}`;
-  return db.user.create({
-    data: {
-      username: resolvedUsername,
-      passwordHash: await hashPassword("password123"),
-      role: "USER",
-      clientRole: "OWNER",
-      clientId,
-      storeLinks: { create: { storeId } },
-    },
-  });
 }

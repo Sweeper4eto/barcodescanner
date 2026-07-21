@@ -6,11 +6,11 @@ import {
   type SessionPayload,
 } from "@/lib/session";
 import type { MessageKey } from "@/i18n";
-import type { ClientRole, User } from "@/generated/prisma/client";
+import type { User } from "@/generated/prisma/client";
 
 export type AuthUser = Pick<
   User,
-  "id" | "username" | "role" | "active" | "clientId" | "clientRole"
+  "id" | "username" | "role" | "active" | "clientId"
 >;
 
 export type AuthFailure = {
@@ -19,29 +19,10 @@ export type AuthFailure = {
   code?: "NO_CLIENT";
 };
 
-export type RegisterAccountType = "home" | "retail";
-
-export type RegisterOptions = {
-  accountType: RegisterAccountType;
-  organizationName?: string;
-};
-
-function defaultOrgName(username: string, accountType: RegisterAccountType): string {
-  if (accountType === "home") {
-    return `${username}'s household`;
-  }
-  return `${username}'s store`;
-}
-
-function defaultStoreName(accountType: RegisterAccountType): string {
-  return accountType === "home" ? "Home" : "Main store";
-}
-
 export async function registerUser(
   username: string,
   password: string,
-  options: RegisterOptions,
-): Promise<{ ok: true; user: AuthUser; token: string } | AuthFailure> {
+): Promise<{ ok: true; user: AuthUser } | AuthFailure> {
   const normalized = username.trim().toLowerCase();
   if (normalized.length < 3) {
     return { ok: false, errorKey: "auth.usernameTooShort" };
@@ -49,70 +30,22 @@ export async function registerUser(
   if (password.length < 6) {
     return { ok: false, errorKey: "auth.passwordTooShort" };
   }
-  if (password.length > 72) {
-    return { ok: false, errorKey: "auth.passwordTooLong" };
-  }
 
   const existing = await db.user.findUnique({ where: { username: normalized } });
   if (existing) {
     return { ok: false, errorKey: "auth.usernameTaken" };
   }
 
-  const orgName =
-    options.organizationName?.trim() ||
-    defaultOrgName(normalized, options.accountType);
-  const homeUser = options.accountType === "home";
-  const passwordHash = await hashPassword(password);
-
-  const user = await db.$transaction(async (tx) => {
-    const client = await tx.client.create({
-      data: {
-        name: orgName,
-        homeUser,
-        active: true,
-      },
-    });
-
-    const store = await tx.store.create({
-      data: {
-        clientId: client.id,
-        name: defaultStoreName(options.accountType),
-        active: true,
-      },
-    });
-
-    const created = await tx.user.create({
-      data: {
-        username: normalized,
-        passwordHash,
-        role: "USER",
-        clientRole: "OWNER",
-        clientId: client.id,
-        storeLinks: {
-          create: [{ storeId: store.id }],
-        },
-      },
-      select: {
-        id: true,
-        username: true,
-        role: true,
-        active: true,
-        clientId: true,
-        clientRole: true,
-      },
-    });
-
-    return created;
+  const user = await db.user.create({
+    data: {
+      username: normalized,
+      passwordHash: await hashPassword(password),
+      role: "USER",
+    },
+    select: { id: true, username: true, role: true, active: true, clientId: true },
   });
 
-  const token = await createSessionToken({
-    userId: user.id,
-    username: user.username,
-    role: user.role,
-    clientId: user.clientId,
-  });
-
-  return { ok: true, user, token };
+  return { ok: true, user };
 }
 
 export async function loginUser(
@@ -164,7 +97,6 @@ export async function loginUser(
       role: user.role,
       active: user.active,
       clientId: user.clientId,
-      clientRole: user.clientRole,
     },
   };
 }
@@ -184,7 +116,5 @@ export async function requireAdmin(): Promise<SessionPayload> {
   }
   return session;
 }
-
-export type { ClientRole };
 
 export { paymentAmount, expiryListVisible } from "@/lib/expiry";

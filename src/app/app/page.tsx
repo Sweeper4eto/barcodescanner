@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { MobilePageHeader } from "@/components/mobile-page-header";
@@ -15,7 +14,6 @@ export default function AppHomePage() {
   const { t } = useT();
   const [stores, setStores] = useState<Store[]>([]);
   const [username, setUsername] = useState("");
-  const [isOwner, setIsOwner] = useState(false);
   const [bootstrapped, setBootstrapped] = useState(false);
 
   useEffect(() => {
@@ -30,7 +28,6 @@ export default function AppHomePage() {
         return;
       }
       setUsername(data.user.username);
-      setIsOwner(data.user.clientRole === "OWNER");
       const list: Store[] = data.user.stores ?? [];
       setStores(list);
       const stored = getStoredStoreId();
@@ -60,18 +57,6 @@ export default function AppHomePage() {
         <p className="rounded-xl bg-warning-bg p-4 text-sm text-warning-fg">
           {t("app.noStores")}
         </p>
-      ) : null}
-
-      {isOwner ? (
-        <Link
-          href="/app/team"
-          className="mb-4 block rounded-xl border border-card-border bg-card px-4 py-3 text-sm font-medium text-foreground"
-        >
-          <span className="block">{t("app.team")}</span>
-          <span className="mt-0.5 block text-xs font-normal text-muted">
-            {t("app.teamHint")}
-          </span>
-        </Link>
       ) : null}
 
       <PushNotifications />

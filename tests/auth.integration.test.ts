@@ -18,8 +18,6 @@ let registerUser: typeof import("../src/lib/auth").registerUser;
 let loginUser: typeof import("../src/lib/auth").loginUser;
 let purgeExpiredInventory: typeof import("../src/lib/inventory-purge").purgeExpiredInventory;
 
-const homeOpts = { accountType: "home" as const };
-
 test.before(async () => {
   ({ db } = await import("../src/lib/db"));
   ({ registerUser, loginUser } = await import("../src/lib/auth"));
@@ -32,60 +30,32 @@ test.beforeEach(async () => {
 });
 
 test("registerUser validates username and password length", async () => {
-  const shortName = await registerUser("ab", "password123", homeOpts);
+  const shortName = await registerUser("ab", "password123");
   assert.equal(shortName.ok, false);
   if (!shortName.ok) assert.equal(shortName.errorKey, "auth.usernameTooShort");
 
-  const shortPass = await registerUser("validuser", "12345", homeOpts);
+  const shortPass = await registerUser("validuser", "12345");
   assert.equal(shortPass.ok, false);
   if (!shortPass.ok) assert.equal(shortPass.errorKey, "auth.passwordTooShort");
 });
 
 test("registerUser rejects duplicate usernames", async () => {
-  const first = await registerUser("duplicate", "password123", homeOpts);
+  const first = await registerUser("duplicate", "password123");
   assert.equal(first.ok, true);
 
-  const second = await registerUser("Duplicate", "password123", homeOpts);
+  const second = await registerUser("Duplicate", "password123");
   assert.equal(second.ok, false);
   if (!second.ok) assert.equal(second.errorKey, "auth.usernameTaken");
 });
 
-test("registerUser creates client, store, owner role and can login", async () => {
-  const registered = await registerUser("newuser", "password123", {
-    accountType: "retail",
-    organizationName: "Acme Market",
-  });
-  assert.equal(registered.ok, true);
-  if (!registered.ok) return;
-
-  assert.ok(registered.user.clientId);
-  assert.equal(registered.user.clientRole, "OWNER");
-  assert.ok(registered.token.length > 0);
-
-  const client = await db.client.findUniqueOrThrow({
-    where: { id: registered.user.clientId! },
-  });
-  assert.equal(client.name, "Acme Market");
-  assert.equal(client.homeUser, false);
-
-  const stores = await db.store.findMany({
-    where: { clientId: client.id },
-  });
-  assert.equal(stores.length, 1);
-
-  const login = await loginUser("newuser", "password123");
-  assert.equal(login.ok, true);
-});
-
-test("registerUser home account sets homeUser flag", async () => {
-  const registered = await registerUser("homeuser", "password123", homeOpts);
-  assert.equal(registered.ok, true);
-  if (!registered.ok) return;
-
-  const client = await db.client.findUniqueOrThrow({
-    where: { id: registered.user.clientId! },
-  });
-  assert.equal(client.homeUser, true);
+test("loginUser rejects user without client assignment", async () => {
+  await registerUser("newuser", "password123");
+  const result = await loginUser("newuser", "password123");
+  assert.equal(result.ok, false);
+  if (!result.ok) {
+    assert.equal(result.code, "NO_CLIENT");
+    assert.equal(result.errorKey, "auth.noClientAssigned");
+  }
 });
 
 test("loginUser succeeds for assigned user with store access", async () => {
