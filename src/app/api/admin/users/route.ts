@@ -147,6 +147,11 @@ export async function PATCH(request: Request) {
         where: { id: parsed.data.userId },
         data: {
           clientId: parsed.data.clientId,
+          ...(parsed.data.clientId
+            ? { clientRole: user.clientRole ?? "MEMBER" }
+            : parsed.data.clientId === null
+              ? { clientRole: null }
+              : {}),
           ...(parsed.data.active !== undefined ? { active: parsed.data.active } : {}),
         },
       });

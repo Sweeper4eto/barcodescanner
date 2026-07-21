@@ -12,11 +12,18 @@ enum Role {
   USER
 }
 
+enum ClientRole {
+  OWNER
+  MEMBER
+}
+
 model User {
   id           String      @id @default(cuid())
   username     String      @unique
   passwordHash String
   role         Role        @default(USER)
+  /// OWNER can manage team members for their client; MEMBER is regular access.
+  clientRole   ClientRole?
   active       Boolean     @default(true)
   clientId     String?
   client       Client?     @relation(fields: [clientId], references: [id], onDelete: SetNull)
