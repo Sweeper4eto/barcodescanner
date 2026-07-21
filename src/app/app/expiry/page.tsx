@@ -409,25 +409,25 @@ function ExpiryList() {
 
       <ExpiryPeriodFilter value={period} onChange={onPeriodChange} />
 
-      <div className="mb-3 flex gap-2">
+      <div className="mb-2 flex items-center gap-1.5">
         <SearchField
           value={search}
           onChange={setSearch}
           placeholder={t("expiry.searchPlaceholder")}
           aria-label={t("expiry.searchPlaceholder")}
-          inputClassName="rounded-xl border border-input-border bg-input px-3 py-3 text-base text-foreground"
+          inputClassName="h-9 rounded-lg border border-input-border bg-input px-2.5 text-sm text-foreground"
           onClear={() => setShowScanner(false)}
         />
         <button
           type="button"
           onClick={() => setShowScanner((open) => !open)}
-          className={`flex shrink-0 flex-col items-center justify-center gap-0.5 rounded-xl border px-3 py-2 text-xs font-medium ${
+          className={`flex h-9 shrink-0 items-center justify-center gap-1 rounded-lg border px-2 text-[10px] font-medium leading-none ${
             showScanner
               ? "border-primary bg-selected text-primary"
               : "border-input-border bg-card text-muted"
           }`}
         >
-          <ScanNavIcon className="h-6 w-6" />
+          <ScanNavIcon className="h-4 w-4" />
           <span>{t("app.navScan")}</span>
         </button>
       </div>
