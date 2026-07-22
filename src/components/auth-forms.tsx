@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { AppLogo } from "@/components/app-logo";
+import { markPwaInstallOffered, shouldOfferPwaInstall } from "@/lib/pwa-install";
 import { useT } from "@/components/i18n-provider";
 
 export function AuthShell({
@@ -133,6 +134,7 @@ export function LoginForm() {
       return;
     }
 
+    if (shouldOfferPwaInstall()) markPwaInstallOffered();
     router.push(data.user.role === "ADMIN" ? "/admin" : "/app");
     router.refresh();
   }
@@ -206,6 +208,7 @@ export function RegisterForm() {
       return;
     }
 
+    if (shouldOfferPwaInstall()) markPwaInstallOffered();
     router.push("/app");
     router.refresh();
   }

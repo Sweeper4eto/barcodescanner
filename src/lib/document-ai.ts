@@ -59,7 +59,8 @@ export function parseDocumentExpiry(value: string | null | undefined): string | 
   }
 
   // Bulgarian / EU documents use day.month.year (not US month/day).
-  const dmy = /^(\d{1,2})[./\-](\d{1,2})[./\-](\d{2,4})$/.exec(raw);
+  // Allow trailing lot/batch text, e.g. "23.06.2027 L268623".
+  const dmy = /^(\d{1,2})[./\-](\d{1,2})[./\-](\d{2,4})(?:\s+.*)?$/.exec(raw);
   if (dmy) {
     const day = Number(dmy[1]);
     const month = Number(dmy[2]);
@@ -67,6 +68,16 @@ export function parseDocumentExpiry(value: string | null | undefined): string | 
     if (year < 100) year += 2000;
     if (!isValidCalendarYmd(year, month, day)) return null;
     return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  }
+
+  // ISO date with optional trailing lot text.
+  const isoLoose = /^(\d{4})-(\d{2})-(\d{2})(?:\s+.*)?$/.exec(raw);
+  if (isoLoose) {
+    const year = Number(isoLoose[1]);
+    const month = Number(isoLoose[2]);
+    const day = Number(isoLoose[3]);
+    if (!isValidCalendarYmd(year, month, day)) return null;
+    return `${isoLoose[1]}-${isoLoose[2]}-${isoLoose[3]}`;
   }
 
   return null;

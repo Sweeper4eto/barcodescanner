@@ -14,7 +14,6 @@ export type DocumentDraftItem = {
 
 export type DocumentDraftWarning =
   | "invalidBarcode"
-  | "noProductMatch"
   | "expiryPast"
   | "expiryFarFuture"
   | "quantityHigh";
@@ -56,12 +55,6 @@ export function draftWarnings(item: DocumentDraftItem): DocumentDraftWarning[] {
 
   if (item.barcode.trim() && isLikelyInvalidBarcode(item.barcode)) {
     warnings.push("invalidBarcode");
-  }
-
-  const hasLookupKey =
-    item.barcode.trim() || item.articul.trim() || item.name.trim();
-  if (hasLookupKey && !item.productId) {
-    warnings.push("noProductMatch");
   }
 
   const expiry = parseExpiryUtc(item.expiryYmd);

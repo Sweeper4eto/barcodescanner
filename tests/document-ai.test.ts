@@ -23,6 +23,11 @@ describe("parseDocumentExpiry", () => {
     assert.equal(parseDocumentExpiry("n/a"), null);
   });
 
+  it("accepts date with trailing lot/batch text", () => {
+    assert.equal(parseDocumentExpiry("23.06.2027 L268623"), "2027-06-23");
+    assert.equal(parseDocumentExpiry("2027-06-23 L268623"), "2027-06-23");
+  });
+
   it("rejects impossible calendar dates", () => {
     assert.equal(parseDocumentExpiry("31.02.2026"), null);
     assert.equal(parseDocumentExpiry("2026-02-31"), null);

@@ -33,15 +33,22 @@ describe("document-draft", () => {
     assert.equal(draftItemValid({ ...base, quantity: "0" }), false);
   });
 
-  it("flags suspicious rows without blocking import", () => {
+  it("does not warn about catalog match; still flags bad barcodes", () => {
+    const unmatched = draftWarnings({
+      ...base,
+      barcode: "",
+      productId: null,
+    });
+    assert.equal(unmatched.includes("noProductMatch" as never), false);
+    assert.equal(draftHasWarnings({ ...base, productId: null }), false);
+
     const warnings = draftWarnings({
       ...base,
       barcode: "1234567890123",
       productId: null,
     });
     assert.ok(warnings.includes("invalidBarcode"));
-    assert.ok(warnings.includes("noProductMatch"));
-    assert.equal(draftHasWarnings({ ...base, barcode: "1234567890123" }), true);
+    assert.equal(warnings.includes("noProductMatch" as never), false);
   });
 
   it("filters by search needle", () => {

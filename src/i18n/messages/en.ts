@@ -163,6 +163,19 @@ export const en = {
     digestSoonTitle: "{count} products expiring soon",
     digestSoonBody: "Next: {productName} at {storeName}",
   },
+
+  pwa: {
+    installTitle: "Add to home screen?",
+    installBody:
+      "Put expire365 on your phone like an app for one-tap access. We only ask if it is not installed yet.",
+    installYes: "Add icon",
+    installNo: "Not now",
+    iosHint:
+      "On iPhone/iPad: tap the Share button, then choose “Add to Home Screen”.",
+    browserHint:
+      "Use your browser menu and choose “Install app” or “Add to Home Screen”.",
+    gotIt: "Got it",
+  },
   scan: {
     title: "Scan item",
     lookingUp: "Looking up product...",

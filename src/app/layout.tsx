@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { I18nProvider } from "@/components/i18n-provider";
+import { PwaInstallPrompt } from "@/components/pwa-install-prompt";
 import { PwaRegister } from "@/components/pwa-register";
 import { defaultLocale, t } from "@/i18n";
 import "./globals.css";
@@ -61,6 +62,7 @@ export default function RootLayout({
       <body className="flex min-h-full min-w-0 flex-col overflow-x-clip bg-background text-foreground">
         <I18nProvider locale={defaultLocale}>{children}</I18nProvider>
         <PwaRegister />
+        <PwaInstallPrompt />
       </body>
     </html>
   );
