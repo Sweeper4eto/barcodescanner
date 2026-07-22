@@ -29,27 +29,36 @@ test.beforeEach(async () => {
   await seedAdmin(db);
 });
 
+const registerOpts = { accountType: "home" as const };
+
 test("registerUser validates username and password length", async () => {
-  const shortName = await registerUser("ab", "password123");
+  const shortName = await registerUser("ab", "password123", registerOpts);
   assert.equal(shortName.ok, false);
   if (!shortName.ok) assert.equal(shortName.errorKey, "auth.usernameTooShort");
 
-  const shortPass = await registerUser("validuser", "12345");
+  const shortPass = await registerUser("validuser", "12345", registerOpts);
   assert.equal(shortPass.ok, false);
   if (!shortPass.ok) assert.equal(shortPass.errorKey, "auth.passwordTooShort");
 });
 
 test("registerUser rejects duplicate usernames", async () => {
-  const first = await registerUser("duplicate", "password123");
+  const first = await registerUser("duplicate", "password123", registerOpts);
   assert.equal(first.ok, true);
 
-  const second = await registerUser("Duplicate", "password123");
+  const second = await registerUser("Duplicate", "password123", registerOpts);
   assert.equal(second.ok, false);
   if (!second.ok) assert.equal(second.errorKey, "auth.usernameTaken");
 });
 
 test("loginUser rejects user without client assignment", async () => {
-  await registerUser("newuser", "password123");
+  const { hashPassword } = await import("../src/lib/password");
+  await db.user.create({
+    data: {
+      username: "newuser",
+      passwordHash: await hashPassword("password123"),
+      role: "USER",
+    },
+  });
   const result = await loginUser("newuser", "password123");
   assert.equal(result.ok, false);
   if (!result.ok) {

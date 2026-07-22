@@ -143,6 +143,7 @@ type UserAssignmentLike = {
   active: boolean;
   clientName: string | null;
   storeNames: string[];
+  clientRole?: string | null;
 };
 
 export function auditUserUpdated(before: UserAssignmentLike, after: UserAssignmentLike): string {
@@ -153,7 +154,8 @@ export function auditUserUpdated(before: UserAssignmentLike, after: UserAssignme
 
   return auditSubjectWithChanges(`user "${after.username}"`, [
     auditFieldChange("client", before.clientName, after.clientName),
-    beforeStores !== afterStores ? `stores ${beforeStores} → ${afterStores}` : null,
+    beforeStores !== afterStores ? `locations ${beforeStores} → ${afterStores}` : null,
+    auditFieldChange("owner", before.clientRole === "OWNER", after.clientRole === "OWNER"),
     auditFieldChange("status", before.active, after.active),
   ]);
 }

@@ -1,5 +1,7 @@
-const CACHE_NAME = "expire365-v12";
+const CACHE_NAME = "expire365-v15";
 const OFFLINE_FALLBACKS = ["/app", "/login", "/"];
+const PUSH_ICON = "/icons/icon-192.png?v=8";
+const PUSH_BADGE = "/icons/icon-192.png?v=8";
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -72,6 +74,8 @@ self.addEventListener("push", (event) => {
   event.waitUntil(
     self.registration.showNotification(data.title ?? fallback.title, {
       body: data.body ?? "",
+      icon: data.icon ?? PUSH_ICON,
+      badge: data.badge ?? PUSH_BADGE,
       data: { url: data.url ?? fallback.url },
     }),
   );

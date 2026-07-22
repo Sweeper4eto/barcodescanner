@@ -12,7 +12,7 @@ import { ClientsPanel, type Client } from "@/components/admin/clients-panel";
 import { ItemsPanel } from "@/components/admin/items-panel";
 import { PaymentsPanel } from "@/components/admin/payments-panel";
 import { UsersPanel } from "@/components/admin/users-panel";
-import { AppLogo } from "@/components/app-logo";
+import { AppHeaderLogo } from "@/components/app-header-logo";
 import { useT } from "@/components/i18n-provider";
 
 export default function AdminPage() {
@@ -53,7 +53,7 @@ export default function AdminPage() {
       <div className="mx-auto min-w-0 max-w-6xl px-4 py-6 md:px-6">
         <header className="mb-8 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <AppLogo size={44} />
+            <AppHeaderLogo size={44} />
             <div>
               <p className="text-sm text-muted">{t("admin.panel")}</p>
               <h1 className="text-2xl font-semibold text-foreground">

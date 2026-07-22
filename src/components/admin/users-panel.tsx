@@ -18,6 +18,7 @@ type UserRow = {
   role: "ADMIN" | "USER";
   active: boolean;
   clientId: string | null;
+  clientRole: "OWNER" | "MEMBER" | null;
   client: { id: string; name: string } | null;
   stores: { id: string; name: string; clientId: string }[];
 };
@@ -28,6 +29,7 @@ type AssignmentState = {
   clientId: string;
   storeIds: string[];
   active: boolean;
+  clientRole: "OWNER" | "MEMBER" | null;
 };
 
 type Props = {
@@ -40,6 +42,7 @@ function assignmentFromUser(user: UserRow): AssignmentState {
     clientId: user.clientId ?? "",
     storeIds: user.stores.map((store) => store.id).sort(),
     active: user.active,
+    clientRole: user.clientRole,
   };
 }
 
@@ -48,6 +51,7 @@ function assignmentIsDirty(current: AssignmentState, saved: AssignmentState | nu
   return (
     current.clientId !== saved.clientId ||
     current.active !== saved.active ||
+    current.clientRole !== saved.clientRole ||
     current.storeIds.join(",") !== saved.storeIds.join(",")
   );
 }
@@ -64,6 +68,7 @@ export function UsersPanel({ clients, onRefresh }: Props) {
   const [clientId, setClientId] = useState("");
   const [storeIds, setStoreIds] = useState<string[]>([]);
   const [active, setActive] = useState(true);
+  const [clientRole, setClientRole] = useState<"OWNER" | "MEMBER" | null>(null);
   const [clientStores, setClientStores] = useState<Store[]>([]);
   const [savedAssignment, setSavedAssignment] = useState<AssignmentState | null>(null);
   const [saving, setSaving] = useState(false);
@@ -105,6 +110,7 @@ export function UsersPanel({ clients, onRefresh }: Props) {
     setClientId(snapshot.clientId);
     setStoreIds(snapshot.storeIds);
     setActive(snapshot.active);
+    setClientRole(snapshot.clientRole);
     setSavedAssignment(snapshot);
     setSaveMessage("");
     void loadClientStores(snapshot.clientId);
@@ -113,6 +119,7 @@ export function UsersPanel({ clients, onRefresh }: Props) {
   async function onClientChange(nextClientId: string) {
     setClientId(nextClientId);
     setStoreIds([]);
+    if (!nextClientId) setClientRole(null);
     await loadClientStores(nextClientId);
   }
 
@@ -128,6 +135,7 @@ export function UsersPanel({ clients, onRefresh }: Props) {
     clientId,
     storeIds: [...storeIds].sort(),
     active,
+    clientRole,
   };
   const assignmentDirty = assignmentIsDirty(currentAssignment, savedAssignment);
 
@@ -150,6 +158,7 @@ export function UsersPanel({ clients, onRefresh }: Props) {
           clientId: clientId || null,
           storeIds,
           active,
+          clientRole: clientId ? clientRole : null,
         }),
       });
       const data = (await response.json()) as { error?: string };
@@ -164,6 +173,7 @@ export function UsersPanel({ clients, onRefresh }: Props) {
         setClientId(snapshot.clientId);
         setStoreIds(snapshot.storeIds);
         setActive(snapshot.active);
+        setClientRole(snapshot.clientRole);
         setSavedAssignment(snapshot);
         await loadClientStores(snapshot.clientId);
       }
@@ -222,7 +232,14 @@ export function UsersPanel({ clients, onRefresh }: Props) {
                 onClick={() => selectUser(user)}
                 className={`w-full rounded-xl border px-3 py-2 text-left ${selectedUserId === user.id ? "border-primary bg-selected" : "border-card-border"} ${!user.active ? "opacity-60" : ""}`}
               >
-                <p className="font-medium">{user.username}</p>
+                <div className="flex items-center gap-2">
+                  <p className="font-medium">{user.username}</p>
+                  {user.clientRole === "OWNER" ? (
+                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-primary">
+                      {t("admin.ownerBadge")}
+                    </span>
+                  ) : null}
+                </div>
                 <p className="text-xs text-muted">
                   {t("admin.clientRow", {
                     name: user.client?.name ?? t("common.none"),
@@ -320,6 +337,24 @@ export function UsersPanel({ clients, onRefresh }: Props) {
               />
               {t("admin.activeUser")}
             </label>
+            {selectedUser.role !== "ADMIN" && clientId ? (
+              <label className="flex items-start gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  className="mt-0.5"
+                  checked={clientRole === "OWNER"}
+                  onChange={(event) =>
+                    setClientRole(event.target.checked ? "OWNER" : "MEMBER")
+                  }
+                />
+                <span>
+                  <span className="font-medium">{t("admin.clientOwner")}</span>
+                  <span className="mt-0.5 block text-xs text-muted">
+                    {t("admin.clientOwnerHint")}
+                  </span>
+                </span>
+              </label>
+            ) : null}
             {saveMessage ? (
               <p
                 className={`text-sm ${

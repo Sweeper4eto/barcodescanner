@@ -20,13 +20,13 @@ export function AuthShell({
   return (
     <div className="mx-auto flex min-h-full w-full min-w-0 max-w-md flex-col justify-center px-3 py-6">
       <div className="rounded-2xl border border-card-border bg-card p-4 shadow-sm">
-        <div className="flex flex-col items-center text-center">
-          <AppLogo size={56} />
-          <p className="mt-3 text-sm font-semibold uppercase tracking-wide text-accent">
+        <div className="mb-4 flex flex-col items-center text-center">
+          <AppLogo size={64} />
+          <p className="mt-2 text-sm font-semibold tracking-wide text-accent">
             {t("common.appName")}
           </p>
         </div>
-        <h1 className="mt-3 text-center text-2xl font-semibold text-foreground">{title}</h1>
+        <h1 className="text-center text-2xl font-semibold text-foreground">{title}</h1>
         {subtitle ? <p className="mt-2 text-center text-sm text-muted">{subtitle}</p> : null}
         <div className="mt-4">{children}</div>
       </div>
@@ -167,19 +167,20 @@ export function LoginForm() {
 }
 
 export function RegisterForm() {
+  const router = useRouter();
   const { t } = useT();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [accountType, setAccountType] = useState<"home" | "retail">("home");
+  const [organizationName, setOrganizationName] = useState("");
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
     setLoading(true);
     setError("");
-    setSuccess("");
 
     if (password !== confirmPassword) {
       setError(t("auth.passwordMismatch"));
@@ -190,7 +191,12 @@ export function RegisterForm() {
     const response = await fetch("/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password }),
+      body: JSON.stringify({
+        username,
+        password,
+        accountType,
+        organizationName: organizationName.trim() || undefined,
+      }),
     });
     const data = await response.json();
     setLoading(false);
@@ -200,11 +206,41 @@ export function RegisterForm() {
       return;
     }
 
-    setSuccess(data.message);
+    router.push("/app");
+    router.refresh();
   }
 
   return (
     <form className="space-y-3" onSubmit={onSubmit}>
+      <fieldset className="space-y-2">
+        <legend className="text-sm font-medium text-foreground">{t("auth.accountType")}</legend>
+        <div className="flex flex-wrap gap-x-5 gap-y-2">
+          <label className="flex items-center gap-2 text-sm text-foreground">
+            <input
+              type="radio"
+              name="accountType"
+              checked={accountType === "home"}
+              onChange={() => setAccountType("home")}
+            />
+            {t("auth.accountTypeHome")}
+          </label>
+          <label className="flex items-center gap-2 text-sm text-foreground">
+            <input
+              type="radio"
+              name="accountType"
+              checked={accountType === "retail"}
+              onChange={() => setAccountType("retail")}
+            />
+            {t("auth.accountTypeRetail")}
+          </label>
+        </div>
+      </fieldset>
+      <TextField
+        label={t("auth.organizationName")}
+        value={organizationName}
+        onChange={setOrganizationName}
+      />
+      <p className="-mt-2 text-xs text-muted">{t("auth.organizationNameHint")}</p>
       <TextField
         label={t("auth.username")}
         value={username}
@@ -226,9 +262,6 @@ export function RegisterForm() {
         onChange={setConfirmPassword}
       />
       {error ? <p className="text-sm text-error">{error}</p> : null}
-      {success ? (
-        <p className="rounded-xl bg-warning-bg p-2.5 text-sm text-warning-fg">{success}</p>
-      ) : null}
       <PrimaryButton type="submit" disabled={loading}>
         {loading ? t("auth.registering") : t("auth.register")}
       </PrimaryButton>

@@ -16,6 +16,7 @@ export async function GET() {
       role: true,
       active: true,
       clientId: true,
+      clientRole: true,
       client: { select: { homeUser: true } },
       storeLinks: {
         where: { store: { active: true } },

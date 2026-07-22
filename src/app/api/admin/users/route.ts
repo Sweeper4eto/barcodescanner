@@ -3,6 +3,7 @@ import { z } from "zod";
 import { auditUserDeleted, auditUserUpdated } from "@/lib/audit-details";
 import { logAuditEvent } from "@/lib/audit-log";
 import { requireAdmin } from "@/lib/auth";
+import { isOnlyClientOwner } from "@/lib/client-owner";
 import { db } from "@/lib/db";
 import { apiT } from "@/i18n";
 
@@ -51,6 +52,7 @@ export async function GET(request: Request) {
         role: true,
         active: true,
         clientId: true,
+        clientRole: true,
         client: { select: { id: true, name: true } },
         storeLinks: {
           select: { store: { select: { id: true, name: true, clientId: true } } },
@@ -80,6 +82,7 @@ const assignSchema = z.object({
   clientId: z.string().nullable(),
   storeIds: z.array(z.string()).optional(),
   active: z.boolean().optional(),
+  clientRole: z.enum(["OWNER", "MEMBER"]).nullable().optional(),
 });
 
 export async function PATCH(request: Request) {
@@ -126,7 +129,28 @@ export async function PATCH(request: Request) {
     active: user.active,
     clientName: user.client?.name ?? null,
     storeNames: user.storeLinks.map((link) => link.store.name).sort(),
+    clientRole: user.clientRole,
   };
+
+  const nextClientId = parsed.data.clientId ?? user.clientId;
+  if (
+    parsed.data.clientRole === "MEMBER" &&
+    user.clientRole === "OWNER" &&
+    nextClientId &&
+    (await isOnlyClientOwner(user.id, nextClientId))
+  ) {
+    return NextResponse.json(
+      { error: apiT(request, "errors.cannotRemoveLastOwner") },
+      { status: 400 },
+    );
+  }
+
+  if (parsed.data.clientRole === "OWNER" && !nextClientId) {
+    return NextResponse.json(
+      { error: apiT(request, "errors.ownerNeedsClient") },
+      { status: 400 },
+    );
+  }
 
   if (
     parsed.data.storeIds !== undefined &&
@@ -147,7 +171,11 @@ export async function PATCH(request: Request) {
         where: { id: parsed.data.userId },
         data: {
           clientId: parsed.data.clientId,
+          ...(parsed.data.clientId === null ? { clientRole: null } : {}),
           ...(parsed.data.active !== undefined ? { active: parsed.data.active } : {}),
+          ...(parsed.data.clientRole !== undefined
+            ? { clientRole: parsed.data.clientRole }
+            : {}),
         },
       });
 
@@ -206,6 +234,7 @@ export async function PATCH(request: Request) {
         active: afterUser.active,
         clientName: afterUser.client?.name ?? null,
         storeNames: afterUser.storeLinks.map((link) => link.store.name).sort(),
+        clientRole: afterUser.clientRole,
       }),
     );
   }

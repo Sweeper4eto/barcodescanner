@@ -41,6 +41,7 @@ let meGet: (request: Request) => Promise<Response>;
 let buyListGet: (request: Request) => Promise<Response>;
 let buyListPost: (request: Request) => Promise<Response>;
 let buyListPatch: (request: Request) => Promise<Response>;
+let teamPatch: (request: Request) => Promise<Response>;
 
 async function jsonRequest(
   handler: (request: Request) => Promise<Response>,
@@ -81,6 +82,7 @@ test.before(async () => {
   ({ GET: buyListGet, POST: buyListPost, PATCH: buyListPatch } = await import(
     "../src/app/api/buy-list/route"
   ));
+  ({ PATCH: teamPatch } = await import("../src/app/api/team/users/route"));
 });
 
 test.beforeEach(async () => {
@@ -93,12 +95,16 @@ test("POST /api/auth/register creates user and returns English message", async (
   const { response, data } = await jsonRequest(registerPost, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username: "newbie", password: "password123" }),
+    body: JSON.stringify({
+      username: "newbie",
+      password: "password123",
+      accountType: "home",
+    }),
   });
 
   assert.equal(response.status, 200);
   assert.equal(data.user.username, "newbie");
-  assert.match(data.message, /administrator/i);
+  assert.match(data.message, /signed in/i);
 });
 
 test("POST /api/auth/login sets session for admin", async () => {
@@ -745,9 +751,10 @@ test("admin clients and user assignment APIs", async () => {
     new Request("http://localhost/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username: "staff", password: "password123" }),
+      body: JSON.stringify({ username: "staff", password: "password123", accountType: "home" }),
     }),
   );
+  await setMockSession(adminLogin.token);
 
   const registeredUser = await db.user.findUnique({ where: { username: "staff" } });
   assert.ok(registeredUser);
@@ -773,7 +780,80 @@ test("admin clients and user assignment APIs", async () => {
     url: "http://localhost/api/admin/clients",
   });
   assert.equal(list.response.status, 200);
-  assert.equal(list.data.clients.length, 1);
+  assert.ok(list.data.clients.some((client: { name: string }) => client.name === "Acme"));
+});
+
+test("PATCH /api/admin/users allows multiple owners on one client", async () => {
+  const adminLogin = await loginUser("admin", "admin123");
+  assert.equal(adminLogin.ok, true);
+  if (!adminLogin.ok) return;
+  await setMockSession(adminLogin.token);
+
+  const client = await seedClientWithStore(db);
+  const store = client.stores[0];
+  const ownerOne = await seedUserWithAccess(db, client.id, store.id, "owner_one");
+  const ownerTwo = await seedUserWithAccess(db, client.id, store.id, "owner_two");
+
+  const makeOwnerOne = await jsonRequest(usersPatch, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      userId: ownerOne.id,
+      clientId: client.id,
+      storeIds: [store.id],
+      active: true,
+      clientRole: "OWNER",
+    }),
+  });
+  assert.equal(makeOwnerOne.response.status, 200);
+
+  const makeOwnerTwo = await jsonRequest(usersPatch, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      userId: ownerTwo.id,
+      clientId: client.id,
+      storeIds: [store.id],
+      active: true,
+      clientRole: "OWNER",
+    }),
+  });
+  assert.equal(makeOwnerTwo.response.status, 200);
+
+  const owners = await db.user.findMany({
+    where: { clientId: client.id, clientRole: "OWNER", active: true },
+    select: { username: true },
+    orderBy: { username: "asc" },
+  });
+  assert.deepEqual(
+    owners.map((user) => user.username),
+    ["owner_one", "owner_two"],
+  );
+});
+
+test("team API lets an owner promote another user to owner", async () => {
+  const client = await seedClientWithStore(db);
+  const store = client.stores[0];
+  const owner = await seedUserWithAccess(db, client.id, store.id, "team_owner");
+  await db.user.update({ where: { id: owner.id }, data: { clientRole: "OWNER" } });
+  const member = await seedUserWithAccess(db, client.id, store.id, "team_member");
+
+  const ownerLogin = await loginUser("team_owner", "password123");
+  assert.equal(ownerLogin.ok, true);
+  if (!ownerLogin.ok) return;
+  await setMockSession(ownerLogin.token);
+
+  const promote = await jsonRequest(teamPatch, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ userId: member.id, clientRole: "OWNER" }),
+  });
+  assert.equal(promote.response.status, 200);
+
+  const owners = await db.user.count({
+    where: { clientId: client.id, clientRole: "OWNER", active: true },
+  });
+  assert.equal(owners, 2);
 });
 
 test("home user flag on client is inherited by assigned users", async () => {
@@ -1029,13 +1109,14 @@ test("PATCH /api/admin/users deactivates user without client assignment", async 
   if (!adminLogin.ok) return;
   await setMockSession(adminLogin.token);
 
-  await registerPost(
-    new Request("http://localhost/api/auth/register", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username: "inactive_user", password: "password123" }),
-    }),
-  );
+  const { hashPassword } = await import("../src/lib/password");
+  await db.user.create({
+    data: {
+      username: "inactive_user",
+      passwordHash: await hashPassword("password123"),
+      role: "USER",
+    },
+  });
 
   const user = await db.user.findUnique({ where: { username: "inactive_user" } });
   assert.ok(user);

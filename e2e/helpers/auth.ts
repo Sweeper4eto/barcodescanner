@@ -89,7 +89,7 @@ export async function registerUserViaApi(
   password = "password123",
 ) {
   const response = await request.post("/api/auth/register", {
-    data: { username, password },
+    data: { username, password, accountType: "home" },
   });
   if (!response.ok()) {
     throw new Error(`Register failed: ${await response.text()}`);
