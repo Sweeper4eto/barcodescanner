@@ -26,14 +26,14 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: "/favicon.ico?v=8", sizes: "32x32" },
-      { url: "/icons/icon-16.png?v=8", sizes: "16x16", type: "image/png" },
-      { url: "/icons/icon-32.png?v=8", sizes: "32x32", type: "image/png" },
-      { url: "/icons/icon-192.png?v=8", sizes: "192x192", type: "image/png" },
-      { url: "/icons/icon-512.png?v=8", sizes: "512x512", type: "image/png" },
+      { url: "/favicon.ico?v=9", sizes: "32x32" },
+      { url: "/icons/icon-16.png?v=9", sizes: "16x16", type: "image/png" },
+      { url: "/icons/icon-32.png?v=9", sizes: "32x32", type: "image/png" },
+      { url: "/icons/icon-192.png?v=9", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512.png?v=9", sizes: "512x512", type: "image/png" },
     ],
-    shortcut: "/favicon.ico?v=8",
-    apple: "/icons/apple-touch-icon.png?v=8",
+    shortcut: "/favicon.ico?v=9",
+    apple: "/icons/apple-touch-icon.png?v=9",
   },
   formatDetection: {
     telephone: false,

@@ -61,7 +61,7 @@ export function AppTopActions() {
   const selectedStore = stores.find((store) => store.id === storeId);
 
   return (
-    <div className="flex w-[min(100%,11rem)] shrink-0 flex-col items-stretch gap-1.5 sm:w-48">
+    <div className="inline-flex shrink-0 flex-col items-stretch gap-1.5">
       <div className="flex items-center justify-end gap-1.5">
         <button
           type="button"
@@ -73,7 +73,7 @@ export function AppTopActions() {
         <LanguageSwitch />
       </div>
       {stores.length > 1 ? (
-        <>
+        <div className="w-0 min-w-full">
           <label className="sr-only" htmlFor="app-store-select">
             {t("app.selectStore")}
           </label>
@@ -100,7 +100,7 @@ export function AppTopActions() {
               <span className="shrink-0 text-[0.6rem] text-muted">▼</span>
             </div>
           </div>
-        </>
+        </div>
       ) : null}
     </div>
   );

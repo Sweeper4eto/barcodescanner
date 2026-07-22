@@ -1,7 +1,7 @@
-const CACHE_NAME = "expire365-v15";
+const CACHE_NAME = "expire365-v16";
 const OFFLINE_FALLBACKS = ["/app", "/login", "/"];
-const PUSH_ICON = "/icons/icon-192.png?v=8";
-const PUSH_BADGE = "/icons/icon-192.png?v=8";
+const PUSH_ICON = "/icons/icon-192.png?v=9";
+const PUSH_BADGE = "/icons/icon-192.png?v=9";
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

@@ -1,19 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { AppLogo } from "@/components/app-logo";
-import { useT } from "@/components/i18n-provider";
 
 export function AppHeaderLogo({ size = 36 }: { size?: number }) {
-  const { t } = useT();
-
-  return (
-    <Link
-      href="/"
-      className="inline-flex shrink-0 rounded-[22%] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-      aria-label={t("common.home")}
-    >
-      <AppLogo size={size} />
-    </Link>
-  );
+  return <AppLogo size={size} />;
 }
