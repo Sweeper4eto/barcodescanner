@@ -500,6 +500,13 @@ function ExpiryList() {
         <ExpiryEntryDetailSheet
           entry={detailEntry}
           storeId={storeId}
+          homeUser={isHomeUser}
+          favourite={Boolean(favouriteProductIds[detailEntry.product.id])}
+          onToggleFavourite={
+            isHomeUser
+              ? () => void toggleFavourite(detailEntry.product.id)
+              : undefined
+          }
           onClose={() => setDetailEntry(null)}
           onUpdated={handleEntryUpdated}
         />

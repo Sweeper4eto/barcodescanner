@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { QuantityPicker } from "@/components/quantity-picker";
 import { ProductImage } from "@/components/product-image";
-import { CopyIcon } from "@/components/app-nav-icons";
+import { CopyIcon, StarFavouriteIcon } from "@/components/app-nav-icons";
 import { useT } from "@/components/i18n-provider";
 
 function CopyTextButton({
@@ -63,6 +63,8 @@ export type BuyListDetailEntry = {
 type Props = {
   entry: BuyListDetailEntry;
   storeId: string;
+  favourite?: boolean;
+  onToggleFavourite?: () => void;
   onClose: () => void;
   onUpdated: (entry: BuyListDetailEntry) => void;
 };
@@ -70,6 +72,8 @@ type Props = {
 export function BuyListEntryDetailSheet({
   entry,
   storeId,
+  favourite = false,
+  onToggleFavourite,
   onClose,
   onUpdated,
 }: Props) {
@@ -169,6 +173,23 @@ export function BuyListEntryDetailSheet({
           compactLayout ? "h-[min(17vh,6.5rem)]" : "h-[50vh]"
         }`}
       >
+        {onToggleFavourite ? (
+          <button
+            type="button"
+            aria-label={
+              favourite ? t("favourites.remove") : t("favourites.add")
+            }
+            title={favourite ? t("favourites.remove") : t("favourites.add")}
+            className={`absolute top-2 left-2 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-card-border bg-card ${
+              favourite ? "text-amber-400" : "text-muted"
+            }`}
+            onClick={onToggleFavourite}
+            disabled={saving}
+          >
+            <StarFavouriteIcon className="h-4 w-4" filled={favourite} />
+          </button>
+        ) : null}
+
         <button
           type="button"
           aria-label={t("buyList.closeImage")}

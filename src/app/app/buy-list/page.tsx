@@ -6,7 +6,7 @@ import { ActionFlash } from "@/components/action-flash";
 import { SecondaryButton } from "@/components/auth-forms";
 import { CameraCapture, uploadImage } from "@/components/camera-capture";
 import { BarcodeScanner } from "@/components/barcode-scanner";
-import { ScanNavIcon } from "@/components/app-nav-icons";
+import { ScanNavIcon, StarFavouriteIcon } from "@/components/app-nav-icons";
 import { BuyListCard } from "@/components/buy-list-card";
 import {
   BuyListEntryDetailSheet,
@@ -529,27 +529,40 @@ function BuyListContent() {
           </div>
           <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {filteredFavourites.map((product) => (
-              <button
+              <div
                 key={product.id}
-                type="button"
-                disabled={addingFavouriteId === product.id}
-                onClick={() => void addFavouriteToOrders(product)}
-                title={t("buyList.addFavouriteToOrders")}
-                aria-label={`${t("buyList.addFavouriteToOrders")}: ${product.name}`}
-                className="flex w-[4.5rem] shrink-0 flex-col items-center gap-1 rounded-lg border border-card-border bg-card p-1.5 text-center disabled:opacity-60"
+                className="relative flex w-[4.5rem] shrink-0 flex-col"
               >
-                <ProductImage
-                  src={product.imagePath}
-                  alt=""
-                  className="h-11 w-11 rounded-md object-cover"
-                  placeholderClassName="h-11 w-11 rounded-md text-[8px]"
-                />
-                <span className="line-clamp-2 w-full text-[10px] font-medium leading-tight text-foreground">
-                  {addingFavouriteId === product.id
-                    ? t("buyList.adding")
-                    : product.name}
-                </span>
-              </button>
+                <button
+                  type="button"
+                  aria-label={t("favourites.remove")}
+                  title={t("favourites.remove")}
+                  className="absolute -top-1 left-1/2 z-10 flex h-5 w-5 -translate-x-1/2 items-center justify-center rounded-full border border-card-border bg-card text-amber-400"
+                  onClick={() => void toggleFavourite(product.id)}
+                >
+                  <StarFavouriteIcon className="h-3 w-3" filled />
+                </button>
+                <button
+                  type="button"
+                  disabled={addingFavouriteId === product.id}
+                  onClick={() => void addFavouriteToOrders(product)}
+                  title={t("buyList.addFavouriteToOrders")}
+                  aria-label={`${t("buyList.addFavouriteToOrders")}: ${product.name}`}
+                  className="flex w-full flex-col items-center gap-1 rounded-lg border border-card-border bg-card p-1.5 pt-2.5 text-center disabled:opacity-60"
+                >
+                  <ProductImage
+                    src={product.imagePath}
+                    alt=""
+                    className="h-11 w-11 rounded-md object-cover"
+                    placeholderClassName="h-11 w-11 rounded-md text-[8px]"
+                  />
+                  <span className="line-clamp-2 w-full text-[10px] font-medium leading-tight text-foreground">
+                    {addingFavouriteId === product.id
+                      ? t("buyList.adding")
+                      : product.name}
+                  </span>
+                </button>
+              </div>
             ))}
           </div>
         </section>
@@ -603,6 +616,8 @@ function BuyListContent() {
         <BuyListEntryDetailSheet
           entry={detailEntry}
           storeId={storeId}
+          favourite={Boolean(favouriteProductIds[detailEntry.product.id])}
+          onToggleFavourite={() => void toggleFavourite(detailEntry.product.id)}
           onClose={() => setDetailEntry(null)}
           onUpdated={handleEntryUpdated}
         />
