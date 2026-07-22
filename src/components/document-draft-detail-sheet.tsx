@@ -26,7 +26,8 @@ export function DocumentDraftDetailSheet({ item, onClose, onSave }: Props) {
   const [articul, setArticul] = useState(item.articul);
   const [quantity, setQuantity] = useState(item.quantity);
   const [expiryYmd, setExpiryYmd] = useState(item.expiryYmd);
-  const [editingExpiry, setEditingExpiry] = useState(false);
+  // Open date editor by default so OCR mistakes (e.g. 06↔08) are easy to fix.
+  const [editingExpiry, setEditingExpiry] = useState(true);
   const [editingQuantity, setEditingQuantity] = useState(false);
 
   useEffect(() => {
@@ -35,7 +36,7 @@ export function DocumentDraftDetailSheet({ item, onClose, onSave }: Props) {
     setArticul(item.articul);
     setQuantity(item.quantity);
     setExpiryYmd(item.expiryYmd);
-    setEditingExpiry(false);
+    setEditingExpiry(true);
     setEditingQuantity(false);
   }, [item]);
 
@@ -155,7 +156,11 @@ export function DocumentDraftDetailSheet({ item, onClose, onSave }: Props) {
             </span>
           </button>
           {editingExpiry ? (
-            <ExpiryDatePicker value={expiryYmd} onChange={setExpiryYmd} />
+            <ExpiryDatePicker
+              value={expiryYmd}
+              onChange={setExpiryYmd}
+              allowPast
+            />
           ) : null}
 
           <button

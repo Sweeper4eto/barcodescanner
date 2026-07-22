@@ -220,6 +220,7 @@ Rules:
 - articul = Артикул / SKU / арт. number if present, else null.
 - expiryDate = ONLY the Годност / best-before cell for THAT same row. Prefer YYYY-MM-DD.
 - Dates on these documents are DD.MM.YYYY (day first). Never treat them as MM.DD.YYYY.
+- Digit care: handwritten/printed 6 and 8 are often confused -- re-check every expiry digit (especially month 06 vs 08). Prefer the printed Godnost / best-before cell over guessing.
 - Never copy a date from the row above or below. Never invent a date.
 - If Годност is blank, "1", or unreadable for that row, set expiryDate to null.
 - After finishing, re-check the LAST 3 rows: each name must keep its own printed expiryDate.

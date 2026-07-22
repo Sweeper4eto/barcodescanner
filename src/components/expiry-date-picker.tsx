@@ -2,41 +2,18 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useT } from "@/components/i18n-provider";
+import {
+  formatYmdAsDmy,
+  parseFlexibleExpiryInput,
+  parseYmdLocal,
+  toYmdLocal,
+} from "@/lib/expiry-date-input";
+import {
+  expiryDateBounds,
+} from "@/lib/expiry-date-bounds";
 
-export const EXPIRY_PICKER_YEARS_AHEAD = 5;
-
-export function expiryDateBounds(): { min: string; max: string } {
-  const today = new Date();
-  const max = new Date(today);
-  max.setFullYear(max.getFullYear() + EXPIRY_PICKER_YEARS_AHEAD);
-
-  const toInput = (date: Date) => date.toISOString().slice(0, 10);
-  return { min: toInput(today), max: toInput(max) };
-}
-
-function parseYmd(value: string): Date | null {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
-  if (!match) return null;
-  const year = Number(match[1]);
-  const month = Number(match[2]) - 1;
-  const day = Number(match[3]);
-  const date = new Date(year, month, day);
-  if (
-    date.getFullYear() !== year ||
-    date.getMonth() !== month ||
-    date.getDate() !== day
-  ) {
-    return null;
-  }
-  return date;
-}
-
-function toYmd(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
+export { EXPIRY_PICKER_YEARS_AHEAD, EXPIRY_PICKER_YEARS_PAST, expiryDateBounds } from "@/lib/expiry-date-bounds";
+export { parseFlexibleExpiryInput } from "@/lib/expiry-date-input";
 
 function startWeekdayMonday(year: number, month: number): number {
   return (new Date(year, month, 1).getDay() + 6) % 7;
@@ -49,26 +26,40 @@ function daysInMonth(year: number, month: number): number {
 type Props = {
   value: string;
   onChange: (value: string) => void;
+  /** When true, dates up to 3 years in the past can be selected (edit/OCR correction). */
+  allowPast?: boolean;
 };
 
-export function ExpiryDatePicker({ value, onChange }: Props) {
+export function ExpiryDatePicker({
+  value,
+  onChange,
+  allowPast = false,
+}: Props) {
   const { t, monthName } = useT();
-  const { min, max } = expiryDateBounds();
-  const minDate = useMemo(() => parseYmd(min)!, [min]);
-  const maxDate = useMemo(() => parseYmd(max)!, [max]);
+  const { min, max } = expiryDateBounds(allowPast);
+  const minDate = useMemo(() => parseYmdLocal(min)!, [min]);
+  const maxDate = useMemo(() => parseYmdLocal(max)!, [max]);
 
-  const selected = value ? parseYmd(value) : null;
-  const initial = selected ?? minDate;
+  const selected = value ? parseYmdLocal(value) : null;
+  const initial = selected ?? (allowPast ? new Date() : minDate);
 
   const [viewYear, setViewYear] = useState(initial.getFullYear());
   const [viewMonth, setViewMonth] = useState(initial.getMonth());
+  const [typed, setTyped] = useState(() => (value ? formatYmdAsDmy(value) : ""));
+  const [typedError, setTypedError] = useState(false);
 
   useEffect(() => {
-    if (!value) return;
-    const parsed = parseYmd(value);
+    if (!value) {
+      setTyped("");
+      setTypedError(false);
+      return;
+    }
+    const parsed = parseYmdLocal(value);
     if (!parsed) return;
     setViewYear(parsed.getFullYear());
     setViewMonth(parsed.getMonth());
+    setTyped(formatYmdAsDmy(value));
+    setTypedError(false);
   }, [value]);
 
   const minYear = minDate.getFullYear();
@@ -86,6 +77,13 @@ export function ExpiryDatePicker({ value, onChange }: Props) {
     ...Array.from({ length: totalDays }, (_, index) => index + 1),
   ];
 
+  function clampToBounds(ymd: string): string | null {
+    const date = parseYmdLocal(ymd);
+    if (!date) return null;
+    if (date < minDate || date > maxDate) return null;
+    return ymd;
+  }
+
   function monthIsSelectable(year: number, month: number): boolean {
     const first = new Date(year, month, 1);
     const last = new Date(year, month, daysInMonth(year, month));
@@ -99,7 +97,7 @@ export function ExpiryDatePicker({ value, onChange }: Props) {
 
   function selectDay(day: number) {
     if (isDayDisabled(viewYear, viewMonth, day)) return;
-    onChange(toYmd(new Date(viewYear, viewMonth, day)));
+    onChange(toYmdLocal(new Date(viewYear, viewMonth, day)));
   }
 
   function onMonthChange(nextMonth: number) {
@@ -116,12 +114,67 @@ export function ExpiryDatePicker({ value, onChange }: Props) {
     }
   }
 
-  const weekdayLabels =
-    t("expiry.weekdays").split(",");
+  function applyTyped() {
+    const parsed = parseFlexibleExpiryInput(typed);
+    if (!parsed) {
+      setTypedError(true);
+      return;
+    }
+    const bounded = clampToBounds(parsed);
+    if (!bounded) {
+      setTypedError(true);
+      return;
+    }
+    setTypedError(false);
+    onChange(bounded);
+  }
+
+  const weekdayLabels = t("expiry.weekdays").split(",");
 
   return (
     <div className="space-y-2">
       <p className="text-sm font-medium text-foreground">{t("expiry.dateLabel")}</p>
+
+      <label className="block text-xs text-muted">
+        {t("expiry.dateTypeHint")}
+        <div className="mt-0.5 flex gap-2">
+          <input
+            type="text"
+            inputMode="numeric"
+            autoComplete="off"
+            placeholder={t("expiry.dateTypePlaceholder")}
+            className={`min-w-0 flex-1 rounded-lg border bg-card px-2 py-1.5 font-mono text-sm tabular-nums text-foreground ${
+              typedError ? "border-danger-border" : "border-input-border"
+            }`}
+            value={typed}
+            onChange={(event) => {
+              setTyped(event.target.value);
+              setTypedError(false);
+            }}
+            onBlur={() => {
+              if (typed.trim()) applyTyped();
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                applyTyped();
+              }
+            }}
+          />
+          <button
+            type="button"
+            className="shrink-0 rounded-lg border border-input-border bg-card px-3 py-1.5 text-sm font-medium text-foreground"
+            onClick={applyTyped}
+          >
+            {t("expiry.dateTypeApply")}
+          </button>
+        </div>
+        {typedError ? (
+          <span className="mt-1 block text-[11px] text-error">
+            {t("expiry.dateTypeInvalid")}
+          </span>
+        ) : null}
+      </label>
 
       <div className="rounded-xl border border-input-border bg-input p-2">
         <div className="mb-2 grid grid-cols-2 gap-2">
@@ -138,7 +191,7 @@ export function ExpiryDatePicker({ value, onChange }: Props) {
                   value={month}
                   disabled={!monthIsSelectable(viewYear, month)}
                 >
-                  {monthName(month + 1)}
+                  {`${monthName(month + 1)} / ${String(month + 1).padStart(2, "0")}`}
                 </option>
               ))}
             </select>

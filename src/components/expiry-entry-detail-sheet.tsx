@@ -434,7 +434,11 @@ export function ExpiryEntryDetailSheet({
 
           {compactLayout && editingExpiry ? (
             <div className="mt-3">
-              <ExpiryDatePicker value={expiryYmd} onChange={onExpiryChange} />
+              <ExpiryDatePicker
+                value={expiryYmd}
+                onChange={onExpiryChange}
+                allowPast
+              />
             </div>
           ) : null}
 
@@ -469,7 +473,11 @@ export function ExpiryEntryDetailSheet({
               </span>
             </button>
             {!compactLayout && editingExpiry ? (
-              <ExpiryDatePicker value={expiryYmd} onChange={onExpiryChange} />
+              <ExpiryDatePicker
+                value={expiryYmd}
+                onChange={onExpiryChange}
+                allowPast
+              />
             ) : null}
 
             <button
