@@ -1,8 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { PrimaryButton, SecondaryButton } from "@/components/auth-forms";
-import { ExpiryDatePicker } from "@/components/expiry-date-picker";
+import {
+  ExpiryDatePicker,
+  type ExpiryDatePickerHandle,
+} from "@/components/expiry-date-picker";
 import { QuantityPicker } from "@/components/quantity-picker";
 import { ProductImage } from "@/components/product-image";
 import { useT } from "@/components/i18n-provider";
@@ -21,6 +24,7 @@ type Props = {
 
 export function DocumentDraftDetailSheet({ item, onClose, onSave }: Props) {
   const { t, dateLocale } = useT();
+  const datePickerRef = useRef<ExpiryDatePickerHandle>(null);
   const [name, setName] = useState(item.name);
   const [barcode, setBarcode] = useState(item.barcode);
   const [articul, setArticul] = useState(item.articul);
@@ -38,7 +42,14 @@ export function DocumentDraftDetailSheet({ item, onClose, onSave }: Props) {
     setExpiryYmd(item.expiryYmd);
     setEditingExpiry(true);
     setEditingQuantity(false);
-  }, [item]);
+  }, [
+    item.key,
+    item.name,
+    item.barcode,
+    item.articul,
+    item.quantity,
+    item.expiryYmd,
+  ]);
 
   const draft: DocumentDraftItem = {
     ...item,
@@ -50,17 +61,32 @@ export function DocumentDraftDetailSheet({ item, onClose, onSave }: Props) {
   };
 
   const expiryDisplay = useMemo(() => {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(expiryYmd)) return t("addDocument.missingExpiry");
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(expiryYmd)) {
+      return t("addDocument.missingExpiry");
+    }
     return formatLocaleDay(expiryYmd, dateLocale, { utc: true });
   }, [expiryYmd, dateLocale, t]);
 
   function handleSave() {
+    // Flush typed DD.MM.YYYY before reading state — mobile often skips blur on Save.
+    let nextExpiry = expiryYmd;
+    if (editingExpiry && datePickerRef.current) {
+      const flushed = datePickerRef.current.flush();
+      if (flushed === null) return;
+      nextExpiry = flushed;
+    }
+    const nextDraft: DocumentDraftItem = { ...draft, expiryYmd: nextExpiry };
+    if (!draftItemValid(nextDraft)) {
+      setExpiryYmd(nextExpiry);
+      return;
+    }
+
     onSave({
       name,
       barcode,
       articul,
       quantity,
-      expiryYmd,
+      expiryYmd: nextExpiry,
       productId: barcode.trim() !== item.barcode.trim() ? null : item.productId,
       productImagePath:
         barcode.trim() !== item.barcode.trim() ? null : item.productImagePath,
@@ -157,6 +183,7 @@ export function DocumentDraftDetailSheet({ item, onClose, onSave }: Props) {
           </button>
           {editingExpiry ? (
             <ExpiryDatePicker
+              ref={datePickerRef}
               value={expiryYmd}
               onChange={setExpiryYmd}
               allowPast
@@ -192,7 +219,7 @@ export function DocumentDraftDetailSheet({ item, onClose, onSave }: Props) {
 
         <div className="mt-4 grid grid-cols-2 gap-2">
           <SecondaryButton onClick={onClose}>{t("common.cancel")}</SecondaryButton>
-          <PrimaryButton onClick={handleSave} disabled={!draftItemValid(draft)}>
+          <PrimaryButton onClick={handleSave}>
             {t("common.save")}
           </PrimaryButton>
         </div>

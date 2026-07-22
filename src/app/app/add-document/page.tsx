@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { PrimaryButton, SecondaryButton } from "@/components/auth-forms";
 import { CameraCapture, prepareDocumentImage } from "@/components/camera-capture";
+import { assessDocumentPhotoQuality } from "@/lib/document-image";
 import { DocumentDraftDetailSheet } from "@/components/document-draft-detail-sheet";
 import { DocumentDraftListCard } from "@/components/document-draft-list-card";
 import { MobilePageHeader } from "@/components/mobile-page-header";
@@ -106,6 +107,21 @@ function AddDocumentContent() {
     setError("");
     setStep("processing");
     try {
+      const quality = await assessDocumentPhotoQuality(dataUrl);
+      if (!quality.ok) {
+        const key =
+          quality.reason === "blurry"
+            ? "errors.documentPhotoBlurry"
+            : quality.reason === "glare"
+              ? "errors.documentPhotoGlare"
+              : quality.reason === "tooDark"
+                ? "errors.documentPhotoTooDark"
+                : "errors.documentPhotoTooSmall";
+        setError(t(key));
+        setStep("camera");
+        return;
+      }
+
       const prepared = await prepareDocumentImage(dataUrl);
       const response = await parseDocument(prepared);
       if (response.status === 413) {

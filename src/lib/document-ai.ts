@@ -9,6 +9,8 @@ const rowSchema = z.object({
   barcode: z.string().optional().nullable(),
   articul: z.string().optional().nullable(),
   expiryDate: z.string().optional().nullable(),
+  /** Exact Godnost cell as printed, e.g. "01.12.2027" (day.month.year). */
+  expiryPrinted: z.string().optional().nullable(),
   quantity: z.union([z.number(), z.string()]).optional().nullable(),
 });
 
@@ -81,6 +83,40 @@ export function parseDocumentExpiry(value: string | null | undefined): string | 
   }
 
   return null;
+}
+
+
+/** Parse ONLY day.month.year (Bulgarian documents). Never treat as US month/day or ISO. */
+export function parsePrintedExpiry(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const raw = value.trim();
+  if (!raw) return null;
+
+  // Reject ISO-shaped values in the printed field - those belong in expiryDate.
+  if (/^\d{4}-\d{2}-\d{2}/.test(raw)) return null;
+
+  const dmy = /^(\d{1,2})[.\/\-](\d{1,2})[.\/\-](\d{2,4})(?:\s+.*)?$/.exec(raw);
+  if (!dmy) return null;
+  const day = Number(dmy[1]);
+  const month = Number(dmy[2]);
+  let year = Number(dmy[3]);
+  if (year < 100) year += 2000;
+  if (!isValidCalendarYmd(year, month, day)) return null;
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+/**
+ * Prefer the printed DD.MM.YYYY cell (source of truth) over model ISO,
+ * which often swaps day/month (01.12 -> 2027-01-12 instead of 2027-12-01).
+ */
+export function resolveDocumentExpiry(
+  expiryDate: string | null | undefined,
+  expiryPrinted?: string | null | undefined,
+): string | null {
+  const fromPrinted = parsePrintedExpiry(expiryPrinted);
+  if (fromPrinted) return fromPrinted;
+  // Fallback only when the model failed to copy printed text.
+  return parseDocumentExpiry(expiryDate);
 }
 
 function normalizeQuantity(value: unknown): number {
@@ -193,7 +229,7 @@ function toRows(payload: unknown): DocumentOcrRow[] {
       const name = item.name?.trim() ?? "";
       const barcode = item.barcode?.trim() || null;
       const articul = item.articul?.trim() || null;
-      const expiryYmd = parseDocumentExpiry(item.expiryDate);
+      const expiryYmd = resolveDocumentExpiry(item.expiryDate, item.expiryPrinted);
       const quantity = normalizeQuantity(item.quantity);
       return { name, barcode, articul, expiryYmd, quantity };
     })
@@ -202,33 +238,41 @@ function toRows(payload: unknown): DocumentOcrRow[] {
   return sanitizeDocumentRows(rows);
 }
 
-const SYSTEM_PROMPT = `You extract product rows from a photo of a store document / invoice / delivery note / warehouse write-off (изписване) / expiry list.
+const SYSTEM_PROMPT = `You extract product rows from a photo of a store document / invoice / delivery note / warehouse write-off (izpisvane) / expiry list.
 Documents may be in Bulgarian. Common columns:
-- Артикул = internal article/SKU (NOT an EAN barcode) → put in "articul"
-- Наименование = product name → "name" (keep Cyrillic as-is)
-- Заявени / Количество / Брой = quantity → "quantity"
-- Годност = expiry date (DD.MM.YYYY) → "expiryDate"
-- Баркод / EAN = real barcode if present → "barcode"
+- Articul / SKU (NOT an EAN barcode) -> "articul"
+- Product name -> "name" (keep Cyrillic as-is)
+- Quantity / pieces -> "quantity"
+- Godnost / best-before -> expiryPrinted only
+- Barcode / EAN -> "barcode" if present
 
 Return ONLY compact valid JSON (no markdown, no extra spaces) with this shape:
-{"items":[{"name":"...","barcode":null,"articul":"...","expiryDate":"YYYY-MM-DD","quantity":1}]}
+{"items":[{"name":"...","barcode":null,"articul":"...","expiryPrinted":"DD.MM.YYYY","expiryDate":null,"quantity":1}]}
 
-Rules:
-- Extract EVERY product row in the table (do not stop early). Keep each object short.
+DATE RULES (critical - Bulgarian day.month.year):
+- expiryPrinted = COPY the Godnost cell EXACTLY as printed characters, e.g. "01.12.2027" or "23.06.2027 L268623". Do not reorder digits.
+- expiryDate must ALWAYS be null. The server converts DD.MM.YYYY to ISO. Never invent YYYY-MM-DD yourself.
+- Example: printed 01.12.2027 -> expiryPrinted "01.12.2027", expiryDate null (means 1 December 2027 on the server).
+- Example: printed 12.01.2026 -> expiryPrinted "12.01.2026", expiryDate null.
+- When day and month are both <= 12, still copy day-first order as printed. Do not swap.
+- Re-read each digit carefully (6 vs 8, and year last digit). Prefer the printed cell over guessing.
+
+Other rules:
+- Extract EVERY product row (do not stop early). Keep each object short.
 - name = product name (keep original language / Cyrillic).
-- barcode = EAN/UPC digits only if a real barcode column exists; else null. Never put Артикул into barcode.
-- articul = Артикул / SKU / арт. number if present, else null.
-- expiryDate = ONLY the Годност / best-before cell for THAT same row. Prefer YYYY-MM-DD.
-- Dates on these documents are DD.MM.YYYY (day first). Never treat them as MM.DD.YYYY.
-- Digit care: handwritten/printed 6 and 8 are often confused -- re-check every expiry digit (especially month 06 vs 08). Prefer the printed Godnost / best-before cell over guessing.
+- barcode = EAN/UPC digits only if a real barcode column exists; else null. Never put Articul into barcode.
+- articul = Articul / SKU if present, else null.
 - Never copy a date from the row above or below. Never invent a date.
-- If Годност is blank, "1", or unreadable for that row, set expiryDate to null.
-- After finishing, re-check the LAST 3 rows: each name must keep its own printed expiryDate.
-- quantity = Заявени / pieces if present, else 1. Ignore Разлика (difference) column.
-- Ignore headers, client address, totals, signatures, batch/Партида unless needed for clarity.
+- If Godnost is blank, "1", or unreadable, set expiryPrinted to null and expiryDate to null.
+- After finishing, re-check the LAST 3 rows: each name keeps its own printed date string.
+- quantity = pieces if present, else 1. Ignore difference columns.
+- Ignore headers, client address, totals, signatures, batch/lot unless needed for clarity.
 - If a field is missing or unreadable, use null (quantity defaults to 1).
-- Do not invent barcodes or dates.
 - Output must be complete closable JSON even if the page is long.`;
+
+
+
+
 
 const DEFAULT_GEMINI_MODEL = "gemini-3.5-flash";
 const DEFAULT_OPENAI_MODEL = "gpt-4o-mini";
@@ -407,12 +451,12 @@ async function extractWithGeminiOnce(
 
   // gemini-2.5 / 3.x are "thinking" models: reasoning tokens count against
   // maxOutputTokens and add large latency (~2 min). For structured table OCR we
-  // don't need it — disabling thinking makes it fast AND stops the model from
+  // don't need it â€” disabling thinking makes it fast AND stops the model from
   // burning the token budget on thoughts (which truncated long tables).
   const isThinkingModel = /gemini-(?:3|2\.5)/i.test(model);
 
   const generationConfig: Record<string, unknown> = {
-    temperature: 0.1,
+    temperature: 0,
     maxOutputTokens: 65536,
     // With thinking off there are no "thought" parts, so forcing JSON is safe
     // and more reliable than parsing free text.
@@ -546,7 +590,7 @@ async function extractWithOpenAI(
     },
     body: JSON.stringify({
       model,
-      temperature: 0.1,
+      temperature: 0,
       response_format: { type: "json_object" },
       messages: [
         { role: "system", content: SYSTEM_PROMPT },

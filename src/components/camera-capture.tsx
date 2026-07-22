@@ -16,7 +16,7 @@ type Props = {
   compact?: boolean;
 };
 
-const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
+const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 const ACCEPTED_TYPES = new Set([
   "image/jpeg",
   "image/jpg",
@@ -50,24 +50,110 @@ async function openCameraStream(): Promise<MediaStream> {
     throw new Error("NO_MEDIA_DEVICES");
   }
 
+  // Push for maximum rear-camera resolution the device will grant.
   const constraints: MediaStreamConstraints[] = [
+    {
+      video: {
+        facingMode: { exact: "environment" },
+        width: { ideal: 4032 },
+        height: { ideal: 3024 },
+        frameRate: { ideal: 30 },
+      },
+      audio: false,
+    },
+    {
+      video: {
+        facingMode: { ideal: "environment" },
+        width: { ideal: 4032 },
+        height: { ideal: 3024 },
+      },
+      audio: false,
+    },
+    {
+      video: {
+        facingMode: { ideal: "environment" },
+        width: { ideal: 1920 },
+        height: { ideal: 1080 },
+      },
+      audio: false,
+    },
     { video: { facingMode: { ideal: "environment" } }, audio: false },
+    {
+      video: {
+        facingMode: { ideal: "user" },
+        width: { ideal: 1920 },
+        height: { ideal: 1080 },
+      },
+      audio: false,
+    },
     { video: { facingMode: { ideal: "user" } }, audio: false },
-    { video: { facingMode: "environment" }, audio: false },
-    { video: { facingMode: "user" }, audio: false },
     { video: true, audio: false },
   ];
 
   let lastError: unknown;
   for (const constraint of constraints) {
     try {
-      return await navigator.mediaDevices.getUserMedia(constraint);
+      const stream = await navigator.mediaDevices.getUserMedia(constraint);
+      await maximizeTrackQuality(stream);
+      return stream;
     } catch (error) {
       lastError = error;
     }
   }
 
   throw lastError ?? new Error("CAMERA_UNAVAILABLE");
+}
+
+function capabilityMax(
+  range: ULongRange | undefined,
+): number | undefined {
+  return range && typeof range.max === "number" ? range.max : undefined;
+}
+
+/** Max resolution + continuous focus/exposure when the browser exposes them. */
+async function maximizeTrackQuality(stream: MediaStream): Promise<void> {
+  const track = stream.getVideoTracks()[0];
+  if (!track?.applyConstraints) return;
+
+  const capabilities =
+    typeof track.getCapabilities === "function"
+      ? track.getCapabilities()
+      : ({} as MediaTrackCapabilities);
+
+  const widthMax = capabilityMax(capabilities.width);
+  const heightMax = capabilityMax(capabilities.height);
+
+  const advanced: Record<string, string>[] = [];
+  const focusModes = (capabilities as { focusMode?: string[] }).focusMode;
+  if (Array.isArray(focusModes)) {
+    if (focusModes.includes("continuous")) advanced.push({ focusMode: "continuous" });
+    else if (focusModes.includes("single-shot")) advanced.push({ focusMode: "single-shot" });
+  }
+  const exposureModes = (capabilities as { exposureMode?: string[] }).exposureMode;
+  if (Array.isArray(exposureModes) && exposureModes.includes("continuous")) {
+    advanced.push({ exposureMode: "continuous" });
+  }
+  const whiteBalanceModes = (capabilities as { whiteBalanceMode?: string[] }).whiteBalanceMode;
+  if (Array.isArray(whiteBalanceModes) && whiteBalanceModes.includes("continuous")) {
+    advanced.push({ whiteBalanceMode: "continuous" });
+  }
+
+  try {
+    await track.applyConstraints({
+      width: { ideal: widthMax ?? 4032 },
+      height: { ideal: heightMax ?? 3024 },
+      ...(advanced.length > 0 ? { advanced } : {}),
+    } as MediaTrackConstraints);
+  } catch {
+    try {
+      await track.applyConstraints({
+        width: { ideal: widthMax ?? 1920 },
+        height: { ideal: heightMax ?? 1080 },
+      });
+    } catch {
+      // Keep whatever resolution getUserMedia already gave us.
+    }
+  }
 }
 
 function readFileAsDataUrl(file: File): Promise<string> {
@@ -80,6 +166,141 @@ function readFileAsDataUrl(file: File): Promise<string> {
     reader.onerror = () => reject(reader.error ?? new Error("READ_FAILED"));
     reader.readAsDataURL(file);
   });
+}
+
+function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") resolve(reader.result);
+      else reject(new Error("READ_FAILED"));
+    };
+    reader.onerror = () => reject(reader.error ?? new Error("READ_FAILED"));
+    reader.readAsDataURL(blob);
+  });
+}
+
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+/** Give autofocus a moment after the preview is live / before the still. */
+async function settleAutofocus(track: MediaStreamTrack | undefined): Promise<void> {
+  if (!track) {
+    await wait(200);
+    return;
+  }
+  try {
+    const caps =
+      typeof track.getCapabilities === "function"
+        ? track.getCapabilities()
+        : ({} as MediaTrackCapabilities);
+    const focusModes = (caps as { focusMode?: string[] }).focusMode;
+    if (Array.isArray(focusModes) && focusModes.includes("single-shot")) {
+      await track.applyConstraints({
+        advanced: [{ focusMode: "single-shot" }],
+      } as unknown as MediaTrackConstraints);
+      await wait(450);
+      return;
+    }
+  } catch {
+    // ignore
+  }
+  await wait(280);
+}
+
+async function captureWithImageCapture(
+  track: MediaStreamTrack,
+): Promise<string | null> {
+  if (typeof ImageCapture === "undefined") return null;
+  try {
+    const imageCapture = new ImageCapture(track);
+    const photoSettings: PhotoSettings = {};
+    try {
+      const caps = await imageCapture.getPhotoCapabilities();
+      if (caps.imageWidth?.max) photoSettings.imageWidth = caps.imageWidth.max;
+      if (caps.imageHeight?.max) photoSettings.imageHeight = caps.imageHeight.max;
+      const fill = (caps as { fillLightMode?: string[] }).fillLightMode;
+      if (Array.isArray(fill) && fill.includes("flash")) {
+        (photoSettings as { fillLightMode?: string }).fillLightMode = "off";
+      }
+    } catch {
+      // optional
+    }
+    const blob = await imageCapture.takePhoto(
+      Object.keys(photoSettings).length > 0 ? photoSettings : undefined,
+    );
+    if (blob.size > 0) return await blobToDataUrl(blob);
+  } catch {
+    // try grabFrame next
+  }
+
+  try {
+    const imageCapture = new ImageCapture(track) as ImageCapture & {
+      grabFrame?: () => Promise<ImageBitmap>;
+    };
+    if (typeof imageCapture.grabFrame !== "function") return null;
+    const bitmap = await imageCapture.grabFrame();
+    try {
+      const canvas = document.createElement("canvas");
+      canvas.width = bitmap.width;
+      canvas.height = bitmap.height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return null;
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
+      ctx.drawImage(bitmap, 0, 0);
+      return canvas.toDataURL("image/jpeg", 0.98);
+    } finally {
+      bitmap.close();
+    }
+  } catch {
+    return null;
+  }
+}
+
+async function captureFromVideoFrame(
+  video: HTMLVideoElement,
+  canvas: HTMLCanvasElement,
+): Promise<string> {
+  if (!video.videoWidth) throw new Error("CAMERA_UNAVAILABLE");
+
+  // Prefer the latest decoded frame when the browser supports it.
+  if (typeof video.requestVideoFrameCallback === "function") {
+    await new Promise<void>((resolve) => {
+      const timeout = window.setTimeout(() => resolve(), 400);
+      video.requestVideoFrameCallback(() => {
+        window.clearTimeout(timeout);
+        resolve();
+      });
+    });
+  }
+
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("CAMERA_UNAVAILABLE");
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+  ctx.drawImage(video, 0, 0);
+  return canvas.toDataURL("image/jpeg", 0.98);
+}
+
+/** Full-resolution still when possible; else highest-quality preview frame. */
+async function captureHighQualityStill(
+  stream: MediaStream,
+  video: HTMLVideoElement,
+  canvas: HTMLCanvasElement,
+): Promise<string> {
+  const track = stream.getVideoTracks()[0];
+  await settleAutofocus(track);
+
+  if (track) {
+    const still = await captureWithImageCapture(track);
+    if (still) return still;
+  }
+
+  return captureFromVideoFrame(video, canvas);
 }
 
 export function CameraCapture({
@@ -96,6 +317,7 @@ export function CameraCapture({
   const streamRef = useRef<MediaStream | null>(null);
   const [active, setActive] = useState(false);
   const [starting, setStarting] = useState(false);
+  const [capturing, setCapturing] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
   const [error, setError] = useState("");
   const autoStartedRef = useRef(false);
@@ -156,19 +378,23 @@ export function CameraCapture({
     void startCamera();
   }, [autoStart, startCamera]);
 
-  function takePhoto() {
+  async function takePhoto() {
     const video = videoRef.current;
     const canvas = canvasRef.current;
-    if (!video || !canvas || !video.videoWidth) return;
+    const stream = streamRef.current;
+    if (!video || !canvas || !stream || capturing) return;
 
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    ctx.drawImage(video, 0, 0);
-    const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
-    setPreview(dataUrl);
-    stopCamera();
+    setCapturing(true);
+    setError("");
+    try {
+      const dataUrl = await captureHighQualityStill(stream, video, canvas);
+      setPreview(dataUrl);
+      stopCamera();
+    } catch {
+      setError(t("camera.unavailable"));
+    } finally {
+      setCapturing(false);
+    }
   }
 
   async function onFileSelected(event: React.ChangeEvent<HTMLInputElement>) {
@@ -223,7 +449,12 @@ export function CameraCapture({
                 {starting ? t("scanner.starting") : t("camera.start")}
               </PrimaryButton>
             ) : (
-              <PrimaryButton onClick={takePhoto}>{t("camera.capture")}</PrimaryButton>
+              <PrimaryButton
+                onClick={() => void takePhoto()}
+                disabled={capturing || starting}
+              >
+                {t("camera.capture")}
+              </PrimaryButton>
             )}
             {allowFileUpload ? (
               <>
@@ -318,73 +549,8 @@ async function uploadImage(dataUrl: string): Promise<string> {
   return data.path;
 }
 
-/** Shrink and enhance phone photos for better OCR and nginx body limits. */
-export async function prepareDocumentImage(dataUrl: string): Promise<string> {
-  const TARGET_BYTES = 700_000;
-  const STEPS: Array<{ maxEdge: number; quality: number }> = [
-    { maxEdge: 1600, quality: 0.78 },
-    { maxEdge: 1280, quality: 0.72 },
-    { maxEdge: 1024, quality: 0.68 },
-    { maxEdge: 900, quality: 0.58 },
-  ];
-
-  const blob = await fetch(dataUrl).then((response) => response.blob());
-  const bitmap = await createImageBitmap(blob, {
-    imageOrientation: "from-image",
-  });
-
-  try {
-    let best = dataUrl;
-    for (const step of STEPS) {
-      const scale = Math.min(
-        1,
-        step.maxEdge / Math.max(bitmap.width, bitmap.height),
-      );
-      const width = Math.max(1, Math.round(bitmap.width * scale));
-      const height = Math.max(1, Math.round(bitmap.height * scale));
-      const canvas = document.createElement("canvas");
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) {
-        throw new Error("Could not prepare photo");
-      }
-      ctx.drawImage(bitmap, 0, 0, width, height);
-      enhanceDocumentContrast(ctx, width, height);
-      best = canvas.toDataURL("image/jpeg", step.quality);
-      const approxBytes = Math.floor(((best.length - 23) * 3) / 4);
-      if (approxBytes <= TARGET_BYTES) {
-        return best;
-      }
-    }
-    return best;
-  } finally {
-    bitmap.close();
-  }
-}
-
-function enhanceDocumentContrast(
-  ctx: CanvasRenderingContext2D,
-  width: number,
-  height: number,
-): void {
-  const imageData = ctx.getImageData(0, 0, width, height);
-  const { data } = imageData;
-  const contrast = 1.18;
-
-  for (let i = 0; i < data.length; i += 4) {
-    const gray =
-      0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-    const boosted = Math.min(
-      255,
-      Math.max(0, (gray - 128) * contrast + 128),
-    );
-    data[i] = boosted;
-    data[i + 1] = boosted;
-    data[i + 2] = boosted;
-  }
-
-  ctx.putImageData(imageData, 0, 0);
-}
-
+export {
+  assessDocumentPhotoQuality,
+  prepareDocumentImage,
+} from "@/lib/document-image";
 export { uploadImage };

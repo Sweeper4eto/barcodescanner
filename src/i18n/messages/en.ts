@@ -125,6 +125,14 @@ export const en = {
       "The photo is too large. Try again with a smaller or clearer photo.",
     documentTimeout:
       "Reading the document took too long. Try a clearer photo or a page with fewer items.",
+    documentPhotoBlurry:
+      "The photo looks blurry. Hold steady and retake a sharper picture.",
+    documentPhotoGlare:
+      "Too much glare/flash on the page. Retake without strong reflection.",
+    documentPhotoTooDark:
+      "The photo is too dark. Retake with more light on the document.",
+    documentPhotoTooSmall:
+      "The photo resolution is too low. Retake or upload a clearer picture.",
   },
   app: {
     greeting: "Hello, {username}",

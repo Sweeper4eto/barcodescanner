@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   parseDocumentExpiry,
+  parsePrintedExpiry,
   repairTruncatedItemsJson,
+  resolveDocumentExpiry,
 } from "../src/lib/document-ai";
 
 describe("parseDocumentExpiry", () => {
@@ -31,6 +33,41 @@ describe("parseDocumentExpiry", () => {
   it("rejects impossible calendar dates", () => {
     assert.equal(parseDocumentExpiry("31.02.2026"), null);
     assert.equal(parseDocumentExpiry("2026-02-31"), null);
+  });
+});
+
+describe("resolveDocumentExpiry", () => {
+  it("prefers printed DD.MM.YYYY over swapped ISO month/day", () => {
+    // Model often emits US order ISO for Bulgarian 01.12.2027
+    assert.equal(
+      resolveDocumentExpiry("2027-01-12", "01.12.2027"),
+      "2027-12-01",
+    );
+  });
+
+  it("keeps January 12 when printed says 12.01", () => {
+    assert.equal(
+      resolveDocumentExpiry("2026-12-01", "12.01.2026"),
+      "2026-01-12",
+    );
+  });
+
+  it("falls back to ISO when printed is missing", () => {
+    assert.equal(resolveDocumentExpiry("2027-12-01", null), "2027-12-01");
+  });
+
+  it("ignores ISO-shaped values in the printed field", () => {
+    assert.equal(
+      resolveDocumentExpiry("2027-12-01", "2027-01-12"),
+      "2027-12-01",
+    );
+  });
+});
+
+describe("parsePrintedExpiry", () => {
+  it("always reads day first", () => {
+    assert.equal(parsePrintedExpiry("01.12.2027"), "2027-12-01");
+    assert.equal(parsePrintedExpiry("12.01.2027"), "2027-01-12");
   });
 });
 

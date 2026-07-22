@@ -1,7 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { ExpiryDatePicker } from "@/components/expiry-date-picker";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  ExpiryDatePicker,
+  type ExpiryDatePickerHandle,
+} from "@/components/expiry-date-picker";
 import { QuantityPicker } from "@/components/quantity-picker";
 import {
   CopyIcon,
@@ -98,6 +101,7 @@ export function ExpiryEntryDetailSheet({
   onUpdated,
 }: Props) {
   const { t, dateLocale } = useT();
+  const datePickerRef = useRef<ExpiryDatePickerHandle>(null);
   const [quantity, setQuantity] = useState(String(entry.quantity));
   const [expiryYmd, setExpiryYmd] = useState(() => expiryIsoToYmd(entry.expiryDate));
   const [editingExpiry, setEditingExpiry] = useState(false);
@@ -186,14 +190,32 @@ export function ExpiryEntryDetailSheet({
   }, [onClose, saving]);
 
   async function confirmChanges() {
-    if (!canConfirm) return;
+    const flushed = editingExpiry ? datePickerRef.current?.flush() : null;
+    const effectiveExpiry = flushed ?? expiryYmd;
+    if (flushed && flushed !== expiryYmd) {
+      setExpiryYmd(flushed);
+    }
+
+    const qtyValid =
+      quantity.length > 0 &&
+      Number.isInteger(Number(quantity)) &&
+      Number(quantity) >= 1;
+    const nextHasChanges =
+      effectiveExpiry !== savedExpiryYmd ||
+      (qtyValid && Number(quantity) !== entry.quantity) ||
+      (!homeUser && priceReducedDraft !== savedPriceReduced) ||
+      articulDraft.trim() !== (entry.articul ?? "").trim() ||
+      nameDraft.trim() !== entry.product.name.trim() ||
+      barcodeDraft.trim() !== savedBarcodeDisplay.trim();
+
+    if (!nextHasChanges || !qtyValid) return;
 
     const updates: { quantity?: number; expiryDate?: string } = {};
-    if (parsedQuantity !== entry.quantity) {
-      updates.quantity = parsedQuantity;
+    if (Number(quantity) !== entry.quantity) {
+      updates.quantity = Number(quantity);
     }
-    if (expiryYmd !== savedExpiryYmd) {
-      updates.expiryDate = expiryYmd;
+    if (effectiveExpiry !== savedExpiryYmd) {
+      updates.expiryDate = effectiveExpiry;
     }
 
     setSaving(true);
@@ -435,6 +457,7 @@ export function ExpiryEntryDetailSheet({
           {compactLayout && editingExpiry ? (
             <div className="mt-3">
               <ExpiryDatePicker
+                ref={datePickerRef}
                 value={expiryYmd}
                 onChange={onExpiryChange}
                 allowPast
@@ -474,6 +497,7 @@ export function ExpiryEntryDetailSheet({
             </button>
             {!compactLayout && editingExpiry ? (
               <ExpiryDatePicker
+                ref={datePickerRef}
                 value={expiryYmd}
                 onChange={onExpiryChange}
                 allowPast

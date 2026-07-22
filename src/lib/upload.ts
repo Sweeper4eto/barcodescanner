@@ -57,7 +57,7 @@ export async function saveUpload(file: File): Promise<string> {
     throw new UploadError("errors.invalidFileFormat");
   }
 
-  if (buffer.length > 5 * 1024 * 1024) {
+  if (buffer.length > 10 * 1024 * 1024) {
     throw new UploadError("errors.fileTooLarge");
   }
 
@@ -76,7 +76,7 @@ export async function saveDataUrl(dataUrl: string): Promise<string> {
   const ext = match[1] === "jpeg" ? "jpg" : match[1];
   const buffer = Buffer.from(match[2], "base64");
 
-  if (buffer.length > 5 * 1024 * 1024) {
+  if (buffer.length > 10 * 1024 * 1024) {
     throw new UploadError("errors.fileTooLarge");
   }
 
