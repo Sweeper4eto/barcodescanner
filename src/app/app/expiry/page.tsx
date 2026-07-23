@@ -347,20 +347,27 @@ function ExpiryList() {
       if (meta?.removedId) {
         next = next.filter((entry) => entry.id !== meta.removedId);
       } else {
-        next = next.map((entry) =>
-          entry.id === updated.id
-            ? {
-                ...entry,
-                barcode: updated.barcode,
-                articul: updated.articul ?? null,
-                imagePath: updated.imagePath ?? null,
-                quantity: updated.quantity,
-                expiryDate: updated.expiryDate,
-                priceReducedAt: updated.priceReducedAt,
-                product: updated.product,
-              }
-            : entry,
-        );
+        next = next.map((entry) => {
+          if (entry.id === updated.id) {
+            return {
+              ...entry,
+              barcode: updated.barcode,
+              articul: updated.articul ?? null,
+              imagePath: updated.imagePath ?? null,
+              quantity: updated.quantity,
+              expiryDate: updated.expiryDate,
+              priceReducedAt: updated.priceReducedAt,
+              product: updated.product,
+            };
+          }
+          // Other batches of the same product share the underlying product
+          // record, so keep their fallback picture/name in sync too instead
+          // of waiting for a refetch.
+          if (entry.product.id === updated.product.id) {
+            return { ...entry, product: updated.product };
+          }
+          return entry;
+        });
       }
 
       const hasUpdated = next.some((entry) => entry.id === updated.id);

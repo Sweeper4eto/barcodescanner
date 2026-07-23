@@ -574,6 +574,25 @@ export async function PATCH(request: Request) {
       await deleteLocalUpload(existing.imagePath);
     }
 
+    if (parsed.data.imagePath !== undefined) {
+      // The product record is shared across the cart, favourites, and every
+      // other expiry batch of this product, so a picture set here should be
+      // visible everywhere else that product appears too.
+      const nextProductImagePath = parsed.data.imagePath?.trim() || null;
+      const product = await db.product.update({
+        where: { id: existing.productId },
+        data: { imagePath: nextProductImagePath },
+      });
+      entry.product.imagePath = product.imagePath;
+
+      if (
+        existing.product.imagePath &&
+        existing.product.imagePath !== product.imagePath
+      ) {
+        await deleteLocalUpload(existing.product.imagePath);
+      }
+    }
+
     if (
       parsed.data.quantity !== undefined ||
       parsed.data.expiryDate !== undefined
