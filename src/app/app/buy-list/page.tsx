@@ -470,6 +470,7 @@ function BuyListContent() {
         return;
       }
       resetManualAdd();
+      setSearch("");
       await reloadList();
       setFlashTone("success");
       setFlashMessage(t("buyList.addedManual"));
