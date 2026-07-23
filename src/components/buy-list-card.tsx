@@ -45,20 +45,20 @@ export function BuyListCard({
         type="button"
         aria-label={t("buyList.moveToExpiry")}
         title={t("buyList.moveToExpiry")}
-        className="absolute top-0 left-0 z-10 flex h-5 w-5 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-card-border bg-card text-muted"
+        className="absolute top-0 left-0 z-10 flex h-6 w-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-card-border bg-card text-muted"
         onClick={(event) => {
           event.stopPropagation();
           onMoveToExpiry();
         }}
       >
-        <MoveToExpiryIcon className="h-3 w-3" />
+        <MoveToExpiryIcon className="h-[0.9rem] w-[0.9rem]" />
       </button>
 
       <button
         type="button"
         aria-label={favourite ? t("favourites.remove") : t("favourites.add")}
         title={favourite ? t("favourites.remove") : t("favourites.add")}
-        className={`absolute top-0 left-1/2 z-10 flex h-5 w-5 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-card-border bg-card ${
+        className={`absolute top-0 left-1/2 z-10 flex h-6 w-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-card-border bg-card ${
           favourite ? "text-amber-400" : "text-muted"
         }`}
         onClick={(event) => {
@@ -66,13 +66,13 @@ export function BuyListCard({
           onToggleFavourite();
         }}
       >
-        <StarFavouriteIcon className="h-3 w-3" filled={favourite} />
+        <StarFavouriteIcon className="h-[0.9rem] w-[0.9rem]" filled={favourite} />
       </button>
 
       <button
         type="button"
         aria-label={t("buyList.remove")}
-        className="absolute top-0 right-0 z-10 flex h-5 w-5 -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full border border-card-border bg-card text-sm leading-none text-muted"
+        className="absolute top-0 right-0 z-10 flex h-6 w-6 -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full border border-card-border bg-card text-[1.05rem] leading-none text-muted"
         onClick={(event) => {
           event.stopPropagation();
           onRemove();
