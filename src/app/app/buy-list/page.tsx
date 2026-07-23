@@ -421,6 +421,16 @@ function BuyListContent() {
           : entry,
       ),
     );
+    // The product record (name/image) is shared across the cart, the
+    // favourites strip, and the expiry list, so keep the already-loaded
+    // favourites strip in sync too instead of waiting for a refetch.
+    setFavourites((current) =>
+      current.map((product) =>
+        product.id === updated.product.id
+          ? { ...product, name: updated.product.name, imagePath: updated.product.imagePath }
+          : product,
+      ),
+    );
   }
 
   function resetManualAdd() {
