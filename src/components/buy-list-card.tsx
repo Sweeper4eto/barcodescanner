@@ -134,7 +134,7 @@ export function BuyListCard({
                 aria-checked={checked}
                 aria-label={checked ? t("buyList.markNotBought") : t("buyList.markBought")}
                 title={checked ? t("buyList.markNotBought") : t("buyList.markBought")}
-                className={`flex min-w-[2.5rem] flex-col items-center justify-center rounded-md border px-1.5 py-0.5 text-center transition-colors ${
+                className={`relative flex min-w-[2.5rem] flex-col items-center justify-center rounded-md border px-1.5 py-0.5 text-center transition-colors ${
                   checked
                     ? "border-success-border bg-success-border text-white"
                     : "border-card-border bg-subtle text-foreground"
@@ -144,6 +144,16 @@ export function BuyListCard({
                   onToggleChecked();
                 }}
               >
+                <span
+                  aria-hidden
+                  className={`absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-sm border-2 ${
+                    checked
+                      ? "border-success-border bg-success-border text-white"
+                      : "border-muted bg-card text-transparent"
+                  }`}
+                >
+                  <CheckIcon className="h-3 w-3" />
+                </span>
                 {checked ? (
                   <CheckIcon className="h-4 w-4" />
                 ) : (
