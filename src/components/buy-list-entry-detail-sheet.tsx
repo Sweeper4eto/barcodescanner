@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { QuantityPicker } from "@/components/quantity-picker";
+import { CameraCapture, uploadImage } from "@/components/camera-capture";
 import { ProductImage } from "@/components/product-image";
 import { CopyIcon, StarFavouriteIcon } from "@/components/app-nav-icons";
 import { useT } from "@/components/i18n-provider";
@@ -82,6 +83,8 @@ export function BuyListEntryDetailSheet({
   const [editingQuantity, setEditingQuantity] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [changingPicture, setChangingPicture] = useState(false);
+  const [uploadingPicture, setUploadingPicture] = useState(false);
 
   const parsedQuantity = Number(quantity);
   const quantityValid =
@@ -200,21 +203,72 @@ export function BuyListEntryDetailSheet({
           ×
         </button>
 
-        <ProductImage
-          src={entry.product.imagePath}
-          alt={entry.product.name}
-          className={
-            compactLayout
-              ? "h-full max-h-20 w-auto max-w-[45%] object-contain"
-              : "h-full w-full object-contain p-3"
-          }
-          placeholderClassName={
-            compactLayout
-              ? "h-14 w-14 rounded-2xl text-[10px]"
-              : "h-28 w-28 rounded-2xl text-sm"
-          }
-        />
+        {changingPicture ? null : (
+          <ProductImage
+            src={entry.product.imagePath}
+            alt={entry.product.name}
+            className={
+              compactLayout
+                ? "h-full max-h-20 w-auto max-w-[45%] object-contain"
+                : "h-full w-full object-contain p-3"
+            }
+            placeholderClassName={
+              compactLayout
+                ? "h-14 w-14 rounded-2xl text-[10px]"
+                : "h-28 w-28 rounded-2xl text-sm"
+            }
+            onLongPress={() => {
+              if (!saving) setChangingPicture(true);
+            }}
+          />
+        )}
       </div>
+
+      {changingPicture ? (
+        <div className="fixed inset-0 z-[70] flex flex-col overflow-y-auto bg-background p-4">
+          <div className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center gap-3">
+            <p className="text-center text-sm font-medium text-foreground">
+              {t("camera.changePhotoTitle")}
+            </p>
+            <CameraCapture
+              compact
+              onCapture={(dataUrl) => {
+                void (async () => {
+                  setUploadingPicture(true);
+                  setError(null);
+                  try {
+                    const path = await uploadImage(dataUrl);
+                    const response = await fetch("/api/buy-list", {
+                      method: "PATCH",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        entryId: entry.id,
+                        storeId,
+                        imagePath: path,
+                      }),
+                    });
+                    const data = await response.json();
+                    if (!response.ok || !data.entry) {
+                      setError(data.error ?? t("buyList.saveFailed"));
+                      return;
+                    }
+                    onUpdated(data.entry);
+                    setChangingPicture(false);
+                  } catch {
+                    setError(t("errors.uploadFailed"));
+                  } finally {
+                    setUploadingPicture(false);
+                  }
+                })();
+              }}
+              onCancel={() => setChangingPicture(false)}
+            />
+            {uploadingPicture ? (
+              <p className="text-center text-xs text-muted">{t("scanner.starting")}</p>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
 
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden border-t border-card-border">
         <div className="min-h-0 flex-1 overflow-y-auto p-4">

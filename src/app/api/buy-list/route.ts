@@ -14,6 +14,7 @@ import { userCanAccessHomeStore } from "@/lib/home-user";
 import { makeAdhocBarcode } from "@/lib/inventory-entry-display";
 import { filterInventoryEntriesBySearch } from "@/lib/inventory-search";
 import { db } from "@/lib/db";
+import { deleteLocalUpload } from "@/lib/upload";
 import { apiT } from "@/i18n";
 
 const createSchema = z.object({
@@ -241,6 +242,7 @@ const patchSchema = z.object({
   storeId: z.string().min(1),
   quantity: z.number().int().positive().optional(),
   checked: z.boolean().optional(),
+  imagePath: z.string().nullable().optional(),
 });
 
 export async function PATCH(request: Request) {
@@ -306,6 +308,41 @@ export async function PATCH(request: Request) {
         afterQty: entry.quantity,
       }),
     );
+
+    return NextResponse.json({ entry });
+  }
+
+  if (parsed.data.imagePath !== undefined) {
+    const existing = await db.buyListEntry.findFirst({
+      where: {
+        id: parsed.data.entryId,
+        storeId: parsed.data.storeId,
+        ...activeBuyListWhere,
+      },
+      include: { product: true },
+    });
+
+    if (!existing) {
+      return NextResponse.json(
+        { error: apiT(request, "errors.entryNotFound") },
+        { status: 404 },
+      );
+    }
+
+    const nextImagePath = parsed.data.imagePath?.trim() || null;
+    const product = await db.product.update({
+      where: { id: existing.productId },
+      data: { imagePath: nextImagePath },
+    });
+
+    if (existing.product.imagePath && existing.product.imagePath !== product.imagePath) {
+      await deleteLocalUpload(existing.product.imagePath);
+    }
+
+    const entry = await db.buyListEntry.findFirst({
+      where: { id: existing.id },
+      include: { product: true },
+    });
 
     return NextResponse.json({ entry });
   }
