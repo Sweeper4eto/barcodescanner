@@ -163,6 +163,8 @@ export const en = {
       "Notifications are blocked. Allow them in your browser or phone settings.",
     subscribeError: "Could not enable notifications. Try again.",
     unsubscribeError: "Could not turn off notifications. Try again.",
+    iosInstallRequired:
+      "On iPhone/iPad, notifications only work after you add expire365 to your Home Screen (Share button → Add to Home Screen) and open it from that icon. Then come back to this page to turn them on.",
     digestCriticalSingle: "{productName} expires soon",
     digestCriticalSingleBody:
       "{quantity} at {storeName} · {days} day(s) left",
@@ -345,6 +347,8 @@ export const en = {
     addManualPhoto: "Add a photo (optional)",
     addManualConfirm: "Add",
     addedManual: "Added to cart",
+    markBought: "Mark as bought",
+    markNotBought: "Mark as not bought",
   },
   favourites: {
     add: "Add to favourites",
@@ -402,6 +406,7 @@ export const en = {
     newPhoto: "New picture",
     uploadExisting: "Choose from gallery",
     productPhoto: "Product photo",
+    changePhotoTitle: "Take a new photo",
   },
   admin: {
     panel: "Admin panel",

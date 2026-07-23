@@ -1,5 +1,6 @@
 const DISMISS_KEY = "expire365-pwa-install-dismissed";
 const OFFER_KEY = "expire365-offer-pwa";
+const OFFER_EVENT = "expire365-offer-pwa";
 
 export type BeforeInstallPromptEventLike = Event & {
   prompt: () => Promise<void>;
@@ -62,6 +63,10 @@ export function markPwaInstallOffered(): void {
   } catch {
     // ignore
   }
+  // The install dialog is mounted once in the root layout and does not
+  // remount on client-side navigation (e.g. after login), so it needs an
+  // explicit nudge to re-check the flag we just set.
+  window.dispatchEvent(new Event(OFFER_EVENT));
 }
 
 export function consumePwaInstallOffer(): boolean {

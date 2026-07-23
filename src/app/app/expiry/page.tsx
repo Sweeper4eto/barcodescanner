@@ -399,7 +399,7 @@ function ExpiryList() {
 
   return (
     <div className="mx-auto min-w-0 max-w-lg px-4 py-3">
-      <MobilePageHeader title={t("expiry.title")} />
+      <MobilePageHeader title={t("expiry.title")} sticky />
 
       <ActionFlash
         message={flashMessage}

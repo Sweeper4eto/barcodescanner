@@ -4,6 +4,7 @@ import { useT } from "@/components/i18n-provider";
 import { formatLocaleDay } from "@/lib/expiry";
 import { ProductImage } from "@/components/product-image";
 import {
+  CheckIcon,
   MoveToExpiryIcon,
   StarFavouriteIcon,
 } from "@/components/app-nav-icons";
@@ -13,11 +14,13 @@ type Props = {
   imagePath: string | null;
   enteredAt: string;
   quantity: number;
+  checked?: boolean;
   favourite?: boolean;
   onOpen: () => void;
   onRemove: () => void;
   onMoveToExpiry: () => void;
   onToggleFavourite: () => void;
+  onToggleChecked?: () => void;
 };
 
 export function BuyListCard({
@@ -25,11 +28,13 @@ export function BuyListCard({
   imagePath,
   enteredAt,
   quantity,
+  checked = false,
   favourite = false,
   onOpen,
   onRemove,
   onMoveToExpiry,
   onToggleFavourite,
+  onToggleChecked,
 }: Props) {
   const { t, dateLocale } = useT();
   const entered = new Date(enteredAt);
@@ -76,14 +81,30 @@ export function BuyListCard({
         ×
       </button>
 
-      <div className="flex overflow-hidden rounded-lg border border-card-border bg-card">
-        <div className="w-1 shrink-0 bg-primary/30" aria-hidden />
+      <div
+        className={`flex overflow-hidden rounded-lg border transition-colors ${
+          checked
+            ? "border-success-border bg-success-bg"
+            : "border-card-border bg-card"
+        }`}
+      >
+        <div
+          className={`w-1 shrink-0 ${checked ? "bg-success-border" : "bg-primary/30"}`}
+          aria-hidden
+        />
 
-        <button
-          type="button"
+        <div
+          role="button"
+          tabIndex={0}
           aria-label={t("buyList.viewEntry")}
           className="flex min-w-0 flex-1 items-center gap-2 px-2 py-1 text-left"
           onClick={onOpen}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              onOpen();
+            }
+          }}
         >
           <ProductImage
             src={imagePath}
@@ -93,7 +114,11 @@ export function BuyListCard({
           />
 
           <div className="min-w-0 flex-1">
-            <p className="line-clamp-2 text-xs font-semibold leading-tight text-foreground">
+            <p
+              className={`line-clamp-2 text-xs font-semibold leading-tight ${
+                checked ? "text-foreground/70 line-through" : "text-foreground"
+              }`}
+            >
               {name}
             </p>
             <p className="mt-0.5 text-[10px] leading-tight text-muted">
@@ -102,16 +127,50 @@ export function BuyListCard({
           </div>
 
           <div className="flex shrink-0 items-stretch gap-1">
-            <div className="flex min-w-[2.5rem] flex-col items-center justify-center rounded-md border border-card-border bg-subtle px-1.5 py-0.5 text-center">
-              <p className="text-base font-bold leading-none tabular-nums text-foreground">
-                {quantity}
-              </p>
-              <p className="text-[10px] font-semibold leading-none text-muted">
-                {t("buyList.pieces")}
-              </p>
-            </div>
+            {onToggleChecked ? (
+              <button
+                type="button"
+                role="checkbox"
+                aria-checked={checked}
+                aria-label={checked ? t("buyList.markNotBought") : t("buyList.markBought")}
+                title={checked ? t("buyList.markNotBought") : t("buyList.markBought")}
+                className={`flex min-w-[2.5rem] flex-col items-center justify-center rounded-md border px-1.5 py-0.5 text-center transition-colors ${
+                  checked
+                    ? "border-success-border bg-success-border text-white"
+                    : "border-card-border bg-subtle text-foreground"
+                }`}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onToggleChecked();
+                }}
+              >
+                {checked ? (
+                  <CheckIcon className="h-4 w-4" />
+                ) : (
+                  <p className="text-base font-bold leading-none tabular-nums">
+                    {quantity}
+                  </p>
+                )}
+                <p
+                  className={`text-[10px] font-semibold leading-none ${
+                    checked ? "text-white/90" : "text-muted"
+                  }`}
+                >
+                  {t("buyList.pieces")}
+                </p>
+              </button>
+            ) : (
+              <div className="flex min-w-[2.5rem] flex-col items-center justify-center rounded-md border border-card-border bg-subtle px-1.5 py-0.5 text-center">
+                <p className="text-base font-bold leading-none tabular-nums text-foreground">
+                  {quantity}
+                </p>
+                <p className="text-[10px] font-semibold leading-none text-muted">
+                  {t("buyList.pieces")}
+                </p>
+              </div>
+            )}
           </div>
-        </button>
+        </div>
       </div>
     </article>
   );

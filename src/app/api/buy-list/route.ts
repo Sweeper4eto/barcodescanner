@@ -240,6 +240,7 @@ const patchSchema = z.object({
   entryId: z.string().min(1),
   storeId: z.string().min(1),
   quantity: z.number().int().positive().optional(),
+  checked: z.boolean().optional(),
 });
 
 export async function PATCH(request: Request) {
@@ -305,6 +306,31 @@ export async function PATCH(request: Request) {
         afterQty: entry.quantity,
       }),
     );
+
+    return NextResponse.json({ entry });
+  }
+
+  if (parsed.data.checked !== undefined) {
+    const existing = await db.buyListEntry.findFirst({
+      where: {
+        id: parsed.data.entryId,
+        storeId: parsed.data.storeId,
+        ...activeBuyListWhere,
+      },
+    });
+
+    if (!existing) {
+      return NextResponse.json(
+        { error: apiT(request, "errors.entryNotFound") },
+        { status: 404 },
+      );
+    }
+
+    const entry = await db.buyListEntry.update({
+      where: { id: existing.id },
+      data: { checkedAt: parsed.data.checked ? new Date() : null },
+      include: { product: true },
+    });
 
     return NextResponse.json({ entry });
   }

@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useT } from "@/components/i18n-provider";
+import { isIosDevice, isPwaInstalled } from "@/lib/pwa-install";
 
 type PushState =
   | "unsupported"
+  | "iosNeedsInstall"
   | "unconfigured"
   | "default"
   | "denied"
@@ -29,8 +31,18 @@ export function PushNotifications() {
     let cancelled = false;
 
     async function detect() {
+      if (typeof window === "undefined") return;
+
+      // iOS Safari never exposes PushManager in a regular browser tab —
+      // it only becomes available once the site is installed to the Home
+      // Screen and opened from there (iOS 16.4+). Show install instructions
+      // instead of silently hiding the whole section.
+      if (isIosDevice() && !isPwaInstalled()) {
+        if (!cancelled) setState("iosNeedsInstall");
+        return;
+      }
+
       if (
-        typeof window === "undefined" ||
         !("serviceWorker" in navigator) ||
         !("PushManager" in window) ||
         !("Notification" in window)
@@ -160,6 +172,12 @@ export function PushNotifications() {
       <h2 className="text-sm font-medium text-foreground">{t("push.title")}</h2>
       <p className="mt-1 text-sm text-muted">{t("push.description")}</p>
 
+      {state === "iosNeedsInstall" ? (
+        <p className="mt-3 rounded-xl border border-card-border bg-subtle px-3 py-2 text-sm text-foreground">
+          {t("push.iosInstallRequired")}
+        </p>
+      ) : null}
+
       {state === "denied" ? (
         <p className="mt-3 text-sm text-warning-fg">{t("push.denied")}</p>
       ) : null}
@@ -175,7 +193,7 @@ export function PushNotifications() {
             {t("push.disable")}
           </button>
         </div>
-      ) : (
+      ) : state === "iosNeedsInstall" ? null : (
         <button
           type="button"
           onClick={() => void enableNotifications()}

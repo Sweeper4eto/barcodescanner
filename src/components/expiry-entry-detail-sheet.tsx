@@ -337,9 +337,35 @@ export function ExpiryEntryDetailSheet({
           ×
         </button>
 
-        {changingPicture ? (
-          <div className="w-full max-w-md p-3">
+        {changingPicture ? null : (
+          <ProductImage
+            src={displayImage}
+            alt={displayName}
+            className={
+              compactLayout
+                ? "h-full max-h-20 w-auto max-w-[45%] object-contain"
+                : "h-full w-full object-contain p-3"
+            }
+            placeholderClassName={
+              compactLayout
+                ? "h-14 w-28 rounded-xl text-xs"
+                : "h-28 w-40 rounded-2xl text-sm"
+            }
+            onLongPress={() => {
+              if (!saving) setChangingPicture(true);
+            }}
+          />
+        )}
+      </div>
+
+      {changingPicture ? (
+        <div className="fixed inset-0 z-[70] flex flex-col overflow-y-auto bg-background p-4">
+          <div className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center gap-3">
+            <p className="text-center text-sm font-medium text-foreground">
+              {t("camera.changePhotoTitle")}
+            </p>
             <CameraCapture
+              compact
               onCapture={(dataUrl) => {
                 void (async () => {
                   setUploadingPicture(true);
@@ -372,29 +398,11 @@ export function ExpiryEntryDetailSheet({
               onCancel={() => setChangingPicture(false)}
             />
             {uploadingPicture ? (
-              <p className="mt-2 text-center text-xs text-muted">{t("scanner.starting")}</p>
+              <p className="text-center text-xs text-muted">{t("scanner.starting")}</p>
             ) : null}
           </div>
-        ) : (
-          <ProductImage
-            src={displayImage}
-            alt={displayName}
-            className={
-              compactLayout
-                ? "h-full max-h-20 w-auto max-w-[45%] object-contain"
-                : "h-full w-full object-contain p-3"
-            }
-            placeholderClassName={
-              compactLayout
-                ? "h-14 w-28 rounded-xl text-xs"
-                : "h-28 w-40 rounded-2xl text-sm"
-            }
-            onLongPress={() => {
-              if (!saving) setChangingPicture(true);
-            }}
-          />
-        )}
-      </div>
+        </div>
+      ) : null}
 
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden border-t border-card-border">
         <div className="min-h-0 flex-1 overflow-y-auto p-4">

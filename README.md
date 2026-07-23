@@ -17,6 +17,17 @@
 - **iPhone:** Safari → Сподели → „Добави на началния екран“
 - **Android:** Chrome → „Инсталирай приложение“
 
+> **Важно за тестване на реален iPhone по локална мрежа (`npm run dev:lan`):** сертификатът от `scripts/lan-https.mjs` е self-signed. Safari позволява да разглеждаш сайта след предупреждението, но икона добавена на началния екран от такъв адрес обикновено **не се отваря** (грешка при зареждане), а push notifications изобщо не работят зад ненадежден сертификат — на iOS `PushManager` съществува само в инсталирано като Home Screen приложение с истински доверен HTTPS. За реално тестване на инсталация + push на iPhone: качи сертификата от `.certs/` в „Certificate Trust Settings“ на телефона (Settings → General → VPN & Device Management), или тествай през публичен домейн с валиден сертификат (Let's Encrypt/production).
+
+### Push notifications (VAPID)
+
+Известията за изтичащ срок изискват VAPID ключове в `.env` — без тях функцията е тихо изключена (бутонът не се показва, cron-джобът пропуска изпращането):
+
+```bash
+npm run vapid
+# копирай изхода (VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY / VAPID_SUBJECT) в .env
+```
+
 ## Setup
 
 ```bash

@@ -164,6 +164,8 @@ export const bg = {
       "Известията са блокирани. Разрешете ги в настройките на браузъра или телефона.",
     subscribeError: "Неуспешно включване на известия. Опитайте отново.",
     unsubscribeError: "Неуспешно изключване на известия. Опитайте отново.",
+    iosInstallRequired:
+      "На iPhone/iPad известията работят само след като добавите expire365 на началния екран (бутон Share → Add to Home Screen) и го отворите от там. После се върнете на тази страница, за да ги включите.",
     digestCriticalSingle: "{productName} изтича скоро",
     digestCriticalSingleBody:
       "{quantity} в {storeName} · остават {days} ден(а)",
@@ -346,6 +348,8 @@ export const bg = {
     addManualPhoto: "Добавете снимка (по желание)",
     addManualConfirm: "Добави",
     addedManual: "Добавено в количката",
+    markBought: "Отбележи като купено",
+    markNotBought: "Премахни отбелязването",
   },
   favourites: {
     add: "Добави в любими",
@@ -405,6 +409,7 @@ export const bg = {
     newPhoto: "Нова снимка",
     uploadExisting: "От галерията",
     productPhoto: "Снимка на продукт",
+    changePhotoTitle: "Направи нова снимка",
   },
   admin: {
     panel: "Админ панел",

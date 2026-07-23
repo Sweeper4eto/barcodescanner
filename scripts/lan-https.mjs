@@ -21,17 +21,58 @@ const keyPath = path.join(certDir, "key.pem");
 const certPath = path.join(certDir, "cert.pem");
 const HTTP_PORT = Number(process.env.PORT || 3000);
 const HTTPS_PORT = Number(process.env.HTTPS_PORT || 3443);
+const CERT_DOWNLOAD_PORT = Number(process.env.CERT_DOWNLOAD_PORT || 8080);
+const CERT_DOWNLOAD_PATH = "/lan-cert.pem";
 const mode = process.argv[2] === "dev" ? "dev" : "start";
 
+/**
+ * Serves just the CA cert over plain HTTP (no TLS, so no browser warning)
+ * so phones can download + install it before they trust the HTTPS port.
+ * iOS: opening this URL in Safari triggers "Install Profile" automatically
+ * because of the content-type.
+ */
+function serveCertDownload(certPem, port) {
+  const server = http.createServer((req, res) => {
+    if (req.url !== CERT_DOWNLOAD_PATH) {
+      res.writeHead(404);
+      res.end("Not found. Use " + CERT_DOWNLOAD_PATH);
+      return;
+    }
+    res.writeHead(200, {
+      "Content-Type": "application/x-x509-ca-cert",
+      "Content-Disposition": "attachment; filename=magazin-dev.pem",
+      "Content-Length": Buffer.byteLength(certPem),
+    });
+    res.end(certPem);
+  });
+  server.listen(port, "0.0.0.0");
+  return server;
+}
+
+// VPN/tunnel adapter names (NordVPN, ExpressVPN, WireGuard, etc.) so the
+// phone-facing URL doesn't end up pointing at a tunnel address that's
+// unreachable from the phone's actual WiFi network.
+const VPN_ADAPTER_PATTERN =
+  /vpn|tun\d|tap-|nordlynx|wireguard|zerotier|tailscale|utun/i;
+
 function getLanIps() {
-  const ips = new Set(["127.0.0.1"]);
-  for (const ifaces of Object.values(os.networkInterfaces())) {
+  const candidates = [];
+  for (const [name, ifaces] of Object.entries(os.networkInterfaces())) {
     for (const iface of ifaces ?? []) {
-      if (iface.family === "IPv4" && !iface.internal) {
-        ips.add(iface.address);
-      }
+      if (iface.family !== "IPv4" || iface.internal) continue;
+      candidates.push({ name, address: iface.address });
     }
   }
+
+  // Real network adapters (Ethernet/WiFi) first, VPN/tunnel adapters last —
+  // the first entry is used as *the* URL we tell the phone to open.
+  candidates.sort((a, b) => {
+    const aVpn = VPN_ADAPTER_PATTERN.test(a.name) ? 1 : 0;
+    const bVpn = VPN_ADAPTER_PATTERN.test(b.name) ? 1 : 0;
+    return aVpn - bVpn;
+  });
+
+  const ips = new Set(["127.0.0.1", ...candidates.map((c) => c.address)]);
   return [...ips];
 }
 
@@ -71,21 +112,21 @@ const nextBin = require.resolve("next/dist/bin/next");
 
 function runNext(appUrl, lanIps) {
   const cmd = mode === "dev" ? "dev" : "start";
-  const child = spawn(
-    process.execPath,
-    [nextBin, cmd, "-p", String(HTTP_PORT), "-H", "127.0.0.1"],
-    {
-      cwd: root,
-      stdio: "inherit",
-      env: {
-        ...process.env,
-        NEXT_PUBLIC_APP_URL: appUrl,
-        APP_URL: appUrl,
-        SESSION_COOKIE_SECURE: "true",
-        ALLOWED_DEV_ORIGINS: lanIps.join(","),
-      },
+  const args =
+    mode === "dev"
+      ? [nextBin, cmd, "--webpack", "-p", String(HTTP_PORT), "-H", "127.0.0.1"]
+      : [nextBin, cmd, "-p", String(HTTP_PORT), "-H", "127.0.0.1"];
+  const child = spawn(process.execPath, args, {
+    cwd: root,
+    stdio: "inherit",
+    env: {
+      ...process.env,
+      NEXT_PUBLIC_APP_URL: appUrl,
+      APP_URL: appUrl,
+      SESSION_COOKIE_SECURE: "true",
+      ALLOWED_DEV_ORIGINS: lanIps.join(","),
     },
-  );
+  });
 
   child.on("exit", (code) => process.exit(code ?? 1));
   return child;
@@ -120,9 +161,11 @@ async function main() {
   const certs = await ensureCerts(ips);
 
   const nextProc = runNext(appUrl, ips.filter((ip) => ip !== "127.0.0.1"));
+  const certDownloadServer = serveCertDownload(certs.cert, CERT_DOWNLOAD_PORT);
 
   const shutdown = () => {
     nextProc.kill();
+    certDownloadServer.close();
     process.exit(0);
   };
   process.on("SIGINT", shutdown);
@@ -148,6 +191,15 @@ async function main() {
   });
 
   const server = https.createServer(certs, (req, res) => {
+    if (req.url === CERT_DOWNLOAD_PATH) {
+      res.writeHead(200, {
+        "Content-Type": "application/x-x509-ca-cert",
+        "Content-Disposition": "attachment; filename=magazin-dev.pem",
+        "Content-Length": Buffer.byteLength(certs.cert),
+      });
+      res.end(certs.cert);
+      return;
+    }
     proxy.web(req, res, (err) => {
       console.error("Proxy error:", err);
       if (!res.headersSent) {
@@ -175,6 +227,26 @@ async function main() {
     console.log("");
     console.log("First visit: tap Advanced → proceed past the certificate warning.");
     console.log("Then open Scan and tap Start camera.");
+    console.log("");
+    console.log(
+      "iPhone install-to-Home-Screen + push notifications need the cert FULLY",
+    );
+    console.log("trusted (not just clicked past). One-time setup on the phone:");
+    if (lanIp) {
+      console.log(`  1. In Safari, open: http://${lanIp}:${CERT_DOWNLOAD_PORT}${CERT_DOWNLOAD_PATH}`);
+    }
+    console.log('     (plain http:// — no warning, downloads the cert)');
+    console.log('  2. Tap "Allow" when asked to open Settings to view the profile.');
+    console.log('  3. In Settings, tap "Profile Downloaded" near the top, then Install');
+    console.log("     (enter passcode, tap Install twice more).");
+    console.log(
+      "  4. Settings → General → About → Certificate Trust Settings → turn on",
+    );
+    console.log('     full trust for "magazin-dev" (only appears after step 3).');
+    console.log(
+      "  5. Now open the https:// URL above again — no warning, and Add to",
+    );
+    console.log("     Home Screen / notifications will work like a real site.");
     console.log("");
     if (mode === "start") {
       console.log("Tip: run npm run build before start:lan if you changed the app.");

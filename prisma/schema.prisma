@@ -135,6 +135,7 @@ model BuyListEntry {
   quantity  Int
   enteredAt DateTime  @default(now())
   removedAt DateTime?
+  checkedAt DateTime?
 
   @@index([storeId, removedAt])
 }

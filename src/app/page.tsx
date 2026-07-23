@@ -3,12 +3,19 @@
 import Link from "next/link";
 import { AppHeaderLogo } from "@/components/app-header-logo";
 import { AppLogo } from "@/components/app-logo";
-import { t } from "@/i18n";
+import { LanguageSwitch } from "@/components/language-switch";
+import { useT } from "@/components/i18n-provider";
+import { MobileI18nProvider } from "@/components/mobile-i18n-provider";
 
-export default function HomePage() {
+function HomePageContent() {
+  const { t } = useT();
+
   return (
     <div className="mx-auto flex min-h-full min-w-0 max-w-lg flex-col gap-6 px-4 py-6">
-      <AppHeaderLogo size={40} />
+      <div className="flex items-center justify-between">
+        <AppHeaderLogo size={40} />
+        <LanguageSwitch />
+      </div>
       <div className="flex flex-1 flex-col justify-center">
         <div className="rounded-2xl border border-card-border bg-card p-8 shadow-sm">
           <div className="flex flex-col items-center text-center">
@@ -38,5 +45,13 @@ export default function HomePage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function HomePage() {
+  return (
+    <MobileI18nProvider>
+      <HomePageContent />
+    </MobileI18nProvider>
   );
 }

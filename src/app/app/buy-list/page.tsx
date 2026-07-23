@@ -28,6 +28,7 @@ type Entry = {
   barcode: string;
   quantity: number;
   enteredAt: string;
+  checkedAt: string | null;
   product: { id: string; name: string; imagePath: string | null };
 };
 
@@ -321,6 +322,44 @@ function BuyListContent() {
     }
   }
 
+  async function toggleChecked(entryId: string, nextChecked: boolean) {
+    setEntries((current) =>
+      current.map((entry) =>
+        entry.id === entryId
+          ? { ...entry, checkedAt: nextChecked ? new Date().toISOString() : null }
+          : entry,
+      ),
+    );
+    try {
+      const response = await fetch("/api/buy-list", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ entryId, storeId, checked: nextChecked }),
+      });
+      if (!response.ok) {
+        setEntries((current) =>
+          current.map((entry) =>
+            entry.id === entryId
+              ? { ...entry, checkedAt: nextChecked ? null : new Date().toISOString() }
+              : entry,
+          ),
+        );
+        setFlashTone("error");
+        setFlashMessage(t("errors.networkError"));
+      }
+    } catch {
+      setEntries((current) =>
+        current.map((entry) =>
+          entry.id === entryId
+            ? { ...entry, checkedAt: nextChecked ? null : new Date().toISOString() }
+            : entry,
+        ),
+      );
+      setFlashTone("error");
+      setFlashMessage(t("errors.networkError"));
+    }
+  }
+
   async function toggleFavourite(productId: string) {
     const isFavourite = Boolean(favouriteProductIds[productId]);
     try {
@@ -440,7 +479,7 @@ function BuyListContent() {
   if (homeUser === null) {
     return (
       <div className="mx-auto min-w-0 max-w-lg px-4 py-3">
-        <MobilePageHeader title={t("buyList.title")} />
+        <MobilePageHeader title={t("buyList.title")} sticky />
         <p className="rounded-xl bg-subtle p-4 text-sm text-muted">
           {t("buyList.loading")}
         </p>
@@ -451,7 +490,7 @@ function BuyListContent() {
   if (!homeUser) {
     return (
       <div className="mx-auto min-w-0 max-w-lg px-4 py-3">
-        <MobilePageHeader title={t("buyList.title")} />
+        <MobilePageHeader title={t("buyList.title")} sticky />
         <p className="rounded-xl bg-subtle p-4 text-sm text-muted">
           {t("buyList.unavailable")}
         </p>
@@ -461,7 +500,7 @@ function BuyListContent() {
 
   return (
     <div className="mx-auto min-w-0 max-w-lg px-4 py-3">
-      <MobilePageHeader title={t("buyList.title")} />
+      <MobilePageHeader title={t("buyList.title")} sticky />
 
       <ActionFlash
         message={flashMessage}
@@ -592,6 +631,7 @@ function BuyListContent() {
             imagePath={entry.product.imagePath}
             enteredAt={entry.enteredAt}
             quantity={entry.quantity}
+            checked={entry.checkedAt !== null}
             favourite={Boolean(favouriteProductIds[entry.product.id])}
             onOpen={() => setDetailEntry(entry)}
             onRemove={() => setConfirmId(entry.id)}
@@ -600,6 +640,7 @@ function BuyListContent() {
               setMoveExpiryYmd("");
             }}
             onToggleFavourite={() => void toggleFavourite(entry.product.id)}
+            onToggleChecked={() => void toggleChecked(entry.id, entry.checkedAt === null)}
           />
         ))}
 
