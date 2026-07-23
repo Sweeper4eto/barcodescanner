@@ -49,7 +49,22 @@ export function SearchField({
         onChange={(event) => onChange(event.target.value)}
         {...inputProps}
       />
-      {value ? (
+      {trailingAction ? (
+        <div className="absolute top-1/2 right-1.5 z-10 flex -translate-y-1/2 items-center gap-1">
+          {value ? (
+            <button
+              type="button"
+              aria-label={t("common.clearSearch")}
+              title={t("common.clearSearch")}
+              className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-card-border bg-card text-sm leading-none text-muted"
+              onClick={clear}
+            >
+              {"\u00d7"}
+            </button>
+          ) : null}
+          {trailingAction}
+        </div>
+      ) : value ? (
         <button
           type="button"
           aria-label={t("common.clearSearch")}
@@ -59,11 +74,6 @@ export function SearchField({
         >
           {"\u00d7"}
         </button>
-      ) : null}
-      {trailingAction ? (
-        <div className="absolute top-1/2 right-1 z-10 -translate-y-1/2">
-          {trailingAction}
-        </div>
       ) : null}
     </div>
   );

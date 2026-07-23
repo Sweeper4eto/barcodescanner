@@ -525,7 +525,7 @@ function BuyListContent() {
           onChange={setSearch}
           placeholder={t("buyList.searchPlaceholder")}
           aria-label={t("buyList.searchPlaceholder")}
-          inputClassName="h-9 rounded-lg border border-input-border bg-input pl-2.5 pr-9 text-sm text-foreground"
+          inputClassName="h-9 rounded-lg border border-input-border bg-input pl-2.5 pr-16 text-sm text-foreground"
           onClear={() => setShowScanner(false)}
           trailingAction={
             <button
