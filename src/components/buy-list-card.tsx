@@ -127,6 +127,15 @@ export function BuyListCard({
           </div>
 
           <div className="flex shrink-0 items-stretch gap-1">
+            <div className="flex min-w-[2.5rem] flex-col items-center justify-center rounded-md border border-card-border bg-subtle px-1.5 py-0.5 text-center">
+              <p className="text-base font-bold leading-none tabular-nums text-foreground">
+                {quantity}
+              </p>
+              <p className="text-[10px] font-semibold leading-none text-muted">
+                {t("buyList.pieces")}
+              </p>
+            </div>
+
             {onToggleChecked ? (
               <button
                 type="button"
@@ -134,7 +143,7 @@ export function BuyListCard({
                 aria-checked={checked}
                 aria-label={checked ? t("buyList.markNotBought") : t("buyList.markBought")}
                 title={checked ? t("buyList.markNotBought") : t("buyList.markBought")}
-                className={`relative flex min-w-[2.5rem] flex-col items-center justify-center rounded-md border px-1.5 py-0.5 text-center transition-colors ${
+                className={`flex min-w-[2.5rem] flex-col items-center justify-center rounded-md border px-1.5 py-0.5 text-center transition-colors ${
                   checked
                     ? "border-success-border bg-success-border text-white"
                     : "border-card-border bg-subtle text-foreground"
@@ -144,41 +153,23 @@ export function BuyListCard({
                   onToggleChecked();
                 }}
               >
-                <span
-                  aria-hidden
-                  className={`absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-sm border-2 ${
-                    checked
-                      ? "border-success-border bg-success-border text-white"
-                      : "border-muted bg-card text-transparent"
-                  }`}
-                >
-                  <CheckIcon className="h-3 w-3" />
-                </span>
                 {checked ? (
-                  <CheckIcon className="h-4 w-4" />
+                  <CheckIcon className="h-5 w-5" />
                 ) : (
-                  <p className="text-base font-bold leading-none tabular-nums">
-                    {quantity}
-                  </p>
+                  <span
+                    aria-hidden
+                    className="h-5 w-5 rounded-sm border-2 border-muted"
+                  />
                 )}
                 <p
                   className={`text-[10px] font-semibold leading-none ${
                     checked ? "text-white/90" : "text-muted"
                   }`}
                 >
-                  {t("buyList.pieces")}
+                  {t("buyList.done")}
                 </p>
               </button>
-            ) : (
-              <div className="flex min-w-[2.5rem] flex-col items-center justify-center rounded-md border border-card-border bg-subtle px-1.5 py-0.5 text-center">
-                <p className="text-base font-bold leading-none tabular-nums text-foreground">
-                  {quantity}
-                </p>
-                <p className="text-[10px] font-semibold leading-none text-muted">
-                  {t("buyList.pieces")}
-                </p>
-              </div>
-            )}
+            ) : null}
           </div>
         </div>
       </div>

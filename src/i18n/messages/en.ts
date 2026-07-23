@@ -349,6 +349,7 @@ export const en = {
     addedManual: "Added to cart",
     markBought: "Mark as bought",
     markNotBought: "Mark as not bought",
+    done: "Done",
   },
   favourites: {
     add: "Add to favourites",

@@ -350,6 +350,7 @@ export const bg = {
     addedManual: "Добавено в количката",
     markBought: "Отбележи като купено",
     markNotBought: "Премахни отбелязването",
+    done: "Готово",
   },
   favourites: {
     add: "Добави в любими",
