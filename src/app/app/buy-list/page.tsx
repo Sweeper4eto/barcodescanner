@@ -6,7 +6,7 @@ import { ActionFlash } from "@/components/action-flash";
 import { SecondaryButton } from "@/components/auth-forms";
 import { CameraCapture, uploadImage } from "@/components/camera-capture";
 import { BarcodeScanner } from "@/components/barcode-scanner";
-import { ScanNavIcon, StarFavouriteIcon } from "@/components/app-nav-icons";
+import { AddNavIcon, ScanNavIcon, StarFavouriteIcon } from "@/components/app-nav-icons";
 import { BuyListCard } from "@/components/buy-list-card";
 import {
   BuyListEntryDetailSheet,
@@ -524,8 +524,23 @@ function BuyListContent() {
           onChange={setSearch}
           placeholder={t("buyList.searchPlaceholder")}
           aria-label={t("buyList.searchPlaceholder")}
-          inputClassName="h-9 rounded-lg border border-input-border bg-input px-2.5 text-sm text-foreground"
+          inputClassName="h-9 rounded-lg border border-input-border bg-input pl-2.5 pr-9 text-sm text-foreground"
           onClear={() => setShowScanner(false)}
+          trailingAction={
+            <button
+              type="button"
+              aria-label={t("buyList.addManual")}
+              title={t("buyList.addManual")}
+              className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-fg"
+              onClick={() => {
+                setShowScanner(false);
+                setManualName(search);
+                setShowManualAdd(true);
+              }}
+            >
+              <AddNavIcon className="h-5 w-5" />
+            </button>
+          }
         />
         <button
           type="button"
@@ -538,17 +553,6 @@ function BuyListContent() {
         >
           <ScanNavIcon className="h-4 w-4" />
           <span>{t("app.navScan")}</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setShowScanner(false);
-            setShowManualAdd(true);
-          }}
-          className="flex h-9 shrink-0 items-center justify-center gap-1 rounded-lg border border-primary bg-selected px-2 text-[10px] font-medium leading-none text-primary"
-        >
-          <span className="text-sm leading-none">+</span>
-          <span>{t("buyList.addManual")}</span>
         </button>
       </div>
 

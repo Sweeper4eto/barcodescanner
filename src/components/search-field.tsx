@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { useT } from "@/components/i18n-provider";
 
 type Props = {
@@ -11,6 +12,8 @@ type Props = {
   inputClassName?: string;
   /** Extra work after clearing (e.g. close scanner). */
   onClear?: () => void;
+  /** Rendered as a pinned button inside the field, at the trailing (end) edge. */
+  trailingAction?: ReactNode;
   id?: string;
   name?: string;
   autoComplete?: string;
@@ -25,6 +28,7 @@ export function SearchField({
   className = "",
   inputClassName = "",
   onClear,
+  trailingAction,
   ...inputProps
 }: Props) {
   const { t } = useT();
@@ -55,6 +59,11 @@ export function SearchField({
         >
           {"\u00d7"}
         </button>
+      ) : null}
+      {trailingAction ? (
+        <div className="absolute top-1/2 right-1 z-10 -translate-y-1/2">
+          {trailingAction}
+        </div>
       ) : null}
     </div>
   );
