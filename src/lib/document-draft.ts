@@ -16,7 +16,8 @@ export type DocumentDraftWarning =
   | "invalidBarcode"
   | "expiryPast"
   | "expiryFarFuture"
-  | "quantityHigh";
+  | "quantityHigh"
+  | "possibleRowShift";
 
 const FAR_FUTURE_YEARS = 5;
 const HIGH_QUANTITY = 200;
@@ -82,6 +83,43 @@ export function draftWarnings(item: DocumentDraftItem): DocumentDraftWarning[] {
 
 export function draftHasWarnings(item: DocumentDraftItem): boolean {
   return draftWarnings(item).length > 0;
+}
+
+function nameWordCount(name: string): number {
+  return name.trim().split(/\s+/).filter(Boolean).length;
+}
+
+/**
+ * Detects a specific OCR failure mode: a stray single-word name (a leftover
+ * fragment from a wrapped/cut-off row) ends up with the exact same quantity
+ * and expiry date as the full, multi-word product right next to it — a
+ * strong signal that a row's numbers were duplicated/borrowed by mistake
+ * rather than the two rows genuinely being separate products that happen
+ * to share a date. Only flags the short/fragment-looking side of the pair.
+ */
+export function computeRowShiftWarningKeys(
+  items: DocumentDraftItem[],
+): Set<string> {
+  const flagged = new Set<string>();
+
+  for (let index = 0; index < items.length - 1; index += 1) {
+    const a = items[index];
+    const b = items[index + 1];
+    if (draftHasMissingInfo(a) || draftHasMissingInfo(b)) continue;
+    if (a.expiryYmd !== b.expiryYmd) continue;
+    if (a.quantity !== b.quantity) continue;
+    if (a.name.trim().toLowerCase() === b.name.trim().toLowerCase()) continue;
+
+    const aWords = nameWordCount(a.name);
+    const bWords = nameWordCount(b.name);
+    if (aWords === 1 && bWords >= 2) {
+      flagged.add(a.key);
+    } else if (bWords === 1 && aWords >= 2) {
+      flagged.add(b.key);
+    }
+  }
+
+  return flagged;
 }
 
 export function draftMatchesSearch(

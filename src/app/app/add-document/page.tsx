@@ -15,6 +15,7 @@ import { useBrowserBackStack } from "@/lib/browser-back";
 import { useViewportInsets } from "@/hooks/use-viewport-insets";
 import {
   type DocumentDraftItem,
+  computeRowShiftWarningKeys,
   draftItemValid,
   draftMatchesSearch,
 } from "@/lib/document-draft";
@@ -282,6 +283,11 @@ function AddDocumentContent() {
     [items, search],
   );
 
+  const rowShiftWarningKeys = useMemo(
+    () => computeRowShiftWarningKeys(items),
+    [items],
+  );
+
   const canImport =
     items.length > 0 && items.every((item) => draftItemValid(item));
 
@@ -408,6 +414,7 @@ function AddDocumentContent() {
               <DocumentDraftListCard
                 key={item.key}
                 item={item}
+                possibleRowShift={rowShiftWarningKeys.has(item.key)}
                 onOpen={() => setDetailKey(item.key)}
                 onRemove={() => setRemoveKey(item.key)}
               />

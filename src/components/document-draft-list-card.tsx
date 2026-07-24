@@ -13,21 +13,32 @@ import {
   type DocumentDraftItem,
   draftMissingExpiry,
   draftMissingName,
+  draftWarnings,
 } from "@/lib/document-draft";
 
 type Props = {
   item: DocumentDraftItem;
+  possibleRowShift?: boolean;
   onOpen: () => void;
   onRemove: () => void;
 };
 
-export function DocumentDraftListCard({ item, onOpen, onRemove }: Props) {
+export function DocumentDraftListCard({
+  item,
+  possibleRowShift = false,
+  onOpen,
+  onRemove,
+}: Props) {
   const { t, dateLocale } = useT();
   const missingExpiry = draftMissingExpiry(item);
   const displayName = item.name.trim() || t("common.noName");
   const qty = Number(item.quantity);
   const quantityDisplay =
     Number.isInteger(qty) && qty >= 1 ? qty : item.quantity || "1";
+  const hasWarning = possibleRowShift || draftWarnings(item).length > 0;
+  const warningTitle = possibleRowShift
+    ? t("addDocument.warnPossibleRowShift")
+    : t("addDocument.warnCheckRow");
 
   const expiry = !missingExpiry
     ? new Date(`${item.expiryYmd}T00:00:00.000Z`)
@@ -43,13 +54,17 @@ export function DocumentDraftListCard({ item, onOpen, onRemove }: Props) {
 
   const stripeClass = missingExpiry
     ? "bg-danger"
-    : expiry
-      ? expiryUrgencyStripeClass(expiry)
-      : "bg-card-border";
+    : hasWarning
+      ? "bg-[var(--urgency-warning-border)]"
+      : expiry
+        ? expiryUrgencyStripeClass(expiry)
+        : "bg-card-border";
 
   const cardBorderClass = missingExpiry
     ? "border-danger-border bg-danger/5"
-    : "border-card-border";
+    : hasWarning
+      ? "border-[var(--urgency-warning-border)] bg-warning-bg/40"
+      : "border-card-border";
 
   return (
     <article className="relative overflow-visible">
@@ -58,6 +73,14 @@ export function DocumentDraftListCard({ item, onOpen, onRemove }: Props) {
           className="absolute top-0 left-0 z-10 flex h-5 w-5 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-danger-border bg-danger text-danger-fg"
           title={t("addDocument.missingExpiry")}
           aria-label={t("addDocument.missingExpiry")}
+        >
+          <MissingInfoIcon className="h-3 w-3" />
+        </div>
+      ) : hasWarning ? (
+        <div
+          className="absolute top-0 left-0 z-10 flex h-5 w-5 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--urgency-warning-border)] bg-warning-bg text-warning-fg"
+          title={warningTitle}
+          aria-label={warningTitle}
         >
           <MissingInfoIcon className="h-3 w-3" />
         </div>

@@ -221,6 +221,8 @@ export const en = {
     missingInfo: "Missing info",
     missingName: "Name required",
     missingExpiry: "Expiry required",
+    warnPossibleRowShift: "Same quantity & date as the row right next to it — double-check this wasn't misread from that row.",
+    warnCheckRow: "Please double-check this row's barcode, date, or quantity.",
     checkRow: "Check this row",
     warnInvalidBarcode: "Barcode looks wrong",
     warnNoProductMatch: "Not in catalog",

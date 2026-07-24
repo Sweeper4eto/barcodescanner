@@ -263,6 +263,18 @@ ROW ALIGNMENT (critical - a single blank cell must never shift the rows below it
 - A row that visibly has ONLY a name and no other cells filled in (blank quantity/date/barcode/articul on that same line) is still a normal, complete row — output it with quantity 1 and the other fields null, and do not let it change how you read any other row. The row immediately below it still keeps its own separate printed values, never the values of the row above or two rows above.
 - Before finalizing, verify row-by-row (not column-by-column) that each name in your JSON output is still lined up with the quantity/date/barcode that was printed on that exact same physical line, especially around any row with missing cells.
 
+CONCRETE EXAMPLE OF THE MISTAKE TO NEVER MAKE:
+Suppose the physical rows printed on the page are:
+  Row 1: "Праскова"            (name only, nothing else printed on this line)
+  Row 2: "Бъбъл чай SIMPATICO праскова 320мл"   Qty 24   Godnost 12.08.2026
+WRONG output (never do this — row 2's own numbers got copied onto row 1, and/or row 1's fragment got merged into row 2's slot):
+  {"name":"Праскова","quantity":24,"expiryPrinted":"12.08.2026", ...}
+  {"name":"Бъбъл чай SIMPATICO праскова 320мл","quantity":24,"expiryPrinted":"12.08.2026", ...}
+CORRECT output (row 1 keeps its own — empty — cells; row 2 keeps its own printed numbers; nothing is duplicated or shifted):
+  {"name":"Праскова","quantity":1,"expiryPrinted":null, ...}
+  {"name":"Бъбъл чай SIMPATICO праскова 320мл","quantity":24,"expiryPrinted":"12.08.2026", ...}
+Two different items must never end up with the identical quantity+date pair unless that exact pair is truly, independently printed on each of their own rows.
+
 Other rules:
 - Extract EVERY product row (do not stop early). Keep each object short.
 - name = product name (keep original language / Cyrillic).

@@ -222,6 +222,8 @@ export const bg = {
     missingInfo: "Липсва информация",
     missingName: "Нужно е име",
     missingExpiry: "Нужна е годност",
+    warnPossibleRowShift: "Същото количество и дата като реда до него — проверете дали не е сгрешено от там.",
+    warnCheckRow: "Моля, проверете баркода, датата или количеството на този ред.",
     checkRow: "Проверете реда",
     warnInvalidBarcode: "Баркодът изглежда грешен",
     warnNoProductMatch: "Няма в каталога",
