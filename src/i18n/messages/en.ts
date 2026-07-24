@@ -210,7 +210,10 @@ export const en = {
   addDocument: {
     title: "Scan document",
     hint: "Photo of a delivery or write-off list with names, SKUs/barcodes, and expiry dates.",
+    multiHint: "You can select multiple pages at once from your gallery.",
     processing: "Reading document...",
+    processingMulti: "Reading document {current} of {total}...",
+    multiPartialFailure: "{failed} of {total} photos could not be read and were skipped.",
     reviewTitle: "Review items",
     reviewHint: "Tap a row to edit. Fix red rows before adding. Check orange rows — especially dates near the end.",
     matched: "Matched",

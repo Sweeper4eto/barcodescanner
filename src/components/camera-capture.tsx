@@ -6,9 +6,18 @@ import { useT } from "@/components/i18n-provider";
 
 type Props = {
   onCapture: (dataUrl: string) => void;
+  /**
+   * Called instead of `onCapture` when the user selects more than one file
+   * at once from the gallery (requires `allowFileUpload` + `allowMultipleFiles`).
+   * Bypasses the single-photo preview step since reviewing many photos one
+   * by one before continuing isn't useful for a multi-page document.
+   */
+  onMultipleCapture?: (dataUrls: string[]) => void;
   onCancel?: () => void;
   autoStart?: boolean;
   allowFileUpload?: boolean;
+  /** Allow selecting multiple images at once from the gallery picker. */
+  allowMultipleFiles?: boolean;
   /**
    * Cap the live/preview image height so Capture / Upload / Cancel stay on
    * screen (needed on Add document where the phone camera is otherwise huge).
@@ -305,9 +314,11 @@ async function captureHighQualityStill(
 
 export function CameraCapture({
   onCapture,
+  onMultipleCapture,
   onCancel,
   autoStart = false,
   allowFileUpload = false,
+  allowMultipleFiles = false,
   compact = false,
 }: Props) {
   const { t } = useT();
@@ -398,22 +409,30 @@ export function CameraCapture({
   }
 
   async function onFileSelected(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
+    const files = event.target.files ? Array.from(event.target.files) : [];
     event.target.value = "";
-    if (!file) return;
+    if (files.length === 0) return;
 
-    if (!ACCEPTED_TYPES.has(file.type)) {
-      setError(t("errors.invalidFileFormat"));
-      return;
-    }
-    if (file.size > MAX_UPLOAD_BYTES) {
-      setError(t("errors.fileTooLarge"));
-      return;
+    for (const file of files) {
+      if (!ACCEPTED_TYPES.has(file.type)) {
+        setError(t("errors.invalidFileFormat"));
+        return;
+      }
+      if (file.size > MAX_UPLOAD_BYTES) {
+        setError(t("errors.fileTooLarge"));
+        return;
+      }
     }
 
     setError("");
     try {
-      const dataUrl = await readFileAsDataUrl(file);
+      if (files.length > 1 && onMultipleCapture) {
+        const dataUrls = await Promise.all(files.map(readFileAsDataUrl));
+        stopCamera();
+        onMultipleCapture(dataUrls);
+        return;
+      }
+      const dataUrl = await readFileAsDataUrl(files[0]);
       stopCamera();
       setPreview(dataUrl);
     } catch {
@@ -468,6 +487,7 @@ export function CameraCapture({
                   ref={fileInputRef}
                   type="file"
                   accept="image/jpeg,image/png,image/webp,image/gif"
+                  multiple={allowMultipleFiles}
                   className="hidden"
                   onChange={(event) => void onFileSelected(event)}
                 />
@@ -511,6 +531,7 @@ export function CameraCapture({
                   ref={fileInputRef}
                   type="file"
                   accept="image/jpeg,image/png,image/webp,image/gif"
+                  multiple={allowMultipleFiles}
                   className="hidden"
                   onChange={(event) => void onFileSelected(event)}
                 />

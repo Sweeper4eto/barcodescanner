@@ -48,6 +48,10 @@ function AddDocumentContent() {
     created: 0,
     merged: 0,
   });
+  const [processingProgress, setProcessingProgress] = useState<{
+    current: number;
+    total: number;
+  } | null>(null);
 
   const detailItem = useMemo(
     () => items.find((item) => item.key === detailKey) ?? null,
@@ -96,6 +100,21 @@ function AddDocumentContent() {
     };
   }, [router, storeId]);
 
+  type ParsedItem = {
+    name?: string;
+    barcode?: string | null;
+    articul?: string | null;
+    expiryYmd?: string | null;
+    quantity?: number;
+    productId?: string | null;
+    productImagePath?: string | null;
+    matchSource?: "barcode" | "name" | "articul" | null;
+  };
+
+  type ProcessResult =
+    | { ok: true; items: ParsedItem[] }
+    | { ok: false; error: string };
+
   async function parseDocument(dataUrl: string, attempt = 0): Promise<Response> {
     return fetch("/api/documents/parse", {
       method: "POST",
@@ -113,92 +132,129 @@ function AddDocumentContent() {
     });
   }
 
-  async function onCapture(dataUrl: string) {
-    if (!storeId) return;
-    setError("");
-    setStep("processing");
+  function toDraftItems(items: ParsedItem[]): DocumentDraftItem[] {
+    return items.map((item) => ({
+      key: newKey(),
+      name: item.name ?? "",
+      barcode: item.barcode ?? "",
+      articul: item.articul ?? "",
+      expiryYmd: item.expiryYmd ?? "",
+      quantity: String(item.quantity && item.quantity >= 1 ? item.quantity : 1),
+      productId: item.productId ?? null,
+      productImagePath: item.productImagePath ?? null,
+      matchSource: item.matchSource ?? null,
+    }));
+  }
+
+  async function processDocumentImage(dataUrl: string): Promise<ProcessResult> {
+    const quality = await assessDocumentPhotoQuality(dataUrl);
+    if (!quality.ok) {
+      const key =
+        quality.reason === "blurry"
+          ? "errors.documentPhotoBlurry"
+          : quality.reason === "glare"
+            ? "errors.documentPhotoGlare"
+            : quality.reason === "tooDark"
+              ? "errors.documentPhotoTooDark"
+              : "errors.documentPhotoTooSmall";
+      return { ok: false, error: t(key) };
+    }
+
+    const prepared = await prepareDocumentImage(dataUrl);
+    const response = await parseDocument(prepared);
+    if (response.status === 413) {
+      return { ok: false, error: t("errors.documentTooLarge") };
+    }
+    if (response.status === 504) {
+      return { ok: false, error: t("errors.documentTimeout") };
+    }
+
+    const rawText = await response.text();
+    let data: { error?: string; items?: ParsedItem[] } | null = null;
     try {
-      const quality = await assessDocumentPhotoQuality(dataUrl);
-      if (!quality.ok) {
-        const key =
-          quality.reason === "blurry"
-            ? "errors.documentPhotoBlurry"
-            : quality.reason === "glare"
-              ? "errors.documentPhotoGlare"
-              : quality.reason === "tooDark"
-                ? "errors.documentPhotoTooDark"
-                : "errors.documentPhotoTooSmall";
-        setError(t(key));
-        setStep("camera");
-        return;
-      }
-
-      const prepared = await prepareDocumentImage(dataUrl);
-      const response = await parseDocument(prepared);
-      if (response.status === 413) {
-        setError(t("errors.documentTooLarge"));
-        setStep("camera");
-        return;
-      }
-      if (response.status === 504) {
-        setError(t("errors.documentTimeout"));
-        setStep("camera");
-        return;
-      }
-      type ParsedItem = {
-        name?: string;
-        barcode?: string | null;
-        articul?: string | null;
-        expiryYmd?: string | null;
-        quantity?: number;
-        productId?: string | null;
-        productImagePath?: string | null;
-        matchSource?: "barcode" | "name" | "articul" | null;
-      };
-
-      const rawText = await response.text();
-      let data: { error?: string; items?: ParsedItem[] } | null = null;
-      try {
-        data = JSON.parse(rawText) as { error?: string; items?: ParsedItem[] };
-      } catch {
-        setError(
+      data = JSON.parse(rawText) as { error?: string; items?: ParsedItem[] };
+    } catch {
+      return {
+        ok: false,
+        error:
           response.ok
             ? t("errors.documentParseFailed")
             : response.status === 502 || response.status === 503
               ? t("errors.documentTimeout")
               : t("errors.documentParseFailed"),
-        );
-        setStep("camera");
-        return;
-      }
-      if (!response.ok || !data?.items) {
-        setError(
+      };
+    }
+    if (!response.ok || !data?.items) {
+      return {
+        ok: false,
+        error:
           typeof data?.error === "string" && data.error
             ? data.error
             : t("errors.documentParseFailed"),
-        );
+      };
+    }
+    return { ok: true, items: data.items };
+  }
+
+  async function onCapture(dataUrl: string) {
+    if (!storeId) return;
+    setError("");
+    setStep("processing");
+    setProcessingProgress(null);
+    try {
+      const result = await processDocumentImage(dataUrl);
+      if (!result.ok) {
+        setError(result.error);
         setStep("camera");
         return;
       }
-
-      const next: DocumentDraftItem[] = data.items.map((item: ParsedItem) => ({
-        key: newKey(),
-        name: item.name ?? "",
-        barcode: item.barcode ?? "",
-        articul: item.articul ?? "",
-        expiryYmd: item.expiryYmd ?? "",
-        quantity: String(item.quantity && item.quantity >= 1 ? item.quantity : 1),
-        productId: item.productId ?? null,
-        productImagePath: item.productImagePath ?? null,
-        matchSource: item.matchSource ?? null,
-      }));
-      setItems(next);
+      setItems(toDraftItems(result.items));
       setSearch("");
       setStep("review");
     } catch (error) {
       const message = error instanceof Error ? error.message : "";
       setError(message || t("errors.documentParseFailed"));
       setStep("camera");
+    }
+  }
+
+  async function onMultipleCapture(dataUrls: string[]) {
+    if (!storeId || dataUrls.length === 0) return;
+    setError("");
+    setStep("processing");
+    const collected: DocumentDraftItem[] = [];
+    let failed = 0;
+    for (let index = 0; index < dataUrls.length; index += 1) {
+      setProcessingProgress({ current: index + 1, total: dataUrls.length });
+      try {
+        const result = await processDocumentImage(dataUrls[index]);
+        if (result.ok) {
+          collected.push(...toDraftItems(result.items));
+        } else {
+          failed += 1;
+        }
+      } catch {
+        failed += 1;
+      }
+    }
+    setProcessingProgress(null);
+
+    if (collected.length === 0) {
+      setError(t("errors.documentParseFailed"));
+      setStep("camera");
+      return;
+    }
+
+    setItems(collected);
+    setSearch("");
+    setStep("review");
+    if (failed > 0) {
+      setError(
+        t("addDocument.multiPartialFailure", {
+          failed,
+          total: dataUrls.length,
+        }),
+      );
     }
   }
 
@@ -282,12 +338,15 @@ function AddDocumentContent() {
       {step === "camera" ? (
         <div className="space-y-4 rounded-2xl border border-card-border p-4">
           <p className="text-sm text-muted">{t("addDocument.hint")}</p>
+          <p className="text-xs text-muted">{t("addDocument.multiHint")}</p>
           {error ? <p className="text-sm text-error">{error}</p> : null}
           <CameraCapture
             autoStart
             allowFileUpload
+            allowMultipleFiles
             compact
             onCapture={(dataUrl) => void onCapture(dataUrl)}
+            onMultipleCapture={(dataUrls) => void onMultipleCapture(dataUrls)}
             onCancel={() =>
               goBackOrApp(
                 storeId
@@ -301,7 +360,14 @@ function AddDocumentContent() {
 
       {step === "processing" ? (
         <div className="rounded-2xl border border-card-border p-6 text-center">
-          <p className="text-sm text-muted">{t("addDocument.processing")}</p>
+          <p className="text-sm text-muted">
+            {processingProgress
+              ? t("addDocument.processingMulti", {
+                  current: processingProgress.current,
+                  total: processingProgress.total,
+                })
+              : t("addDocument.processing")}
+          </p>
         </div>
       ) : null}
 
