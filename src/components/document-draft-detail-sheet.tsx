@@ -9,6 +9,7 @@ import {
 import { QuantityPicker } from "@/components/quantity-picker";
 import { ProductImage } from "@/components/product-image";
 import { useT } from "@/components/i18n-provider";
+import { useViewportInsets } from "@/hooks/use-viewport-insets";
 import { formatLocaleDay } from "@/lib/expiry";
 import {
   type DocumentDraftItem,
@@ -24,6 +25,7 @@ type Props = {
 
 export function DocumentDraftDetailSheet({ item, onClose, onSave }: Props) {
   const { t, dateLocale } = useT();
+  const { offsetTop, keyboardInset } = useViewportInsets();
   const datePickerRef = useRef<ExpiryDatePickerHandle>(null);
   const [name, setName] = useState(item.name);
   const [barcode, setBarcode] = useState(item.barcode);
@@ -98,7 +100,8 @@ export function DocumentDraftDetailSheet({ item, onClose, onSave }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex flex-col bg-card"
+      className="fixed inset-x-0 z-[60] flex flex-col bg-card"
+      style={{ top: offsetTop, bottom: keyboardInset }}
       role="dialog"
       aria-modal="true"
       aria-label={t("addDocument.editItem")}
@@ -141,7 +144,7 @@ export function DocumentDraftDetailSheet({ item, onClose, onSave }: Props) {
           <label className="block text-sm font-medium text-foreground">
             {t("common.barcode")}
             <input
-              className="mt-1 w-full rounded-xl border border-input-border bg-input px-3 py-2 font-mono text-sm text-foreground"
+              className="mt-1 w-full rounded-xl border border-input-border bg-input px-3 py-2 font-mono text-base text-foreground"
               value={barcode}
               onChange={(event) => setBarcode(event.target.value)}
             />

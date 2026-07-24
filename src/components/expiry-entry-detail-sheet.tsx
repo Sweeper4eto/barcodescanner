@@ -14,6 +14,7 @@ import {
 import { CameraCapture, uploadImage } from "@/components/camera-capture";
 import { ProductImage } from "@/components/product-image";
 import { useT } from "@/components/i18n-provider";
+import { useViewportInsets } from "@/hooks/use-viewport-insets";
 import { formatLocaleDay } from "@/lib/expiry";
 import { isAdhocBarcode, resolveEntryImagePath } from "@/lib/inventory-entry-display";
 import { expiryIsoToYmd, expiryYmdToIso } from "@/lib/inventory";
@@ -101,6 +102,7 @@ export function ExpiryEntryDetailSheet({
   onUpdated,
 }: Props) {
   const { t, dateLocale } = useT();
+  const { offsetTop, keyboardInset } = useViewportInsets();
   const datePickerRef = useRef<ExpiryDatePickerHandle>(null);
   const [quantity, setQuantity] = useState(String(entry.quantity));
   const [expiryYmd, setExpiryYmd] = useState(() => expiryIsoToYmd(entry.expiryDate));
@@ -300,7 +302,8 @@ export function ExpiryEntryDetailSheet({
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex flex-col bg-card"
+      className="fixed inset-x-0 z-[60] flex flex-col bg-card"
+      style={{ top: offsetTop, bottom: keyboardInset }}
       role="dialog"
       aria-modal="true"
       aria-label={displayName}
@@ -428,7 +431,7 @@ export function ExpiryEntryDetailSheet({
               {t("common.barcode")}
               <div className="mt-1 flex items-center gap-2">
                 <input
-                  className="min-w-0 flex-1 rounded-xl border border-input-border bg-input px-3 py-2 font-mono text-sm text-foreground"
+                  className="min-w-0 flex-1 rounded-xl border border-input-border bg-input px-3 py-2 font-mono text-base text-foreground"
                   value={barcodeDraft}
                   onChange={(event) => setBarcodeDraft(event.target.value)}
                   disabled={saving}

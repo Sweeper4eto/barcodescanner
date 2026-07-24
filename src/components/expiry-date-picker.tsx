@@ -203,7 +203,7 @@ export const ExpiryDatePicker = forwardRef<ExpiryDatePickerHandle, Props>(
               inputMode="numeric"
               autoComplete="off"
               placeholder={t("expiry.dateTypePlaceholder")}
-              className={`min-w-0 flex-1 rounded-lg border bg-card px-2 py-1.5 font-mono text-sm tabular-nums text-foreground ${
+              className={`min-w-0 flex-1 rounded-lg border bg-card px-2 py-1.5 font-mono text-base tabular-nums text-foreground ${
                 typedError ? "border-danger-border" : "border-input-border"
               }`}
               value={typed}

@@ -19,6 +19,7 @@ import { QuantityPicker } from "@/components/quantity-picker";
 import { SearchField } from "@/components/search-field";
 import { useT } from "@/components/i18n-provider";
 import { useBrowserBackStack } from "@/lib/browser-back";
+import { useViewportInsets } from "@/hooks/use-viewport-insets";
 import { expiryYmdToIso } from "@/lib/inventory";
 
 const PAGE_SIZE = 20;
@@ -48,6 +49,7 @@ type Pagination = {
 
 function BuyListContent() {
   const { t } = useT();
+  const { offsetTop, keyboardInset } = useViewportInsets();
   const searchParams = useSearchParams();
   const storeId = searchParams.get("storeId") ?? "";
   const [homeUser, setHomeUser] = useState<boolean | null>(null);
@@ -525,7 +527,7 @@ function BuyListContent() {
           onChange={setSearch}
           placeholder={t("buyList.searchPlaceholder")}
           aria-label={t("buyList.searchPlaceholder")}
-          inputClassName="h-9 rounded-lg border border-input-border bg-input pl-2.5 pr-16 text-sm text-foreground"
+          inputClassName="h-9 rounded-lg border border-input-border bg-input pl-2.5 pr-16 text-base text-foreground"
           onClear={() => setShowScanner(false)}
           trailingAction={
             <button
@@ -681,7 +683,8 @@ function BuyListContent() {
 
       {confirmId ? (
         <div
-          className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40"
+          className="fixed inset-x-0 z-[60] flex items-end justify-center bg-black/40"
+          style={{ top: offsetTop, bottom: keyboardInset }}
           role="dialog"
           aria-modal="true"
           aria-labelledby="orders-confirm-title"
@@ -712,8 +715,11 @@ function BuyListContent() {
       ) : null}
 
       {moveToExpiryId ? (
-        <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40">
-          <div className="w-full max-w-lg px-3 pb-[calc(var(--app-bottom-nav-height)+env(safe-area-inset-bottom,0px)+0.5rem)]">
+        <div
+          className="fixed inset-x-0 z-[60] flex items-end justify-center bg-black/40"
+          style={{ top: offsetTop, bottom: keyboardInset }}
+        >
+          <div className="max-h-full w-full max-w-lg overflow-y-auto px-3 pb-[calc(var(--app-bottom-nav-height)+env(safe-area-inset-bottom,0px)+0.5rem)]">
             <div className="rounded-xl border border-card-border bg-card p-3">
               <p className="text-sm font-semibold">
                 {t("buyList.moveToExpiryTitle")}
@@ -755,9 +761,12 @@ function BuyListContent() {
         </div>
       ) : null}
       {showManualAdd ? (
-        <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40">
-          <div className="w-full max-w-lg px-3 pb-[calc(var(--app-bottom-nav-height)+env(safe-area-inset-bottom,0px)+0.5rem)]">
-            <div className="max-h-[80vh] space-y-3 overflow-y-auto rounded-xl border border-card-border bg-card p-3">
+        <div
+          className="fixed inset-x-0 z-[60] flex items-end justify-center bg-black/40"
+          style={{ top: offsetTop, bottom: keyboardInset }}
+        >
+          <div className="max-h-full w-full max-w-lg overflow-y-auto px-3 pb-[calc(var(--app-bottom-nav-height)+env(safe-area-inset-bottom,0px)+0.5rem)]">
+            <div className="space-y-3 rounded-xl border border-card-border bg-card p-3">
               <p className="text-sm font-semibold">{t("buyList.addManualTitle")}</p>
               <p className="text-xs text-muted">{t("buyList.addManualHint")}</p>
 

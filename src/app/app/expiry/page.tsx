@@ -23,6 +23,7 @@ import {
   setStoredExpiryPeriod,
 } from "@/lib/expiry-period";
 import { useBrowserBackStack } from "@/lib/browser-back";
+import { useViewportInsets } from "@/hooks/use-viewport-insets";
 import { resolveEntryImagePath } from "@/lib/inventory-entry-display";
 
 const PAGE_SIZE = 20;
@@ -48,6 +49,7 @@ type Pagination = {
 
 function ExpiryList() {
   const { t } = useT();
+  const { offsetTop, keyboardInset } = useViewportInsets();
   const searchParams = useSearchParams();
   const storeId = searchParams.get("storeId") ?? "";
   const [homeUser, setHomeUser] = useState<boolean | null>(null);
@@ -422,7 +424,7 @@ function ExpiryList() {
           onChange={setSearch}
           placeholder={t("expiry.searchPlaceholder")}
           aria-label={t("expiry.searchPlaceholder")}
-          inputClassName="h-9 rounded-lg border border-input-border bg-input px-2.5 text-sm text-foreground"
+          inputClassName="h-9 rounded-lg border border-input-border bg-input px-2.5 text-base text-foreground"
           onClear={() => setShowScanner(false)}
         />
         <button
@@ -521,7 +523,8 @@ function ExpiryList() {
 
       {confirmId ? (
         <div
-          className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40"
+          className="fixed inset-x-0 z-[60] flex items-end justify-center bg-black/40"
+          style={{ top: offsetTop, bottom: keyboardInset }}
           role="dialog"
           aria-modal="true"
           aria-labelledby="expiry-confirm-title"
@@ -552,7 +555,10 @@ function ExpiryList() {
       ) : null}
 
       {priceReduceConfirmId ? (
-        <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40">
+        <div
+          className="fixed inset-x-0 z-[60] flex items-end justify-center bg-black/40"
+          style={{ top: offsetTop, bottom: keyboardInset }}
+        >
           <div className="w-full max-w-lg px-3 pb-[calc(var(--app-bottom-nav-height)+env(safe-area-inset-bottom,0px)+0.5rem)]">
             <div className="rounded-xl border border-card-border bg-card p-3">
               <p className="text-sm font-semibold">
@@ -583,8 +589,11 @@ function ExpiryList() {
       ) : null}
 
       {moveToOrdersEntry ? (
-        <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40">
-          <div className="w-full max-w-lg px-3 pb-[calc(var(--app-bottom-nav-height)+env(safe-area-inset-bottom,0px)+0.5rem)]">
+        <div
+          className="fixed inset-x-0 z-[60] flex items-end justify-center bg-black/40"
+          style={{ top: offsetTop, bottom: keyboardInset }}
+        >
+          <div className="max-h-full w-full max-w-lg overflow-y-auto px-3 pb-[calc(var(--app-bottom-nav-height)+env(safe-area-inset-bottom,0px)+0.5rem)]">
             <div className="rounded-xl border border-card-border bg-card p-3">
               <p className="text-sm font-semibold">
                 {t("expiry.moveToOrdersTitle")}

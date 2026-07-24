@@ -6,6 +6,7 @@ import { CameraCapture, uploadImage } from "@/components/camera-capture";
 import { ProductImage } from "@/components/product-image";
 import { CopyIcon, StarFavouriteIcon } from "@/components/app-nav-icons";
 import { useT } from "@/components/i18n-provider";
+import { useViewportInsets } from "@/hooks/use-viewport-insets";
 
 function CopyTextButton({
   text,
@@ -79,6 +80,7 @@ export function BuyListEntryDetailSheet({
   onUpdated,
 }: Props) {
   const { t } = useT();
+  const { offsetTop, keyboardInset } = useViewportInsets();
   const [quantity, setQuantity] = useState(String(entry.quantity));
   const [editingQuantity, setEditingQuantity] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -166,7 +168,8 @@ export function BuyListEntryDetailSheet({
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex flex-col bg-card"
+      className="fixed inset-x-0 z-[60] flex flex-col bg-card"
+      style={{ top: offsetTop, bottom: keyboardInset }}
       role="dialog"
       aria-modal="true"
       aria-label={entry.product.name}

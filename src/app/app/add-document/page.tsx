@@ -12,6 +12,7 @@ import { SearchField } from "@/components/search-field";
 import { useT } from "@/components/i18n-provider";
 import { goBackOrApp, navigateApp } from "@/lib/app-navigation";
 import { useBrowserBackStack } from "@/lib/browser-back";
+import { useViewportInsets } from "@/hooks/use-viewport-insets";
 import {
   type DocumentDraftItem,
   draftItemValid,
@@ -26,6 +27,7 @@ function newKey() {
 
 function AddDocumentContent() {
   const { t } = useT();
+  const { offsetTop, keyboardInset } = useViewportInsets();
   const router = useRouter();
   const searchParams = useSearchParams();
   const storeId = searchParams.get("storeId") ?? "";
@@ -351,7 +353,8 @@ function AddDocumentContent() {
 
       {removeKey ? (
         <div
-          className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40"
+          className="fixed inset-x-0 z-[60] flex items-end justify-center bg-black/40"
+          style={{ top: offsetTop, bottom: keyboardInset }}
           role="dialog"
           aria-modal="true"
           aria-labelledby="doc-remove-title"
