@@ -215,7 +215,7 @@ export const en = {
     processingMulti: "Reading document {current} of {total}...",
     multiPartialFailure: "{failed} of {total} photos could not be read and were skipped.",
     reviewTitle: "Review items",
-    reviewHint: "Tap a row to edit. Fix red rows before adding. Check orange rows — especially dates near the end.",
+    reviewHint: "Tap a row to edit. Fix red rows before adding. Check orange rows — especially dates near the end, and the first/last row of each scanned page.",
     matched: "Matched",
     unmatched: "New",
     missingInfo: "Missing info",

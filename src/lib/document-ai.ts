@@ -263,11 +263,17 @@ Other rules:
 - barcode = EAN/UPC digits only if a real barcode column exists; else null. Never put Articul into barcode.
 - articul = Articul / SKU if present, else null.
 - Never copy a date from the row above or below. Never invent a date.
+- Every field (barcode, articul, expiryPrinted, quantity) must come ONLY from that item's own printed row. Never borrow, reuse, or "fill in" a value that is actually printed on a different row, even if that row is empty or looks incomplete.
 - If Godnost is blank, "1", or unreadable, set expiryPrinted to null and expiryDate to null.
 - After finishing, re-check the LAST 3 rows: each name keeps its own printed date string.
 - quantity = pieces if present, else 1. Ignore difference columns.
 - Ignore headers, client address, totals, signatures, batch/lot unless needed for clarity.
 - If a field is missing or unreadable, use null (quantity defaults to 1).
+
+LEFTOVER / CUT-OFF TEXT (important, this is a common photo-of-a-page mistake):
+- This photo may be one page of a multi-page document. Text that is truncated at the very TOP or very BOTTOM edge of the photo (a name with no visible barcode/articul/quantity/date next to it, or only 1-2 words with no table columns at all) is usually the tail end of a row that continues on a different page you cannot see.
+- Do NOT turn such a cut-off fragment into its own item, and do NOT pair it with the quantity/date/barcode of the nearest full row above or below it — that data belongs to a different product.
+- If you genuinely cannot tell whether a top/bottom edge line is a real, complete row, leave it out entirely rather than guessing or inventing its missing fields from a neighboring row.
 - Output must be complete closable JSON even if the page is long.`;
 
 
