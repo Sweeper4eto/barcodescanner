@@ -587,9 +587,6 @@ export function ExpiryEntryDetailSheet({
             <p className="text-sm font-semibold text-foreground">
               {t("expiry.confirmUpdateTitle")}
             </p>
-            <p className="mt-0.5 text-xs text-muted">
-              {t("expiry.confirmUpdateMessage")}
-            </p>
             <div className="mt-2 grid grid-cols-2 gap-2">
               <button
                 type="button"

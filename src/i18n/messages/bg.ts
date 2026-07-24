@@ -274,8 +274,6 @@ export const bg = {
     saving: "Запазване...",
     saveFailed: "Промените не бяха запазени",
     confirmUpdateTitle: "Запазване на промените?",
-    confirmUpdateMessage:
-      "Да се актуализират ли датата на годност, бройките и намалението на цената?",
     confirmSave: "Запази",
     reducePrice: "Намали цена",
     reducePriceConfirmTitle: "Потвърди намаляване на цената",
@@ -322,7 +320,6 @@ export const bg = {
     saving: "Запазване...",
     saveFailed: "Промените не бяха запазени",
     confirmUpdateTitle: "Запазване на промените?",
-    confirmUpdateMessage: "Да се актуализира ли количеството?",
     confirmSave: "Запази",
     copyName: "Копирай името на продукта",
     copyBarcode: "Копирай баркода",

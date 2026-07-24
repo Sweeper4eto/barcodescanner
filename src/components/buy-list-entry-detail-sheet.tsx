@@ -352,9 +352,6 @@ export function BuyListEntryDetailSheet({
             <p className="text-sm font-semibold text-foreground">
               {t("buyList.confirmUpdateTitle")}
             </p>
-            <p className="mt-0.5 text-xs text-muted">
-              {t("buyList.confirmUpdateMessage")}
-            </p>
             <div className="mt-2 grid grid-cols-2 gap-2">
               <button
                 type="button"

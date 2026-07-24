@@ -273,8 +273,6 @@ export const en = {
     saving: "Saving...",
     saveFailed: "Could not save changes",
     confirmUpdateTitle: "Save changes?",
-    confirmUpdateMessage:
-      "Update expiry date, quantity, and price reduction for this item?",
     confirmSave: "Save",
     reducePrice: "Reduce price",
     reducePriceConfirmTitle: "Confirm price reduction",
@@ -321,7 +319,6 @@ export const en = {
     saving: "Saving...",
     saveFailed: "Could not save changes",
     confirmUpdateTitle: "Save changes?",
-    confirmUpdateMessage: "Update quantity for this item?",
     confirmSave: "Save",
     copyName: "Copy product name",
     copyBarcode: "Copy barcode",
