@@ -19,7 +19,10 @@ import {
   draftMatchesSearch,
 } from "@/lib/document-draft";
 
-type Step = "camera" | "processing" | "review";
+type Step = "camera" | "processing" | "review" | "done";
+
+type ImportResult = { created: number; merged: number };
+type SessionTotals = { scans: number; created: number; merged: number };
 
 function newKey() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -39,6 +42,12 @@ function AddDocumentContent() {
   const [search, setSearch] = useState("");
   const [detailKey, setDetailKey] = useState<string | null>(null);
   const [removeKey, setRemoveKey] = useState<string | null>(null);
+  const [lastResult, setLastResult] = useState<ImportResult | null>(null);
+  const [sessionTotals, setSessionTotals] = useState<SessionTotals>({
+    scans: 0,
+    created: 0,
+    merged: 0,
+  });
 
   const detailItem = useMemo(
     () => items.find((item) => item.key === detailKey) ?? null,
@@ -238,7 +247,18 @@ function AddDocumentContent() {
         setError(data?.error ?? t("errors.saveFailed"));
         return;
       }
-      navigateApp(`/app/expiry?storeId=${encodeURIComponent(storeId)}`);
+      const created = Number(data?.created ?? 0);
+      const merged = Number(data?.merged ?? 0);
+      setLastResult({ created, merged });
+      setSessionTotals((totals) => ({
+        scans: totals.scans + 1,
+        created: totals.created + created,
+        merged: totals.merged + merged,
+      }));
+      setItems([]);
+      setSearch("");
+      setDetailKey(null);
+      setStep("done");
     } catch {
       setError(t("errors.saveFailed"));
     } finally {
@@ -338,6 +358,57 @@ function AddDocumentContent() {
               }}
             >
               {t("addDocument.retake")}
+            </SecondaryButton>
+          </div>
+        </div>
+      ) : null}
+
+      {step === "done" ? (
+        <div className="space-y-4">
+          <div className="rounded-2xl border border-card-border p-4 text-center">
+            <p className="text-base font-semibold text-foreground">
+              {t("addDocument.doneTitle")}
+            </p>
+            <div className="mt-3 grid grid-cols-2 gap-2 text-left">
+              <div className="rounded-xl bg-subtle p-3">
+                <p className="text-2xl font-bold tabular-nums text-foreground">
+                  {lastResult?.created ?? 0}
+                </p>
+                <p className="mt-0.5 text-xs text-muted">{t("addDocument.newLabel")}</p>
+              </div>
+              <div className="rounded-xl bg-subtle p-3">
+                <p className="text-2xl font-bold tabular-nums text-foreground">
+                  {lastResult?.merged ?? 0}
+                </p>
+                <p className="mt-0.5 text-xs text-muted">{t("addDocument.mergedLabel")}</p>
+              </div>
+            </div>
+          </div>
+
+          {sessionTotals.scans > 1 ? (
+            <div className="rounded-2xl border border-card-border p-4">
+              <p className="text-sm font-semibold text-foreground">
+                {t("addDocument.doneSessionTitle", { scans: sessionTotals.scans })}
+              </p>
+              <p className="mt-1 text-sm text-muted">
+                {t("addDocument.doneSessionAdded", { count: sessionTotals.created })}
+              </p>
+              <p className="text-sm text-muted">
+                {t("addDocument.doneSessionMerged", { count: sessionTotals.merged })}
+              </p>
+            </div>
+          ) : null}
+
+          <div className="space-y-2">
+            <PrimaryButton onClick={() => setStep("camera")}>
+              {t("addDocument.scanAnother")}
+            </PrimaryButton>
+            <SecondaryButton
+              onClick={() =>
+                navigateApp(`/app/expiry?storeId=${encodeURIComponent(storeId)}`)
+              }
+            >
+              {t("addDocument.goToExpiry")}
             </SecondaryButton>
           </div>
         </div>
