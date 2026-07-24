@@ -113,7 +113,7 @@ function AddDocumentContent() {
 
   type ProcessResult =
     | { ok: true; items: ParsedItem[] }
-    | { ok: false; error: string };
+    | { ok: false; error: string; retryable?: boolean };
 
   async function parseDocument(dataUrl: string, attempt = 0): Promise<Response> {
     return fetch("/api/documents/parse", {
@@ -146,54 +146,71 @@ function AddDocumentContent() {
     }));
   }
 
+  /**
+   * Never throws — network/parse failures are converted into a ProcessResult
+   * so callers (including the retry wrapper) don't need their own try/catch.
+   */
   async function processDocumentImage(dataUrl: string): Promise<ProcessResult> {
-    const quality = await assessDocumentPhotoQuality(dataUrl);
-    if (!quality.ok) {
-      const key =
-        quality.reason === "blurry"
-          ? "errors.documentPhotoBlurry"
-          : quality.reason === "glare"
-            ? "errors.documentPhotoGlare"
-            : quality.reason === "tooDark"
-              ? "errors.documentPhotoTooDark"
-              : "errors.documentPhotoTooSmall";
-      return { ok: false, error: t(key) };
-    }
-
-    const prepared = await prepareDocumentImage(dataUrl);
-    const response = await parseDocument(prepared);
-    if (response.status === 413) {
-      return { ok: false, error: t("errors.documentTooLarge") };
-    }
-    if (response.status === 504) {
-      return { ok: false, error: t("errors.documentTimeout") };
-    }
-
-    const rawText = await response.text();
-    let data: { error?: string; items?: ParsedItem[] } | null = null;
     try {
-      data = JSON.parse(rawText) as { error?: string; items?: ParsedItem[] };
-    } catch {
-      return {
-        ok: false,
-        error:
-          response.ok
-            ? t("errors.documentParseFailed")
-            : response.status === 502 || response.status === 503
-              ? t("errors.documentTimeout")
+      const quality = await assessDocumentPhotoQuality(dataUrl);
+      if (!quality.ok) {
+        const key =
+          quality.reason === "blurry"
+            ? "errors.documentPhotoBlurry"
+            : quality.reason === "glare"
+              ? "errors.documentPhotoGlare"
+              : quality.reason === "tooDark"
+                ? "errors.documentPhotoTooDark"
+                : "errors.documentPhotoTooSmall";
+        // Deterministic result of the same image — retrying won't help.
+        return { ok: false, error: t(key), retryable: false };
+      }
+
+      const prepared = await prepareDocumentImage(dataUrl);
+      const response = await parseDocument(prepared);
+      if (response.status === 413) {
+        return { ok: false, error: t("errors.documentTooLarge"), retryable: false };
+      }
+      if (response.status === 504) {
+        return { ok: false, error: t("errors.documentTimeout") };
+      }
+
+      const rawText = await response.text();
+      let data: { error?: string; items?: ParsedItem[] } | null = null;
+      try {
+        data = JSON.parse(rawText) as { error?: string; items?: ParsedItem[] };
+      } catch {
+        return {
+          ok: false,
+          error:
+            response.ok
+              ? t("errors.documentParseFailed")
+              : response.status === 502 || response.status === 503
+                ? t("errors.documentTimeout")
+                : t("errors.documentParseFailed"),
+        };
+      }
+      if (!response.ok || !data?.items) {
+        return {
+          ok: false,
+          error:
+            typeof data?.error === "string" && data.error
+              ? data.error
               : t("errors.documentParseFailed"),
-      };
+        };
+      }
+      return { ok: true, items: data.items };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "";
+      return { ok: false, error: message || t("errors.documentParseFailed") };
     }
-    if (!response.ok || !data?.items) {
-      return {
-        ok: false,
-        error:
-          typeof data?.error === "string" && data.error
-            ? data.error
-            : t("errors.documentParseFailed"),
-      };
-    }
-    return { ok: true, items: data.items };
+  }
+
+  /** Retries once when the failure could plausibly be transient (network/AI hiccup). */
+  async function processDocumentImageWithRetry(dataUrl: string): Promise<ProcessResult> {
+    const first = await processDocumentImage(dataUrl);
+    if (first.ok || first.retryable === false) return first;
+    return processDocumentImage(dataUrl);
   }
 
   async function onCapture(dataUrl: string) {
@@ -201,21 +218,15 @@ function AddDocumentContent() {
     setError("");
     setStep("processing");
     setProcessingProgress(null);
-    try {
-      const result = await processDocumentImage(dataUrl);
-      if (!result.ok) {
-        setError(result.error);
-        setStep("camera");
-        return;
-      }
-      setItems(toDraftItems(result.items));
-      setSearch("");
-      setStep("review");
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "";
-      setError(message || t("errors.documentParseFailed"));
+    const result = await processDocumentImageWithRetry(dataUrl);
+    if (!result.ok) {
+      setError(result.error);
       setStep("camera");
+      return;
     }
+    setItems(toDraftItems(result.items));
+    setSearch("");
+    setStep("review");
   }
 
   async function onMultipleCapture(dataUrls: string[]) {
@@ -226,14 +237,10 @@ function AddDocumentContent() {
     let failed = 0;
     for (let index = 0; index < dataUrls.length; index += 1) {
       setProcessingProgress({ current: index + 1, total: dataUrls.length });
-      try {
-        const result = await processDocumentImage(dataUrls[index]);
-        if (result.ok) {
-          collected.push(...toDraftItems(result.items));
-        } else {
-          failed += 1;
-        }
-      } catch {
+      const result = await processDocumentImageWithRetry(dataUrls[index]);
+      if (result.ok) {
+        collected.push(...toDraftItems(result.items));
+      } else {
         failed += 1;
       }
     }
