@@ -806,7 +806,7 @@ function BuyListContent() {
               <label className="block text-sm font-medium text-foreground">
                 {t("buyList.addManualName")}
                 <input
-                  className="mt-1 w-full rounded-xl border border-input-border bg-input px-3 py-2 text-foreground"
+                  className="mt-1 w-full rounded-xl border border-input-border bg-input px-3 py-2 text-base text-foreground"
                   value={manualName}
                   onChange={(event) => setManualName(event.target.value)}
                   placeholder={t("common.noName")}

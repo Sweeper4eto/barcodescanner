@@ -523,7 +523,7 @@ export function BarcodeScanner({
         {t("common.barcode")}
         <input
           data-testid="barcode-manual-input"
-          className="mt-1 w-full min-w-0 rounded-xl border border-input-border bg-input px-3 py-3 text-foreground"
+          className="mt-1 w-full min-w-0 rounded-xl border border-input-border bg-input px-3 py-3 text-base text-foreground"
           placeholder={t("scanner.manualPlaceholder")}
           value={manual}
           onChange={(event) => setManual(event.target.value)}

@@ -161,7 +161,7 @@ function AddProductFlow() {
           <label className="block text-sm font-medium text-foreground">
             {t("common.barcode")}
             <input
-              className="mt-1 w-full rounded-xl border border-input-border bg-input px-3 py-3 text-foreground"
+              className="mt-1 w-full rounded-xl border border-input-border bg-input px-3 py-3 text-base text-foreground"
               value={barcode}
               onChange={(event) => setBarcode(event.target.value)}
             />
@@ -170,7 +170,7 @@ function AddProductFlow() {
             <p className="text-sm text-muted">{t("addProduct.lookingUpName")}</p>
           ) : null}
           <input
-            className="w-full rounded-xl border border-input-border bg-input px-3 py-3 text-foreground"
+            className="w-full rounded-xl border border-input-border bg-input px-3 py-3 text-base text-foreground"
             placeholder={t("addProduct.productName")}
             value={name}
             onChange={(event) => setName(event.target.value)}

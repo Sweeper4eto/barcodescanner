@@ -191,7 +191,7 @@ export default function TeamPage() {
         <label className="block text-sm font-medium text-foreground">
           {t("team.username")}
           <input
-            className="mt-1 w-full rounded-xl border border-input-border bg-input px-3 py-2 text-foreground"
+            className="mt-1 w-full rounded-xl border border-input-border bg-input px-3 py-2 text-base text-foreground"
             value={username}
             onChange={(event) => setUsername(event.target.value)}
             autoComplete="off"
@@ -201,7 +201,7 @@ export default function TeamPage() {
           {t("team.password")}
           <input
             type="password"
-            className="mt-1 w-full rounded-xl border border-input-border bg-input px-3 py-2 text-foreground"
+            className="mt-1 w-full rounded-xl border border-input-border bg-input px-3 py-2 text-base text-foreground"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
             autoComplete="new-password"

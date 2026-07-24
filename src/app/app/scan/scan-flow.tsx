@@ -299,7 +299,7 @@ export function ScanFlow() {
             <label className="block text-sm font-medium text-foreground">
               {t("common.barcode")}
               <input
-                className="mt-1 w-full rounded-xl border border-input-border bg-input px-3 py-3 text-foreground"
+                className="mt-1 w-full rounded-xl border border-input-border bg-input px-3 py-3 text-base text-foreground"
                 value={barcode}
                 onChange={(event) => setBarcode(event.target.value)}
               />
@@ -308,7 +308,7 @@ export function ScanFlow() {
           <label className="block text-sm font-medium text-foreground">
             {t("scan.enterName")}
             <input
-              className="mt-1 w-full rounded-xl border border-input-border bg-input px-3 py-3 text-foreground"
+              className="mt-1 w-full rounded-xl border border-input-border bg-input px-3 py-3 text-base text-foreground"
               value={name}
               onChange={(event) => setName(event.target.value)}
               autoFocus
@@ -339,7 +339,7 @@ export function ScanFlow() {
             <label className="block text-sm font-medium text-foreground">
               {t("common.barcode")}
               <input
-                className="mt-1 w-full rounded-xl border border-input-border bg-input px-3 py-3 text-foreground"
+                className="mt-1 w-full rounded-xl border border-input-border bg-input px-3 py-3 text-base text-foreground"
                 value={displayBarcode}
                 onChange={(event) => setBarcode(event.target.value)}
               />

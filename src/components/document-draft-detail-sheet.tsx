@@ -133,7 +133,7 @@ export function DocumentDraftDetailSheet({ item, onClose, onSave }: Props) {
         <label className="block text-sm font-medium text-foreground">
           {t("common.name")}
           <input
-            className="mt-1 w-full rounded-xl border border-input-border bg-input px-3 py-2 text-foreground"
+            className="mt-1 w-full rounded-xl border border-input-border bg-input px-3 py-2 text-base text-foreground"
             value={name}
             onChange={(event) => setName(event.target.value)}
             placeholder={t("common.noName")}
@@ -152,7 +152,7 @@ export function DocumentDraftDetailSheet({ item, onClose, onSave }: Props) {
           <label className="block text-sm font-medium text-foreground">
             {t("common.articul")}
             <input
-              className="mt-1 w-full rounded-xl border border-input-border bg-input px-3 py-2 text-foreground"
+              className="mt-1 w-full rounded-xl border border-input-border bg-input px-3 py-2 text-base text-foreground"
               value={articul}
               onChange={(event) => setArticul(event.target.value)}
             />

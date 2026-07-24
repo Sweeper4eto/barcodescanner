@@ -414,7 +414,7 @@ export function ExpiryEntryDetailSheet({
               {t("common.name")}
               <div className="mt-1 flex items-center gap-2">
                 <input
-                  className="min-w-0 flex-1 rounded-xl border border-input-border bg-input px-3 py-2 text-foreground"
+                  className="min-w-0 flex-1 rounded-xl border border-input-border bg-input px-3 py-2 text-base text-foreground"
                   value={nameDraft}
                   onChange={(event) => setNameDraft(event.target.value)}
                   placeholder={t("common.noName")}
@@ -446,7 +446,7 @@ export function ExpiryEntryDetailSheet({
             <label className="mt-3 block text-sm font-medium text-foreground">
               {t("expiry.articul")}
               <input
-                className="mt-1 w-full rounded-xl border border-input-border bg-input px-3 py-2 text-foreground"
+                className="mt-1 w-full rounded-xl border border-input-border bg-input px-3 py-2 text-base text-foreground"
                 value={articulDraft}
                 onChange={(event) => setArticulDraft(event.target.value)}
                 disabled={saving}
