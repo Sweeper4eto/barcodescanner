@@ -95,6 +95,15 @@ export async function POST(request: Request) {
           imagePath: null,
         },
       });
+    } else if (name && name !== product.name) {
+      // The reviewer may have corrected a name that was auto-filled from a
+      // stale/incorrect catalog entry (e.g. a past mis-scan). Since Product
+      // is shared by barcode across every store and future scan, persist the
+      // correction here so it doesn't keep resurfacing.
+      product = await db.product.update({
+        where: { id: product.id },
+        data: { name },
+      });
     }
 
     const existing = await db.inventoryEntry.findFirst({
