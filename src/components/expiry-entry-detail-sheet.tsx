@@ -120,6 +120,7 @@ export function ExpiryEntryDetailSheet({
   );
   const [changingPicture, setChangingPicture] = useState(false);
   const [uploadingPicture, setUploadingPicture] = useState(false);
+  const [textFieldFocused, setTextFieldFocused] = useState(false);
 
   const savedExpiryYmd = expiryIsoToYmd(entry.expiryDate);
   const savedBarcodeDisplay = isAdhocBarcode(entry.barcode) ? "" : entry.barcode;
@@ -139,7 +140,7 @@ export function ExpiryEntryDetailSheet({
     barcodeDraft.trim() !== savedBarcodeDisplay.trim();
   const canConfirm = hasChanges && quantityValid;
   const compactLayout =
-    editingExpiry || editingQuantity || hasChanges;
+    editingExpiry || editingQuantity || hasChanges || textFieldFocused;
 
   useEffect(() => {
     setQuantity(String(entry.quantity));
@@ -151,6 +152,7 @@ export function ExpiryEntryDetailSheet({
     setChangingPicture(false);
     setEditingExpiry(false);
     setEditingQuantity(false);
+    setTextFieldFocused(false);
     setError(null);
   }, [
     entry.id,
@@ -172,6 +174,7 @@ export function ExpiryEntryDetailSheet({
     setBarcodeDraft(savedBarcodeDisplay);
     setEditingExpiry(false);
     setEditingQuantity(false);
+    setTextFieldFocused(false);
     setError(null);
   }
 
@@ -417,6 +420,8 @@ export function ExpiryEntryDetailSheet({
                   className="min-w-0 flex-1 rounded-xl border border-input-border bg-input px-3 py-2 text-base text-foreground"
                   value={nameDraft}
                   onChange={(event) => setNameDraft(event.target.value)}
+                  onFocus={() => setTextFieldFocused(true)}
+                  onBlur={() => setTextFieldFocused(false)}
                   placeholder={t("common.noName")}
                   disabled={saving}
                 />
@@ -434,6 +439,8 @@ export function ExpiryEntryDetailSheet({
                   className="min-w-0 flex-1 rounded-xl border border-input-border bg-input px-3 py-2 font-mono text-base text-foreground"
                   value={barcodeDraft}
                   onChange={(event) => setBarcodeDraft(event.target.value)}
+                  onFocus={() => setTextFieldFocused(true)}
+                  onBlur={() => setTextFieldFocused(false)}
                   disabled={saving}
                 />
                 <CopyTextButton
@@ -449,6 +456,8 @@ export function ExpiryEntryDetailSheet({
                 className="mt-1 w-full rounded-xl border border-input-border bg-input px-3 py-2 text-base text-foreground"
                 value={articulDraft}
                 onChange={(event) => setArticulDraft(event.target.value)}
+                onFocus={() => setTextFieldFocused(true)}
+                onBlur={() => setTextFieldFocused(false)}
                 disabled={saving}
               />
             </label>
