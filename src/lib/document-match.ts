@@ -19,7 +19,7 @@ export type DocumentDraftItem = {
   quantity: number;
   productId: string | null;
   productImagePath: string | null;
-  matchSource: "barcode" | "articul" | "name" | null;
+  matchSource: "barcode" | "name" | null;
 };
 
 type ProductSelect = MatchedProduct;
@@ -110,6 +110,32 @@ async function loadProductsByNames(
   return lookup;
 }
 
+/**
+ * Store-internal SKUs ("articul") get reassigned/reused across genuinely
+ * different products over time (unlike a barcode, which is a stable global
+ * identifier), so a SKU match alone must never decide product identity or
+ * override a freshly-read name — doing so previously caused a completely
+ * unrelated catalog name to silently replace a correctly-OCR'd one. We still
+ * look SKUs up, but only to log a crosscheck warning when they disagree with
+ * the barcode/name match, never to act on them.
+ */
+function crosscheckArticul(
+  row: DocumentOcrRow,
+  byArticul: Map<string, ProductSelect>,
+  resolved: ProductSelect | null,
+) {
+  if (!row.articul) return;
+  const hit = byArticul.get(row.articul.trim());
+  if (!hit) return;
+  if (resolved && hit.id === resolved.id) return;
+  console.warn(
+    `document match crosscheck: SKU "${row.articul}" was previously linked to ` +
+      `"${hit.name}" (${hit.id}) but this row resolved to ` +
+      `${resolved ? `"${resolved.name}" (${resolved.id})` : "no catalog match"}. ` +
+      "SKU is not used for matching, so this is informational only.",
+  );
+}
+
 function resolveRow(
   row: DocumentOcrRow,
   byBarcode: Map<string, ProductSelect>,
@@ -130,14 +156,6 @@ function resolveRow(
     }
   }
 
-  if (!product && row.articul) {
-    const hit = byArticul.get(row.articul.trim());
-    if (hit) {
-      product = hit;
-      matchSource = "articul";
-    }
-  }
-
   if (!product && row.name) {
     const hit = byName.get(row.name.trim().toLowerCase());
     if (hit) {
@@ -145,6 +163,8 @@ function resolveRow(
       matchSource = "name";
     }
   }
+
+  crosscheckArticul(row, byArticul, product);
 
   return draftFromRow(row, product, matchSource);
 }

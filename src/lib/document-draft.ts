@@ -9,7 +9,7 @@ export type DocumentDraftItem = {
   quantity: string;
   productId: string | null;
   productImagePath: string | null;
-  matchSource: "barcode" | "articul" | "name" | null;
+  matchSource: "barcode" | "name" | null;
 };
 
 export type DocumentDraftWarning =
