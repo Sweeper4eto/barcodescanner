@@ -144,7 +144,7 @@ function AddDocumentContent() {
         quantity?: number;
         productId?: string | null;
         productImagePath?: string | null;
-        matchSource?: "barcode" | "name" | null;
+        matchSource?: "barcode" | "name" | "articul" | null;
       };
 
       const rawText = await response.text();

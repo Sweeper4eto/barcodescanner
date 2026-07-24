@@ -2,7 +2,12 @@ import { Prisma } from "@/generated/prisma/client";
 import { barcodeLookupValues, normalizeBarcode } from "@/lib/barcode";
 import { db } from "@/lib/db";
 import type { DocumentOcrRow } from "@/lib/document-ai";
-import { activeInventoryWhere } from "@/lib/inventory";
+import {
+  activeInventoryWhere,
+  expiryYmdToIso,
+  normalizeExpiryDate,
+} from "@/lib/inventory";
+import { namesMatchForMerge } from "@/lib/product-name-match";
 
 export type MatchedProduct = {
   id: string;
@@ -19,7 +24,7 @@ export type DocumentDraftItem = {
   quantity: number;
   productId: string | null;
   productImagePath: string | null;
-  matchSource: "barcode" | "name" | null;
+  matchSource: "barcode" | "name" | "articul" | null;
 };
 
 type ProductSelect = MatchedProduct;
@@ -62,11 +67,16 @@ async function loadProductsByBarcodes(
   return lookup;
 }
 
+type ArticulCandidate = {
+  expiryDate: Date;
+  product: ProductSelect;
+};
+
 async function loadProductsByArticuls(
   storeId: string,
   articuls: string[],
-): Promise<Map<string, ProductSelect>> {
-  const lookup = new Map<string, ProductSelect>();
+): Promise<Map<string, ArticulCandidate[]>> {
+  const lookup = new Map<string, ArticulCandidate[]>();
   if (articuls.length === 0) return lookup;
 
   const entries = await db.inventoryEntry.findMany({
@@ -85,10 +95,48 @@ async function loadProductsByArticuls(
 
   for (const entry of entries) {
     const key = entry.articul?.trim();
-    if (!key || lookup.has(key) || !entry.product) continue;
-    lookup.set(key, entry.product);
+    if (!key || !entry.product) continue;
+    const list = lookup.get(key) ?? [];
+    list.push({ expiryDate: entry.expiryDate, product: entry.product });
+    lookup.set(key, list);
   }
   return lookup;
+}
+
+function rowExpiryTimestamp(row: DocumentOcrRow): number | null {
+  if (!row.expiryYmd) return null;
+  try {
+    return normalizeExpiryDate(new Date(expiryYmdToIso(row.expiryYmd))).getTime();
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * SKU is only trusted to resolve product identity when corroborated by BOTH
+ * an exact expiry-day match and a near-identical name (punctuation/symbol
+ * differences only — e.g. "Ябълка , 10 % сайдер" vs "Ябълка 10 Сайдер"; a
+ * real word/number difference like "5 %" vs "10 %" never matches). A bare
+ * SKU match is not enough on its own, since store-internal SKUs get
+ * reused/reassigned to genuinely different products over time.
+ */
+function findArticulMatch(
+  row: DocumentOcrRow,
+  byArticul: Map<string, ArticulCandidate[]>,
+): ProductSelect | null {
+  if (!row.articul || !row.name) return null;
+  const candidates = byArticul.get(row.articul.trim());
+  if (!candidates || candidates.length === 0) return null;
+
+  const rowExpiry = rowExpiryTimestamp(row);
+  if (rowExpiry === null) return null;
+
+  for (const candidate of candidates) {
+    if (normalizeExpiryDate(candidate.expiryDate).getTime() !== rowExpiry) continue;
+    if (!namesMatchForMerge(row.name, candidate.product.name)) continue;
+    return candidate.product;
+  }
+  return null;
 }
 
 async function loadProductsByNames(
@@ -111,35 +159,33 @@ async function loadProductsByNames(
 }
 
 /**
- * Store-internal SKUs ("articul") get reassigned/reused across genuinely
- * different products over time (unlike a barcode, which is a stable global
- * identifier), so a SKU match alone must never decide product identity or
- * override a freshly-read name — doing so previously caused a completely
- * unrelated catalog name to silently replace a correctly-OCR'd one. We still
- * look SKUs up, but only to log a crosscheck warning when they disagree with
- * the barcode/name match, never to act on them.
+ * Logs when a SKU was previously linked to a product other than the one this
+ * row resolved to. Purely informational — never changes the outcome — so
+ * discrepancies caused by reused/reassigned store SKUs are still visible.
  */
 function crosscheckArticul(
   row: DocumentOcrRow,
-  byArticul: Map<string, ProductSelect>,
+  byArticul: Map<string, ArticulCandidate[]>,
   resolved: ProductSelect | null,
 ) {
   if (!row.articul) return;
-  const hit = byArticul.get(row.articul.trim());
-  if (!hit) return;
-  if (resolved && hit.id === resolved.id) return;
+  const candidates = byArticul.get(row.articul.trim());
+  if (!candidates || candidates.length === 0) return;
+  const other = candidates.find(
+    (candidate) => !resolved || candidate.product.id !== resolved.id,
+  );
+  if (!other) return;
   console.warn(
     `document match crosscheck: SKU "${row.articul}" was previously linked to ` +
-      `"${hit.name}" (${hit.id}) but this row resolved to ` +
-      `${resolved ? `"${resolved.name}" (${resolved.id})` : "no catalog match"}. ` +
-      "SKU is not used for matching, so this is informational only.",
+      `"${other.product.name}" (${other.product.id}) but this row resolved to ` +
+      `${resolved ? `"${resolved.name}" (${resolved.id})` : "no catalog match"}.`,
   );
 }
 
 function resolveRow(
   row: DocumentOcrRow,
   byBarcode: Map<string, ProductSelect>,
-  byArticul: Map<string, ProductSelect>,
+  byArticul: Map<string, ArticulCandidate[]>,
   byName: Map<string, ProductSelect>,
 ): DocumentDraftItem {
   let product: ProductSelect | null = null;
@@ -161,6 +207,14 @@ function resolveRow(
     if (hit) {
       product = hit;
       matchSource = "name";
+    }
+  }
+
+  if (!product) {
+    const hit = findArticulMatch(row, byArticul);
+    if (hit) {
+      product = hit;
+      matchSource = "articul";
     }
   }
 
