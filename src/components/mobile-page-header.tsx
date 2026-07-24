@@ -7,23 +7,23 @@ export function MobilePageHeader({
   title,
   action,
   sticky = false,
+  className = "",
 }: {
   title: string;
   action?: React.ReactNode;
   /**
-   * Pin the header to the top of the viewport while the page content
-   * scrolls beneath it (used on long, scrollable card lists).
+   * Pin only this header block (prefer wrapping the full toolbar in a sticky
+   * chrome on long lists so search/filters stay visible too).
    */
   sticky?: boolean;
+  className?: string;
 }) {
+  const base = sticky
+    ? "sticky top-0 z-20 -mx-4 mb-4 border-b border-card-border bg-background/95 px-4 pb-3 pt-3 backdrop-blur-sm supports-[backdrop-filter]:bg-background/85"
+    : "mb-4";
+
   return (
-    <div
-      className={
-        sticky
-          ? "sticky top-0 z-20 -mx-4 mb-4 border-b border-card-border bg-background/95 px-4 pb-3 pt-3 backdrop-blur-sm supports-[backdrop-filter]:bg-background/85"
-          : "mb-4"
-      }
-    >
+    <div className={`${base} ${className}`.trim()}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <AppHeaderLogo size={36} />
@@ -41,3 +41,13 @@ export function MobilePageHeader({
     </div>
   );
 }
+
+/** Full-height page shell: pinned top chrome, scrollable card list only. */
+export const listPageShellClassName =
+  "mx-auto flex h-[calc(100dvh-var(--app-bottom-nav-height)-env(safe-area-inset-bottom,0px))] min-h-0 w-full max-w-lg flex-col px-4 pt-3";
+
+export const listPageChromeClassName =
+  "shrink-0 space-y-2 border-b border-card-border bg-background pb-2";
+
+export const listPageScrollClassName =
+  "min-h-0 flex-1 overflow-y-auto overscroll-y-contain pb-2 pt-2 [scrollbar-width:thin]";

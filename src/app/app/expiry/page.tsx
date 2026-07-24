@@ -11,7 +11,7 @@ import {
 } from "@/components/expiry-entry-detail-sheet";
 import { ExpiryPeriodFilter } from "@/components/expiry-period-filter";
 import { ActionFlash } from "@/components/action-flash";
-import { MobilePageHeader } from "@/components/mobile-page-header";
+import { MobilePageHeader, listPageChromeClassName, listPageScrollClassName, listPageShellClassName } from "@/components/mobile-page-header";
 import { QuantityPicker } from "@/components/quantity-picker";
 import { SearchField } from "@/components/search-field";
 import { useT } from "@/components/i18n-provider";
@@ -407,52 +407,54 @@ function ExpiryList() {
   const isHomeUser = homeUser === true;
 
   return (
-    <div className="mx-auto min-w-0 max-w-lg px-4 py-3">
-      <MobilePageHeader title={t("expiry.title")} sticky />
+    <div className={listPageShellClassName}>
+      <div className={listPageChromeClassName}>
+        <MobilePageHeader title={t("expiry.title")} className="mb-0" />
 
-      <ActionFlash
-        message={flashMessage}
-        tone={flashTone}
-        onClear={clearFlash}
-      />
-
-      <ExpiryPeriodFilter value={period} onChange={onPeriodChange} />
-
-      <div className="mb-2 flex items-center gap-1.5">
-        <SearchField
-          value={search}
-          onChange={setSearch}
-          placeholder={t("expiry.searchPlaceholder")}
-          aria-label={t("expiry.searchPlaceholder")}
-          inputClassName="h-9 rounded-lg border border-input-border bg-input px-2.5 text-base text-foreground"
-          onClear={() => setShowScanner(false)}
+        <ActionFlash
+          message={flashMessage}
+          tone={flashTone}
+          onClear={clearFlash}
         />
-        <button
-          type="button"
-          onClick={() => setShowScanner((open) => !open)}
-          className={`flex h-9 shrink-0 items-center justify-center gap-1 rounded-lg border px-2 text-[10px] font-medium leading-none ${
-            showScanner
-              ? "border-primary bg-selected text-primary"
-              : "border-input-border bg-card text-muted"
-          }`}
-        >
-          <ScanNavIcon className="h-4 w-4" />
-          <span>{t("app.navScan")}</span>
-        </button>
+
+        <ExpiryPeriodFilter value={period} onChange={onPeriodChange} />
+
+        <div className="flex items-center gap-1.5">
+          <SearchField
+            value={search}
+            onChange={setSearch}
+            placeholder={t("expiry.searchPlaceholder")}
+            aria-label={t("expiry.searchPlaceholder")}
+            inputClassName="h-9 rounded-lg border border-input-border bg-input px-2.5 text-base text-foreground"
+            onClear={() => setShowScanner(false)}
+          />
+          <button
+            type="button"
+            onClick={() => setShowScanner((open) => !open)}
+            className={`flex h-9 shrink-0 items-center justify-center gap-1 rounded-lg border px-2 text-[10px] font-medium leading-none ${
+              showScanner
+                ? "border-primary bg-selected text-primary"
+                : "border-input-border bg-card text-muted"
+            }`}
+          >
+            <ScanNavIcon className="h-4 w-4" />
+            <span>{t("app.navScan")}</span>
+          </button>
+        </div>
+
+        {showScanner ? (
+          <div className="rounded-2xl border border-card-border p-4">
+            <BarcodeScanner
+              autoStart
+              submitOnScan
+              onScan={async (barcode) => onBarcodeScanned(barcode)}
+              onCancel={() => setShowScanner(false)}
+            />
+          </div>
+        ) : null}
       </div>
 
-      {showScanner ? (
-        <div className="mb-4 rounded-2xl border border-card-border p-4">
-          <BarcodeScanner
-            autoStart
-            submitOnScan
-            onScan={async (barcode) => onBarcodeScanned(barcode)}
-            onCancel={() => setShowScanner(false)}
-          />
-        </div>
-      ) : null}
-
-      <div className="space-y-1 pt-1">
+      <div className={`${listPageScrollClassName} space-y-1`}>
         {loading && page === 1 && entries.length === 0 ? (
           <p className="rounded-xl bg-subtle p-4 text-sm text-muted">
             {isSearching ? t("expiry.searching") : t("expiry.loading")}

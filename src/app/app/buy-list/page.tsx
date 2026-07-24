@@ -13,7 +13,7 @@ import {
   type BuyListDetailEntry,
 } from "@/components/buy-list-entry-detail-sheet";
 import { ExpiryDatePicker } from "@/components/expiry-date-picker";
-import { MobilePageHeader } from "@/components/mobile-page-header";
+import { MobilePageHeader, listPageChromeClassName, listPageScrollClassName, listPageShellClassName } from "@/components/mobile-page-header";
 import { ProductImage } from "@/components/product-image";
 import { QuantityPicker } from "@/components/quantity-picker";
 import { SearchField } from "@/components/search-field";
@@ -491,140 +491,150 @@ function BuyListContent() {
 
   if (homeUser === null) {
     return (
-      <div className="mx-auto min-w-0 max-w-lg px-4 py-3">
-        <MobilePageHeader title={t("buyList.title")} sticky />
-        <p className="rounded-xl bg-subtle p-4 text-sm text-muted">
-          {t("buyList.loading")}
-        </p>
+      <div className={listPageShellClassName}>
+        <div className={listPageChromeClassName}>
+          <MobilePageHeader title={t("buyList.title")} className="mb-0" />
+        </div>
+        <div className={listPageScrollClassName}>
+          <p className="rounded-xl bg-subtle p-4 text-sm text-muted">
+            {t("buyList.loading")}
+          </p>
+        </div>
       </div>
     );
   }
 
   if (!homeUser) {
     return (
-      <div className="mx-auto min-w-0 max-w-lg px-4 py-3">
-        <MobilePageHeader title={t("buyList.title")} sticky />
-        <p className="rounded-xl bg-subtle p-4 text-sm text-muted">
-          {t("buyList.unavailable")}
-        </p>
+      <div className={listPageShellClassName}>
+        <div className={listPageChromeClassName}>
+          <MobilePageHeader title={t("buyList.title")} className="mb-0" />
+        </div>
+        <div className={listPageScrollClassName}>
+          <p className="rounded-xl bg-subtle p-4 text-sm text-muted">
+            {t("buyList.unavailable")}
+          </p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="mx-auto min-w-0 max-w-lg px-4 py-3">
-      <MobilePageHeader title={t("buyList.title")} sticky />
+    <div className={listPageShellClassName}>
+      <div className={listPageChromeClassName}>
+        <MobilePageHeader title={t("buyList.title")} className="mb-0" />
 
-      <ActionFlash
-        message={flashMessage}
-        tone={flashTone}
-        onClear={clearFlash}
-      />
-
-      <div className="mb-2 flex items-center gap-1.5">
-        <SearchField
-          value={search}
-          onChange={setSearch}
-          placeholder={t("buyList.searchPlaceholder")}
-          aria-label={t("buyList.searchPlaceholder")}
-          inputClassName="h-9 rounded-lg border border-input-border bg-input pl-2.5 pr-16 text-base text-foreground"
-          onClear={() => setShowScanner(false)}
-          trailingAction={
-            <button
-              type="button"
-              aria-label={t("buyList.addManual")}
-              title={t("buyList.addManual")}
-              className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-fg"
-              onClick={() => {
-                setShowScanner(false);
-                setManualName(search);
-                setShowManualAdd(true);
-              }}
-            >
-              <AddNavIcon className="h-5 w-5" />
-            </button>
-          }
+        <ActionFlash
+          message={flashMessage}
+          tone={flashTone}
+          onClear={clearFlash}
         />
-        <button
-          type="button"
-          onClick={() => setShowScanner((open) => !open)}
-          className={`flex h-9 shrink-0 items-center justify-center gap-1 rounded-lg border px-2 text-[10px] font-medium leading-none ${
-            showScanner
-              ? "border-primary bg-selected text-primary"
-              : "border-input-border bg-card text-muted"
-          }`}
-        >
-          <ScanNavIcon className="h-4 w-4" />
-          <span>{t("app.navScan")}</span>
-        </button>
+
+        <div className="flex items-center gap-1.5">
+          <SearchField
+            value={search}
+            onChange={setSearch}
+            placeholder={t("buyList.searchPlaceholder")}
+            aria-label={t("buyList.searchPlaceholder")}
+            inputClassName="h-9 rounded-lg border border-input-border bg-input pl-2.5 pr-16 text-base text-foreground"
+            onClear={() => setShowScanner(false)}
+            trailingAction={
+              <button
+                type="button"
+                aria-label={t("buyList.addManual")}
+                title={t("buyList.addManual")}
+                className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-fg"
+                onClick={() => {
+                  setShowScanner(false);
+                  setManualName(search);
+                  setShowManualAdd(true);
+                }}
+              >
+                <AddNavIcon className="h-5 w-5" />
+              </button>
+            }
+          />
+          <button
+            type="button"
+            onClick={() => setShowScanner((open) => !open)}
+            className={`flex h-9 shrink-0 items-center justify-center gap-1 rounded-lg border px-2 text-[10px] font-medium leading-none ${
+              showScanner
+                ? "border-primary bg-selected text-primary"
+                : "border-input-border bg-card text-muted"
+            }`}
+          >
+            <ScanNavIcon className="h-4 w-4" />
+            <span>{t("app.navScan")}</span>
+          </button>
+        </div>
+
+        {showScanner ? (
+          <div className="rounded-xl border border-card-border p-2">
+            <BarcodeScanner
+              autoStart
+              submitOnScan
+              onScan={async (barcode) => onBarcodeScanned(barcode)}
+              onCancel={() => setShowScanner(false)}
+            />
+          </div>
+        ) : null}
+
+        {filteredFavourites.length > 0 ? (
+          <section aria-label={t("buyList.favouritesTitle")}>
+            <div className="mb-1 flex items-baseline justify-between gap-2">
+              <h2 className="text-[11px] font-semibold uppercase tracking-wide text-muted">
+                {t("buyList.favouritesTitle")}
+              </h2>
+              <span className="text-[10px] text-muted">
+                {filteredFavourites.length}
+                {debouncedSearch && filteredFavourites.length !== favourites.length
+                  ? ` / ${favourites.length}`
+                  : ""}
+              </span>
+            </div>
+            <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {filteredFavourites.map((product) => (
+                <div
+                  key={product.id}
+                  className="relative flex w-[4.5rem] shrink-0 flex-col"
+                >
+                  <button
+                    type="button"
+                    aria-label={t("favourites.remove")}
+                    title={t("favourites.remove")}
+                    className="absolute -top-1 left-1/2 z-10 flex h-5 w-5 -translate-x-1/2 items-center justify-center rounded-full border border-card-border bg-card text-amber-400"
+                    onClick={() => void toggleFavourite(product.id)}
+                  >
+                    <StarFavouriteIcon className="h-3 w-3" filled />
+                  </button>
+                  <button
+                    type="button"
+                    disabled={addingFavouriteId === product.id}
+                    onClick={() => void addFavouriteToOrders(product)}
+                    title={t("buyList.addFavouriteToOrders")}
+                    aria-label={`${t("buyList.addFavouriteToOrders")}: ${product.name}`}
+                    className="flex w-full flex-col items-center gap-1 rounded-lg border border-card-border bg-card p-1.5 pt-2.5 text-center disabled:opacity-60"
+                  >
+                    <ProductImage
+                      src={product.imagePath}
+                      alt=""
+                      className="h-11 w-11 rounded-md object-cover"
+                      placeholderClassName="h-11 w-11 rounded-md text-[8px]"
+                    />
+                    <span className="line-clamp-2 w-full text-[10px] font-medium leading-tight text-foreground">
+                      {addingFavouriteId === product.id
+                        ? t("buyList.adding")
+                        : product.name}
+                    </span>
+                  </button>
+                </div>
+              ))}
+            </div>
+          </section>
+        ) : null}
       </div>
 
-      {showScanner ? (
-        <div className="mb-2 rounded-xl border border-card-border p-2">
-          <BarcodeScanner
-            autoStart
-            submitOnScan
-            onScan={async (barcode) => onBarcodeScanned(barcode)}
-            onCancel={() => setShowScanner(false)}
-          />
-        </div>
-      ) : null}
-
-      {filteredFavourites.length > 0 ? (
-        <section className="mb-2" aria-label={t("buyList.favouritesTitle")}>
-          <div className="mb-1 flex items-baseline justify-between gap-2">
-            <h2 className="text-[11px] font-semibold uppercase tracking-wide text-muted">
-              {t("buyList.favouritesTitle")}
-            </h2>
-            <span className="text-[10px] text-muted">
-              {filteredFavourites.length}
-              {debouncedSearch && filteredFavourites.length !== favourites.length
-                ? ` / ${favourites.length}`
-                : ""}
-            </span>
-          </div>
-          <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {filteredFavourites.map((product) => (
-              <div
-                key={product.id}
-                className="relative flex w-[4.5rem] shrink-0 flex-col"
-              >
-                <button
-                  type="button"
-                  aria-label={t("favourites.remove")}
-                  title={t("favourites.remove")}
-                  className="absolute -top-1 left-1/2 z-10 flex h-5 w-5 -translate-x-1/2 items-center justify-center rounded-full border border-card-border bg-card text-amber-400"
-                  onClick={() => void toggleFavourite(product.id)}
-                >
-                  <StarFavouriteIcon className="h-3 w-3" filled />
-                </button>
-                <button
-                  type="button"
-                  disabled={addingFavouriteId === product.id}
-                  onClick={() => void addFavouriteToOrders(product)}
-                  title={t("buyList.addFavouriteToOrders")}
-                  aria-label={`${t("buyList.addFavouriteToOrders")}: ${product.name}`}
-                  className="flex w-full flex-col items-center gap-1 rounded-lg border border-card-border bg-card p-1.5 pt-2.5 text-center disabled:opacity-60"
-                >
-                  <ProductImage
-                    src={product.imagePath}
-                    alt=""
-                    className="h-11 w-11 rounded-md object-cover"
-                    placeholderClassName="h-11 w-11 rounded-md text-[8px]"
-                  />
-                  <span className="line-clamp-2 w-full text-[10px] font-medium leading-tight text-foreground">
-                    {addingFavouriteId === product.id
-                      ? t("buyList.adding")
-                      : product.name}
-                  </span>
-                </button>
-              </div>
-            ))}
-          </div>
-        </section>
-      ) : null}
-
-      <div className="space-y-1 pt-0.5">
+      <div className={`${listPageScrollClassName} space-y-1`}>
         {loading && page === 1 && entries.length === 0 ? (
           <p className="rounded-xl bg-subtle p-4 text-sm text-muted">
             {isSearching ? t("buyList.searching") : t("buyList.loading")}
