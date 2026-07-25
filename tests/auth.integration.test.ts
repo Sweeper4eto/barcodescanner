@@ -86,15 +86,17 @@ test("loginUser rejects invalid credentials", async () => {
   if (!result.ok) assert.equal(result.errorKey, "auth.invalidCredentials");
 });
 
-test("purgeExpiredInventory is a no-op so All can show every active row", async () => {
+test("purgeExpiredInventory hard-deletes expiry removals older than one month", async () => {
   const client = await seedClientWithStore(db);
   const store = client.stores[0];
   const product = await db.product.create({
     data: { barcode: "123", name: "Milk" },
   });
 
-  const oldExpiry = new Date();
-  oldExpiry.setMonth(oldExpiry.getMonth() - 7);
+  const oldRemoval = new Date();
+  oldRemoval.setDate(oldRemoval.getDate() - 31);
+  const recentRemoval = new Date();
+  recentRemoval.setDate(recentRemoval.getDate() - 7);
 
   await db.inventoryEntry.create({
     data: {
@@ -102,17 +104,41 @@ test("purgeExpiredInventory is a no-op so All can show every active row", async 
       productId: product.id,
       barcode: product.barcode,
       quantity: 1,
-      expiryDate: oldExpiry,
+      expiryDate: new Date(),
+      removedAt: oldRemoval,
+    },
+  });
+  await db.inventoryEntry.create({
+    data: {
+      storeId: store.id,
+      productId: product.id,
+      barcode: product.barcode,
+      quantity: 2,
+      expiryDate: new Date(),
+      removedAt: recentRemoval,
+    },
+  });
+  await db.inventoryEntry.create({
+    data: {
+      storeId: store.id,
+      productId: product.id,
+      barcode: product.barcode,
+      quantity: 3,
+      expiryDate: new Date("2025-01-01"),
     },
   });
 
   const purged = await purgeExpiredInventory();
-  assert.equal(purged, 0);
+  assert.equal(purged, 1);
 
   const remaining = await db.inventoryEntry.findMany({
-    where: { deletedAt: null },
+    orderBy: { quantity: "asc" },
   });
-  assert.equal(remaining.length, 1);
+  assert.equal(remaining.length, 2);
+  assert.equal(remaining[0]?.quantity, 2);
+  assert.ok(remaining[0]?.removedAt);
+  assert.equal(remaining[1]?.quantity, 3);
+  assert.equal(remaining[1]?.removedAt, null);
 });
 
 test.after(async () => {

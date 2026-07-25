@@ -1,11 +1,13 @@
 import { db } from "@/lib/db";
 
+const ONE_MONTH_MS = 1000 * 60 * 60 * 24 * 30;
+
 /**
- * Automatic soft-delete of old expiry dates is disabled so the expiry list
- * "All" filter can show every active row (including past years).
+ * Hard-delete inventory rows the user removed from the expiry list once
+ * `removedAt` is at least ~1 month old. Does not delete by expiry date.
  *
- * Rows previously auto-purged only set `deletedAt` (manual remove uses
- * `removedAt`). Restore those so they reappear under All.
+ * Also clears legacy auto-purge soft-deletes (`deletedAt` only) so those
+ * rows stay visible under the "All" filter.
  */
 export async function purgeExpiredInventory(): Promise<number> {
   await db.inventoryEntry.updateMany({
@@ -15,5 +17,12 @@ export async function purgeExpiredInventory(): Promise<number> {
     },
     data: { deletedAt: null },
   });
-  return 0;
+
+  const cutoff = new Date(Date.now() - ONE_MONTH_MS);
+  const result = await db.inventoryEntry.deleteMany({
+    where: {
+      removedAt: { not: null, lt: cutoff },
+    },
+  });
+  return result.count;
 }
