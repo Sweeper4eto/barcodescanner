@@ -235,7 +235,55 @@ function toRows(payload: unknown): DocumentOcrRow[] {
     })
     .filter((row) => row.name || row.barcode || row.articul || row.expiryYmd);
 
-  return sanitizeDocumentRows(rows);
+  if (process.env.OCR_DEBUG === "1") {
+    console.log(
+      "OCR_DEBUG raw model items:",
+      JSON.stringify(
+        parsed.data.items.map((item) => ({
+          name: item.name,
+          articul: item.articul,
+          quantity: item.quantity,
+          expiryPrinted: item.expiryPrinted,
+          expiryDate: item.expiryDate,
+        })),
+        null,
+        2,
+      ),
+    );
+    console.log(
+      "OCR_DEBUG rows before sanitize:",
+      JSON.stringify(
+        rows.map((row) => ({
+          name: row.name,
+          articul: row.articul,
+          quantity: row.quantity,
+          expiryYmd: row.expiryYmd,
+        })),
+        null,
+        2,
+      ),
+    );
+  }
+
+  const sanitized = sanitizeDocumentRows(rows);
+
+  if (process.env.OCR_DEBUG === "1") {
+    console.log(
+      "OCR_DEBUG rows after sanitize:",
+      JSON.stringify(
+        sanitized.map((row) => ({
+          name: row.name,
+          articul: row.articul,
+          quantity: row.quantity,
+          expiryYmd: row.expiryYmd,
+        })),
+        null,
+        2,
+      ),
+    );
+  }
+
+  return sanitized;
 }
 
 const SYSTEM_PROMPT = `You extract product rows from a photo of a store document / invoice / delivery note / warehouse write-off (izpisvane) / expiry list.
