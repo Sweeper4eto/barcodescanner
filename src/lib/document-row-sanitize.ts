@@ -54,8 +54,7 @@ function nameWords(name: string): string[] {
 
 /**
  * Short name with no SKU/barcode — typical OCR leftover from a cut-off
- * page-boundary word, or a name-only line that later stole the next row's
- * quantity/date.
+ * page-boundary word.
  */
 export function isLikelyNameFragment(row: DocumentOcrRow): boolean {
   if (row.barcode || row.articul) return false;
@@ -85,19 +84,16 @@ function nameLooselyContainedIn(fragment: string, full: string): boolean {
   const right = full.trim().toLowerCase();
   if (!left || !right || left === right) return false;
   if (right.includes(left)) return true;
-  // Also treat accent/case-folded token overlap for short leftovers.
   const fragWords = nameWords(left);
   if (fragWords.length !== 1) return false;
   return nameWords(right).some((word) => word === fragWords[0]);
 }
 
 /**
- * When OCR turns a leftover single-word line into an item and pairs it with
- * the next product's pcs/Godnost, the quantity+date column effectively shifts
- * up by one until a later real product is left without an expiry.
+ * Drop leftover name fragments that OCR invented at page edges.
  *
- * Repair: shift qty/expiry back down onto the incomplete row, then drop the
- * fragment. Barcode/articul stay with their names (they usually did not shift).
+ * Never copies quantity/expiry from one row onto another — blank Godnost
+ * must stay blank so a neighboring date cannot "slide" onto the wrong item.
  */
 export function repairFragmentRowAlignment(
   rows: DocumentOcrRow[],
@@ -108,7 +104,7 @@ export function repairFragmentRowAlignment(
   let i = 0;
   while (i < out.length - 1) {
     const current = out[i];
-    if (!isLikelyNameFragment(current) || !hasExpiry(current)) {
+    if (!isLikelyNameFragment(current)) {
       i += 1;
       continue;
     }
@@ -116,57 +112,28 @@ export function repairFragmentRowAlignment(
     const next = out[i + 1];
 
     // Fragment duplicates the next row's qty+date — leftover paired onto both.
-    if (sameQtyAndExpiry(current, next)) {
+    if (hasExpiry(current) && sameQtyAndExpiry(current, next)) {
       out.splice(i, 1);
       continue;
     }
 
     // Fragment word is clearly part of the next product name.
     if (nameLooselyContainedIn(current.name, next.name)) {
-      if (!hasExpiry(next)) {
-        next.quantity = current.quantity;
-        next.expiryYmd = current.expiryYmd;
-      }
       out.splice(i, 1);
       continue;
     }
 
-    // Find the first later row missing an expiry — classic upward shift.
-    let incompleteAt = -1;
-    for (let k = i + 1; k < out.length; k += 1) {
-      const candidate = out[k];
-      if (!candidate.name.trim() && !candidate.barcode && !candidate.articul) {
-        continue;
-      }
-      if (!hasExpiry(candidate)) {
-        incompleteAt = k;
-        break;
-      }
-      // Stop if we hit another fragment mid-chain; keep search local.
-      if (k > i + 1 && isLikelyNameFragment(candidate)) break;
-    }
-
-    if (incompleteAt > i) {
-      // All rows between fragment and the incomplete one must have expiries
-      // (the shifted values). Already true by search order.
-      for (let j = incompleteAt; j > i; j -= 1) {
-        out[j].quantity = out[j - 1].quantity;
-        out[j].expiryYmd = out[j - 1].expiryYmd;
-      }
-      out.splice(i, 1);
-      continue;
-    }
-
-    // Immediate next row incomplete and looks like a real product line.
+    // Fragment with a date sitting above a real product that has no date:
+    // almost always a stolen pairing. Drop the fragment only — do NOT move
+    // its date onto the next row (that row may legitimately have blank Godnost).
     if (
+      hasExpiry(current) &&
       !hasExpiry(next) &&
       (Boolean(next.barcode) ||
         Boolean(next.articul) ||
         nameWords(next.name).length >= 2 ||
         next.name.trim().length > current.name.trim().length)
     ) {
-      next.quantity = current.quantity;
-      next.expiryYmd = current.expiryYmd;
       out.splice(i, 1);
       continue;
     }
@@ -189,13 +156,37 @@ export function dropOrphanNameFragments(
     if (!isLikelyNameFragment(row)) return true;
     if (hasExpiry(row)) return true;
     if (row.quantity !== 1) return true;
-    // Single-token leftover with nothing else — discard.
     return nameWords(row.name).length > 1;
   });
 }
 
+/**
+ * When two adjacent real products share the exact same qty+expiry and the
+ * upper one has no SKU/barcode while the lower one does, clear the upper
+ * date/qty defaults — OCR often copied the lower row's Godnost upward onto
+ * a blank cell. Prefer leaving blank over a wrong date.
+ */
+export function clearUpwardCopiedExpiry(rows: DocumentOcrRow[]): DocumentOcrRow[] {
+  if (rows.length < 2) return rows;
+  const out = rows.map((row) => ({ ...row }));
+
+  for (let i = 0; i < out.length - 1; i += 1) {
+    const current = out[i];
+    const next = out[i + 1];
+    if (!hasExpiry(current) || !sameQtyAndExpiry(current, next)) continue;
+    if (current.barcode || current.articul) continue;
+    if (!next.barcode && !next.articul) continue;
+    // Upper row looks weaker (no identity fields) and shares next's numbers.
+    current.expiryYmd = null;
+    current.quantity = 1;
+  }
+
+  return out;
+}
+
 export function sanitizeDocumentRows(rows: DocumentOcrRow[]): DocumentOcrRow[] {
   const cleaned = rows.map(sanitizeDocumentRow);
-  const realigned = repairFragmentRowAlignment(cleaned);
-  return dropOrphanNameFragments(realigned);
+  const withoutFragments = repairFragmentRowAlignment(cleaned);
+  const withoutOrphans = dropOrphanNameFragments(withoutFragments);
+  return clearUpwardCopiedExpiry(withoutOrphans);
 }

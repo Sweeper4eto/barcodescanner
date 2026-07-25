@@ -261,6 +261,8 @@ ROW ALIGNMENT (critical - a single blank cell must never shift the rows below it
 - Process the table ONE COMPLETE PHYSICAL ROW AT A TIME: for each row, read its name AND its own barcode/articul/quantity/Godnost together, as one unit, output that row's JSON object, then move to the next row.
 - NEVER extract by column (e.g. reading every name top-to-bottom first, then every date top-to-bottom, then zipping them together afterward). If any single cell is blank, faded, or accidentally skipped that way, every value below it silently shifts onto the wrong row — this is the most common and most serious mistake, avoid it at all costs.
 - A row that visibly has ONLY a name and no other cells filled in (blank quantity/date/barcode/articul on that same line) is still a normal, complete row — output it with quantity 1 and the other fields null, and do not let it change how you read any other row. The row immediately below it still keeps its own separate printed values, never the values of the row above or two rows above.
+- NEVER fill a blank Godnost by copying the date from the row above or below. Blank stays null. Wrong date is worse than missing date.
+- Especially at the first row of a new page photo: if that line has no printed Godnost, expiryPrinted must be null even when the next row on the page has a clear date.
 - Before finalizing, verify row-by-row (not column-by-column) that each name in your JSON output is still lined up with the quantity/date/barcode that was printed on that exact same physical line, especially around any row with missing cells.
 
 CONCRETE EXAMPLE OF THE MISTAKE TO NEVER MAKE:
