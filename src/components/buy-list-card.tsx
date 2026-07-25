@@ -45,20 +45,20 @@ export function BuyListCard({
         type="button"
         aria-label={t("buyList.moveToExpiry")}
         title={t("buyList.moveToExpiry")}
-        className="absolute top-0 left-0 z-10 flex h-6 w-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-card-border bg-card text-muted"
+        className="absolute top-0 left-0 z-10 flex size-[28px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-card-border bg-card text-muted"
         onClick={(event) => {
           event.stopPropagation();
           onMoveToExpiry();
         }}
       >
-        <MoveToExpiryIcon className="h-[0.9rem] w-[0.9rem]" />
+        <MoveToExpiryIcon className="size-[16px]" />
       </button>
 
       <button
         type="button"
         aria-label={favourite ? t("favourites.remove") : t("favourites.add")}
         title={favourite ? t("favourites.remove") : t("favourites.add")}
-        className={`absolute top-0 left-1/2 z-10 flex h-6 w-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-card-border bg-card ${
+        className={`absolute top-0 left-1/2 z-10 flex size-[28px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-card-border bg-card ${
           favourite ? "text-amber-400" : "text-muted"
         }`}
         onClick={(event) => {
@@ -66,13 +66,13 @@ export function BuyListCard({
           onToggleFavourite();
         }}
       >
-        <StarFavouriteIcon className="h-[0.9rem] w-[0.9rem]" filled={favourite} />
+        <StarFavouriteIcon className="size-[16px]" filled={favourite} />
       </button>
 
       <button
         type="button"
         aria-label={t("buyList.remove")}
-        className="absolute top-0 right-0 z-10 flex h-6 w-6 -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full border border-card-border bg-card text-[1.05rem] leading-none text-muted"
+        className="absolute top-0 right-0 z-10 flex size-[28px] -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full border border-card-border bg-card text-[1.2rem] leading-none text-muted"
         onClick={(event) => {
           event.stopPropagation();
           onRemove();
@@ -154,11 +154,11 @@ export function BuyListCard({
                 }}
               >
                 {checked ? (
-                  <CheckIcon className="h-5 w-5" />
+                  <CheckIcon className="size-[23px]" />
                 ) : (
                   <span
                     aria-hidden
-                    className="h-5 w-5 rounded-sm border-2 border-muted"
+                    className="size-[23px] rounded-sm border-2 border-muted"
                   />
                 )}
                 <p

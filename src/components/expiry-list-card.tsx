@@ -72,13 +72,13 @@ export function ExpiryListCard({
               type="button"
               aria-label={t("expiry.moveToOrders")}
               title={t("expiry.moveToOrders")}
-              className="absolute top-0 left-0 z-10 flex h-5 w-5 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-card-border bg-card text-muted"
+              className="absolute top-0 left-0 z-10 flex size-[23px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-card-border bg-card text-muted"
               onClick={(event) => {
                 event.stopPropagation();
                 onMoveToOrders?.();
               }}
             >
-              <MoveToOrdersIcon className="h-3 w-3" />
+              <MoveToOrdersIcon className="size-[14px]" />
             </button>
           ) : (
             <button
@@ -89,14 +89,14 @@ export function ExpiryListCard({
               title={
                 priceReduced ? t("expiry.priceReduced") : t("expiry.reducePrice")
               }
-              className="absolute top-0 left-0 z-10 flex h-5 w-5 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-card-border bg-card text-muted disabled:opacity-50"
+              className="absolute top-0 left-0 z-10 flex size-[23px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-card-border bg-card text-muted disabled:opacity-50"
               onClick={(event) => {
                 event.stopPropagation();
                 onReducePrice();
               }}
               disabled={priceReduced}
             >
-              <PriceReduceIcon className="h-3 w-3" />
+              <PriceReduceIcon className="size-[14px]" />
             </button>
           )}
 
@@ -107,7 +107,7 @@ export function ExpiryListCard({
                 favourite ? t("favourites.remove") : t("favourites.add")
               }
               title={favourite ? t("favourites.remove") : t("favourites.add")}
-              className={`absolute top-0 left-1/2 z-10 flex h-5 w-5 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-card-border bg-card ${
+              className={`absolute top-0 left-1/2 z-10 flex size-[23px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-card-border bg-card ${
                 favourite ? "text-amber-400" : "text-muted"
               }`}
               onClick={(event) => {
@@ -115,14 +115,14 @@ export function ExpiryListCard({
                 onToggleFavourite();
               }}
             >
-              <StarFavouriteIcon className="h-3 w-3" filled={favourite} />
+              <StarFavouriteIcon className="size-[14px]" filled={favourite} />
             </button>
           ) : null}
 
           <button
             type="button"
             aria-label={t("expiry.remove")}
-            className="absolute top-0 right-0 z-10 flex h-5 w-5 -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full border border-card-border bg-card text-sm leading-none text-muted"
+            className="absolute top-0 right-0 z-10 flex size-[23px] -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full border border-card-border bg-card text-[0.9375rem] leading-none text-muted"
             onClick={(event) => {
               event.stopPropagation();
               onRemove();

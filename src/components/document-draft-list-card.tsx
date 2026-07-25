@@ -70,26 +70,26 @@ export function DocumentDraftListCard({
     <article className="relative overflow-visible">
       {missingExpiry ? (
         <div
-          className="absolute top-0 left-0 z-10 flex h-5 w-5 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-danger-border bg-danger text-danger-fg"
+          className="absolute top-0 left-0 z-10 flex size-[23px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-danger-border bg-danger text-danger-fg"
           title={t("addDocument.missingExpiry")}
           aria-label={t("addDocument.missingExpiry")}
         >
-          <MissingInfoIcon className="h-3 w-3" />
+          <MissingInfoIcon className="size-[14px]" />
         </div>
       ) : hasWarning ? (
         <div
-          className="absolute top-0 left-0 z-10 flex h-5 w-5 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--urgency-warning-border)] bg-warning-bg text-warning-fg"
+          className="absolute top-0 left-0 z-10 flex size-[23px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--urgency-warning-border)] bg-warning-bg text-warning-fg"
           title={warningTitle}
           aria-label={warningTitle}
         >
-          <MissingInfoIcon className="h-3 w-3" />
+          <MissingInfoIcon className="size-[14px]" />
         </div>
       ) : null}
 
       <button
         type="button"
         aria-label={t("expiry.remove")}
-        className="absolute top-0 right-0 z-10 flex h-5 w-5 -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full border border-card-border bg-card text-sm leading-none text-muted"
+        className="absolute top-0 right-0 z-10 flex size-[23px] -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full border border-card-border bg-card text-[0.9375rem] leading-none text-muted"
         onClick={(event) => {
           event.stopPropagation();
           onRemove();
