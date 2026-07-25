@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import {
   AdminEmptyState,
@@ -752,7 +753,12 @@ function StoreCard({
         </div>
       ) : (
         <>
-          <p className="font-medium">{store.name}</p>
+          <Link
+            href={`/admin/expiry?storeId=${encodeURIComponent(store.id)}`}
+            className="block font-medium text-foreground hover:text-primary hover:underline"
+          >
+            {store.name}
+          </Link>
           <p className="text-xs text-muted">{store.address}</p>
           <p className="text-xs text-muted">{store.phone}</p>
           <p className="text-xs text-muted">{store.additionalInfo}</p>
@@ -768,6 +774,12 @@ function StoreCard({
             </p>
           ) : null}
           <div className="mt-2 flex flex-wrap gap-2">
+            <Link
+              href={`/admin/expiry?storeId=${encodeURIComponent(store.id)}`}
+              className="rounded-lg border border-primary bg-selected px-2 py-1 text-xs font-medium text-primary"
+            >
+              {t("admin.viewExpiry")}
+            </Link>
             <button
               type="button"
               className="rounded-lg border border-input-border bg-card px-2 py-1 text-xs text-foreground"

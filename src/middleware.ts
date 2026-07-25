@@ -4,6 +4,7 @@ import { verifySessionToken, COOKIE_NAME } from "@/lib/session-token";
 import { publicUrl } from "@/lib/request-origin";
 
 const publicPaths = ["/", "/login", "/register"];
+const passwordChangePath = "/change-password";
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -19,6 +20,20 @@ export async function middleware(request: NextRequest) {
 
   const token = request.cookies.get(COOKIE_NAME)?.value;
   const session = token ? await verifySessionToken(token) : null;
+
+  if (session?.mustChangePassword) {
+    if (pathname === passwordChangePath || pathname === "/login") {
+      return NextResponse.next();
+    }
+    return NextResponse.redirect(publicUrl(request, passwordChangePath));
+  }
+
+  if (pathname === passwordChangePath) {
+    if (!session) {
+      return NextResponse.redirect(publicUrl(request, "/login"));
+    }
+    return NextResponse.next();
+  }
 
   if (pathname.startsWith("/admin")) {
     if (!session) {

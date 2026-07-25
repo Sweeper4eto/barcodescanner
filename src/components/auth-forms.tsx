@@ -153,7 +153,11 @@ export function LoginForm() {
     }
 
     if (shouldOfferPwaInstall()) markPwaInstallOffered();
-    router.push(data.user.role === "ADMIN" ? "/admin" : "/app");
+    if (data.user.mustChangePassword) {
+      router.push("/change-password");
+    } else {
+      router.push(data.user.role === "ADMIN" ? "/admin" : "/app");
+    }
     router.refresh();
   }
 

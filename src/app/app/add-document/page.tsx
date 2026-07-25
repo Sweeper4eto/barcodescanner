@@ -18,6 +18,7 @@ import {
   computeRowShiftWarningKeys,
   draftItemValid,
   draftMatchesSearch,
+  draftMissingExpiry,
 } from "@/lib/document-draft";
 
 type Step = "camera" | "processing" | "review" | "done";
@@ -43,6 +44,7 @@ function AddDocumentContent() {
   const [search, setSearch] = useState("");
   const [detailKey, setDetailKey] = useState<string | null>(null);
   const [removeKey, setRemoveKey] = useState<string | null>(null);
+  const [confirmRemoveNoExpiry, setConfirmRemoveNoExpiry] = useState(false);
   const [lastResult, setLastResult] = useState<ImportResult | null>(null);
   const [sessionTotals, setSessionTotals] = useState<SessionTotals>({
     scans: 0,
@@ -278,9 +280,23 @@ function AddDocumentContent() {
     if (detailKey === key) setDetailKey(null);
   }
 
+  function removeItemsWithoutExpiry() {
+    const kept = items.filter((item) => !draftMissingExpiry(item));
+    setItems(kept);
+    if (detailKey && !kept.some((item) => item.key === detailKey)) {
+      setDetailKey(null);
+    }
+    setConfirmRemoveNoExpiry(false);
+  }
+
   const filteredItems = useMemo(
     () => items.filter((item) => draftMatchesSearch(item, search)),
     [items, search],
+  );
+
+  const noExpiryCount = useMemo(
+    () => items.filter((item) => draftMissingExpiry(item)).length,
+    [items],
   );
 
   const rowShiftWarningKeys = useMemo(
@@ -397,13 +413,28 @@ function AddDocumentContent() {
           </div>
           {error ? <p className="text-sm text-error">{error}</p> : null}
 
-          <SearchField
-            value={search}
-            onChange={setSearch}
-            placeholder={t("addDocument.searchPlaceholder")}
-            aria-label={t("addDocument.searchPlaceholder")}
-            inputClassName="rounded-xl border border-input-border bg-input px-3 py-3 text-base text-foreground"
-          />
+          <div className="flex items-center gap-1.5">
+            <SearchField
+              value={search}
+              onChange={setSearch}
+              placeholder={t("addDocument.searchPlaceholder")}
+              aria-label={t("addDocument.searchPlaceholder")}
+              inputClassName="h-10 rounded-xl border border-input-border bg-input px-3 text-base text-foreground"
+            />
+            <button
+              type="button"
+              disabled={noExpiryCount === 0}
+              onClick={() => setConfirmRemoveNoExpiry(true)}
+              title={t("addDocument.removeNoExpiryHint", { count: noExpiryCount })}
+              aria-label={t("addDocument.removeNoExpiryHint", { count: noExpiryCount })}
+              className="flex h-10 shrink-0 items-center justify-center rounded-xl border border-input-border bg-card px-2.5 text-[11px] font-medium leading-tight text-foreground disabled:opacity-40"
+            >
+              {t("addDocument.removeNoExpiry")}
+              {noExpiryCount > 0 ? (
+                <span className="ml-1 tabular-nums text-muted">({noExpiryCount})</span>
+              ) : null}
+            </button>
+          </div>
 
           <div className="space-y-1 pt-1">
             {filteredItems.length === 0 ? (
@@ -533,6 +564,42 @@ function AddDocumentContent() {
                   type="button"
                   className="rounded-lg bg-danger px-3 py-2 text-sm text-danger-fg"
                   onClick={() => removeItem(removeKey)}
+                >
+                  {t("expiry.remove")}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+      {confirmRemoveNoExpiry ? (
+        <div
+          className="fixed inset-x-0 z-[60] flex items-end justify-center bg-black/40"
+          style={{ top: offsetTop, bottom: keyboardInset }}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="doc-remove-no-expiry-title"
+        >
+          <div className="w-full max-w-lg px-3 pb-[calc(var(--app-bottom-nav-height)+env(safe-area-inset-bottom,0px)+0.5rem)]">
+            <div className="rounded-xl border border-card-border bg-card p-3">
+              <p id="doc-remove-no-expiry-title" className="text-sm font-semibold">
+                {t("expiry.confirmTitle")}
+              </p>
+              <p className="mt-1 text-xs text-muted">
+                {t("addDocument.removeNoExpiryConfirm", { count: noExpiryCount })}
+              </p>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  className="rounded-lg border border-input-border bg-card px-3 py-2 text-sm text-foreground"
+                  onClick={() => setConfirmRemoveNoExpiry(false)}
+                >
+                  {t("expiry.confirmCancel")}
+                </button>
+                <button
+                  type="button"
+                  className="rounded-lg bg-danger px-3 py-2 text-sm text-danger-fg"
+                  onClick={removeItemsWithoutExpiry}
                 >
                   {t("expiry.remove")}
                 </button>

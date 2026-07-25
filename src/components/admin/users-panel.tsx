@@ -73,6 +73,10 @@ export function UsersPanel({ clients, onRefresh }: Props) {
   const [savedAssignment, setSavedAssignment] = useState<AssignmentState | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordSaving, setPasswordSaving] = useState(false);
+  const [passwordMessage, setPasswordMessage] = useState("");
 
   const loadUsers = useCallback(async () => {
     const params = new URLSearchParams({
@@ -113,6 +117,9 @@ export function UsersPanel({ clients, onRefresh }: Props) {
     setClientRole(snapshot.clientRole);
     setSavedAssignment(snapshot);
     setSaveMessage("");
+    setPassword("");
+    setConfirmPassword("");
+    setPasswordMessage("");
     void loadClientStores(snapshot.clientId);
   }
 
@@ -203,6 +210,46 @@ export function UsersPanel({ clients, onRefresh }: Props) {
     setSaveMessage("");
     await loadUsers();
     onRefresh();
+  }
+
+  async function setUserPassword() {
+    if (!selectedUserId || passwordSaving) return;
+    if (password !== confirmPassword) {
+      setPasswordMessage(t("auth.passwordMismatch"));
+      return;
+    }
+    if (password.length < 6) {
+      setPasswordMessage(t("auth.passwordTooShort"));
+      return;
+    }
+    if (password.length > 72) {
+      setPasswordMessage(t("auth.passwordTooLong"));
+      return;
+    }
+
+    setPasswordSaving(true);
+    setPasswordMessage("");
+    try {
+      const response = await fetch("/api/admin/users/password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: selectedUserId,
+          password,
+          confirmPassword,
+        }),
+      });
+      const data = (await response.json()) as { error?: string };
+      if (!response.ok) {
+        setPasswordMessage(data.error ?? t("errors.saveFailed"));
+        return;
+      }
+      setPassword("");
+      setConfirmPassword("");
+      setPasswordMessage(t("admin.passwordSetSuccess"));
+    } finally {
+      setPasswordSaving(false);
+    }
   }
 
   const selectedUser = users.find((user) => user.id === selectedUserId);
@@ -372,6 +419,55 @@ export function UsersPanel({ clients, onRefresh }: Props) {
             >
               {saving ? t("admin.saving") : t("common.save")}
             </PrimaryButton>
+
+            <div className="space-y-2 border-t border-card-border pt-3">
+              <h3 className="text-sm font-medium text-foreground">
+                {t("admin.setPassword")}
+              </h3>
+              <p className="text-xs text-muted">{t("admin.setPasswordHint")}</p>
+              <label className="block text-sm">
+                {t("auth.password")}
+                <input
+                  type="password"
+                  autoComplete="new-password"
+                  className="mt-1 w-full rounded-xl border border-input-border bg-input px-3 py-2 text-foreground"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                />
+              </label>
+              <label className="block text-sm">
+                {t("auth.confirmPassword")}
+                <input
+                  type="password"
+                  autoComplete="new-password"
+                  className="mt-1 w-full rounded-xl border border-input-border bg-input px-3 py-2 text-foreground"
+                  value={confirmPassword}
+                  onChange={(event) => setConfirmPassword(event.target.value)}
+                />
+              </label>
+              {passwordMessage ? (
+                <p
+                  className={`text-sm ${
+                    passwordMessage === t("admin.passwordSetSuccess")
+                      ? "text-emerald-700"
+                      : "text-error"
+                  }`}
+                >
+                  {passwordMessage}
+                </p>
+              ) : null}
+              <PrimaryButton
+                disabled={
+                  passwordSaving || !password.trim() || !confirmPassword.trim()
+                }
+                onClick={() => void setUserPassword()}
+              >
+                {passwordSaving
+                  ? t("admin.saving")
+                  : t("admin.setPasswordButton")}
+              </PrimaryButton>
+            </div>
+
             {selectedUser.role !== "ADMIN" ? (
               <button
                 type="button"

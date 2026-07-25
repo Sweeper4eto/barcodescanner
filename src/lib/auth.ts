@@ -10,13 +10,19 @@ import type { ClientRole, User } from "@/generated/prisma/client";
 
 export type AuthUser = Pick<
   User,
-  "id" | "username" | "role" | "active" | "clientId" | "clientRole"
+  | "id"
+  | "username"
+  | "role"
+  | "active"
+  | "clientId"
+  | "clientRole"
+  | "mustChangePassword"
 >;
 
 export type AuthFailure = {
   ok: false;
   errorKey: MessageKey;
-  code?: "NO_CLIENT";
+  code?: "NO_CLIENT" | "MUST_CHANGE_PASSWORD";
 };
 
 export type RegisterAccountType = "home" | "retail";
@@ -99,6 +105,7 @@ export async function registerUser(
         active: true,
         clientId: true,
         clientRole: true,
+        mustChangePassword: true,
       },
     });
   });
@@ -108,6 +115,7 @@ export async function registerUser(
     username: user.username,
     role: user.role,
     clientId: user.clientId,
+    mustChangePassword: user.mustChangePassword,
   });
 
   return { ok: true, user, token };
@@ -151,6 +159,7 @@ export async function loginUser(
     username: user.username,
     role: user.role,
     clientId: user.clientId,
+    mustChangePassword: user.mustChangePassword,
   };
 
   return {
@@ -163,16 +172,74 @@ export async function loginUser(
       active: user.active,
       clientId: user.clientId,
       clientRole: user.clientRole,
+      mustChangePassword: user.mustChangePassword,
     },
   };
 }
 
-export async function requireSession(): Promise<SessionPayload> {
+export async function changeOwnPassword(
+  userId: string,
+  nextPassword: string,
+): Promise<{ ok: true; token: string; user: AuthUser } | AuthFailure> {
+  if (nextPassword.length < 6) {
+    return { ok: false, errorKey: "auth.passwordTooShort" };
+  }
+  if (nextPassword.length > 72) {
+    return { ok: false, errorKey: "auth.passwordTooLong" };
+  }
+
+  const passwordHash = await hashPassword(nextPassword);
+  const user = await db.user.update({
+    where: { id: userId },
+    data: {
+      passwordHash,
+      mustChangePassword: false,
+    },
+    select: {
+      id: true,
+      username: true,
+      role: true,
+      active: true,
+      clientId: true,
+      clientRole: true,
+      mustChangePassword: true,
+    },
+  });
+
+  const token = await createSessionToken({
+    userId: user.id,
+    username: user.username,
+    role: user.role,
+    clientId: user.clientId,
+    mustChangePassword: false,
+  });
+
+  return { ok: true, token, user };
+}
+
+export async function requireSession(options?: {
+  allowMustChangePassword?: boolean;
+}): Promise<SessionPayload> {
   const session = await getSession();
   if (!session) {
     throw new Error("UNAUTHORIZED");
   }
-  return session;
+
+  const user = await db.user.findUnique({
+    where: { id: session.userId },
+    select: { active: true, mustChangePassword: true },
+  });
+  if (!user?.active) {
+    throw new Error("UNAUTHORIZED");
+  }
+  if (user.mustChangePassword && !options?.allowMustChangePassword) {
+    throw new Error("MUST_CHANGE_PASSWORD");
+  }
+
+  return {
+    ...session,
+    mustChangePassword: user.mustChangePassword,
+  };
 }
 
 export async function requireAdmin(): Promise<SessionPayload> {

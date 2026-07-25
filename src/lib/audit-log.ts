@@ -14,6 +14,8 @@ export type AuditEvent =
   | "store_deleted"
   | "user_updated"
   | "user_deleted"
+  | "user_password_set"
+  | "user_password_changed"
   | "payment_recorded"
   | "product_created"
   | "product_updated"
@@ -33,7 +35,12 @@ export type AuditFilter = "all" | "auth" | "inventory" | "products" | "admin";
 
 export const AUDIT_PAGE_SIZES = [10, 20, 50] as const;
 
-const AUTH_EVENTS: AuditEvent[] = ["login", "logout", "register"];
+const AUTH_EVENTS: AuditEvent[] = [
+  "login",
+  "logout",
+  "register",
+  "user_password_changed",
+];
 const INVENTORY_EVENTS: AuditEvent[] = [
   "inventory_added",
   "inventory_merged",
@@ -60,6 +67,7 @@ const ADMIN_EVENTS: AuditEvent[] = [
   "store_deleted",
   "user_updated",
   "user_deleted",
+  "user_password_set",
   "payment_recorded",
 ];
 

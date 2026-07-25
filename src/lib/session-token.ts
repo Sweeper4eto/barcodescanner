@@ -10,6 +10,7 @@ export type SessionPayload = {
   username: string;
   role: Role;
   clientId: string | null;
+  mustChangePassword?: boolean;
 };
 
 function getSecret(): Uint8Array {
@@ -47,6 +48,7 @@ export async function verifySessionToken(
       username: payload.username,
       role: payload.role,
       clientId: typeof payload.clientId === "string" ? payload.clientId : null,
+      mustChangePassword: payload.mustChangePassword === true,
     };
   } catch {
     return null;

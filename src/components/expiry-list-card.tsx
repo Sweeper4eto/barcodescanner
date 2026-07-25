@@ -24,6 +24,8 @@ type Props = {
   priceReduced: boolean;
   homeUser?: boolean;
   favourite?: boolean;
+  /** View-only cards hide action chips (used in admin store expiry). */
+  mode?: "full" | "view";
   onOpen: () => void;
   onRemove: () => void;
   onReducePrice: () => void;
@@ -41,6 +43,7 @@ export function ExpiryListCard({
   priceReduced,
   homeUser = false,
   favourite = false,
+  mode = "full",
   onOpen,
   onRemove,
   onReducePrice,
@@ -58,72 +61,77 @@ export function ExpiryListCard({
       : absDays === 1
         ? t("expiry.day")
         : t("expiry.days");
+  const viewOnly = mode === "view";
 
   return (
     <article className="relative overflow-visible">
-      {homeUser ? (
-        <button
-          type="button"
-          aria-label={t("expiry.moveToOrders")}
-          title={t("expiry.moveToOrders")}
-          className="absolute top-0 left-0 z-10 flex h-5 w-5 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-card-border bg-card text-muted"
-          onClick={(event) => {
-            event.stopPropagation();
-            onMoveToOrders?.();
-          }}
-        >
-          <MoveToOrdersIcon className="h-3 w-3" />
-        </button>
-      ) : (
-        <button
-          type="button"
-          aria-label={
-            priceReduced ? t("expiry.priceReduced") : t("expiry.reducePrice")
-          }
-          title={
-            priceReduced ? t("expiry.priceReduced") : t("expiry.reducePrice")
-          }
-          className="absolute top-0 left-0 z-10 flex h-5 w-5 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-card-border bg-card text-muted disabled:opacity-50"
-          onClick={(event) => {
-            event.stopPropagation();
-            onReducePrice();
-          }}
-          disabled={priceReduced}
-        >
-          <PriceReduceIcon className="h-3 w-3" />
-        </button>
-      )}
+      {!viewOnly ? (
+        <>
+          {homeUser ? (
+            <button
+              type="button"
+              aria-label={t("expiry.moveToOrders")}
+              title={t("expiry.moveToOrders")}
+              className="absolute top-0 left-0 z-10 flex h-5 w-5 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-card-border bg-card text-muted"
+              onClick={(event) => {
+                event.stopPropagation();
+                onMoveToOrders?.();
+              }}
+            >
+              <MoveToOrdersIcon className="h-3 w-3" />
+            </button>
+          ) : (
+            <button
+              type="button"
+              aria-label={
+                priceReduced ? t("expiry.priceReduced") : t("expiry.reducePrice")
+              }
+              title={
+                priceReduced ? t("expiry.priceReduced") : t("expiry.reducePrice")
+              }
+              className="absolute top-0 left-0 z-10 flex h-5 w-5 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-card-border bg-card text-muted disabled:opacity-50"
+              onClick={(event) => {
+                event.stopPropagation();
+                onReducePrice();
+              }}
+              disabled={priceReduced}
+            >
+              <PriceReduceIcon className="h-3 w-3" />
+            </button>
+          )}
 
-      {homeUser && onToggleFavourite ? (
-        <button
-          type="button"
-          aria-label={
-            favourite ? t("favourites.remove") : t("favourites.add")
-          }
-          title={favourite ? t("favourites.remove") : t("favourites.add")}
-          className={`absolute top-0 left-1/2 z-10 flex h-5 w-5 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-card-border bg-card ${
-            favourite ? "text-amber-400" : "text-muted"
-          }`}
-          onClick={(event) => {
-            event.stopPropagation();
-            onToggleFavourite();
-          }}
-        >
-          <StarFavouriteIcon className="h-3 w-3" filled={favourite} />
-        </button>
+          {homeUser && onToggleFavourite ? (
+            <button
+              type="button"
+              aria-label={
+                favourite ? t("favourites.remove") : t("favourites.add")
+              }
+              title={favourite ? t("favourites.remove") : t("favourites.add")}
+              className={`absolute top-0 left-1/2 z-10 flex h-5 w-5 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-card-border bg-card ${
+                favourite ? "text-amber-400" : "text-muted"
+              }`}
+              onClick={(event) => {
+                event.stopPropagation();
+                onToggleFavourite();
+              }}
+            >
+              <StarFavouriteIcon className="h-3 w-3" filled={favourite} />
+            </button>
+          ) : null}
+
+          <button
+            type="button"
+            aria-label={t("expiry.remove")}
+            className="absolute top-0 right-0 z-10 flex h-5 w-5 -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full border border-card-border bg-card text-sm leading-none text-muted"
+            onClick={(event) => {
+              event.stopPropagation();
+              onRemove();
+            }}
+          >
+            ×
+          </button>
+        </>
       ) : null}
-
-      <button
-        type="button"
-        aria-label={t("expiry.remove")}
-        className="absolute top-0 right-0 z-10 flex h-5 w-5 -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full border border-card-border bg-card text-sm leading-none text-muted"
-        onClick={(event) => {
-          event.stopPropagation();
-          onRemove();
-        }}
-      >
-        ×
-      </button>
 
       <div className="flex overflow-hidden rounded-lg border border-card-border bg-card">
         <div
@@ -136,6 +144,7 @@ export function ExpiryListCard({
           aria-label={t("expiry.viewEntry")}
           className="flex min-w-0 flex-1 items-center gap-2 px-2 py-1 text-left"
           onClick={onOpen}
+          disabled={viewOnly}
         >
           <ProductImage
             src={imagePath}

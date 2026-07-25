@@ -169,6 +169,14 @@ export function auditUserDeleted(user: UserAssignmentLike): string {
   ]);
 }
 
+export function auditUserPasswordSet(username: string): string {
+  return `password reset for user "${username}" (must change on next login)`;
+}
+
+export function auditUserPasswordChanged(username: string): string {
+  return `password changed by user "${username}"`;
+}
+
 type ProductLike = {
   name: string;
   barcode: string;

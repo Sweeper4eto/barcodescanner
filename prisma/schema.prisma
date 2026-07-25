@@ -18,20 +18,21 @@ enum ClientRole {
 }
 
 model User {
-  id           String      @id @default(cuid())
-  username     String      @unique
-  passwordHash String
-  role         Role        @default(USER)
-  clientRole   ClientRole?
-  active       Boolean     @default(true)
-  clientId     String?
-  client       Client?     @relation(fields: [clientId], references: [id], onDelete: SetNull)
-  storeLinks   UserStore[]
-  pushSubscriptions PushSubscription[]
+  id                  String      @id @default(cuid())
+  username            String      @unique
+  passwordHash        String
+  role                Role        @default(USER)
+  clientRole          ClientRole?
+  active              Boolean     @default(true)
+  mustChangePassword  Boolean     @default(false)
+  clientId            String?
+  client              Client?     @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  storeLinks          UserStore[]
+  pushSubscriptions   PushSubscription[]
   pushNotificationLogs PushNotificationLog[]
-  auditLogs         AuditLog[]
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  auditLogs           AuditLog[]
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
 
   @@index([clientId])
 }
