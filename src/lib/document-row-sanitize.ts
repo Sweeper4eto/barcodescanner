@@ -136,39 +136,56 @@ export function dropOrphanNameFragments(
 }
 
 /**
- * OCR often bleeds the 2nd printed Godnost onto the 1st row of a page photo
- * (especially after a previous page of blank dates). Each page is sanitized
- * alone, so index 0 is always the top of that photo.
+ * When OCR zips the Godnost column one row too high, every name gets the
+ * *next* row's date and the last row is left blank:
+ *   true:  [null, D2, D3, D4]
+ *   OCR:   [D2,   D3, D4, null]
+ * Repair: shift dates down by one (quantities untouched).
  *
- * - If row0 and row1 share the same date → clear row0 (duplicate copy-up).
- * - If row0 has a date and row1 is blank → move that date onto row1 and clear
- *   row0 (classic one-row upward shift). Quantity is never moved.
+ * Detected only when exactly one row lacks a date and it is the last row,
+ * and the first row still has a date (the stolen one).
  */
-export function fixPageLeadingExpiryBleed(
+export function repairUpwardExpiryColumnShift(
   rows: DocumentOcrRow[],
 ): DocumentOcrRow[] {
   if (rows.length < 2) return rows;
-  const out = rows.map((row) => ({ ...row }));
-  const first = out[0];
-  const second = out[1];
-  if (!first.expiryYmd) return out;
+  if (rows[rows.length - 1].expiryYmd) return rows;
+  if (!rows[0].expiryYmd) return rows;
 
-  if (second.expiryYmd && first.expiryYmd === second.expiryYmd) {
-    first.expiryYmd = null;
-    return out;
+  let dated = 0;
+  for (const row of rows) {
+    if (row.expiryYmd) dated += 1;
   }
+  if (dated !== rows.length - 1) return rows;
 
-  if (!second.expiryYmd) {
-    second.expiryYmd = first.expiryYmd;
-    first.expiryYmd = null;
-  }
+  const extracted = rows.map((row) => row.expiryYmd);
+  return rows.map((row, index) => ({
+    ...row,
+    expiryYmd: index === 0 ? null : extracted[index - 1],
+  }));
+}
 
-  return out;
+/**
+ * If the first two rows share an identical date, clear the first — OCR often
+ * duplicates the 2nd Godnost onto a blank 1st cell without shifting the rest.
+ */
+export function clearPageLeadingDuplicateExpiry(
+  rows: DocumentOcrRow[],
+): DocumentOcrRow[] {
+  if (rows.length < 2) return rows;
+  const first = rows[0];
+  const second = rows[1];
+  if (!first.expiryYmd || !second.expiryYmd) return rows;
+  if (first.expiryYmd !== second.expiryYmd) return rows;
+  return rows.map((row, index) =>
+    index === 0 ? { ...row, expiryYmd: null } : row,
+  );
 }
 
 export function sanitizeDocumentRows(rows: DocumentOcrRow[]): DocumentOcrRow[] {
   const cleaned = rows.map(sanitizeDocumentRow);
   const withoutFragments = repairFragmentRowAlignment(cleaned);
   const withoutOrphans = dropOrphanNameFragments(withoutFragments);
-  return fixPageLeadingExpiryBleed(withoutOrphans);
+  const shifted = repairUpwardExpiryColumnShift(withoutOrphans);
+  return clearPageLeadingDuplicateExpiry(shifted);
 }

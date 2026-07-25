@@ -188,6 +188,48 @@ describe("repairFragmentRowAlignment", () => {
     assert.equal(rows[1].quantity, 10);
   });
 
+  it("shifts a whole upward-shifted Godnost column back down", () => {
+    // OCR paired every name with the NEXT row's date; last left blank.
+    const rows = sanitizeDocumentRows([
+      {
+        name: "A blank Godnost",
+        barcode: null,
+        articul: "1",
+        expiryYmd: "2027-02-02",
+        quantity: 3,
+      },
+      {
+        name: "B",
+        barcode: null,
+        articul: "2",
+        expiryYmd: "2027-03-03",
+        quantity: 10,
+      },
+      {
+        name: "C",
+        barcode: null,
+        articul: "3",
+        expiryYmd: "2027-04-04",
+        quantity: 7,
+      },
+      {
+        name: "D should keep 2027-04-04",
+        barcode: null,
+        articul: "4",
+        expiryYmd: null,
+        quantity: 1,
+      },
+    ]);
+    assert.equal(rows[0].expiryYmd, null);
+    assert.equal(rows[0].quantity, 3);
+    assert.equal(rows[1].expiryYmd, "2027-02-02");
+    assert.equal(rows[1].quantity, 10);
+    assert.equal(rows[2].expiryYmd, "2027-03-03");
+    assert.equal(rows[2].quantity, 7);
+    assert.equal(rows[3].expiryYmd, "2027-04-04");
+    assert.equal(rows[3].quantity, 1);
+  });
+
   it("moves a page-leading shifted date down onto the blank next row", () => {
     const rows = sanitizeDocumentRows([
       {
@@ -246,6 +288,35 @@ describe("repairFragmentRowAlignment", () => {
     assert.equal(rows[1].expiryYmd, "2027-01-01");
     assert.equal(rows[2].expiryYmd, null);
     assert.equal(rows[3].expiryYmd, "2027-06-01");
+  });
+
+  it("does not shift when the last row correctly has a date", () => {
+    const rows = sanitizeDocumentRows([
+      {
+        name: "A",
+        barcode: null,
+        articul: "1",
+        expiryYmd: "2027-01-01",
+        quantity: 1,
+      },
+      {
+        name: "B",
+        barcode: null,
+        articul: "2",
+        expiryYmd: "2027-02-02",
+        quantity: 2,
+      },
+      {
+        name: "C",
+        barcode: null,
+        articul: "3",
+        expiryYmd: "2027-03-03",
+        quantity: 3,
+      },
+    ]);
+    assert.equal(rows[0].expiryYmd, "2027-01-01");
+    assert.equal(rows[1].expiryYmd, "2027-02-02");
+    assert.equal(rows[2].expiryYmd, "2027-03-03");
   });
 
   it("sanitizeDocumentRows drops orphan single-word crumbs with no date", () => {

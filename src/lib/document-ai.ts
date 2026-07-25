@@ -270,6 +270,7 @@ ROW ALIGNMENT (critical - a single blank cell must never shift the rows below it
   WRONG: Row 1 gets expiryPrinted "15.03.2027" (stolen from Row 2).
   CORRECT: Row 1 expiryPrinted null; Row 2 expiryPrinted "15.03.2027".
   Quantity being different does not matter — never use another row's date.
+- WHOLE-COLUMN SHIFT (critical): never assign every name the Godnost from the row BELOW it. If you do that, the last row is left with null and every earlier row is wrong. Each expiryPrinted must come from the same physical line as that item's name.
 - Before finalizing, verify row-by-row (not column-by-column) that each name in your JSON output is still lined up with the quantity/date/barcode that was printed on that exact same physical line, especially around any row with missing cells.
 
 CONCRETE EXAMPLE OF THE MISTAKE TO NEVER MAKE:
