@@ -365,9 +365,8 @@ function AddDocumentContent() {
       <MobilePageHeader title={t("addDocument.title")} sticky />
 
       {step === "camera" ? (
-        <div className="space-y-4 rounded-2xl border border-card-border p-4">
-          <p className="text-sm text-muted">{t("addDocument.hint")}</p>
-          <p className="text-xs text-muted">{t("addDocument.multiHint")}</p>
+        <div className="space-y-3 rounded-2xl border border-card-border p-3">
+          <p className="text-xs text-muted">{t("addDocument.hint")}</p>
           {error ? <p className="text-sm text-error">{error}</p> : null}
           <CameraCapture
             autoStart

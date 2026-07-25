@@ -219,8 +219,8 @@ export const en = {
   },
   addDocument: {
     title: "Scan document",
-    hint: "Photo of a delivery or write-off list with names, SKUs/barcodes, and expiry dates.",
-    multiHint: "You can select multiple pages at once from your gallery.",
+    hint: "Photo the list. Gallery: multiple pages OK.",
+    multiHint: "Gallery: multiple pages OK.",
     processing: "Reading document...",
     processingMulti: "Reading document {current} of {total}...",
     multiPartialFailure: "{failed} of {total} photos could not be read and were skipped.",
