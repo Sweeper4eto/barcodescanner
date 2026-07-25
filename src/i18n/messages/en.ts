@@ -274,7 +274,7 @@ export const en = {
     period2Weeks: "2 weeks",
     period1Month: "1 month",
     period3Months: "3 months",
-    periodAll: "All",
+    periodAll: "All (no date limit)",
     searchPlaceholder: "Search by name or barcode",
     scan: "Scan",
     clearSearch: "Clear",

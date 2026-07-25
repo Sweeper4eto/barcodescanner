@@ -1,15 +1,19 @@
 import { db } from "@/lib/db";
 
-const SIX_MONTHS_MS = 1000 * 60 * 60 * 24 * 183;
-
+/**
+ * Automatic soft-delete of old expiry dates is disabled so the expiry list
+ * "All" filter can show every active row (including past years).
+ *
+ * Rows previously auto-purged only set `deletedAt` (manual remove uses
+ * `removedAt`). Restore those so they reappear under All.
+ */
 export async function purgeExpiredInventory(): Promise<number> {
-  const cutoff = new Date(Date.now() - SIX_MONTHS_MS);
-  const result = await db.inventoryEntry.updateMany({
+  await db.inventoryEntry.updateMany({
     where: {
-      deletedAt: null,
-      expiryDate: { lt: cutoff },
+      deletedAt: { not: null },
+      removedAt: null,
     },
-    data: { deletedAt: new Date() },
+    data: { deletedAt: null },
   });
-  return result.count;
+  return 0;
 }

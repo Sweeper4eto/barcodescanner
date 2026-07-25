@@ -86,7 +86,7 @@ test("loginUser rejects invalid credentials", async () => {
   if (!result.ok) assert.equal(result.errorKey, "auth.invalidCredentials");
 });
 
-test("purgeExpiredInventory soft-deletes very old expired entries", async () => {
+test("purgeExpiredInventory is a no-op so All can show every active row", async () => {
   const client = await seedClientWithStore(db);
   const store = client.stores[0];
   const product = await db.product.create({
@@ -107,12 +107,12 @@ test("purgeExpiredInventory soft-deletes very old expired entries", async () => 
   });
 
   const purged = await purgeExpiredInventory();
-  assert.equal(purged, 1);
+  assert.equal(purged, 0);
 
   const remaining = await db.inventoryEntry.findMany({
     where: { deletedAt: null },
   });
-  assert.equal(remaining.length, 0);
+  assert.equal(remaining.length, 1);
 });
 
 test.after(async () => {

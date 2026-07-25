@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
 import { purgeExpiredInventory } from "@/lib/inventory-purge";
-import { expiryListDateBounds, expiryListMaxPast, parseExpiryWithinDays } from "@/lib/expiry";
+import { expiryListDateBounds, parseExpiryWithinDays } from "@/lib/expiry";
 import { activeInventoryWhere } from "@/lib/inventory";
 import { filterInventoryEntriesBySearch } from "@/lib/inventory-search";
 import { db } from "@/lib/db";
@@ -53,9 +53,7 @@ export async function GET(request: Request) {
   await purgeExpiredInventory();
 
   const withinDays = parseExpiryWithinDays(searchParams.get("withinDays"));
-  const maxPast = expiryListMaxPast(now);
-  const maxFuture =
-    withinDays === "all" ? null : expiryListDateBounds(now, withinDays).maxFuture;
+  const { maxPast, maxFuture } = expiryListDateBounds(now, withinDays);
   const q = searchParams.get("q")?.trim() ?? "";
   const page = Math.max(1, Number.parseInt(searchParams.get("page") ?? "1", 10) || 1);
   const limit = Math.min(
@@ -66,10 +64,14 @@ export async function GET(request: Request) {
   const where = {
     storeId,
     ...activeInventoryWhere,
-    expiryDate: {
-      gte: maxPast,
-      ...(maxFuture ? { lte: maxFuture } : {}),
-    },
+    ...(maxPast || maxFuture
+      ? {
+          expiryDate: {
+            ...(maxPast ? { gte: maxPast } : {}),
+            ...(maxFuture ? { lte: maxFuture } : {}),
+          },
+        }
+      : {}),
   };
 
   const orderBy = { expiryDate: "asc" as const };

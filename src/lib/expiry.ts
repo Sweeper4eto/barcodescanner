@@ -49,11 +49,11 @@ export function expiryListMaxPast(now = new Date()) {
 export function expiryListDateBounds(
   now = new Date(),
   futureDays: number | "all" = DEFAULT_EXPIRY_FUTURE_DAYS,
-) {
-  const maxPast = expiryListMaxPast(now);
+): { maxFuture: Date | null; maxPast: Date | null } {
   if (futureDays === "all") {
-    return { maxFuture: null, maxPast };
+    return { maxFuture: null, maxPast: null };
   }
+  const maxPast = expiryListMaxPast(now);
   const maxFuture = new Date(now.getTime() + futureDays * 24 * 60 * 60 * 1000);
   return { maxFuture, maxPast };
 }
@@ -63,10 +63,11 @@ export function expiryListVisible(
   now = new Date(),
   futureDays: number | "all" = DEFAULT_EXPIRY_FUTURE_DAYS,
 ): boolean {
+  if (futureDays === "all") return true;
   const { maxFuture, maxPast } = expiryListDateBounds(now, futureDays);
   const time = expiryDate.getTime();
-  if (time < maxPast.getTime()) return false;
-  if (futureDays === "all" || maxFuture === null) return true;
+  if (maxPast && time < maxPast.getTime()) return false;
+  if (!maxFuture) return true;
   return time <= maxFuture.getTime();
 }
 
