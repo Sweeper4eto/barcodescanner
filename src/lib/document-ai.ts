@@ -263,6 +263,13 @@ ROW ALIGNMENT (critical - a single blank cell must never shift the rows below it
 - A row that visibly has ONLY a name and no other cells filled in (blank quantity/date/barcode/articul on that same line) is still a normal, complete row — output it with quantity 1 and the other fields null, and do not let it change how you read any other row. The row immediately below it still keeps its own separate printed values, never the values of the row above or two rows above.
 - NEVER fill a blank Godnost by copying the date from the row above or below. Blank stays null. Wrong date is worse than missing date.
 - Especially at the first row of a new page photo: if that line has no printed Godnost, expiryPrinted must be null even when the next row on the page has a clear date.
+- PAGE-START EXAMPLE (very common bug — never do this):
+  Physical page starts with:
+    Row 1: "Product A"   Qty 3    Godnost blank
+    Row 2: "Product B"   Qty 10   Godnost 15.03.2027
+  WRONG: Row 1 gets expiryPrinted "15.03.2027" (stolen from Row 2).
+  CORRECT: Row 1 expiryPrinted null; Row 2 expiryPrinted "15.03.2027".
+  Quantity being different does not matter — never use another row's date.
 - Before finalizing, verify row-by-row (not column-by-column) that each name in your JSON output is still lined up with the quantity/date/barcode that was printed on that exact same physical line, especially around any row with missing cells.
 
 CONCRETE EXAMPLE OF THE MISTAKE TO NEVER MAKE:

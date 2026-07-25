@@ -135,8 +135,40 @@ export function dropOrphanNameFragments(
   });
 }
 
+/**
+ * OCR often bleeds the 2nd printed Godnost onto the 1st row of a page photo
+ * (especially after a previous page of blank dates). Each page is sanitized
+ * alone, so index 0 is always the top of that photo.
+ *
+ * - If row0 and row1 share the same date → clear row0 (duplicate copy-up).
+ * - If row0 has a date and row1 is blank → move that date onto row1 and clear
+ *   row0 (classic one-row upward shift). Quantity is never moved.
+ */
+export function fixPageLeadingExpiryBleed(
+  rows: DocumentOcrRow[],
+): DocumentOcrRow[] {
+  if (rows.length < 2) return rows;
+  const out = rows.map((row) => ({ ...row }));
+  const first = out[0];
+  const second = out[1];
+  if (!first.expiryYmd) return out;
+
+  if (second.expiryYmd && first.expiryYmd === second.expiryYmd) {
+    first.expiryYmd = null;
+    return out;
+  }
+
+  if (!second.expiryYmd) {
+    second.expiryYmd = first.expiryYmd;
+    first.expiryYmd = null;
+  }
+
+  return out;
+}
+
 export function sanitizeDocumentRows(rows: DocumentOcrRow[]): DocumentOcrRow[] {
   const cleaned = rows.map(sanitizeDocumentRow);
   const withoutFragments = repairFragmentRowAlignment(cleaned);
-  return dropOrphanNameFragments(withoutFragments);
+  const withoutOrphans = dropOrphanNameFragments(withoutFragments);
+  return fixPageLeadingExpiryBleed(withoutOrphans);
 }

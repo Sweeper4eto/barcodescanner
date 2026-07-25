@@ -165,6 +165,89 @@ describe("repairFragmentRowAlignment", () => {
     assert.deepEqual(repairFragmentRowAlignment(input), input);
   });
 
+  it("clears a page-leading date duplicated from the next row", () => {
+    const rows = sanitizeDocumentRows([
+      {
+        name: "Product without printed Godnost",
+        barcode: null,
+        articul: "1001",
+        expiryYmd: "2027-03-15",
+        quantity: 3,
+      },
+      {
+        name: "Product with printed Godnost",
+        barcode: null,
+        articul: "1002",
+        expiryYmd: "2027-03-15",
+        quantity: 10,
+      },
+    ]);
+    assert.equal(rows[0].expiryYmd, null);
+    assert.equal(rows[0].quantity, 3);
+    assert.equal(rows[1].expiryYmd, "2027-03-15");
+    assert.equal(rows[1].quantity, 10);
+  });
+
+  it("moves a page-leading shifted date down onto the blank next row", () => {
+    const rows = sanitizeDocumentRows([
+      {
+        name: "Product without printed Godnost",
+        barcode: null,
+        articul: "1001",
+        expiryYmd: "2027-03-15",
+        quantity: 3,
+      },
+      {
+        name: "Product with printed Godnost",
+        barcode: null,
+        articul: "1002",
+        expiryYmd: null,
+        quantity: 10,
+      },
+    ]);
+    assert.equal(rows[0].expiryYmd, null);
+    assert.equal(rows[0].quantity, 3);
+    assert.equal(rows[1].expiryYmd, "2027-03-15");
+    assert.equal(rows[1].quantity, 10);
+  });
+
+  it("does not move mid-page dates between neighbors", () => {
+    const rows = sanitizeDocumentRows([
+      {
+        name: "Page start blank Godnost",
+        barcode: null,
+        articul: "0",
+        expiryYmd: null,
+        quantity: 1,
+      },
+      {
+        name: "Keep my date",
+        barcode: null,
+        articul: "1",
+        expiryYmd: "2027-01-01",
+        quantity: 1,
+      },
+      {
+        name: "Blank Godnost mid page",
+        barcode: null,
+        articul: "2",
+        expiryYmd: null,
+        quantity: 5,
+      },
+      {
+        name: "Has own date",
+        barcode: null,
+        articul: "3",
+        expiryYmd: "2027-06-01",
+        quantity: 2,
+      },
+    ]);
+    assert.equal(rows[0].expiryYmd, null);
+    assert.equal(rows[1].expiryYmd, "2027-01-01");
+    assert.equal(rows[2].expiryYmd, null);
+    assert.equal(rows[3].expiryYmd, "2027-06-01");
+  });
+
   it("sanitizeDocumentRows drops orphan single-word crumbs with no date", () => {
     const rows = sanitizeDocumentRows([
       {
