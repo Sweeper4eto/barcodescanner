@@ -6,23 +6,22 @@ node --input-type=module <<'EOF'
 import "dotenv/config";
 
 const key = process.env.GEMINI_API_KEY?.trim() || "";
-let preferred = process.env.DOCUMENT_AI_MODEL?.trim() || "gemini-3.5-flash";
+let preferred = process.env.DOCUMENT_AI_MODEL?.trim() || "gemini-3-flash-preview";
 if (!key) {
   console.error("FAIL: GEMINI_API_KEY is empty in .env");
   process.exit(1);
 }
 if (/\s/.test(preferred)) {
-  console.warn(`WARN: DOCUMENT_AI_MODEL has spaces ('${preferred}') — using gemini-3.5-flash`);
-  preferred = "gemini-3.5-flash";
+  console.warn(`WARN: DOCUMENT_AI_MODEL has spaces ('${preferred}') — using gemini-3-flash-preview`);
+  preferred = "gemini-3-flash-preview";
 }
 
 const models = [
   preferred,
-  "gemini-3.5-flash",
-  "gemini-2.5-flash",
   "gemini-3-flash-preview",
-  "gemini-2.0-flash",
-  "gemini-flash-latest",
+  "gemini-3.1-flash-lite",
+  "gemini-3.5-flash",
+  "gemini-3.6-flash",
 ].filter((model, index, all) => all.indexOf(model) === index);
 
 console.log(`Key length: ${key.length}`);

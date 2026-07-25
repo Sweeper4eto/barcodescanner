@@ -356,16 +356,15 @@ LEFTOVER / CUT-OFF TEXT (important, this is a common photo-of-a-page mistake):
 
 
 
-const DEFAULT_GEMINI_MODEL = "gemini-3.5-flash";
+const DEFAULT_GEMINI_MODEL = "gemini-3-flash-preview";
 const DEFAULT_OPENAI_MODEL = "gpt-4o-mini";
 
-/** Tried in order when the preferred model is busy / unavailable. No lite models — too inaccurate on tables. */
+/** Tried in order when the preferred model is busy / unavailable. */
 const GEMINI_MODEL_FALLBACKS = [
-  "gemini-3.5-flash",
-  "gemini-2.5-flash",
-  "gemini-2.0-flash",
-  "gemini-flash-latest",
   "gemini-3-flash-preview",
+  "gemini-3.1-flash-lite",
+  "gemini-3.5-flash",
+  "gemini-3.6-flash",
 ];
 
 function resolveModel(
