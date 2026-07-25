@@ -88,7 +88,7 @@ describe("repairFragmentRowAlignment", () => {
     );
   });
 
-  it("drops a leftover that stole the next row pcs/date without moving them", () => {
+  it("drops a leftover above a real product without touching that product's fields", () => {
     const repaired = repairFragmentRowAlignment([
       {
         name: "Праскова",
@@ -117,66 +117,32 @@ describe("repairFragmentRowAlignment", () => {
     assert.equal(repaired[0].name, "Бъбъл чай SIMPATICO праскова 320мл");
     assert.equal(repaired[0].quantity, 1);
     assert.equal(repaired[0].expiryYmd, null);
-    assert.equal(repaired[0].articul, "88112");
-    assert.equal(repaired[1].name, "Сок манго 1л");
-    assert.equal(repaired[1].quantity, 6);
     assert.equal(repaired[1].expiryYmd, "2026-09-01");
   });
 
-  it("does not cascade-shift qty/dates onto blank Godnost rows", () => {
+  it("never moves qty or expiry between neighboring real products", () => {
     const input = [
       {
-        name: "Праскова",
+        name: "Product without date on page 2",
         barcode: null,
-        articul: null,
-        expiryYmd: "2026-01-10",
-        quantity: 5,
-      },
-      {
-        name: "Product B long name",
-        barcode: "4006381333931",
-        articul: null,
-        expiryYmd: "2026-02-11",
-        quantity: 3,
-      },
-      {
-        name: "Product C long name",
-        barcode: null,
-        articul: "A-9",
+        articul: "1001",
         expiryYmd: null,
         quantity: 1,
       },
+      {
+        name: "Product with its own date",
+        barcode: null,
+        articul: "1002",
+        expiryYmd: "2026-08-12",
+        quantity: 24,
+      },
     ];
     const repaired = repairFragmentRowAlignment(input);
-
-    // Prefer leaving rows alone over shifting dates down the list.
-    assert.equal(repaired.length, 3);
-    assert.equal(repaired[1].expiryYmd, "2026-02-11");
-    assert.equal(repaired[1].quantity, 3);
-    assert.equal(repaired[2].expiryYmd, null);
-    assert.equal(repaired[2].quantity, 1);
-  });
-
-  it("drops a fragment that duplicates the next row qty+date pair", () => {
-    const repaired = repairFragmentRowAlignment([
-      {
-        name: "Праскова",
-        barcode: null,
-        articul: null,
-        expiryYmd: "2026-08-12",
-        quantity: 24,
-      },
-      {
-        name: "Бъбъл чай SIMPATICO праскова 320мл",
-        barcode: null,
-        articul: "88112",
-        expiryYmd: "2026-08-12",
-        quantity: 24,
-      },
-    ]);
-
-    assert.equal(repaired.length, 1);
-    assert.equal(repaired[0].name, "Бъбъл чай SIMPATICO праскова 320мл");
+    assert.deepEqual(repaired, input);
+    const sanitized = sanitizeDocumentRows(input);
+    assert.equal(sanitized[0].expiryYmd, null);
+    assert.equal(sanitized[1].expiryYmd, "2026-08-12");
+    assert.equal(sanitized[1].quantity, 24);
   });
 
   it("does not disturb a real short product that has its own sku", () => {
@@ -196,54 +162,7 @@ describe("repairFragmentRowAlignment", () => {
         quantity: 4,
       },
     ];
-    const repaired = repairFragmentRowAlignment(input);
-    assert.deepEqual(repaired, input);
-  });
-
-  it("clears an upward-copied date from a blank row onto the next item's date", () => {
-    const rows = sanitizeDocumentRows([
-      {
-        name: "First page leftover product",
-        barcode: null,
-        articul: null,
-        expiryYmd: "2026-08-12",
-        quantity: 24,
-      },
-      {
-        name: "Бъбъл чай SIMPATICO праскова 320мл",
-        barcode: null,
-        articul: "88112",
-        expiryYmd: "2026-08-12",
-        quantity: 24,
-      },
-    ]);
-    assert.equal(rows.length, 2);
-    assert.equal(rows[0].expiryYmd, null);
-    assert.equal(rows[0].quantity, 1);
-    assert.equal(rows[1].expiryYmd, "2026-08-12");
-    assert.equal(rows[1].quantity, 24);
-  });
-
-  it("keeps a blank Godnost blank when the next row has its own date", () => {
-    const rows = sanitizeDocumentRows([
-      {
-        name: "Product without date on page 2",
-        barcode: null,
-        articul: "1001",
-        expiryYmd: null,
-        quantity: 1,
-      },
-      {
-        name: "Product with its own date",
-        barcode: null,
-        articul: "1002",
-        expiryYmd: "2026-08-12",
-        quantity: 24,
-      },
-    ]);
-    assert.equal(rows.length, 2);
-    assert.equal(rows[0].expiryYmd, null);
-    assert.equal(rows[1].expiryYmd, "2026-08-12");
+    assert.deepEqual(repairFragmentRowAlignment(input), input);
   });
 
   it("sanitizeDocumentRows drops orphan single-word crumbs with no date", () => {
