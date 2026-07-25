@@ -19,6 +19,7 @@ if (/\s/.test(preferred)) {
 const models = [
   preferred,
   "gemini-3.5-flash",
+  "gemini-2.5-flash",
   "gemini-3-flash-preview",
   "gemini-2.0-flash",
   "gemini-flash-latest",
