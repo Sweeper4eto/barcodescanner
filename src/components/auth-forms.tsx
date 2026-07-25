@@ -37,12 +37,14 @@ export function AuthShell({
 
 export function TextField({
   label,
+  name,
   type = "text",
   value,
   onChange,
   autoComplete,
 }: {
   label: string;
+  name?: string;
   type?: string;
   value: string;
   onChange: (value: string) => void;
@@ -53,10 +55,12 @@ export function TextField({
       {label}
       <input
         className="mt-1 w-full rounded-xl border border-input-border bg-input px-2.5 py-2 text-base text-foreground outline-none focus:border-primary"
+        name={name}
         type={type}
         value={value}
         autoComplete={autoComplete}
         onChange={(event) => onChange(event.target.value)}
+        onInput={(event) => onChange(event.currentTarget.value)}
       />
     </label>
   );
@@ -116,15 +120,29 @@ export function LoginForm() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  async function onSubmit(event: FormEvent) {
+  async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setLoading(true);
     setError("");
 
+    // Read from the DOM so browser autofill works even when React state
+    // did not receive change events for the filled fields.
+    const formData = new FormData(event.currentTarget);
+    const nextUsername = String(formData.get("username") ?? username).trim();
+    const nextPassword = String(formData.get("password") ?? password);
+    setUsername(nextUsername);
+    setPassword(nextPassword);
+
+    if (!nextUsername || !nextPassword) {
+      setError(t("auth.invalidCredentials"));
+      setLoading(false);
+      return;
+    }
+
     const response = await fetch("/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password }),
+      body: JSON.stringify({ username: nextUsername, password: nextPassword }),
     });
     const data = await response.json();
     setLoading(false);
@@ -143,12 +161,14 @@ export function LoginForm() {
     <form className="space-y-3" onSubmit={onSubmit}>
       <TextField
         label={t("auth.username")}
+        name="username"
         value={username}
         autoComplete="username"
         onChange={setUsername}
       />
       <TextField
         label={t("auth.password")}
+        name="password"
         type="password"
         value={password}
         autoComplete="current-password"
@@ -179,12 +199,33 @@ export function RegisterForm() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  async function onSubmit(event: FormEvent) {
+  async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setLoading(true);
     setError("");
 
-    if (password !== confirmPassword) {
+    const formData = new FormData(event.currentTarget);
+    const nextUsername = String(formData.get("username") ?? username).trim();
+    const nextPassword = String(formData.get("password") ?? password);
+    const nextConfirm = String(
+      formData.get("confirmPassword") ?? confirmPassword,
+    );
+    const rawAccountType = String(formData.get("accountType") ?? accountType);
+    const nextAccountType =
+      rawAccountType === "retail" || rawAccountType === "home"
+        ? rawAccountType
+        : accountType;
+    const nextOrg = String(
+      formData.get("organizationName") ?? organizationName,
+    ).trim();
+
+    setUsername(nextUsername);
+    setPassword(nextPassword);
+    setConfirmPassword(nextConfirm);
+    setAccountType(nextAccountType);
+    setOrganizationName(nextOrg);
+
+    if (nextPassword !== nextConfirm) {
       setError(t("auth.passwordMismatch"));
       setLoading(false);
       return;
@@ -194,10 +235,10 @@ export function RegisterForm() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        username,
-        password,
-        accountType,
-        organizationName: organizationName.trim() || undefined,
+        username: nextUsername,
+        password: nextPassword,
+        accountType: nextAccountType,
+        organizationName: nextOrg || undefined,
       }),
     });
     const data = await response.json();
@@ -222,6 +263,7 @@ export function RegisterForm() {
             <input
               type="radio"
               name="accountType"
+              value="home"
               checked={accountType === "home"}
               onChange={() => setAccountType("home")}
             />
@@ -231,6 +273,7 @@ export function RegisterForm() {
             <input
               type="radio"
               name="accountType"
+              value="retail"
               checked={accountType === "retail"}
               onChange={() => setAccountType("retail")}
             />
@@ -240,18 +283,21 @@ export function RegisterForm() {
       </fieldset>
       <TextField
         label={t("auth.organizationName")}
+        name="organizationName"
         value={organizationName}
         onChange={setOrganizationName}
       />
       <p className="-mt-2 text-xs text-muted">{t("auth.organizationNameHint")}</p>
       <TextField
         label={t("auth.username")}
+        name="username"
         value={username}
         autoComplete="username"
         onChange={setUsername}
       />
       <TextField
         label={t("auth.password")}
+        name="password"
         type="password"
         value={password}
         autoComplete="new-password"
@@ -259,6 +305,7 @@ export function RegisterForm() {
       />
       <TextField
         label={t("auth.confirmPassword")}
+        name="confirmPassword"
         type="password"
         value={confirmPassword}
         autoComplete="new-password"

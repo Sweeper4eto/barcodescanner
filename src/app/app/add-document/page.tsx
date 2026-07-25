@@ -390,6 +390,9 @@ function AddDocumentContent() {
             <h2 className="text-base font-semibold text-foreground">
               {t("addDocument.reviewTitle")}
             </h2>
+            <p className="mt-1 text-sm text-muted">
+              {t("addDocument.reviewCount", { count: items.length })}
+            </p>
             <p className="mt-1 text-sm text-muted">{t("addDocument.reviewHint")}</p>
           </div>
           {error ? <p className="text-sm text-error">{error}</p> : null}

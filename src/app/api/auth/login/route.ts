@@ -21,9 +21,11 @@ export async function POST(request: Request) {
   const json = await request.json().catch(() => null);
   const parsed = bodySchema.safeParse(json);
   if (!parsed.success) {
+    // Empty/missing credentials used to surface as the generic "invalid data"
+    // message; treat them like a failed login instead.
     return NextResponse.json(
-      { error: apiT(request, "errors.invalidData") },
-      { status: 400 },
+      { error: apiT(request, "auth.invalidCredentials") },
+      { status: 401 },
     );
   }
 

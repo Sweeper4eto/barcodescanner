@@ -18,6 +18,9 @@ import {
 } from "@/lib/inventory";
 import { apiT } from "@/i18n";
 
+/** Large multi-page deliveries can take a while (one DB pass per row). */
+export const maxDuration = 300;
+
 const itemSchema = z.object({
   name: z.string().optional().nullable(),
   barcode: z.string().optional().nullable(),
@@ -29,7 +32,7 @@ const itemSchema = z.object({
 
 const importSchema = z.object({
   storeId: z.string().min(1),
-  items: z.array(itemSchema).min(1).max(200),
+  items: z.array(itemSchema).min(1),
 });
 
 export async function POST(request: Request) {
@@ -46,8 +49,15 @@ export async function POST(request: Request) {
   const json = await request.json().catch(() => null);
   const parsed = importSchema.safeParse(json);
   if (!parsed.success) {
+    const itemCount = Array.isArray((json as { items?: unknown } | null)?.items)
+      ? (json as { items: unknown[] }).items.length
+      : null;
+    console.error("document import validation failed", {
+      itemCount,
+      issues: parsed.error.issues.slice(0, 20),
+    });
     return NextResponse.json(
-      { error: apiT(request, "errors.invalidData") },
+      { error: apiT(request, "errors.documentImportInvalidRows") },
       { status: 400 },
     );
   }

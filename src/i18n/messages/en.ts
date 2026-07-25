@@ -121,6 +121,8 @@ export const en = {
       "Document scanning is not configured. Set GEMINI_API_KEY or OPENAI_API_KEY on the server.",
     documentParseFailed: "Could not read the document. Try a clearer photo.",
     documentNoItems: "No products were found on this document.",
+    documentImportInvalidRows:
+      "Some rows have an invalid quantity or expiry date. Fix highlighted rows and try again.",
     documentTooLarge:
       "The photo is too large. Try again with a smaller or clearer photo.",
     documentTimeout:
@@ -215,6 +217,7 @@ export const en = {
     processingMulti: "Reading document {current} of {total}...",
     multiPartialFailure: "{failed} of {total} photos could not be read and were skipped.",
     reviewTitle: "Review items",
+    reviewCount: "{count} rows ready to import",
     reviewHint: "Tap a row to edit. Fix red rows before adding. Check orange rows — especially dates near the end, and the first/last row of each scanned page.",
     matched: "Matched",
     unmatched: "New",

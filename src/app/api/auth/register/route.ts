@@ -14,7 +14,7 @@ import { apiT } from "@/i18n";
 const bodySchema = z.object({
   username: z.string().min(1),
   password: z.string().min(1),
-  accountType: z.enum(["home", "retail"]),
+  accountType: z.enum(["home", "retail"]).default("home"),
   organizationName: z.string().optional(),
 });
 
