@@ -49,5 +49,6 @@ export const listPageShellClassName =
 export const listPageChromeClassName =
   "shrink-0 space-y-2 border-b border-card-border bg-background pb-2";
 
+/** Padding keeps corner action chips (half outside cards) inside the scrollport. */
 export const listPageScrollClassName =
-  "min-h-0 flex-1 overflow-y-auto overscroll-y-contain pb-2 pt-2 [scrollbar-width:thin]";
+  "min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-3 pb-3 pt-3 [scrollbar-width:thin]";
