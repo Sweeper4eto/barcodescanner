@@ -32,8 +32,14 @@ export const en = {
     currency: "€",
   },
   metadata: {
-    title: "expire365",
-    description: "Inventory, expiry tracking, and client management",
+    title: "expire365 — Stock & expiry tracking for stores",
+    description:
+      "Mobile web app for shops: scan barcodes, import delivery lists, track expiry dates, manage stock across locations, and get alerts before products expire.",
+    keywords:
+      "expiry tracking, stock management, barcode scanner, best before dates, inventory app, store expiry, delivery document scan",
+    ogTitle: "expire365 — Track stock & expiry dates",
+    ogDescription:
+      "Scan barcodes and delivery docs, track best-before dates, and manage stock from your phone.",
     manifestName: "expire365 — inventory & expiry",
     manifestDescription: "Track stock and expiry dates across your locations",
   },
