@@ -434,11 +434,14 @@ export const en = {
   camera: {
     unavailable: "Camera unavailable.",
     start: "Start camera",
+    startBrowser: "Use in-app camera",
     capture: "Take photo",
     newPhoto: "New picture",
     uploadExisting: "Choose from gallery",
     productPhoto: "Product photo",
     changePhotoTitle: "Take a new photo",
+    iosNativeHint:
+      "Opens the iPhone camera for a sharper photo (better for document scanning).",
   },
   admin: {
     panel: "Admin panel",

@@ -437,11 +437,14 @@ export const bg = {
   camera: {
     unavailable: "Камерата не е налична.",
     start: "Стартирай камера",
+    startBrowser: "Камера в приложението",
     capture: "Направи снимка",
     newPhoto: "Нова снимка",
     uploadExisting: "От галерията",
     productPhoto: "Снимка на продукт",
     changePhotoTitle: "Направи нова снимка",
+    iosNativeHint:
+      "Отваря камерата на iPhone за по-ясна снимка (по-добре за документи).",
   },
   admin: {
     panel: "Админ панел",

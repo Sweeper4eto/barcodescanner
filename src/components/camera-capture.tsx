@@ -25,14 +25,46 @@ type Props = {
   compact?: boolean;
 };
 
-const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+const MAX_UPLOAD_BYTES = 12 * 1024 * 1024;
 const ACCEPTED_TYPES = new Set([
   "image/jpeg",
   "image/jpg",
   "image/png",
   "image/webp",
   "image/gif",
+  "image/heic",
+  "image/heif",
 ]);
+
+function isIosLike(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent || "";
+  if (/iPad|iPhone|iPod/.test(ua)) return true;
+  // iPadOS 13+ may report as Mac with touch
+  return (
+    navigator.platform === "MacIntel" &&
+    typeof navigator.maxTouchPoints === "number" &&
+    navigator.maxTouchPoints > 1
+  );
+}
+
+/** Safari/iOS usually lacks ImageCapture — stills are only video frames unless we use the native camera. */
+function supportsFullStillCapture(): boolean {
+  return typeof ImageCapture !== "undefined";
+}
+
+function prefersNativeCameraCapture(): boolean {
+  return isIosLike() && !supportsFullStillCapture();
+}
+
+function isAcceptedImageFile(file: File): boolean {
+  if (ACCEPTED_TYPES.has(file.type)) return true;
+  // iOS sometimes omits MIME type; fall back to extension.
+  if (!file.type && /\.(jpe?g|png|webp|gif|heic|heif)$/i.test(file.name)) {
+    return true;
+  }
+  return false;
+}
 
 function cameraErrorKey(
   error: unknown,
@@ -60,6 +92,7 @@ async function openCameraStream(): Promise<MediaStream> {
   }
 
   // Push for maximum rear-camera resolution the device will grant.
+  // Safari often ignores huge ideals; still ask high, then fall back.
   const constraints: MediaStreamConstraints[] = [
     {
       video: {
@@ -75,6 +108,14 @@ async function openCameraStream(): Promise<MediaStream> {
         facingMode: { ideal: "environment" },
         width: { ideal: 4032 },
         height: { ideal: 3024 },
+      },
+      audio: false,
+    },
+    {
+      video: {
+        facingMode: { ideal: "environment" },
+        width: { ideal: 3840 },
+        height: { ideal: 2160 },
       },
       audio: false,
     },
@@ -195,8 +236,9 @@ function wait(ms: number): Promise<void> {
 
 /** Give autofocus a moment after the preview is live / before the still. */
 async function settleAutofocus(track: MediaStreamTrack | undefined): Promise<void> {
+  const ios = isIosLike();
   if (!track) {
-    await wait(200);
+    await wait(ios ? 400 : 200);
     return;
   }
   try {
@@ -209,13 +251,13 @@ async function settleAutofocus(track: MediaStreamTrack | undefined): Promise<voi
       await track.applyConstraints({
         advanced: [{ focusMode: "single-shot" }],
       } as unknown as MediaTrackConstraints);
-      await wait(450);
+      await wait(ios ? 700 : 450);
       return;
     }
   } catch {
     // ignore
   }
-  await wait(280);
+  await wait(ios ? 500 : 280);
 }
 
 async function captureWithImageCapture(
@@ -283,16 +325,19 @@ async function captureFromVideoFrame(
         resolve();
       });
     });
+  } else {
+    // Safari: wait a couple of frames so autofocus can settle into the buffer.
+    await wait(120);
   }
 
   canvas.width = video.videoWidth;
   canvas.height = video.videoHeight;
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("CAMERA_UNAVAILABLE");
-  ctx.imageSmoothingEnabled = true;
-  ctx.imageSmoothingQuality = "high";
+  ctx.imageSmoothingEnabled = false;
   ctx.drawImage(video, 0, 0);
-  return canvas.toDataURL("image/jpeg", 0.98);
+  // Near-lossless JPEG so OCR keeps fine print (Safari path has no ImageCapture).
+  return canvas.toDataURL("image/jpeg", 0.97);
 }
 
 /** Full-resolution still when possible; else highest-quality preview frame. */
@@ -302,7 +347,13 @@ async function captureHighQualityStill(
   canvas: HTMLCanvasElement,
 ): Promise<string> {
   const track = stream.getVideoTracks()[0];
-  await settleAutofocus(track);
+  // Re-bump resolution right before capture (Safari often starts lower).
+  if (track) {
+    await maximizeTrackQuality(stream);
+    await settleAutofocus(track);
+  } else {
+    await settleAutofocus(undefined);
+  }
 
   if (track) {
     const still = await captureWithImageCapture(track);
@@ -324,14 +375,22 @@ export function CameraCapture({
   const { t } = useT();
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
+  const nativeCameraInputRef = useRef<HTMLInputElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const [active, setActive] = useState(false);
   const [starting, setStarting] = useState(false);
   const [capturing, setCapturing] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [useNativeCapture, setUseNativeCapture] = useState(false);
+  const [platformReady, setPlatformReady] = useState(false);
   const autoStartedRef = useRef(false);
+
+  useEffect(() => {
+    setUseNativeCapture(prefersNativeCameraCapture());
+    setPlatformReady(true);
+  }, []);
 
   const stopCamera = useCallback(() => {
     streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -384,10 +443,12 @@ export function CameraCapture({
   }, [active, starting, stopCamera, t]);
 
   useEffect(() => {
-    if (!autoStart || autoStartedRef.current) return;
+    if (!autoStart || !platformReady || autoStartedRef.current) return;
+    // iOS Safari: skip weak in-browser preview; native Camera app is sharper for OCR.
     autoStartedRef.current = true;
+    if (useNativeCapture) return;
     void startCamera();
-  }, [autoStart, startCamera]);
+  }, [autoStart, platformReady, startCamera, useNativeCapture]);
 
   async function takePhoto() {
     const video = videoRef.current;
@@ -414,7 +475,7 @@ export function CameraCapture({
     if (files.length === 0) return;
 
     for (const file of files) {
-      if (!ACCEPTED_TYPES.has(file.type)) {
+      if (!isAcceptedImageFile(file)) {
         setError(t("errors.invalidFileFormat"));
         return;
       }
@@ -449,12 +510,18 @@ export function CameraCapture({
     ? "mx-auto max-h-[min(38vh,16rem)] w-full rounded-xl border border-card-border bg-black object-contain"
     : "max-w-full rounded-xl border border-card-border";
 
+  const acceptAttr =
+    "image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif,.heic,.heif";
+
   return (
     <div className="space-y-3">
       {error ? <p className="text-sm text-error">{error}</p> : null}
 
       {!preview ? (
         <>
+          {useNativeCapture ? (
+            <p className="text-xs text-muted">{t("camera.iosNativeHint")}</p>
+          ) : null}
           <video
             ref={videoRef}
             className={active ? previewFrameClass : "hidden"}
@@ -463,7 +530,14 @@ export function CameraCapture({
             autoPlay
           />
           <div className="flex flex-col gap-2">
-            {!active ? (
+            {useNativeCapture && !active ? (
+              <PrimaryButton
+                onClick={() => nativeCameraInputRef.current?.click()}
+                disabled={starting}
+              >
+                {t("camera.capture")}
+              </PrimaryButton>
+            ) : !active ? (
               <PrimaryButton onClick={() => void startCamera()} disabled={starting}>
                 {starting ? t("scanner.starting") : t("camera.start")}
               </PrimaryButton>
@@ -475,18 +549,35 @@ export function CameraCapture({
                 {t("camera.capture")}
               </PrimaryButton>
             )}
-            {allowFileUpload ? (
+            {allowFileUpload || useNativeCapture ? (
               <>
                 <SecondaryButton
-                  onClick={() => fileInputRef.current?.click()}
+                  onClick={() => galleryInputRef.current?.click()}
                   disabled={starting}
                 >
                   {t("camera.uploadExisting")}
                 </SecondaryButton>
+                {useNativeCapture && !active ? (
+                  <SecondaryButton
+                    onClick={() => void startCamera()}
+                    disabled={starting}
+                  >
+                    {starting ? t("scanner.starting") : t("camera.startBrowser")}
+                  </SecondaryButton>
+                ) : null}
+                {/* Native iOS Camera app — full still resolution for OCR */}
                 <input
-                  ref={fileInputRef}
+                  ref={nativeCameraInputRef}
                   type="file"
-                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  accept="image/*"
+                  capture="environment"
+                  className="hidden"
+                  onChange={(event) => void onFileSelected(event)}
+                />
+                <input
+                  ref={galleryInputRef}
+                  type="file"
+                  accept={acceptAttr}
                   multiple={allowMultipleFiles}
                   className="hidden"
                   onChange={(event) => void onFileSelected(event)}
@@ -517,20 +608,37 @@ export function CameraCapture({
             <SecondaryButton
               onClick={() => {
                 setPreview(null);
+                if (useNativeCapture) {
+                  // Stay on native path; user taps Take photo again.
+                  return;
+                }
                 void startCamera();
               }}
             >
               {t("camera.newPhoto")}
             </SecondaryButton>
-            {allowFileUpload ? (
+            {allowFileUpload || useNativeCapture ? (
               <>
-                <SecondaryButton onClick={() => fileInputRef.current?.click()}>
+                {useNativeCapture ? (
+                  <SecondaryButton onClick={() => nativeCameraInputRef.current?.click()}>
+                    {t("camera.capture")}
+                  </SecondaryButton>
+                ) : null}
+                <SecondaryButton onClick={() => galleryInputRef.current?.click()}>
                   {t("camera.uploadExisting")}
                 </SecondaryButton>
                 <input
-                  ref={fileInputRef}
+                  ref={nativeCameraInputRef}
                   type="file"
-                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  accept="image/*"
+                  capture="environment"
+                  className="hidden"
+                  onChange={(event) => void onFileSelected(event)}
+                />
+                <input
+                  ref={galleryInputRef}
+                  type="file"
+                  accept={acceptAttr}
                   multiple={allowMultipleFiles}
                   className="hidden"
                   onChange={(event) => void onFileSelected(event)}
