@@ -32,7 +32,7 @@ test("expiryUrgencyClass colors by days remaining", () => {
   assert.equal(expiryUrgencyClass(new Date("2026-06-20"), now), "urgency-soon");
 });
 
-test("formatLocaleDay pads day and month for en and bg", () => {
-  assert.equal(formatLocaleDay("2027-04-15", "en-US"), "04/15/2027");
+test("formatLocaleDay pads day and month day-first for en and bg", () => {
+  assert.equal(formatLocaleDay("2027-04-15", "en-GB"), "15/04/2027");
   assert.match(formatLocaleDay("2027-04-15", "bg-BG"), /^15\.04\.2027/);
 });

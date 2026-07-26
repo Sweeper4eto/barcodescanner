@@ -297,11 +297,13 @@ Documents may be in Bulgarian. Common columns:
 Return ONLY compact valid JSON (no markdown, no extra spaces) with this shape:
 {"items":[{"name":"...","barcode":null,"articul":"...","expiryPrinted":"DD.MM.YYYY","expiryDate":null,"quantity":1}]}
 
-DATE RULES (critical - Bulgarian day.month.year):
+DATE RULES (critical - ALWAYS day.month.year, never US month/day):
+- Warehouse / delivery Godnost on these documents is ALWAYS DD.MM.YYYY (day first), even if product names are in English or the operator language is English.
+- Never reinterpret dates as MM/DD/YYYY. Never swap day and month.
 - expiryPrinted = COPY the Godnost cell EXACTLY as printed characters, e.g. "01.12.2027" or "23.06.2027 L268623". Do not reorder digits.
 - expiryDate must ALWAYS be null. The server converts DD.MM.YYYY to ISO. Never invent YYYY-MM-DD yourself.
-- Example: printed 01.12.2027 -> expiryPrinted "01.12.2027", expiryDate null (means 1 December 2027 on the server).
-- Example: printed 12.01.2026 -> expiryPrinted "12.01.2026", expiryDate null.
+- Example: printed 01.12.2027 -> expiryPrinted "01.12.2027", expiryDate null (means 1 December 2027 on the server — NOT 12 January).
+- Example: printed 12.01.2026 -> expiryPrinted "12.01.2026", expiryDate null (means 12 January 2026).
 - When day and month are both <= 12, still copy day-first order as printed. Do not swap.
 - Re-read each digit carefully (6 vs 8, and year last digit). Prefer the printed cell over guessing.
 

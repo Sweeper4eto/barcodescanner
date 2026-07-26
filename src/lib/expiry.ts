@@ -108,8 +108,8 @@ export function daysUntilExpiry(expiryDate: Date, now = new Date()): number {
 }
 
 /**
- * Locale calendar day with leading zeros (e.g. en: 04/15/2027, bg: 15.04.2027).
- * Order still follows the UI language locale.
+ * Day-first calendar date with leading zeros (bg: 15.04.2027, en-GB: 15/04/2027).
+ * Never use en-US — MM/DD looks like a day/month swap on Bulgarian expiry docs.
  */
 export function formatLocaleDay(
   input: Date | string,

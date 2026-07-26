@@ -96,5 +96,6 @@ export function monthName(month: number, locale: Locale = defaultLocale): string
 
 export function dateLocale(locale: Locale = defaultLocale): string {
   if (locale === "bg") return "bg-BG";
-  return "en-US";
+  // en-GB keeps day-first (DD/MM) like Bulgarian docs — never en-US MM/DD.
+  return "en-GB";
 }
