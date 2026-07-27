@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { PrimaryButton, SecondaryButton } from "@/components/auth-forms";
 import { useT } from "@/components/i18n-provider";
+import { ScannerViewfinderOverlay } from "@/components/scanner-viewfinder-overlay";
 
 type Props = {
   onCapture: (dataUrl: string) => void;
@@ -23,6 +24,8 @@ type Props = {
    * screen (needed on Add document where the phone camera is otherwise huge).
    */
   compact?: boolean;
+  /** L-shaped corner guides over the live camera preview (document scanning). */
+  showViewfinder?: boolean;
 };
 
 const MAX_UPLOAD_BYTES = 12 * 1024 * 1024;
@@ -371,6 +374,7 @@ export function CameraCapture({
   allowFileUpload = false,
   allowMultipleFiles = false,
   compact = false,
+  showViewfinder = false,
 }: Props) {
   const { t } = useT();
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -511,8 +515,8 @@ export function CameraCapture({
     : "max-h-[min(52dvh,24rem)] w-full object-contain";
 
   const previewShellClass = compact
-    ? "mx-auto flex h-[min(28dvh,12.5rem)] w-full items-center justify-center overflow-hidden rounded-xl border border-card-border bg-black"
-    : "mx-auto flex max-h-[min(52dvh,24rem)] w-full items-center justify-center overflow-hidden rounded-xl border border-card-border bg-black";
+    ? "relative mx-auto flex h-[min(28dvh,12.5rem)] w-full items-center justify-center overflow-hidden rounded-xl border border-card-border bg-black"
+    : "relative mx-auto flex max-h-[min(52dvh,24rem)] w-full items-center justify-center overflow-hidden rounded-xl border border-card-border bg-black";
 
   const acceptAttr =
     "image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif,.heic,.heif";
@@ -541,6 +545,9 @@ export function CameraCapture({
               muted
               autoPlay
             />
+            {showViewfinder ? (
+              <ScannerViewfinderOverlay variant="document" showScanLine={false} />
+            ) : null}
           </div>
           <div className="flex flex-col gap-2">
             {useNativeCapture && !active ? (

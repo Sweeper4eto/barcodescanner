@@ -373,6 +373,7 @@ function AddDocumentContent() {
             allowFileUpload
             allowMultipleFiles
             compact
+            showViewfinder
             onCapture={(dataUrl) => void onCapture(dataUrl)}
             onMultipleCapture={(dataUrls) => void onMultipleCapture(dataUrls)}
             onCancel={() =>

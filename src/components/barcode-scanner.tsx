@@ -9,6 +9,7 @@ import {
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { PrimaryButton, SecondaryButton } from "@/components/auth-forms";
 import { useT } from "@/components/i18n-provider";
+import { ScannerViewfinderOverlay } from "@/components/scanner-viewfinder-overlay";
 import { startEnhancedAutoScan, startFastVideoScan, toggleBarcodeTorch, applyBarcodeCameraConstraints, startAutoRefocus, captureScannerPreview } from "@/lib/barcode-camera";
 import { prepareBarcodeDecoders } from "@/lib/barcode-decode";
 import { CrossDecoderBarcodeConsensus, normalizeBarcode } from "@/lib/barcode";
@@ -499,6 +500,7 @@ export function BarcodeScanner({
         }}
       >
         <div id={elementId} className="w-full max-w-full" />
+        {scanning || starting ? <ScannerViewfinderOverlay /> : null}
       </div>
       <div id={fileDecoderId} className="hidden" aria-hidden />
       {scanning ? (

@@ -12,7 +12,7 @@ test("paymentAmount subtracts discount and floors at zero", () => {
   assert.equal(paymentAmount(2, 10, 25), 0);
 });
 
-test("expiryListVisible hides far-future and very old expiry for limited periods", () => {
+test("expiryListVisible keeps all expired items and caps only the future horizon", () => {
   const now = new Date("2026-06-01");
   const inFiveWeeks = new Date("2026-07-08");
   const inThreeWeeks = new Date("2026-06-22");
@@ -20,7 +20,9 @@ test("expiryListVisible hides far-future and very old expiry for limited periods
 
   assert.equal(expiryListVisible(inFiveWeeks, now), false);
   assert.equal(expiryListVisible(inThreeWeeks, now), true);
-  assert.equal(expiryListVisible(eightMonthsAgo, now), false);
+  assert.equal(expiryListVisible(eightMonthsAgo, now), true);
+  assert.equal(expiryListVisible(eightMonthsAgo, now, 14), true);
+  assert.equal(expiryListVisible(inFiveWeeks, now, 14), false);
   assert.equal(expiryListVisible(eightMonthsAgo, now, "all"), true);
   assert.equal(expiryListVisible(inFiveWeeks, now, "all"), true);
 });

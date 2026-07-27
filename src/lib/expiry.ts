@@ -1,5 +1,3 @@
-export const EXPIRY_LIST_MAX_PAST_DAYS = 183;
-
 export const EXPIRY_PERIOD_DAYS = {
   "2w": 14,
   "1m": 30,
@@ -42,10 +40,10 @@ export function parseExpiryWithinDays(value: string | null | undefined): number 
   return expiryPeriodDays("1m");
 }
 
-export function expiryListMaxPast(now = new Date()) {
-  return new Date(now.getTime() - EXPIRY_LIST_MAX_PAST_DAYS * 24 * 60 * 60 * 1000);
-}
-
+/**
+ * Period filters keep every already-expired item and only cap the future
+ * horizon (e.g. 2 weeks => now + 14 days). "all" removes the future cap.
+ */
 export function expiryListDateBounds(
   now = new Date(),
   futureDays: number | "all" = DEFAULT_EXPIRY_FUTURE_DAYS,
@@ -53,9 +51,8 @@ export function expiryListDateBounds(
   if (futureDays === "all") {
     return { maxFuture: null, maxPast: null };
   }
-  const maxPast = expiryListMaxPast(now);
   const maxFuture = new Date(now.getTime() + futureDays * 24 * 60 * 60 * 1000);
-  return { maxFuture, maxPast };
+  return { maxFuture, maxPast: null };
 }
 
 export function expiryListVisible(
@@ -64,11 +61,9 @@ export function expiryListVisible(
   futureDays: number | "all" = DEFAULT_EXPIRY_FUTURE_DAYS,
 ): boolean {
   if (futureDays === "all") return true;
-  const { maxFuture, maxPast } = expiryListDateBounds(now, futureDays);
-  const time = expiryDate.getTime();
-  if (maxPast && time < maxPast.getTime()) return false;
+  const { maxFuture } = expiryListDateBounds(now, futureDays);
   if (!maxFuture) return true;
-  return time <= maxFuture.getTime();
+  return expiryDate.getTime() <= maxFuture.getTime();
 }
 
 export function expiryUrgencyClass(expiryDate: Date, now = new Date()): string {
