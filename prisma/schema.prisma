@@ -31,6 +31,7 @@ model User {
   pushSubscriptions   PushSubscription[]
   pushNotificationLogs PushNotificationLog[]
   auditLogs           AuditLog[]
+  supportRequests     SupportRequest[]
   createdAt           DateTime    @default(now())
   updatedAt           DateTime    @updatedAt
 
@@ -48,6 +49,7 @@ model Client {
   users              User[]
   stores             Store[]
   payments           Payment[]
+  supportRequests    SupportRequest[]
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 }
@@ -65,6 +67,7 @@ model Store {
   inventory      InventoryEntry[]
   buyList        BuyListEntry[]
   favourites     FavouriteProduct[]
+  supportRequests SupportRequest[]
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
 
@@ -195,4 +198,26 @@ model AuditLog {
   @@index([occurredAt])
   @@index([event])
   @@index([username])
+}
+
+model SupportRequest {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clientId     String?
+  client       Client?  @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  storeId      String?
+  store        Store?   @relation(fields: [storeId], references: [id], onDelete: SetNull)
+  topic        String
+  contact      String?
+  message      String
+  status       String   @default("new")
+  adminNote    String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  resolvedAt   DateTime?
+
+  @@index([status, createdAt])
+  @@index([storeId, createdAt])
+  @@index([userId, createdAt])
 }

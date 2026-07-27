@@ -76,6 +76,16 @@ export default function AppHomePage() {
         </Link>
       ) : null}
 
+      <Link
+        href="/app/contact"
+        className="mb-4 block rounded-xl border border-card-border bg-card px-4 py-3 text-sm font-medium text-foreground"
+      >
+        <span className="block">{t("app.contact")}</span>
+        <span className="mt-0.5 block text-xs font-normal text-muted">
+          {t("app.contactHint")}
+        </span>
+      </Link>
+
       <PushNotifications />
     </div>
   );
