@@ -49,7 +49,7 @@ export default function AppHomePage() {
   }, [router]);
 
   return (
-    <div className="mx-auto min-h-full min-w-0 max-w-lg px-4 py-6">
+    <div className="mx-auto min-h-full min-w-0 max-w-lg overflow-x-visible px-4 pb-6 pt-1">
       <MobilePageHeader title={t("app.workingStore")} />
 
       <p className="mb-6 text-sm text-muted">

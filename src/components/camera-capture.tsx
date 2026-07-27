@@ -507,14 +507,18 @@ export function CameraCapture({
   }
 
   const previewFrameClass = compact
-    ? "mx-auto max-h-[min(38vh,16rem)] w-full rounded-xl border border-card-border bg-black object-contain"
-    : "max-w-full rounded-xl border border-card-border";
+    ? "h-full w-full object-contain"
+    : "max-h-[min(52dvh,24rem)] w-full object-contain";
+
+  const previewShellClass = compact
+    ? "mx-auto flex h-[min(28dvh,12.5rem)] w-full items-center justify-center overflow-hidden rounded-xl border border-card-border bg-black"
+    : "mx-auto flex max-h-[min(52dvh,24rem)] w-full items-center justify-center overflow-hidden rounded-xl border border-card-border bg-black";
 
   const acceptAttr =
     "image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif,.heic,.heif";
 
   return (
-    <div className="space-y-3">
+    <div className={`relative space-y-3 ${active && !preview ? "isolate" : ""}`}>
       {error ? <p className="text-sm text-error">{error}</p> : null}
 
       {!preview ? (
@@ -522,13 +526,22 @@ export function CameraCapture({
           {useNativeCapture ? (
             <p className="text-xs text-muted">{t("camera.iosNativeHint")}</p>
           ) : null}
-          <video
-            ref={videoRef}
-            className={active ? previewFrameClass : "hidden"}
-            playsInline
-            muted
-            autoPlay
-          />
+          <div
+            className={
+              active
+                ? previewShellClass
+                : "pointer-events-none absolute h-px w-px overflow-hidden opacity-0"
+            }
+            aria-hidden={!active}
+          >
+            <video
+              ref={videoRef}
+              className={previewFrameClass}
+              playsInline
+              muted
+              autoPlay
+            />
+          </div>
           <div className="flex flex-col gap-2">
             {useNativeCapture && !active ? (
               <PrimaryButton
@@ -597,8 +610,8 @@ export function CameraCapture({
             alt={t("camera.productPhoto")}
             className={
               compact
-                ? previewFrameClass
-                : "w-full rounded-xl border border-card-border"
+                ? "mx-auto max-h-[min(28dvh,12.5rem)] w-full rounded-xl border border-card-border bg-black object-contain"
+                : "mx-auto max-h-[min(52dvh,24rem)] w-full rounded-xl border border-card-border bg-black object-contain"
             }
           />
           <div className="flex flex-col gap-2">

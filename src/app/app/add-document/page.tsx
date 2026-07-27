@@ -353,7 +353,7 @@ function AddDocumentContent() {
 
   if (checking) {
     return (
-      <div className="mx-auto min-w-0 max-w-lg px-4 py-6">
+      <div className="mx-auto min-w-0 max-w-lg overflow-x-visible px-4 pb-6 pt-1">
         <MobilePageHeader title={t("addDocument.title")} sticky />
         <p className="text-sm text-muted">{t("expiry.loading")}</p>
       </div>
@@ -361,7 +361,7 @@ function AddDocumentContent() {
   }
 
   return (
-    <div className="mx-auto min-w-0 max-w-lg px-4 py-3">
+    <div className="mx-auto min-w-0 max-w-lg overflow-x-visible px-4 pb-3 pt-1">
       <MobilePageHeader title={t("addDocument.title")} sticky />
 
       {step === "camera" ? (

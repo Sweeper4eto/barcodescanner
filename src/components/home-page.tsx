@@ -11,7 +11,7 @@ function HomePageContent() {
   const { t } = useT();
 
   return (
-    <div className="mx-auto flex min-h-full min-w-0 max-w-lg flex-col gap-6 px-4 py-6">
+    <div className="mx-auto flex min-h-full min-w-0 max-w-lg flex-col gap-6 px-4 pb-6 pt-[max(1.5rem,env(safe-area-inset-top,0px))]">
       <div className="flex items-center justify-between">
         <AppHeaderLogo size={40} />
         <LanguageSwitch />

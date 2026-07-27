@@ -98,7 +98,7 @@
 
 html,
 body {
-  overflow-x: clip;
+  overflow-x: hidden;
   max-width: 100%;
 }
 

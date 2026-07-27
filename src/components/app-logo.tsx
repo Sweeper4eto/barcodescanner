@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useT } from "@/components/i18n-provider";
 
-const LOGO_SRC = "/icons/icon-192.png?v=9";
+const LOGO_SRC = "/icons/icon-192.png?v=10";
 
 export function AppLogo({
   size = 72,
@@ -16,6 +16,9 @@ export function AppLogo({
 }) {
   const { t } = useT();
 
+  // Artwork is tight to the PNG edges; pad + light radius so iPhone never clips it.
+  const radiusClass = size >= 64 ? "rounded-2xl" : "rounded-md";
+
   const image = (
     // eslint-disable-next-line @next/next/no-img-element
     <img
@@ -23,8 +26,16 @@ export function AppLogo({
       alt="expire365"
       width={size}
       height={size}
-      className={`rounded-[22%] ${className}`}
       decoding="async"
+      className={`box-border max-w-none shrink-0 ${radiusClass} object-contain p-[8%] ${className}`}
+      style={{
+        width: size,
+        height: size,
+        minWidth: size,
+        minHeight: size,
+        maxWidth: size,
+        maxHeight: size,
+      }}
     />
   );
 
@@ -33,8 +44,9 @@ export function AppLogo({
   return (
     <Link
       href="/"
-      className="inline-flex shrink-0 rounded-[22%] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+      className="inline-flex shrink-0 overflow-visible focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
       aria-label={t("common.home")}
+      style={{ width: size, height: size, minWidth: size, minHeight: size }}
     >
       {image}
     </Link>

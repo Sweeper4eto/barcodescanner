@@ -115,7 +115,7 @@ export default function TeamPage() {
   }
 
   return (
-    <div className="mx-auto min-w-0 max-w-lg space-y-4 px-4 py-3">
+    <div className="mx-auto min-w-0 max-w-lg space-y-4 overflow-x-visible px-4 pb-3 pt-1">
       <MobilePageHeader title={t("team.title")} />
       <p className="text-sm text-muted">{t("app.teamHint")}</p>
 

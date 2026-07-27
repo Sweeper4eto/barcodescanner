@@ -61,7 +61,7 @@ function ChangePasswordContent() {
 
   return (
     <>
-      <div className="flex items-center justify-between px-4 pt-4">
+      <div className="flex items-center justify-between px-4 pt-[max(1rem,env(safe-area-inset-top,0px))]">
         <AppHeaderLogo size={36} />
         <LanguageSwitch />
       </div>

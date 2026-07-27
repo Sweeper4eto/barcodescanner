@@ -50,7 +50,7 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-full bg-background">
-      <div className="mx-auto min-w-0 max-w-6xl px-4 py-6 md:px-6">
+      <div className="mx-auto min-w-0 max-w-6xl overflow-x-visible px-4 pb-6 pt-[max(1.5rem,env(safe-area-inset-top,0px))] md:px-6">
         <header className="mb-8 flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
             <AppHeaderLogo size={44} />

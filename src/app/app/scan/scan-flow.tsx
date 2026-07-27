@@ -205,7 +205,7 @@ export function ScanFlow() {
   const previewImage = entryImagePath || product?.imagePath || null;
 
   return (
-    <div className="mx-auto min-w-0 max-w-lg px-4 py-6">
+    <div className="mx-auto min-w-0 max-w-lg overflow-x-visible px-4 pb-6 pt-1">
       {mounted ? (
         <span data-testid="scan-flow-ready" className="sr-only" aria-hidden />
       ) : null}
