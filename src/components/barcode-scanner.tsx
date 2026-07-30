@@ -487,8 +487,14 @@ export function BarcodeScanner({
             ? "barcode-scanner-view overflow-hidden rounded-xl border border-card-border"
             : "h-0 overflow-hidden"
         }
-        onClick={() => {
+        style={
+          onSkipWithoutBarcode && (scanning || starting)
+            ? { touchAction: "manipulation" }
+            : undefined
+        }
+        onPointerUp={(event) => {
           if (!onSkipWithoutBarcode || !(scanning || starting)) return;
+          if (event.pointerType === "mouse" && event.button !== 0) return;
           const now = Date.now();
           if (now - lastTapRef.current < 350) {
             lastTapRef.current = 0;

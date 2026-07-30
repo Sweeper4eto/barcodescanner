@@ -122,6 +122,8 @@ body {
   height: auto !important;
   max-height: min(38vh, 280px) !important;
   object-fit: cover;
+  /* Let double-tap / click hit the parent wrapper, not the video element. */
+  pointer-events: none;
 }
 
 .scanner-overlay {

@@ -365,9 +365,9 @@ export function ExpiryEntryDetailSheet({
       </div>
 
       {changingPicture ? (
-        <div className="fixed inset-0 z-[70] flex flex-col overflow-y-auto bg-background p-4">
+        <div className="fixed inset-0 z-[70] flex select-none flex-col overflow-y-auto bg-background p-4">
           <div className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center gap-3">
-            <p className="text-center text-sm font-medium text-foreground">
+            <p className="text-center text-sm font-medium text-foreground select-none">
               {t("camera.changePhotoTitle")}
             </p>
             <CameraCapture
