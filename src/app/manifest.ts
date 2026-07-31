@@ -11,22 +11,22 @@ export default function manifest(): MetadataRoute.Manifest {
     display: "standalone",
     orientation: "portrait",
     background_color: "#09090b",
-    theme_color: "#0d9488",
+    theme_color: "#34d399",
     lang: defaultLocale,
     categories: ["business", "productivity"],
     icons: [
       {
-        src: "/icons/icon-192.png?v=9",
+        src: "/icons/icon-192.png?v=10",
         sizes: "192x192",
         type: "image/png",
       },
       {
-        src: "/icons/icon-512.png?v=9",
+        src: "/icons/icon-512.png?v=10",
         sizes: "512x512",
         type: "image/png",
       },
       {
-        src: "/icons/icon-512-maskable.png?v=9",
+        src: "/icons/icon-512-maskable.png?v=10",
         sizes: "512x512",
         type: "image/png",
         purpose: "maskable",

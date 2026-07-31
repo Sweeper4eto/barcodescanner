@@ -9,9 +9,9 @@
   --muted: #71717a;
   --input: #ffffff;
   --input-border: #d4d4d8;
-  --primary: #2563eb;
-  --primary-fg: #ffffff;
-  --accent: #2563eb;
+  --primary: #34d399;
+  --primary-fg: #064e3b;
+  --accent: #10b981;
   --invert: #18181b;
   --invert-fg: #fafafa;
   --warning-bg: #fffbeb;
@@ -19,7 +19,7 @@
   --success-bg: #f0fdf4;
   --success-border: #22c55e;
   --success-fg: #166534;
-  --selected: #eff6ff;
+  --selected: #ecfdf5;
   --error: #dc2626;
   --danger: #dc2626;
   --danger-fg: #ffffff;
@@ -29,8 +29,8 @@
   --urgency-critical-bg: #fef2f2;
   --urgency-warning-border: #eab308;
   --urgency-warning-bg: #fefce8;
-  --urgency-soon-border: #3b82f6;
-  --urgency-soon-bg: #eff6ff;
+  --urgency-soon-border: #34d399;
+  --urgency-soon-bg: #ecfdf5;
   --app-bottom-nav-height: 3.25rem;
 }
 
@@ -43,9 +43,9 @@
     --muted: #a1a1aa;
     --input: #27272a;
     --input-border: #52525b;
-    --primary: #3b82f6;
-    --primary-fg: #ffffff;
-    --accent: #60a5fa;
+    --primary: #34d399;
+    --primary-fg: #022c22;
+    --accent: #6ee7b7;
     --invert: #fafafa;
     --invert-fg: #18181b;
     --warning-bg: #422006;
@@ -53,7 +53,7 @@
     --success-bg: #14532d;
     --success-border: #4ade80;
     --success-fg: #86efac;
-    --selected: #1e3a8a;
+    --selected: #064e3b;
     --error: #f87171;
     --danger: #ef4444;
     --danger-fg: #ffffff;
@@ -63,8 +63,8 @@
     --urgency-critical-bg: #450a0a;
     --urgency-warning-border: #facc15;
     --urgency-warning-bg: #422006;
-    --urgency-soon-border: #60a5fa;
-    --urgency-soon-bg: #1e3a8a;
+    --urgency-soon-border: #34d399;
+    --urgency-soon-bg: #064e3b;
   }
 }
 
@@ -209,14 +209,14 @@ body {
   background: linear-gradient(
     90deg,
     transparent,
-    rgb(96 165 250 / 0.35),
-    rgb(147 197 253),
+    rgb(52 211 153 / 0.35),
+    rgb(110 231 183),
     rgb(255 255 255 / 0.95),
-    rgb(147 197 253),
-    rgb(96 165 250 / 0.35),
+    rgb(110 231 183),
+    rgb(52 211 153 / 0.35),
     transparent
   );
-  box-shadow: 0 0 8px 1px rgb(59 130 246 / 0.7);
+  box-shadow: 0 0 8px 1px rgb(16 185 129 / 0.7);
 }
 
 @keyframes scanner-line-move {
