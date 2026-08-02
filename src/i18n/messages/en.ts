@@ -45,8 +45,10 @@ export const en = {
   },
   home: {
     tagline: "Track expiry before it costs you",
+    taglineLead: "Track expiry",
+    taglineAccent: "before it costs you",
     description:
-      "Mobile-optimized web app: barcode scanning, stock entry, expiry tracking, and an admin panel for clients, locations, and payments.",
+      "Smart expiry tracking for your groceries. Reduce waste, save money, stay organised.",
     login: "Log in",
     register: "Register",
   },

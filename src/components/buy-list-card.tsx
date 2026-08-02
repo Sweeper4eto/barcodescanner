@@ -84,12 +84,12 @@ export function BuyListCard({
       <div
         className={`flex overflow-hidden rounded-lg border transition-colors ${
           checked
-            ? "border-success-border bg-success-bg"
+            ? "border-primary bg-success-bg"
             : "border-card-border bg-card"
         }`}
       >
         <div
-          className={`w-1 shrink-0 ${checked ? "bg-success-border" : "bg-primary/30"}`}
+          className={`w-1 shrink-0 ${checked ? "bg-primary" : "bg-card-border"}`}
           aria-hidden
         />
 
@@ -145,7 +145,7 @@ export function BuyListCard({
                 title={checked ? t("buyList.markNotBought") : t("buyList.markBought")}
                 className={`flex min-w-[2.5rem] flex-col items-center justify-center rounded-md border px-1.5 py-0.5 text-center transition-colors ${
                   checked
-                    ? "border-success-border bg-success-border text-white"
+                    ? "border-primary/50 bg-black/20"
                     : "border-card-border bg-subtle text-foreground"
                 }`}
                 onClick={(event) => {
@@ -154,7 +154,9 @@ export function BuyListCard({
                 }}
               >
                 {checked ? (
-                  <CheckIcon className="size-[23px]" />
+                  <span className="flex size-[23px] items-center justify-center rounded-sm bg-primary text-primary-fg">
+                    <CheckIcon className="size-[18px]" />
+                  </span>
                 ) : (
                   <span
                     aria-hidden
@@ -163,7 +165,7 @@ export function BuyListCard({
                 )}
                 <p
                   className={`text-[10px] font-semibold leading-none ${
-                    checked ? "text-white/90" : "text-muted"
+                    checked ? "text-primary" : "text-muted"
                   }`}
                 >
                   {t("buyList.done")}

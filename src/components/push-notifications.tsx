@@ -168,42 +168,54 @@ export function PushNotifications() {
   if (state === "unsupported" || state === "unconfigured") return null;
 
   return (
-    <section className="mt-6 rounded-xl border border-input-border bg-card p-4">
-      <h2 className="text-sm font-medium text-foreground">{t("push.title")}</h2>
-      <p className="mt-1 text-sm text-muted">{t("push.description")}</p>
+    <section className="mb-3 flex items-center gap-3 rounded-xl border border-card-border bg-card px-4 py-3.5">
+      <span
+        aria-hidden
+        className="flex size-10 shrink-0 items-center justify-center rounded-full border border-primary/50 bg-selected text-primary"
+      >
+        <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="1.8">
+          <path d="M15 17H9a4 4 0 0 1-4-4V9a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v4a4 4 0 0 1-4 4Z" />
+          <path d="M9 21h6" strokeLinecap="round" />
+        </svg>
+      </span>
+      <div className="min-w-0 flex-1">
+        <h2 className="text-sm font-semibold text-foreground">{t("push.title")}</h2>
+        <p className="mt-0.5 text-xs text-muted">{t("push.description")}</p>
 
-      {state === "iosNeedsInstall" ? (
-        <p className="mt-3 rounded-xl border border-card-border bg-subtle px-3 py-2 text-sm text-foreground">
-          {t("push.iosInstallRequired")}
-        </p>
-      ) : null}
+        {state === "iosNeedsInstall" ? (
+          <p className="mt-2 rounded-lg border border-card-border bg-subtle px-2.5 py-1.5 text-xs text-foreground">
+            {t("push.iosInstallRequired")}
+          </p>
+        ) : null}
 
-      {state === "denied" ? (
-        <p className="mt-3 text-sm text-warning-fg">{t("push.denied")}</p>
-      ) : null}
+        {state === "denied" ? (
+          <p className="mt-2 text-xs text-warning-fg">{t("push.denied")}</p>
+        ) : null}
 
-      {state === "enabled" ? (
-        <div className="mt-3 flex items-center justify-between gap-3">
-          <p className="text-sm text-success-fg">{t("push.enabled")}</p>
-          <button
-            type="button"
-            onClick={() => void disableNotifications()}
-            className="rounded-lg border border-input-border px-3 py-2 text-sm text-foreground"
-          >
-            {t("push.disable")}
-          </button>
-        </div>
-      ) : state === "iosNeedsInstall" ? null : (
+        {error ? <p className="mt-2 text-xs text-danger">{error}</p> : null}
+      </div>
+
+      {state === "iosNeedsInstall" || state === "denied" ? null : (
         <button
           type="button"
-          onClick={() => void enableNotifications()}
-          className="mt-3 w-full rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-fg"
+          role="switch"
+          aria-checked={state === "enabled"}
+          aria-label={state === "enabled" ? t("push.disable") : t("push.enable")}
+          onClick={() =>
+            void (state === "enabled" ? disableNotifications() : enableNotifications())
+          }
+          className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${
+            state === "enabled" ? "bg-primary" : "bg-subtle border border-card-border"
+          }`}
         >
-          {t("push.enable")}
+          <span
+            aria-hidden
+            className={`absolute top-0.5 size-6 rounded-full bg-white transition-transform ${
+              state === "enabled" ? "left-5" : "left-0.5"
+            }`}
+          />
         </button>
       )}
-
-      {error ? <p className="mt-2 text-sm text-danger-fg">{error}</p> : null}
     </section>
   );
 }

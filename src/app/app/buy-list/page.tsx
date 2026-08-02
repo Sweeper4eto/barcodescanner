@@ -6,7 +6,7 @@ import { ActionFlash } from "@/components/action-flash";
 import { SecondaryButton } from "@/components/auth-forms";
 import { CameraCapture, uploadImage } from "@/components/camera-capture";
 import { BarcodeScanner } from "@/components/barcode-scanner";
-import { AddNavIcon, ScanNavIcon, StarFavouriteIcon } from "@/components/app-nav-icons";
+import { ScanNavIcon, StarFavouriteIcon } from "@/components/app-nav-icons";
 import { BuyListCard } from "@/components/buy-list-card";
 import {
   BuyListEntryDetailSheet,
@@ -536,21 +536,21 @@ function BuyListContent() {
             onChange={setSearch}
             placeholder={t("buyList.searchPlaceholder")}
             aria-label={t("buyList.searchPlaceholder")}
-            inputClassName="h-9 rounded-lg border border-input-border bg-input pl-2.5 pr-16 text-base text-foreground"
+            inputClassName="h-9 rounded-lg border border-input-border bg-input pl-2.5 pr-[4.5rem] text-base text-foreground"
             onClear={() => setShowScanner(false)}
             trailingAction={
               <button
                 type="button"
                 aria-label={t("buyList.addManual")}
                 title={t("buyList.addManual")}
-                className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-fg"
+                className="px-1.5 text-xs font-semibold text-primary"
                 onClick={() => {
                   setShowScanner(false);
                   setManualName(search);
                   setShowManualAdd(true);
                 }}
               >
-                <AddNavIcon className="h-5 w-5" />
+                {t("buyList.addManual")}
               </button>
             }
           />
@@ -560,10 +560,10 @@ function BuyListContent() {
             className={`flex h-9 shrink-0 items-center justify-center gap-1 rounded-lg border px-2 text-[10px] font-medium leading-none ${
               showScanner
                 ? "border-primary bg-selected text-primary"
-                : "border-input-border bg-card text-muted"
+                : "border-input-border bg-card text-primary"
             }`}
           >
-            <ScanNavIcon className="h-4 w-4" />
+            <ScanNavIcon className="h-4 w-4 text-primary" />
             <span>{t("app.navScan")}</span>
           </button>
         </div>
@@ -581,14 +581,14 @@ function BuyListContent() {
 
         {filteredFavourites.length > 0 ? (
           <section aria-label={t("buyList.favouritesTitle")}>
-            <div className="mb-1 flex items-baseline justify-between gap-2">
-              <h2 className="text-[11px] font-semibold uppercase tracking-wide text-muted">
+            <div className="mb-1.5 flex items-center gap-2">
+              <h2 className="text-[11px] font-semibold uppercase tracking-wide text-foreground">
                 {t("buyList.favouritesTitle")}
               </h2>
-              <span className="text-[10px] text-muted">
+              <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-semibold tabular-nums text-primary-fg">
                 {filteredFavourites.length}
                 {debouncedSearch && filteredFavourites.length !== favourites.length
-                  ? ` / ${favourites.length}`
+                  ? `/${favourites.length}`
                   : ""}
               </span>
             </div>

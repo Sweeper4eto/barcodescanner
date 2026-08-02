@@ -161,12 +161,12 @@ export function ExpiryListCard({
               {t("expiry.enteredOn")}{" "}
               {formatLocaleDay(entered, dateLocale)}
             </p>
-            <p className="text-[13px] leading-tight text-foreground">
-              <span className="text-[10px] font-semibold text-muted">
+            <p className="text-[13px] leading-tight text-primary">
+              <span className="text-[10px] font-semibold text-primary/80">
                 {t("expiry.validUntil")}
               </span>
               {" "}
-              <span className="font-bold tabular-nums">
+              <span className="font-bold tabular-nums text-primary">
                 {formatLocaleDay(expiry, dateLocale)}
               </span>
             </p>

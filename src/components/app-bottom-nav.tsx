@@ -102,7 +102,7 @@ export function AppBottomNav() {
   return (
     <nav
       aria-label={t("app.bottomNav")}
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-card-border bg-card/95 backdrop-blur-sm supports-[backdrop-filter]:bg-card/90"
+      className="fixed inset-x-0 bottom-0 z-40 border-t-2 border-[color:var(--nav-border)] bg-card/95 shadow-[0_-8px_24px_rgba(0,0,0,0.35)] backdrop-blur-sm supports-[backdrop-filter]:bg-card/90"
     >
       <div
         className={`mx-auto grid min-h-[var(--app-bottom-nav-height)] min-w-0 max-w-lg ${gridCols} px-1 pb-[calc(env(safe-area-inset-bottom,0px)+0.375rem)]`}
@@ -113,9 +113,7 @@ export function AppBottomNav() {
             disabled
               ? "pointer-events-none opacity-40"
               : active
-                ? tab.emphasize
-                  ? "text-primary"
-                  : "text-foreground"
+                ? "text-primary"
                 : "text-muted hover:text-foreground"
           }`;
 

@@ -434,10 +434,10 @@ function ExpiryList() {
             className={`flex h-9 shrink-0 items-center justify-center gap-1 rounded-lg border px-2 text-[10px] font-medium leading-none ${
               showScanner
                 ? "border-primary bg-selected text-primary"
-                : "border-input-border bg-card text-muted"
+                : "border-input-border bg-card text-primary"
             }`}
           >
-            <ScanNavIcon className="h-4 w-4" />
+            <ScanNavIcon className="h-4 w-4 text-primary" />
             <span>{t("app.navScan")}</span>
           </button>
         </div>

@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { LanguageSwitch } from "@/components/language-switch";
 import { useT } from "@/components/i18n-provider";
@@ -9,7 +8,6 @@ import { getStoredStoreId, setStoredStoreId } from "@/lib/store-selection";
 type Store = { id: string; name: string; active: boolean };
 
 export function AppTopActions() {
-  const router = useRouter();
   const { t } = useT();
   const [stores, setStores] = useState<Store[]>([]);
   const [storeId, setStoreId] = useState("");
@@ -52,27 +50,14 @@ export function AppTopActions() {
     window.location.reload();
   }
 
-  async function logout() {
-    await fetch("/api/auth/logout", { method: "POST" });
-    router.push("/login");
-    router.refresh();
-  }
-
   const selectedStore = stores.find((store) => store.id === storeId);
 
   return (
     <div className="inline-flex shrink-0 flex-col items-stretch gap-1.5">
       <div className="flex items-center justify-end gap-1.5">
-        <button
-          type="button"
-          onClick={() => void logout()}
-          className="shrink-0 rounded-lg border border-input-border bg-card px-2 py-1.5 text-xs text-foreground"
-        >
-          {t("common.logout")}
-        </button>
         <LanguageSwitch />
       </div>
-      {stores.length > 1 ? (
+      {stores.length >= 1 ? (
         <div className="w-0 min-w-full">
           <label className="sr-only" htmlFor="app-store-select">
             {t("app.selectStore")}
@@ -83,6 +68,7 @@ export function AppTopActions() {
               className="absolute inset-0 z-10 w-full cursor-pointer opacity-0"
               value={storeId}
               onChange={(event) => onStoreChange(event.target.value)}
+              disabled={stores.length < 2}
             >
               {stores.map((store) => (
                 <option key={store.id} value={store.id}>
@@ -97,7 +83,9 @@ export function AppTopActions() {
               <span className="min-w-0 flex-1 truncate">
                 {selectedStore?.name ?? t("app.selectStore")}
               </span>
-              <span className="shrink-0 text-[0.6rem] text-muted">▼</span>
+              {stores.length > 1 ? (
+                <span className="shrink-0 text-[0.6rem] text-muted">▼</span>
+              ) : null}
             </div>
           </div>
         </div>

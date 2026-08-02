@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { AppLogo } from "@/components/app-logo";
+import { BrandName } from "@/components/brand-name";
 import { markPwaInstallOffered, shouldOfferPwaInstall } from "@/lib/pwa-install";
 import { useT } from "@/components/i18n-provider";
 
@@ -16,20 +17,16 @@ export function AuthShell({
   subtitle?: string;
   children: React.ReactNode;
 }) {
-  const { t } = useT();
-
   return (
-    <div className="mx-auto flex min-h-full w-full min-w-0 max-w-md flex-col justify-center px-3 py-6">
-      <div className="rounded-2xl border border-card-border bg-card p-4 shadow-sm">
-        <div className="mb-4 flex flex-col items-center text-center">
-          <AppLogo size={64} />
-          <p className="mt-2 text-sm font-semibold tracking-wide text-accent">
-            {t("common.appName")}
-          </p>
+    <div className="mx-auto flex min-h-full w-full min-w-0 max-w-md flex-col justify-center px-4 py-6">
+      <div className="rounded-2xl border border-card-border bg-card/80 p-5 shadow-[0_0_40px_rgb(16_185_129/0.08)]">
+        <div className="mb-5 flex flex-col items-center text-center">
+          <AppLogo size={72} link={false} />
+          <BrandName className="mt-3 text-lg" />
         </div>
         <h1 className="text-center text-2xl font-semibold text-foreground">{title}</h1>
         {subtitle ? <p className="mt-2 text-center text-sm text-muted">{subtitle}</p> : null}
-        <div className="mt-4">{children}</div>
+        <div className="mt-5">{children}</div>
       </div>
     </div>
   );

@@ -1,71 +1,39 @@
 @import "tailwindcss";
 
+/* Dark + mint design system (final mockups). Force dark as the product look. */
 :root {
-  color-scheme: light dark;
-  --background: #fafafa;
-  --foreground: #18181b;
-  --card: #ffffff;
-  --card-border: #e4e4e7;
-  --muted: #71717a;
-  --input: #ffffff;
-  --input-border: #d4d4d8;
+  color-scheme: dark;
+  --background: #09090b;
+  --foreground: #fafafa;
+  --card: #18181b;
+  --card-border: #3f3f46;
+  --muted: #a1a1aa;
+  --input: #27272a;
+  --input-border: #52525b;
   --primary: #34d399;
-  --primary-fg: #064e3b;
-  --accent: #10b981;
-  --invert: #18181b;
-  --invert-fg: #fafafa;
-  --warning-bg: #fffbeb;
-  --warning-fg: #92400e;
-  --success-bg: #f0fdf4;
-  --success-border: #22c55e;
-  --success-fg: #166534;
-  --selected: #ecfdf5;
-  --error: #dc2626;
-  --danger: #dc2626;
+  --primary-fg: #022c22;
+  --accent: #6ee7b7;
+  --invert: #fafafa;
+  --invert-fg: #18181b;
+  --warning-bg: #422006;
+  --warning-fg: #fde68a;
+  --success-bg: rgb(16 185 129 / 0.32);
+  --success-border: #34d399;
+  --success-fg: #a7f3d0;
+  --selected: rgb(16 185 129 / 0.18);
+  --error: #f87171;
+  --danger: #ef4444;
   --danger-fg: #ffffff;
-  --danger-border: #fca5a5;
-  --subtle: #f4f4f5;
-  --urgency-critical-border: #ef4444;
-  --urgency-critical-bg: #fef2f2;
-  --urgency-warning-border: #eab308;
-  --urgency-warning-bg: #fefce8;
+  --danger-border: #7f1d1d;
+  --subtle: #27272a;
+  --urgency-critical-border: #f87171;
+  --urgency-critical-bg: #450a0a;
+  --urgency-warning-border: #facc15;
+  --urgency-warning-bg: #422006;
   --urgency-soon-border: #34d399;
-  --urgency-soon-bg: #ecfdf5;
+  --urgency-soon-bg: rgb(16 185 129 / 0.14);
   --app-bottom-nav-height: 3.25rem;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #09090b;
-    --foreground: #fafafa;
-    --card: #18181b;
-    --card-border: #3f3f46;
-    --muted: #a1a1aa;
-    --input: #27272a;
-    --input-border: #52525b;
-    --primary: #34d399;
-    --primary-fg: #022c22;
-    --accent: #6ee7b7;
-    --invert: #fafafa;
-    --invert-fg: #18181b;
-    --warning-bg: #422006;
-    --warning-fg: #fde68a;
-    --success-bg: #14532d;
-    --success-border: #4ade80;
-    --success-fg: #86efac;
-    --selected: #064e3b;
-    --error: #f87171;
-    --danger: #ef4444;
-    --danger-fg: #ffffff;
-    --danger-border: #7f1d1d;
-    --subtle: #27272a;
-    --urgency-critical-border: #f87171;
-    --urgency-critical-bg: #450a0a;
-    --urgency-warning-border: #facc15;
-    --urgency-warning-bg: #422006;
-    --urgency-soon-border: #34d399;
-    --urgency-soon-bg: #064e3b;
-  }
+  --nav-border: rgb(255 255 255 / 0.18);
 }
 
 @theme inline {
@@ -244,7 +212,7 @@ body {
 input,
 select,
 textarea {
-  color-scheme: light dark;
+  color-scheme: dark;
 }
 
 .urgency-critical {
