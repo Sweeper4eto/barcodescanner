@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { PrimaryButton, SecondaryButton } from "@/components/auth-forms";
 import { MobilePageHeader } from "@/components/mobile-page-header";
 import { useT } from "@/components/i18n-provider";
+import { MenuSelect } from "@/components/menu-select";
 import { navigateApp } from "@/lib/app-navigation";
 import { getStoredStoreId } from "@/lib/store-selection";
 
@@ -77,19 +78,20 @@ export default function ContactSupportPage() {
       <p className="mb-4 text-sm text-muted">{t("support.subtitle")}</p>
 
       <div className="space-y-3 rounded-2xl border border-card-border bg-card p-4">
-        <label className="block text-sm font-medium text-foreground">
+        <div className="block text-sm font-medium text-foreground">
           {t("support.topic")}
-          <select
-            className="mt-1 w-full rounded-xl border border-input-border bg-input px-3 py-2 text-base text-foreground"
+          <MenuSelect
+            label={t("support.topic")}
             value={topic}
-            onChange={(event) => setTopic(event.target.value as Topic)}
-          >
-            <option value="bug">{t("support.topicBug")}</option>
-            <option value="ocr">{t("support.topicOcr")}</option>
-            <option value="billing">{t("support.topicBilling")}</option>
-            <option value="other">{t("support.topicOther")}</option>
-          </select>
-        </label>
+            options={[
+              { value: "bug", label: t("support.topicBug") },
+              { value: "ocr", label: t("support.topicOcr") },
+              { value: "billing", label: t("support.topicBilling") },
+              { value: "other", label: t("support.topicOther") },
+            ]}
+            onChange={setTopic}
+          />
+        </div>
 
         <label className="block text-sm font-medium text-foreground">
           {t("support.store")}

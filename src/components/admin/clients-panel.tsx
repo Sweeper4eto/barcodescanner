@@ -527,6 +527,7 @@ export function ClientsPanel({ onRefresh }: Props) {
                               <StoreCard
                                 key={store.id}
                                 store={store}
+                                homeUser={Boolean(selectedClient?.homeUser)}
                                 onToggle={() => void toggleStore(store)}
                                 onDelete={() => void deleteStore(store.id)}
                                 onSaved={() => selectedId && void loadStores(selectedId)}
@@ -627,11 +628,13 @@ export function ClientsPanel({ onRefresh }: Props) {
 
 function StoreCard({
   store,
+  homeUser,
   onToggle,
   onDelete,
   onSaved,
 }: {
   store: Store;
+  homeUser: boolean;
   onToggle: () => void;
   onDelete: () => void;
   onSaved: () => void;
@@ -780,6 +783,14 @@ function StoreCard({
             >
               {t("admin.viewExpiry")}
             </Link>
+            {homeUser ? (
+              <Link
+                href={`/admin/buy-list?storeId=${encodeURIComponent(store.id)}`}
+                className="rounded-lg border border-primary bg-selected px-2 py-1 text-xs font-medium text-primary"
+              >
+                {t("admin.viewCart")}
+              </Link>
+            ) : null}
             <button
               type="button"
               className="rounded-lg border border-input-border bg-card px-2 py-1 text-xs text-foreground"

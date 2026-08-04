@@ -10,6 +10,10 @@ import {
 import { LanguageSwitch } from "@/components/language-switch";
 import { useT } from "@/components/i18n-provider";
 import { MobileI18nProvider } from "@/components/mobile-i18n-provider";
+import {
+  passwordsMatch,
+  validatePassword,
+} from "@/lib/register-validation";
 
 function ChangePasswordContent() {
   const router = useRouter();
@@ -17,12 +21,16 @@ function ChangePasswordContent() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [confirmError, setConfirmError] = useState("");
   const [loading, setLoading] = useState(false);
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setLoading(true);
     setError("");
+    setPasswordError("");
+    setConfirmError("");
 
     const formData = new FormData(event.currentTarget);
     const nextPassword = String(formData.get("password") ?? password);
@@ -32,8 +40,14 @@ function ChangePasswordContent() {
     setPassword(nextPassword);
     setConfirmPassword(nextConfirm);
 
-    if (nextPassword !== nextConfirm) {
-      setError(t("auth.passwordMismatch"));
+    const passwordKey = validatePassword(nextPassword);
+    if (passwordKey) {
+      setPasswordError(t(passwordKey));
+      setLoading(false);
+      return;
+    }
+    if (!passwordsMatch(nextPassword, nextConfirm)) {
+      setConfirmError(t("auth.passwordMismatch"));
       setLoading(false);
       return;
     }
@@ -60,21 +74,26 @@ function ChangePasswordContent() {
 
   return (
     <>
-      <div className="flex justify-end px-4 pt-[max(1rem,env(safe-area-inset-top,0px))]">
+      <div className="flex justify-end px-4 pt-4 sm:absolute sm:right-4 sm:top-4">
         <LanguageSwitch />
       </div>
       <AuthShell
         title={t("auth.changePasswordTitle")}
         subtitle={t("auth.changePasswordSubtitle")}
       >
-        <form className="space-y-3" onSubmit={onSubmit}>
+        <form className="space-y-3" onSubmit={onSubmit} noValidate>
           <TextField
             label={t("auth.newPassword")}
             name="password"
             type="password"
             value={password}
             autoComplete="new-password"
-            onChange={setPassword}
+            onChange={(value) => {
+              setPassword(value);
+              setPasswordError("");
+              setError("");
+            }}
+            error={passwordError}
           />
           <TextField
             label={t("auth.confirmPassword")}
@@ -82,7 +101,12 @@ function ChangePasswordContent() {
             type="password"
             value={confirmPassword}
             autoComplete="new-password"
-            onChange={setConfirmPassword}
+            onChange={(value) => {
+              setConfirmPassword(value);
+              setConfirmError("");
+              setError("");
+            }}
+            error={confirmError}
           />
           {error ? <p className="text-sm text-error">{error}</p> : null}
           <PrimaryButton type="submit" disabled={loading}>

@@ -7,6 +7,13 @@ import {
 } from "@/lib/session";
 import type { MessageKey } from "@/i18n";
 import type { ClientRole, User } from "@/generated/prisma/client";
+import {
+  normalizeUsername,
+  validateOptionalEmail,
+  validateOptionalOrgName,
+  validatePassword,
+  validateUsername,
+} from "@/lib/register-validation";
 
 export type AuthUser = Pick<
   User,
@@ -30,7 +37,18 @@ export type RegisterAccountType = "home" | "retail";
 export type RegisterOptions = {
   accountType: RegisterAccountType;
   organizationName?: string;
+  email?: string | null;
 };
+
+export function normalizeEmail(email: string | null | undefined): string | null {
+  const trimmed = email?.trim().toLowerCase() ?? "";
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+export function isValidEmail(email: string): boolean {
+  // Practical validation: local@domain with a dot in the domain.
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
 
 function defaultOrgName(username: string, accountType: RegisterAccountType): string {
   if (accountType === "home") {
@@ -48,20 +66,36 @@ export async function registerUser(
   password: string,
   options: RegisterOptions,
 ): Promise<{ ok: true; user: AuthUser; token: string } | AuthFailure> {
-  const normalized = username.trim().toLowerCase();
-  if (normalized.length < 3) {
-    return { ok: false, errorKey: "auth.usernameTooShort" };
+  const usernameError = validateUsername(username);
+  if (usernameError) {
+    return { ok: false, errorKey: usernameError };
   }
-  if (password.length < 6) {
-    return { ok: false, errorKey: "auth.passwordTooShort" };
+  const passwordError = validatePassword(password);
+  if (passwordError) {
+    return { ok: false, errorKey: passwordError };
   }
-  if (password.length > 72) {
-    return { ok: false, errorKey: "auth.passwordTooLong" };
+  const orgError = validateOptionalOrgName(options.organizationName ?? "");
+  if (orgError) {
+    return { ok: false, errorKey: orgError };
+  }
+
+  const normalized = normalizeUsername(username);
+  const email = normalizeEmail(options.email);
+  const emailError = validateOptionalEmail(email ?? "");
+  if (emailError) {
+    return { ok: false, errorKey: emailError };
   }
 
   const existing = await db.user.findUnique({ where: { username: normalized } });
   if (existing) {
     return { ok: false, errorKey: "auth.usernameTaken" };
+  }
+
+  if (email) {
+    const emailTaken = await db.user.findUnique({ where: { email } });
+    if (emailTaken) {
+      return { ok: false, errorKey: "auth.emailTaken" };
+    }
   }
 
   const orgName =
@@ -90,6 +124,7 @@ export async function registerUser(
     return tx.user.create({
       data: {
         username: normalized,
+        email,
         passwordHash,
         role: "USER",
         clientRole: "OWNER",
@@ -181,11 +216,9 @@ export async function changeOwnPassword(
   userId: string,
   nextPassword: string,
 ): Promise<{ ok: true; token: string; user: AuthUser } | AuthFailure> {
-  if (nextPassword.length < 6) {
-    return { ok: false, errorKey: "auth.passwordTooShort" };
-  }
-  if (nextPassword.length > 72) {
-    return { ok: false, errorKey: "auth.passwordTooLong" };
+  const passwordError = validatePassword(nextPassword);
+  if (passwordError) {
+    return { ok: false, errorKey: passwordError };
   }
 
   const passwordHash = await hashPassword(nextPassword);

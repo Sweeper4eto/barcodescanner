@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auditUserDeleted, auditUserUpdated } from "@/lib/audit-details";
 import { logAuditEvent } from "@/lib/audit-log";
-import { requireAdmin } from "@/lib/auth";
+import { requireAdmin, isValidEmail, normalizeEmail } from "@/lib/auth";
 import { isOnlyClientOwner } from "@/lib/client-owner";
 import { db } from "@/lib/db";
 import { apiT } from "@/i18n";
@@ -34,6 +34,7 @@ export async function GET(request: Request) {
     ? {
         OR: [
           { username: { contains: q } },
+          { email: { contains: q } },
           { client: { name: { contains: q } } },
           { storeLinks: { some: { store: { name: { contains: q } } } } },
         ],
@@ -49,6 +50,7 @@ export async function GET(request: Request) {
       select: {
         id: true,
         username: true,
+        email: true,
         role: true,
         active: true,
         clientId: true,
@@ -83,6 +85,7 @@ const assignSchema = z.object({
   storeIds: z.array(z.string()).optional(),
   active: z.boolean().optional(),
   clientRole: z.enum(["OWNER", "MEMBER"]).nullable().optional(),
+  email: z.string().nullable().optional(),
 });
 
 export async function PATCH(request: Request) {
@@ -96,6 +99,29 @@ export async function PATCH(request: Request) {
       { error: apiT(request, "errors.invalidData") },
       { status: 400 },
     );
+  }
+
+  const nextEmail =
+    parsed.data.email === undefined
+      ? undefined
+      : normalizeEmail(parsed.data.email);
+  if (nextEmail && !isValidEmail(nextEmail)) {
+    return NextResponse.json(
+      { error: apiT(request, "auth.invalidEmail") },
+      { status: 400 },
+    );
+  }
+  if (nextEmail) {
+    const emailOwner = await db.user.findFirst({
+      where: { email: nextEmail, NOT: { id: parsed.data.userId } },
+      select: { id: true },
+    });
+    if (emailOwner) {
+      return NextResponse.json(
+        { error: apiT(request, "auth.emailTaken") },
+        { status: 400 },
+      );
+    }
   }
 
   const user = await db.user.findUnique({
@@ -176,6 +202,7 @@ export async function PATCH(request: Request) {
           ...(parsed.data.clientRole !== undefined
             ? { clientRole: parsed.data.clientRole }
             : {}),
+          ...(nextEmail !== undefined ? { email: nextEmail } : {}),
         },
       });
 

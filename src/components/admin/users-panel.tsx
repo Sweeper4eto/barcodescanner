@@ -15,6 +15,7 @@ import type { Client } from "@/components/admin/clients-panel";
 type UserRow = {
   id: string;
   username: string;
+  email: string | null;
   role: "ADMIN" | "USER";
   active: boolean;
   clientId: string | null;
@@ -30,6 +31,7 @@ type AssignmentState = {
   storeIds: string[];
   active: boolean;
   clientRole: "OWNER" | "MEMBER" | null;
+  email: string;
 };
 
 type Props = {
@@ -43,6 +45,7 @@ function assignmentFromUser(user: UserRow): AssignmentState {
     storeIds: user.stores.map((store) => store.id).sort(),
     active: user.active,
     clientRole: user.clientRole,
+    email: user.email ?? "",
   };
 }
 
@@ -52,6 +55,7 @@ function assignmentIsDirty(current: AssignmentState, saved: AssignmentState | nu
     current.clientId !== saved.clientId ||
     current.active !== saved.active ||
     current.clientRole !== saved.clientRole ||
+    current.email !== saved.email ||
     current.storeIds.join(",") !== saved.storeIds.join(",")
   );
 }
@@ -69,6 +73,7 @@ export function UsersPanel({ clients, onRefresh }: Props) {
   const [storeIds, setStoreIds] = useState<string[]>([]);
   const [active, setActive] = useState(true);
   const [clientRole, setClientRole] = useState<"OWNER" | "MEMBER" | null>(null);
+  const [email, setEmail] = useState("");
   const [clientStores, setClientStores] = useState<Store[]>([]);
   const [savedAssignment, setSavedAssignment] = useState<AssignmentState | null>(null);
   const [saving, setSaving] = useState(false);
@@ -115,6 +120,7 @@ export function UsersPanel({ clients, onRefresh }: Props) {
     setStoreIds(snapshot.storeIds);
     setActive(snapshot.active);
     setClientRole(snapshot.clientRole);
+    setEmail(snapshot.email);
     setSavedAssignment(snapshot);
     setSaveMessage("");
     setPassword("");
@@ -143,6 +149,7 @@ export function UsersPanel({ clients, onRefresh }: Props) {
     storeIds: [...storeIds].sort(),
     active,
     clientRole,
+    email,
   };
   const assignmentDirty = assignmentIsDirty(currentAssignment, savedAssignment);
 
@@ -166,6 +173,7 @@ export function UsersPanel({ clients, onRefresh }: Props) {
           storeIds,
           active,
           clientRole: clientId ? clientRole : null,
+          email: email.trim() || null,
         }),
       });
       const data = (await response.json()) as { error?: string };
@@ -181,6 +189,7 @@ export function UsersPanel({ clients, onRefresh }: Props) {
         setStoreIds(snapshot.storeIds);
         setActive(snapshot.active);
         setClientRole(snapshot.clientRole);
+        setEmail(snapshot.email);
         setSavedAssignment(snapshot);
         await loadClientStores(snapshot.clientId);
       }
@@ -287,6 +296,9 @@ export function UsersPanel({ clients, onRefresh }: Props) {
                     </span>
                   ) : null}
                 </div>
+                {user.email ? (
+                  <p className="truncate text-xs text-muted">{user.email}</p>
+                ) : null}
                 <p className="text-xs text-muted">
                   {t("admin.clientRow", {
                     name: user.client?.name ?? t("common.none"),
@@ -337,6 +349,17 @@ export function UsersPanel({ clients, onRefresh }: Props) {
             <p className="text-sm text-muted">
               {t("admin.userLabel")}: {selectedUser.username}
             </p>
+            <label className="block text-sm">
+              {t("admin.emailLabel")}
+              <input
+                type="email"
+                autoComplete="email"
+                className="mt-1 w-full rounded-xl border border-input-border bg-input px-3 py-2 text-foreground"
+                value={email}
+                placeholder={t("auth.emailOptional")}
+                onChange={(event) => setEmail(event.target.value)}
+              />
+            </label>
             {selectedClient?.homeUser ? (
               <p className="text-sm font-medium text-primary">{t("admin.homeUser")}</p>
             ) : null}

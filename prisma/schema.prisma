@@ -20,6 +20,7 @@ enum ClientRole {
 model User {
   id                  String      @id @default(cuid())
   username            String      @unique
+  email               String?
   passwordHash        String
   role                Role        @default(USER)
   clientRole          ClientRole?
@@ -35,6 +36,7 @@ model User {
   createdAt           DateTime    @default(now())
   updatedAt           DateTime    @updatedAt
 
+  @@unique([email])
   @@index([clientId])
 }
 
@@ -202,8 +204,8 @@ model AuditLog {
 
 model SupportRequest {
   id           String   @id @default(cuid())
-  userId       String
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId       String?
+  user         User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
   clientId     String?
   client       Client?  @relation(fields: [clientId], references: [id], onDelete: SetNull)
   storeId      String?

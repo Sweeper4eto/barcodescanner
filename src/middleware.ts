@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server";
 import { verifySessionToken, COOKIE_NAME } from "@/lib/session-token";
 import { publicUrl } from "@/lib/request-origin";
 
-const publicPaths = ["/", "/login", "/register"];
+const publicPaths = ["/", "/login", "/register", "/contact", "/terms", "/privacy"];
 const passwordChangePath = "/change-password";
 
 export async function middleware(request: NextRequest) {

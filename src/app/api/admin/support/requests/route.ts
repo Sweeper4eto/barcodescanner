@@ -70,7 +70,7 @@ export async function GET(request: Request) {
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
       resolvedAt: row.resolvedAt?.toISOString() ?? null,
-      username: row.user.username,
+      username: row.user?.username ?? "Guest",
       storeName: row.store?.name ?? null,
       clientName: row.client?.name ?? null,
     })),

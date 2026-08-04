@@ -2,7 +2,13 @@ import "dotenv/config";
 import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
 import { PrismaClient } from "@/generated/prisma/client";
 
-const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
+const globalForPrisma = globalThis as unknown as {
+  prisma?: PrismaClient;
+  prismaRev?: string;
+};
+
+/** Bump when the Prisma schema changes so the hot-reload cache does not keep a stale client. */
+const PRISMA_CLIENT_REV = "user-email-v1";
 
 function createClient() {
   const configured = process.env.DATABASE_URL;
@@ -20,14 +26,15 @@ function createClient() {
 }
 
 function getClient(): PrismaClient {
-  const cached = globalForPrisma.prisma;
-  // Recreate after schema changes without a full server restart (dev hot-reload).
-  // Check the newest model added to the schema so this keeps working as models are added.
-  if (cached && "favouriteProduct" in cached) {
-    return cached;
+  if (
+    globalForPrisma.prisma &&
+    globalForPrisma.prismaRev === PRISMA_CLIENT_REV
+  ) {
+    return globalForPrisma.prisma;
   }
   const client = createClient();
   globalForPrisma.prisma = client;
+  globalForPrisma.prismaRev = PRISMA_CLIENT_REV;
   return client;
 }
 

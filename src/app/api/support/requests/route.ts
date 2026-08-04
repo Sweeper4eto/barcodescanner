@@ -10,11 +10,11 @@ const createSchema = z.object({
   storeId: z.string().min(1).optional().nullable(),
   contact: z.string().trim().max(120).optional().nullable(),
   message: z.string().trim().min(8).max(2000),
+  guest: z.boolean().optional(),
 });
 
 export async function POST(request: Request) {
   try {
-    const session = await requireSession({ allowMustChangePassword: true });
     const json = await request.json().catch(() => null);
     const parsed = createSchema.safeParse(json);
     if (!parsed.success) {
@@ -24,6 +24,37 @@ export async function POST(request: Request) {
       );
     }
 
+    const asGuest = parsed.data.guest === true;
+    const contact = parsed.data.contact?.trim() || null;
+
+    if (asGuest) {
+      if (!contact || contact.length < 3) {
+        return NextResponse.json(
+          { error: apiT(request, "support.contactRequired") },
+          { status: 400 },
+        );
+      }
+
+      const row = await db.supportRequest.create({
+        data: {
+          userId: null,
+          clientId: null,
+          storeId: null,
+          topic: parsed.data.topic,
+          contact,
+          message: parsed.data.message.trim(),
+        },
+        select: { id: true, createdAt: true },
+      });
+
+      return NextResponse.json({
+        ok: true,
+        ticketId: row.id,
+        createdAt: row.createdAt.toISOString(),
+      });
+    }
+
+    const session = await requireSession({ allowMustChangePassword: true });
     const user = await db.user.findUnique({
       where: { id: session.userId },
       select: { clientId: true },
@@ -47,7 +78,7 @@ export async function POST(request: Request) {
         clientId: user.clientId ?? null,
         storeId,
         topic: parsed.data.topic,
-        contact: parsed.data.contact?.trim() || null,
+        contact,
         message: parsed.data.message.trim(),
       },
       select: { id: true, createdAt: true },

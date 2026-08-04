@@ -14,6 +14,7 @@ import { apiT } from "@/i18n";
 const bodySchema = z.object({
   username: z.string().min(1),
   password: z.string().min(1),
+  email: z.string().optional(),
   accountType: z.enum(["home", "retail"]).default("home"),
   organizationName: z.string().optional(),
 });
@@ -43,6 +44,7 @@ export async function POST(request: Request) {
   const result = await registerUser(parsed.data.username, parsed.data.password, {
     accountType: parsed.data.accountType,
     organizationName: parsed.data.organizationName,
+    email: parsed.data.email,
   });
   if (!result.ok) {
     recordLoginFailure(ip, `register:${parsed.data.username}`);
