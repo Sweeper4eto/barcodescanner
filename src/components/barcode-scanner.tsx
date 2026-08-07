@@ -540,7 +540,7 @@ export function BarcodeScanner({
       <button
         type="button"
         data-testid="scanner-confirm-barcode"
-        className="w-full rounded-xl bg-primary px-4 py-3 font-medium text-primary-fg disabled:opacity-50"
+        className="w-full rounded-xl bg-primary px-4 py-2 font-medium text-primary-fg disabled:opacity-50"
         disabled={!normalizeBarcode(manual)}
         onClick={() => void confirmManual()}
       >

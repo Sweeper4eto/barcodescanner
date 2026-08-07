@@ -1,7 +1,8 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
-import { AdminField, adminInputClass, adminPaginationClass, adminSearchInputClass } from "@/components/admin/admin-ui";
+import { AdminField, adminPaginationClass, adminSearchInputClass } from "@/components/admin/admin-ui";
+import { MenuSelect } from "@/components/menu-select";
 import { SearchField } from "@/components/search-field";
 import { useT } from "@/components/i18n-provider";
 import type { MessageKey } from "@/i18n";
@@ -154,36 +155,35 @@ export function AuditLogPanel() {
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <AdminField label={t("admin.eventType")}>
-          <select
-            className={adminInputClass}
+          <MenuSelect
+            label={t("admin.eventType")}
             value={filter}
-            onChange={(event) => {
-              setFilter(event.target.value as AuditFilter);
+            options={[
+              { value: "all", label: t("admin.auditFilters.all") },
+              { value: "auth", label: t("admin.auditFilters.auth") },
+              { value: "inventory", label: t("admin.auditFilters.inventory") },
+              { value: "products", label: t("admin.auditFilters.products") },
+              { value: "admin", label: t("admin.auditFilters.admin") },
+            ]}
+            onChange={(next) => {
+              setFilter(next);
               setPage(1);
             }}
-          >
-            <option value="all">{t("admin.auditFilters.all")}</option>
-            <option value="auth">{t("admin.auditFilters.auth")}</option>
-            <option value="inventory">{t("admin.auditFilters.inventory")}</option>
-            <option value="products">{t("admin.auditFilters.products")}</option>
-            <option value="admin">{t("admin.auditFilters.admin")}</option>
-          </select>
+          />
         </AdminField>
         <AdminField label={t("admin.perPage")}>
-          <select
-            className={adminInputClass}
-            value={pageSize}
-            onChange={(event) => {
-              setPageSize(Number(event.target.value));
+          <MenuSelect
+            label={t("admin.perPage")}
+            value={String(pageSize)}
+            options={PAGE_SIZES.map((size) => ({
+              value: String(size),
+              label: String(size),
+            }))}
+            onChange={(next) => {
+              setPageSize(Number(next));
               setPage(1);
             }}
-          >
-            {PAGE_SIZES.map((size) => (
-              <option key={size} value={size}>
-                {size}
-              </option>
-            ))}
-          </select>
+          />
         </AdminField>
         <AdminField label={t("admin.dateFrom")}>
           <input
@@ -241,21 +241,21 @@ export function AuditLogPanel() {
         />
         <button
           type="submit"
-          className="rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-fg"
+          className="rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-fg"
         >
           {t("common.search")}
         </button>
         <button
           type="button"
           onClick={() => void clearFilters()}
-          className="rounded-xl border border-input-border px-4 py-2.5 text-sm font-medium"
+          className="rounded-xl border border-input-border px-4 py-2 text-sm font-medium"
         >
           {t("admin.clearFilters")}
         </button>
         <button
           type="button"
           onClick={() => void loadAuditLog()}
-          className="rounded-xl border border-input-border px-4 py-2.5 text-sm font-medium"
+          className="rounded-xl border border-input-border px-4 py-2 text-sm font-medium"
         >
           {t("admin.refresh")}
         </button>

@@ -18,7 +18,7 @@ type Tab = {
   label: string;
   icon: ComponentType<{ className?: string }>;
   match: (pathname: string) => boolean;
-  emphasize?: boolean;
+  badge?: number;
 };
 
 export function AppBottomNav() {
@@ -26,6 +26,7 @@ export function AppBottomNav() {
   const { t } = useT();
   const [storeId, setStoreId] = useState("");
   const [homeUser, setHomeUser] = useState<boolean | null>(null);
+  const [cartCount, setCartCount] = useState(0);
 
   useEffect(() => {
     function syncStoreId() {
@@ -54,6 +55,31 @@ export function AppBottomNav() {
     };
   }, []);
 
+  useEffect(() => {
+    if (homeUser !== true || !storeId) {
+      setCartCount(0);
+      return;
+    }
+
+    let cancelled = false;
+    async function loadCartCount() {
+      try {
+        const response = await fetch(
+          `/api/buy-list?storeId=${encodeURIComponent(storeId)}&limit=1`,
+        );
+        if (!response.ok) return;
+        const data = (await response.json()) as { total?: number };
+        if (!cancelled) setCartCount(Math.max(0, Number(data.total) || 0));
+      } catch {
+        if (!cancelled) setCartCount(0);
+      }
+    }
+    void loadCartCount();
+    return () => {
+      cancelled = true;
+    };
+  }, [homeUser, storeId, pathname]);
+
   const query = storeId ? `?storeId=${encodeURIComponent(storeId)}` : "";
   const disabled = !storeId;
 
@@ -70,7 +96,6 @@ export function AppBottomNav() {
       href: `/app/scan${query}`,
       label: t("app.navAdd"),
       icon: AddNavIcon,
-      emphasize: true,
       match: (path) =>
         path.startsWith("/app/scan") || path.startsWith("/app/add-product"),
     },
@@ -82,9 +107,9 @@ export function AppBottomNav() {
       href: `/app/orders${query}`,
       label: t("app.navOrders"),
       icon: OrdersNavIcon,
-      emphasize: true,
       match: (path) =>
         path.startsWith("/app/orders") || path.startsWith("/app/buy-list"),
+      badge: cartCount > 0 ? cartCount : undefined,
     });
   } else if (homeUser === false) {
     tabs.push({
@@ -92,7 +117,6 @@ export function AppBottomNav() {
       href: `/app/add-document${query}`,
       label: t("app.navDocument"),
       icon: DocumentNavIcon,
-      emphasize: true,
       match: (path) => path.startsWith("/app/add-document"),
     });
   }
@@ -102,14 +126,14 @@ export function AppBottomNav() {
   return (
     <nav
       aria-label={t("app.bottomNav")}
-      className="fixed inset-x-0 bottom-0 z-40 border-t-2 border-[color:var(--nav-border)] bg-card/95 shadow-[0_-8px_24px_rgba(0,0,0,0.35)] backdrop-blur-sm supports-[backdrop-filter]:bg-card/90"
+      className="fixed inset-x-0 bottom-0 z-40 border-t border-card-border bg-background/95 backdrop-blur-sm supports-[backdrop-filter]:bg-background/90"
     >
       <div
-        className={`mx-auto grid min-h-[var(--app-bottom-nav-height)] min-w-0 max-w-lg ${gridCols} px-1 pb-[calc(env(safe-area-inset-bottom,0px)+0.375rem)]`}
+        className={`mx-auto grid min-h-[var(--app-bottom-nav-height)] min-w-0 max-w-lg ${gridCols} px-2 pb-[calc(env(safe-area-inset-bottom,0px)+0.35rem)] pt-1`}
       >
         {tabs.map((tab) => {
           const active = tab.match(pathname);
-          const className = `flex min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg px-1 py-1 text-[10px] font-medium leading-none transition-colors ${
+          const className = `relative flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-1 py-1 text-[11px] font-medium leading-none transition-colors ${
             disabled
               ? "pointer-events-none opacity-40"
               : active
@@ -119,7 +143,14 @@ export function AppBottomNav() {
 
           const content = (
             <>
-              <tab.icon className="h-5 w-5" />
+              <span className="relative inline-flex">
+                <tab.icon className="h-5 w-5" />
+                {tab.badge != null ? (
+                  <span className="absolute -right-2.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[9px] font-bold leading-none text-primary-fg">
+                    {tab.badge > 99 ? "99+" : tab.badge}
+                  </span>
+                ) : null}
+              </span>
               <span className="max-w-full truncate">{tab.label}</span>
             </>
           );

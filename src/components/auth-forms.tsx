@@ -393,7 +393,7 @@ export function PrimaryButton({
       type={type}
       disabled={disabled}
       onClick={onClick}
-      className={`w-full rounded-xl bg-primary px-3 py-3 text-base font-semibold text-primary-fg disabled:opacity-50 ${className}`.trim()}
+      className={`w-full rounded-xl bg-primary px-3 py-2 text-base font-semibold text-primary-fg disabled:opacity-50 ${className}`.trim()}
     >
       {children}
     </button>
@@ -416,7 +416,7 @@ export function SecondaryButton({
       type={type}
       onClick={onClick}
       disabled={disabled}
-      className="w-full rounded-xl border border-input-border bg-card px-3 py-2 text-base font-medium text-foreground disabled:opacity-40"
+      className="w-full rounded-xl border border-input-border bg-card px-3 py-[0.45rem] text-base font-medium text-foreground disabled:opacity-40"
     >
       {children}
     </button>
@@ -744,7 +744,7 @@ export function RegisterForm() {
         </Link>
         .
       </p>
-      <PrimaryButton type="submit" disabled={loading} className="!py-2.5 text-[0.95rem]">
+      <PrimaryButton type="submit" disabled={loading} className="text-[0.95rem]">
         <span className="inline-flex items-center justify-center gap-1.5">
           <UserPlusIcon className="size-4" />
           {loading ? t("auth.registering") : t("auth.register")}

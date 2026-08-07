@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { MobilePageHeader, appPageClassName } from "@/components/mobile-page-header";
 import { PushNotifications } from "@/components/push-notifications";
 import { useT } from "@/components/i18n-provider";
@@ -11,34 +11,114 @@ import { getStoredStoreId, setStoredStoreId } from "@/lib/store-selection";
 
 type Store = { id: string; name: string; active: boolean };
 
+function ChevronIcon({ className = "size-4" }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <path d="M9 6l6 6-6 6" />
+    </svg>
+  );
+}
+
+function LogoutIcon({ className = "size-4" }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <path d="M10 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h4" />
+      <path d="M15 16l4-4-4-4" />
+      <path d="M19 12H10" />
+    </svg>
+  );
+}
+
+function HeadsetIcon({ className = "size-7" }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <path d="M4 13v-1a8 8 0 0 1 16 0v1" />
+      <path d="M4 13v3a2 2 0 0 0 2 2h1v-5H6a2 2 0 0 0-2 2Z" />
+      <path d="M20 13v3a2 2 0 0 1-2 2h-1v-5h1a2 2 0 0 1 2 2Z" />
+      <path d="M15 19h-2a1 1 0 0 0-1 1v0a1 1 0 0 0 1 1h1" />
+    </svg>
+  );
+}
+
+function TeamIcon({ className = "size-7" }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <circle cx="9" cy="8" r="3" />
+      <circle cx="17" cy="9" r="2.5" />
+      <path d="M3.5 19a5.5 5.5 0 0 1 11 0" />
+      <path d="M14 19a4.5 4.5 0 0 1 6.5-4" />
+    </svg>
+  );
+}
+
 function HomeLinkCard({
   href,
   title,
   hint,
+  icon,
 }: {
   href: string;
   title: string;
   hint: string;
+  icon: ReactNode;
 }) {
   return (
     <Link
       href={href}
-      className="mb-3 flex items-center gap-3 rounded-xl border border-card-border bg-card px-4 py-3.5 transition-colors hover:border-primary/40"
+      className="mb-3 flex items-center gap-3 rounded-2xl border border-card-border bg-card px-4 py-3.5 transition-colors hover:border-primary/40"
     >
       <span
         aria-hidden
-        className="flex size-10 shrink-0 items-center justify-center rounded-full border border-primary/50 bg-selected text-primary"
+        className="flex size-11 shrink-0 items-center justify-center rounded-full border border-primary/45 text-primary"
       >
-        <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="1.8">
-          <path d="M4 12h12M12 6l6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
+        {icon}
       </span>
-      <span className="min-w-0 flex-1">
-        <span className="block text-sm font-semibold text-foreground">{title}</span>
-        <span className="mt-0.5 block text-xs font-normal text-muted">{hint}</span>
+      <span className="min-w-0 flex-1 text-left">
+        <span className="block text-[0.95rem] font-semibold leading-snug text-foreground">
+          {title}
+        </span>
+        <span className="mt-0.5 block text-xs font-normal leading-snug text-muted">
+          {hint}
+        </span>
       </span>
-      <span aria-hidden className="text-lg text-primary">
-        ›
+      <span aria-hidden className="shrink-0 text-primary">
+        <ChevronIcon />
       </span>
     </Link>
   );
@@ -92,10 +172,10 @@ export default function AppHomePage() {
 
   return (
     <div className={appPageClassName}>
-      <MobilePageHeader className="mb-2" />
+      <MobilePageHeader className="mb-1" />
 
-      <div className="mb-6 flex items-start justify-between gap-3">
-        <h1 className="min-w-0 flex-1 text-2xl font-semibold leading-tight text-foreground">
+      <div className="mb-6 flex items-center justify-between gap-3">
+        <h1 className="min-w-0 flex-1 text-[1.65rem] font-semibold leading-tight tracking-tight text-foreground">
           {bootstrapped ? (
             <>
               {greetingBefore}
@@ -107,16 +187,17 @@ export default function AppHomePage() {
         <button
           type="button"
           onClick={() => void logout()}
-          className="shrink-0 rounded-lg border border-primary/50 bg-selected px-3 py-2 text-xs font-semibold text-primary"
+          className="inline-flex shrink-0 items-center gap-1.5 text-sm font-medium text-primary transition-opacity hover:opacity-80"
         >
-          {t("common.logout")}
+          <LogoutIcon />
+          <span>{t("common.logout")}</span>
         </button>
       </div>
 
       {!bootstrapped ? (
         <p className="text-sm text-muted">{t("expiry.loading")}</p>
       ) : stores.length === 0 ? (
-        <p className="rounded-xl bg-warning-bg p-4 text-sm text-warning-fg">
+        <p className="mb-3 rounded-2xl bg-warning-bg p-4 text-sm text-warning-fg">
           {t("app.noStores")}
         </p>
       ) : null}
@@ -126,6 +207,7 @@ export default function AppHomePage() {
           href="/app/team"
           title={t("app.team")}
           hint={t("app.teamHint")}
+          icon={<TeamIcon />}
         />
       ) : null}
 
@@ -133,6 +215,7 @@ export default function AppHomePage() {
         href="/app/contact"
         title={t("app.contact")}
         hint={t("app.contactHint")}
+        icon={<HeadsetIcon />}
       />
 
       <PushNotifications />

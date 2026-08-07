@@ -27,28 +27,29 @@ export function MobilePageHeader({
 
   return (
     <div className={`${base} ${className}`.trim()}>
-      <div className="flex items-start justify-between gap-2 overflow-visible sm:gap-3">
-        <div className="min-w-0 flex-1 overflow-visible">
-          <div className="inline-flex shrink-0 overflow-visible">
-            <AppHeaderLogo size={36} />
-          </div>
-          {title ? (
-            <div className="mt-2 flex items-start justify-between gap-2">
-              <h1 className="min-w-0 flex-1 break-words text-2xl font-semibold text-foreground">
-                {title}
-              </h1>
-              {action ? (
-                <div className="flex shrink-0 items-center gap-2">{action}</div>
-              ) : null}
-            </div>
-          ) : action ? (
-            <div className="mt-2 flex justify-end">{action}</div>
-          ) : null}
+      <div className="flex h-11 items-center justify-between gap-2 overflow-visible sm:gap-3">
+        <div className="min-w-0 shrink overflow-visible">
+          <AppHeaderLogo />
         </div>
-        <div className="max-w-[min(100%,11.5rem)] shrink-0 overflow-visible sm:max-w-none">
+        <div className="flex h-11 max-w-[min(100%,16rem)] shrink-0 items-center overflow-visible sm:max-w-none">
           <AppTopActions />
         </div>
       </div>
+
+      {title || action ? (
+        <div className="mt-2 flex items-start justify-between gap-2">
+          {title ? (
+            <h1 className="min-w-0 flex-1 break-words text-2xl font-semibold text-foreground">
+              {title}
+            </h1>
+          ) : (
+            <span className="min-w-0 flex-1" />
+          )}
+          {action ? (
+            <div className="flex shrink-0 items-center gap-2">{action}</div>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -24,7 +24,7 @@ export default function AppError({
       <div className="flex w-full flex-col gap-2 sm:flex-row sm:justify-center">
         <button
           type="button"
-          className="rounded-xl bg-primary px-4 py-3 font-medium text-primary-fg"
+          className="rounded-xl bg-primary px-4 py-2 font-medium text-primary-fg"
           onClick={() => reset()}
         >
           {t("errors.reload")}

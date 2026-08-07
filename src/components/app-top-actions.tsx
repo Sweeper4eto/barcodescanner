@@ -2,10 +2,29 @@
 
 import { useEffect, useState } from "react";
 import { LanguageSwitch } from "@/components/language-switch";
+import { MenuSelect } from "@/components/menu-select";
 import { useT } from "@/components/i18n-provider";
 import { getStoredStoreId, setStoredStoreId } from "@/lib/store-selection";
 
 type Store = { id: string; name: string; active: boolean };
+
+function StoreIcon({ className = "size-3.5" }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <path d="M4 10h16l-1.2 9.2A2 2 0 0 1 16.81 21H7.19a2 2 0 0 1-1.99-1.8L4 10Z" />
+      <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+    </svg>
+  );
+}
 
 export function AppTopActions() {
   const { t } = useT();
@@ -21,7 +40,9 @@ export function AppTopActions() {
       if (cancelled) return;
       if (!data.user) return;
 
-      const list: Store[] = (data.user.stores ?? []).filter((store: Store) => store.active);
+      const list: Store[] = (data.user.stores ?? []).filter(
+        (store: Store) => store.active,
+      );
       setStores(list);
       const stored = getStoredStoreId();
       const valid = list.find((store) => store.id === stored);
@@ -50,46 +71,26 @@ export function AppTopActions() {
     window.location.reload();
   }
 
-  const selectedStore = stores.find((store) => store.id === storeId);
-
   return (
-    <div className="inline-flex shrink-0 flex-col items-stretch gap-1.5">
-      <div className="flex items-center justify-end gap-1.5">
-        <LanguageSwitch />
-      </div>
+    <div className="inline-flex min-w-0 max-w-full shrink items-center justify-end gap-1.5">
       {stores.length >= 1 ? (
-        <div className="w-0 min-w-full">
-          <label className="sr-only" htmlFor="app-store-select">
-            {t("app.selectStore")}
-          </label>
-          <div className="relative w-full min-w-0">
-            <select
-              id="app-store-select"
-              className="absolute inset-0 z-10 w-full cursor-pointer opacity-0"
-              value={storeId}
-              onChange={(event) => onStoreChange(event.target.value)}
-              disabled={stores.length < 2}
-            >
-              {stores.map((store) => (
-                <option key={store.id} value={store.id}>
-                  {store.name}
-                </option>
-              ))}
-            </select>
-            <div
-              aria-hidden
-              className="pointer-events-none flex w-full items-center gap-1 rounded-lg border border-input-border bg-input px-2 py-1.5 pr-1 text-xs text-foreground"
-            >
-              <span className="min-w-0 flex-1 truncate">
-                {selectedStore?.name ?? t("app.selectStore")}
-              </span>
-              {stores.length > 1 ? (
-                <span className="shrink-0 text-[0.6rem] text-muted">▼</span>
-              ) : null}
-            </div>
-          </div>
-        </div>
+        <MenuSelect
+          size="compact"
+          menuAlign="end"
+          className="min-w-0 max-w-[11.5rem] flex-1"
+          label={t("app.selectStore")}
+          value={storeId}
+          options={stores.map((store) => ({
+            value: store.id,
+            label: store.name,
+          }))}
+          onChange={onStoreChange}
+          disabled={stores.length < 2}
+          leadingIcon={<StoreIcon />}
+          placeholder={t("app.selectStore")}
+        />
       ) : null}
+      <LanguageSwitch />
     </div>
   );
 }

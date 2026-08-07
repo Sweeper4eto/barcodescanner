@@ -26,6 +26,7 @@ export async function GET(request: Request) {
     select: {
       id: true,
       username: true,
+      email: true,
       active: true,
       clientRole: true,
       storeLinks: {
@@ -46,6 +47,7 @@ export async function GET(request: Request) {
     users: users.map((user) => ({
       id: user.id,
       username: user.username,
+      email: user.email,
       active: user.active,
       clientRole: user.clientRole,
       stores: user.storeLinks.map((link) => link.store),
@@ -147,6 +149,9 @@ export async function POST(request: Request) {
 
 const patchSchema = z.object({
   userId: z.string().min(1),
+  username: z.string().min(1).optional(),
+  password: z.string().min(1).optional(),
+  confirmPassword: z.string().optional(),
   active: z.boolean().optional(),
   storeIds: z.array(z.string().min(1)).optional(),
   clientRole: z.enum(["OWNER", "MEMBER"]).optional(),
@@ -171,7 +176,7 @@ export async function PATCH(request: Request) {
       clientId: owner.clientId,
       role: "USER",
     },
-    select: { id: true, clientRole: true },
+    select: { id: true, clientRole: true, username: true },
   });
   if (!target) {
     return NextResponse.json(
@@ -209,6 +214,49 @@ export async function PATCH(request: Request) {
     );
   }
 
+  let nextUsername: string | undefined;
+  if (parsed.data.username !== undefined) {
+    nextUsername = parsed.data.username.trim().toLowerCase();
+    if (nextUsername.length < 3) {
+      return NextResponse.json(
+        { error: apiT(request, "auth.usernameTooShort") },
+        { status: 400 },
+      );
+    }
+    if (nextUsername !== target.username) {
+      const taken = await db.user.findUnique({ where: { username: nextUsername } });
+      if (taken) {
+        return NextResponse.json(
+          { error: apiT(request, "auth.usernameTaken") },
+          { status: 400 },
+        );
+      }
+    }
+  }
+
+  let nextPasswordHash: string | undefined;
+  if (parsed.data.password !== undefined && parsed.data.password.length > 0) {
+    if (parsed.data.password.length < 6) {
+      return NextResponse.json(
+        { error: apiT(request, "auth.passwordTooShort") },
+        { status: 400 },
+      );
+    }
+    if (parsed.data.password.length > 72) {
+      return NextResponse.json(
+        { error: apiT(request, "auth.passwordTooLong") },
+        { status: 400 },
+      );
+    }
+    if (parsed.data.password !== (parsed.data.confirmPassword ?? "")) {
+      return NextResponse.json(
+        { error: apiT(request, "auth.passwordMismatch") },
+        { status: 400 },
+      );
+    }
+    nextPasswordHash = await hashPassword(parsed.data.password);
+  }
+
   if (parsed.data.storeIds) {
     const clientStores = await db.store.findMany({
       where: { clientId: owner.clientId },
@@ -226,9 +274,17 @@ export async function PATCH(request: Request) {
   }
 
   const updateData: {
+    username?: string;
+    passwordHash?: string;
+    mustChangePassword?: boolean;
     active?: boolean;
     clientRole?: "OWNER" | "MEMBER";
   } = {};
+  if (nextUsername !== undefined) updateData.username = nextUsername;
+  if (nextPasswordHash !== undefined) {
+    updateData.passwordHash = nextPasswordHash;
+    updateData.mustChangePassword = true;
+  }
   if (parsed.data.active !== undefined) updateData.active = parsed.data.active;
   if (parsed.data.clientRole !== undefined) updateData.clientRole = parsed.data.clientRole;
 
@@ -244,6 +300,7 @@ export async function PATCH(request: Request) {
     select: {
       id: true,
       username: true,
+      email: true,
       active: true,
       clientRole: true,
       storeLinks: {
@@ -256,9 +313,63 @@ export async function PATCH(request: Request) {
     user: {
       id: updated.id,
       username: updated.username,
+      email: updated.email,
       active: updated.active,
       clientRole: updated.clientRole,
       stores: updated.storeLinks.map((link) => link.store),
     },
   });
+}
+
+const deleteSchema = z.object({
+  userId: z.string().min(1),
+});
+
+export async function DELETE(request: Request) {
+  const owner = await ownerOrForbidden(request);
+  if (owner instanceof NextResponse) return owner;
+
+  const json = await request.json().catch(() => null);
+  const parsed = deleteSchema.safeParse(json);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: apiT(request, "errors.invalidData") },
+      { status: 400 },
+    );
+  }
+
+  const target = await db.user.findFirst({
+    where: {
+      id: parsed.data.userId,
+      clientId: owner.clientId,
+      role: "USER",
+    },
+    select: { id: true, clientRole: true },
+  });
+  if (!target) {
+    return NextResponse.json(
+      { error: apiT(request, "errors.userNotFound") },
+      { status: 404 },
+    );
+  }
+
+  if (target.id === owner.userId) {
+    return NextResponse.json(
+      { error: apiT(request, "errors.cannotDeleteSelf") },
+      { status: 400 },
+    );
+  }
+
+  if (
+    target.clientRole === "OWNER" &&
+    (await isOnlyClientOwner(target.id, owner.clientId))
+  ) {
+    return NextResponse.json(
+      { error: apiT(request, "errors.cannotDeleteLastOwner") },
+      { status: 400 },
+    );
+  }
+
+  await db.user.delete({ where: { id: target.id } });
+  return NextResponse.json({ ok: true });
 }

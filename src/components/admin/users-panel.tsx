@@ -8,6 +8,7 @@ import {
   adminSearchInputClass,
 } from "@/components/admin/admin-ui";
 import { PrimaryButton } from "@/components/auth-forms";
+import { MenuSelect } from "@/components/menu-select";
 import { SearchField } from "@/components/search-field";
 import { useT } from "@/components/i18n-provider";
 import type { Client } from "@/components/admin/clients-panel";
@@ -363,21 +364,21 @@ export function UsersPanel({ clients, onRefresh }: Props) {
             {selectedClient?.homeUser ? (
               <p className="text-sm font-medium text-primary">{t("admin.homeUser")}</p>
             ) : null}
-            <label className="block text-sm">
-              {t("admin.clientLabel")}
-              <select
-                className="mt-1 w-full rounded-xl border border-input-border bg-input px-3 py-2 text-foreground"
+            <div>
+              <p className="text-sm font-medium">{t("admin.clientLabel")}</p>
+              <MenuSelect
+                label={t("admin.clientLabel")}
                 value={clientId}
-                onChange={(event) => void onClientChange(event.target.value)}
-              >
-                <option value="">{t("admin.noClient")}</option>
-                {clients.map((client) => (
-                  <option key={client.id} value={client.id}>
-                    {client.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+                options={[
+                  { value: "", label: t("admin.noClient") },
+                  ...clients.map((client) => ({
+                    value: client.id,
+                    label: client.name,
+                  })),
+                ]}
+                onChange={(next) => void onClientChange(next)}
+              />
+            </div>
             <div>
               <p className="text-sm font-medium">{t("admin.storesLabel")}</p>
               <div className="mt-2 space-y-1">

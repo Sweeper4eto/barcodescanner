@@ -8,6 +8,7 @@ import {
   useState,
 } from "react";
 import { useT } from "@/components/i18n-provider";
+import { MenuSelect } from "@/components/menu-select";
 import {
   formatYmdAsDmy,
   parseFlexibleExpiryInput,
@@ -240,41 +241,34 @@ export const ExpiryDatePicker = forwardRef<ExpiryDatePickerHandle, Props>(
           ) : null}
         </label>
 
-        <div className="rounded-xl border border-input-border bg-input p-2">
+        <div className="rounded-xl border border-input-border bg-transparent p-2">
           <div className="mb-2 grid grid-cols-2 gap-2">
             <label className="block text-xs text-muted">
               {t("expiry.monthLabel")}
-              <select
-                className="mt-0.5 w-full rounded-lg border border-input-border bg-card px-2 py-1.5 text-sm text-foreground"
-                value={viewMonth}
-                onChange={(event) =>
-                  onMonthChange(Number(event.target.value))
-                }
-              >
-                {monthOptions.map((month) => (
-                  <option
-                    key={month}
-                    value={month}
-                    disabled={!monthIsSelectable(viewYear, month)}
-                  >
-                    {`${monthName(month + 1)} / ${String(month + 1).padStart(2, "0")}`}
-                  </option>
-                ))}
-              </select>
+              <MenuSelect
+                label={t("expiry.monthLabel")}
+                value={String(viewMonth)}
+                options={monthOptions.map((month) => ({
+                  value: String(month),
+                  label: `${monthName(month + 1)} / ${String(month + 1).padStart(2, "0")}`,
+                  disabled: !monthIsSelectable(viewYear, month),
+                }))}
+                onChange={(next) => onMonthChange(Number(next))}
+                buttonClassName="mt-0.5 flex w-full min-w-0 items-center justify-between gap-2 rounded-lg border border-input-border bg-transparent px-2 py-1.5 text-left text-sm text-foreground"
+              />
             </label>
             <label className="block text-xs text-muted">
               {t("expiry.yearLabel")}
-              <select
-                className="mt-0.5 w-full rounded-lg border border-input-border bg-card px-2 py-1.5 text-sm text-foreground"
-                value={viewYear}
-                onChange={(event) => onYearChange(Number(event.target.value))}
-              >
-                {years.map((year) => (
-                  <option key={year} value={year}>
-                    {year}
-                  </option>
-                ))}
-              </select>
+              <MenuSelect
+                label={t("expiry.yearLabel")}
+                value={String(viewYear)}
+                options={years.map((year) => ({
+                  value: String(year),
+                  label: String(year),
+                }))}
+                onChange={(next) => onYearChange(Number(next))}
+                buttonClassName="mt-0.5 flex w-full min-w-0 items-center justify-between gap-2 rounded-lg border border-input-border bg-transparent px-2 py-1.5 text-left text-sm text-foreground"
+              />
             </label>
           </div>
 

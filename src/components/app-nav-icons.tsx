@@ -6,11 +6,12 @@ export function ExpiryNavIcon({ className = "h-6 w-6" }: { className?: string })
       fill="none"
       stroke="currentColor"
       strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
       className={className}
     >
-      <rect x="3" y="4" width="18" height="18" rx="2" />
-      <path d="M16 2v4M8 2v4M3 10h18" />
-      <circle cx="12" cy="15" r="2.5" fill="currentColor" stroke="none" />
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3 2" />
     </svg>
   );
 }

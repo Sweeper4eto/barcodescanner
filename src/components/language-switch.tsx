@@ -90,7 +90,7 @@ export function LanguageSwitch() {
     <div ref={rootRef} className="relative z-[60] shrink-0">
       <button
         type="button"
-        className="flex items-center gap-1.5 rounded-lg border border-input-border bg-card px-2 py-1.5 pr-1.5 text-xs text-foreground"
+        className="flex h-8 items-center gap-1.5 rounded-lg border border-input-border bg-card px-2 pr-1.5 text-xs text-foreground"
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={listId}

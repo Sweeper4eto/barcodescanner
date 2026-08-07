@@ -22,6 +22,25 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
   return Uint8Array.from(raw, (char) => char.charCodeAt(0));
 }
 
+function BellIcon({ className = "size-7" }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <path d="M7 9a5 5 0 0 1 10 0c0 4 1.5 5.5 1.5 5.5H5.5S7 13 7 9Z" />
+      <path d="M10 19a2 2 0 0 0 4 0" />
+      <circle cx="17.5" cy="6.5" r="2.25" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
 export function PushNotifications() {
   const { t, locale } = useT();
   const [state, setState] = useState<PushState>("loading");
@@ -113,7 +132,7 @@ export function PushNotifications() {
       }
 
       const json = subscription.toJSON();
-      if (!json.endpoint || !json.keys?.p256dh || !json.keys.auth) {
+      if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) {
         throw new Error("Invalid subscription");
       }
 
@@ -164,23 +183,57 @@ export function PushNotifications() {
     }
   }
 
-  if (state === "loading") return null;
-  if (state === "unsupported" || state === "unconfigured") return null;
+  if (state === "loading") {
+    return (
+      <section className="mb-3 flex items-center gap-3 rounded-2xl border border-card-border bg-card px-4 py-3.5 opacity-60">
+        <span
+          aria-hidden
+          className="flex size-11 shrink-0 items-center justify-center rounded-full border border-primary/45 text-primary"
+        >
+          <BellIcon />
+        </span>
+        <div className="min-w-0 flex-1">
+          <h2 className="text-[0.95rem] font-semibold text-foreground">
+            {t("push.title")}
+          </h2>
+          <p className="mt-0.5 text-xs leading-snug text-muted">
+            {t("push.description")}
+          </p>
+        </div>
+        <span
+          aria-hidden
+          className="relative h-7 w-12 shrink-0 rounded-full border border-card-border bg-subtle"
+        >
+          <span className="absolute left-0.5 top-0.5 size-6 rounded-full bg-white" />
+        </span>
+      </section>
+    );
+  }
+
+  if (state === "unsupported") return null;
+
+  const canToggle =
+    state === "default" || state === "enabled" || state === "loading";
+  const showToggle =
+    state !== "iosNeedsInstall" &&
+    state !== "denied" &&
+    state !== "unconfigured";
 
   return (
-    <section className="mb-3 flex items-center gap-3 rounded-xl border border-card-border bg-card px-4 py-3.5">
+    <section className="mb-3 flex items-center gap-3 rounded-2xl border border-card-border bg-card px-4 py-3.5">
       <span
         aria-hidden
-        className="flex size-10 shrink-0 items-center justify-center rounded-full border border-primary/50 bg-selected text-primary"
+        className="flex size-11 shrink-0 items-center justify-center rounded-full border border-primary/45 text-primary"
       >
-        <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="1.8">
-          <path d="M15 17H9a4 4 0 0 1-4-4V9a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v4a4 4 0 0 1-4 4Z" />
-          <path d="M9 21h6" strokeLinecap="round" />
-        </svg>
+        <BellIcon />
       </span>
       <div className="min-w-0 flex-1">
-        <h2 className="text-sm font-semibold text-foreground">{t("push.title")}</h2>
-        <p className="mt-0.5 text-xs text-muted">{t("push.description")}</p>
+        <h2 className="text-[0.95rem] font-semibold leading-snug text-foreground">
+          {t("push.title")}
+        </h2>
+        <p className="mt-0.5 text-xs font-normal leading-snug text-muted">
+          {t("push.description")}
+        </p>
 
         {state === "iosNeedsInstall" ? (
           <p className="mt-2 rounded-lg border border-card-border bg-subtle px-2.5 py-1.5 text-xs text-foreground">
@@ -192,30 +245,39 @@ export function PushNotifications() {
           <p className="mt-2 text-xs text-warning-fg">{t("push.denied")}</p>
         ) : null}
 
+        {state === "unconfigured" ? (
+          <p className="mt-2 text-xs text-warning-fg">
+            {t("errors.pushNotConfigured")}
+          </p>
+        ) : null}
+
         {error ? <p className="mt-2 text-xs text-danger">{error}</p> : null}
       </div>
 
-      {state === "iosNeedsInstall" || state === "denied" ? null : (
+      {showToggle ? (
         <button
           type="button"
           role="switch"
           aria-checked={state === "enabled"}
           aria-label={state === "enabled" ? t("push.disable") : t("push.enable")}
+          disabled={!canToggle}
           onClick={() =>
             void (state === "enabled" ? disableNotifications() : enableNotifications())
           }
           className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${
-            state === "enabled" ? "bg-primary" : "bg-subtle border border-card-border"
+            state === "enabled"
+              ? "bg-primary"
+              : "border border-card-border bg-subtle"
           }`}
         >
           <span
             aria-hidden
-            className={`absolute top-0.5 size-6 rounded-full bg-white transition-transform ${
+            className={`absolute top-0.5 size-6 rounded-full bg-white shadow-sm transition-transform ${
               state === "enabled" ? "left-5" : "left-0.5"
             }`}
           />
         </button>
-      )}
+      ) : null}
     </section>
   );
 }
