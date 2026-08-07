@@ -1,4 +1,4 @@
-const CACHE_NAME = "expire365-v16";
+const CACHE_NAME = "expire365-v17";
 const OFFLINE_FALLBACKS = ["/app", "/login", "/"];
 const PUSH_ICON = "/icons/icon-192.png?v=9";
 const PUSH_BADGE = "/icons/icon-192.png?v=9";
@@ -31,6 +31,9 @@ self.addEventListener("fetch", (event) => {
   if (url.pathname.startsWith("/uploads/")) return;
   if (url.pathname.startsWith("/icons/")) return;
   if (url.pathname === "/favicon.ico") return;
+  // Never cache Next build/runtime assets — stale chunks cause blank pages
+  // and hydration mismatches after deploys or when the server was briefly down.
+  if (url.pathname.startsWith("/_next/")) return;
 
   const isDocument =
     request.mode === "navigate" ||

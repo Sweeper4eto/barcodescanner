@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { PrimaryButton, SecondaryButton } from "@/components/auth-forms";
 import { BarcodeScanner } from "@/components/barcode-scanner";
 import { CameraCapture, uploadImage } from "@/components/camera-capture";
@@ -203,13 +203,26 @@ export function ScanFlow() {
   const displayBarcode = normalizeBarcode(barcode) || product?.barcode || "";
   const showBarcode = displayBarcode && !isAdhocBarcode(displayBarcode);
   const previewImage = entryImagePath || product?.imagePath || null;
+  const headerTitle =
+    step === "missing" ? t("scan.resultTitle") : t("scan.title");
+
+  function skipMissingItem() {
+    setMessage("");
+    setProduct(null);
+    setBarcode("");
+    navigateApp(
+      storeId
+        ? `/app/scan?storeId=${encodeURIComponent(storeId)}`
+        : "/app/scan",
+    );
+  }
 
   return (
     <div className="mx-auto min-w-0 max-w-lg overflow-x-visible px-4 pb-6 pt-1">
       {mounted ? (
         <span data-testid="scan-flow-ready" className="sr-only" aria-hidden />
       ) : null}
-      <MobilePageHeader title={t("scan.title")} />
+      <MobilePageHeader title={headerTitle} />
 
       {step === "scan" ? (
         <div className="rounded-2xl border border-card-border p-4">
@@ -233,23 +246,46 @@ export function ScanFlow() {
       ) : null}
 
       {step === "missing" ? (
-        <div className="space-y-4 rounded-2xl border border-card-border p-4">
-          <p>{t("scan.productMissing")}</p>
+        <div className="flex flex-col items-center text-center">
+          <p className="-mt-1 mb-6 w-full text-left text-sm text-muted">
+            {t("scan.stepOf", { current: 1, total: 1 })}
+          </p>
+
+          <ScanNotFoundIllustration className="mb-5 size-28 text-primary" />
+
+          <h2 className="text-xl font-semibold text-foreground">
+            {t("scan.productNotFoundTitle")}
+          </h2>
+          <p className="mt-2 max-w-sm text-sm leading-relaxed text-muted">
+            {t("scan.productNotFoundBody")}
+          </p>
           {barcode ? (
-            <p className="font-mono text-sm text-muted">{barcode}</p>
+            <p className="mt-2 font-mono text-xs text-muted">{barcode}</p>
           ) : null}
-          <PrimaryButton
-            onClick={() => {
-              navigateApp(
-                `/app/add-product?storeId=${encodeURIComponent(storeId)}&barcode=${encodeURIComponent(barcode)}`,
-              );
-            }}
-          >
-            {t("common.yes")}
-          </PrimaryButton>
-          <SecondaryButton onClick={() => beginManualEntry(barcode)}>
-            {t("common.no")}
-          </SecondaryButton>
+
+          <div className="mt-6 w-full space-y-3 text-left">
+            <ScanMissingActionCard
+              icon={<PencilIcon className="size-5" />}
+              title={t("scan.enterManuallyTitle")}
+              hint={t("scan.enterManuallyHint")}
+              actionLabel={t("scan.enterManuallyAction")}
+              onAction={() => beginManualEntry(barcode)}
+            />
+            <ScanMissingActionCard
+              icon={<SkipForwardIcon className="size-5" />}
+              title={t("scan.skipTitle")}
+              hint={t("scan.skipHint")}
+              actionLabel={t("scan.skipAction")}
+              onAction={skipMissingItem}
+            />
+          </div>
+
+          <div className="mt-5 flex w-full items-start gap-2.5 rounded-xl border border-card-border px-3 py-2.5 text-left">
+            <InfoIcon className="mt-0.5 size-4 shrink-0 text-muted" />
+            <p className="text-xs leading-relaxed text-muted">
+              {t("scan.addLaterHint")}
+            </p>
+          </div>
         </div>
       ) : null}
 
@@ -391,5 +427,137 @@ export function ScanFlow() {
         </div>
       ) : null}
     </div>
+  );
+}
+
+function ScanMissingActionCard({
+  icon,
+  title,
+  hint,
+  actionLabel,
+  onAction,
+}: {
+  icon: ReactNode;
+  title: string;
+  hint: string;
+  actionLabel: string;
+  onAction: () => void;
+}) {
+  return (
+    <div className="flex items-center gap-3 rounded-2xl border border-card-border px-3 py-3">
+      <div className="flex size-11 shrink-0 items-center justify-center rounded-full border border-primary/50 text-primary">
+        {icon}
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-semibold text-foreground">{title}</p>
+        <p className="mt-0.5 text-xs leading-snug text-muted">{hint}</p>
+      </div>
+      <button
+        type="button"
+        onClick={onAction}
+        className="shrink-0 rounded-lg border border-primary px-2.5 py-1.5 text-xs font-semibold text-primary"
+      >
+        {actionLabel}
+      </button>
+    </div>
+  );
+}
+
+function ScanNotFoundIllustration({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 120 120"
+      fill="none"
+      className={className}
+    >
+      <circle
+        cx="54"
+        cy="52"
+        r="36"
+        stroke="currentColor"
+        strokeWidth="8"
+        strokeLinecap="round"
+        strokeDasharray="185 55"
+        strokeDashoffset="20"
+      />
+      <path
+        d="M38 54l13 13 26-30"
+        stroke="currentColor"
+        strokeWidth="9"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <circle cx="90" cy="88" r="20" fill="var(--background)" />
+      <circle
+        cx="90"
+        cy="88"
+        r="16"
+        stroke="currentColor"
+        strokeWidth="3.5"
+      />
+      <path
+        d="M84 84c0-3.5 2.7-6 6-6s6 2.5 6 6c0 2.4-1.4 3.6-3 5-.8.7-1.5 1.4-1.5 2.5"
+        stroke="currentColor"
+        strokeWidth="3.2"
+        strokeLinecap="round"
+      />
+      <circle cx="90" cy="98" r="2.2" fill="currentColor" />
+    </svg>
+  );
+}
+
+function PencilIcon({ className = "size-5" }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+    </svg>
+  );
+}
+
+function SkipForwardIcon({ className = "size-5" }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <path d="M5 6l7 6-7 6V6Z" />
+      <path d="M13 6l7 6-7 6V6Z" />
+    </svg>
+  );
+}
+
+function InfoIcon({ className = "size-4" }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 11v5" />
+      <circle cx="12" cy="8" r="0.8" fill="currentColor" stroke="none" />
+    </svg>
   );
 }
