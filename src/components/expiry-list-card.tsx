@@ -22,6 +22,8 @@ type Props = {
   enteredAt: string;
   quantity: number;
   priceReduced: boolean;
+  /** Shown when price is reduced (e.g. 25 → "-25%"). */
+  discountPercent?: number | null;
   homeUser?: boolean;
   favourite?: boolean;
   /** View-only cards hide action chips (used in admin store expiry). */
@@ -41,6 +43,7 @@ export function ExpiryListCard({
   enteredAt,
   quantity,
   priceReduced,
+  discountPercent = null,
   homeUser = false,
   favourite = false,
   mode = "full",
@@ -64,108 +67,91 @@ export function ExpiryListCard({
   const viewOnly = mode === "view";
 
   return (
-    <article className="relative overflow-visible">
-      {!viewOnly ? (
-        <>
-          {homeUser ? (
-            <button
-              type="button"
-              aria-label={t("expiry.moveToOrders")}
-              title={t("expiry.moveToOrders")}
-              className="absolute top-0 left-0 z-10 flex size-[23px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-card-border bg-card text-muted"
-              onClick={(event) => {
-                event.stopPropagation();
-                onMoveToOrders?.();
-              }}
+    <article className="flex w-full overflow-hidden rounded-xl border border-card-border bg-transparent">
+      <div
+        className={`w-1 shrink-0 self-stretch ${expiryUrgencyStripeClass(expiry)}`}
+        aria-hidden
+      />
+
+      <div className="flex min-w-0 flex-1 items-start gap-1.5 px-1.5 py-1">
+        {!viewOnly && homeUser ? (
+          <button
+            type="button"
+            aria-label={t("expiry.moveToOrders")}
+            title={t("expiry.moveToOrders")}
+            className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-md border border-card-border bg-transparent text-muted"
+            onClick={(event) => {
+              event.stopPropagation();
+              onMoveToOrders?.();
+            }}
+          >
+            <MoveToOrdersIcon className="size-3.5" />
+          </button>
+        ) : null}
+
+        {!homeUser && priceReduced ? (
+          viewOnly ? (
+            <span
+              className="mt-0.5 shrink-0 text-[10px] font-bold leading-none tabular-nums text-primary"
+              title={t("expiry.priceReduced")}
+              aria-label={t("expiry.priceReduced")}
             >
-              <MoveToOrdersIcon className="size-[14px]" />
-            </button>
+              −{discountPercent ?? 25}%
+            </span>
           ) : (
             <button
               type="button"
-              aria-label={
-                priceReduced ? t("expiry.priceReduced") : t("expiry.reducePrice")
-              }
-              title={
-                priceReduced ? t("expiry.priceReduced") : t("expiry.reducePrice")
-              }
-              className="absolute top-0 left-0 z-10 flex size-[23px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-card-border bg-card text-muted disabled:opacity-50"
+              aria-label={t("expiry.editDiscount")}
+              title={t("expiry.editDiscount")}
+              className="mt-0.5 shrink-0 text-[10px] font-bold leading-none tabular-nums text-primary"
               onClick={(event) => {
                 event.stopPropagation();
                 onReducePrice();
               }}
-              disabled={priceReduced}
             >
-              <PriceReduceIcon className="size-[14px]" />
+              −{discountPercent ?? 25}%
             </button>
-          )}
-
-          {homeUser && onToggleFavourite ? (
-            <button
-              type="button"
-              aria-label={
-                favourite ? t("favourites.remove") : t("favourites.add")
-              }
-              title={favourite ? t("favourites.remove") : t("favourites.add")}
-              className={`absolute top-0 left-1/2 z-10 flex size-[23px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-card-border bg-card ${
-                favourite ? "text-amber-400" : "text-muted"
-              }`}
-              onClick={(event) => {
-                event.stopPropagation();
-                onToggleFavourite();
-              }}
-            >
-              <StarFavouriteIcon className="size-[14px]" filled={favourite} />
-            </button>
-          ) : null}
-
+          )
+        ) : !viewOnly && !homeUser ? (
           <button
             type="button"
-            aria-label={t("expiry.remove")}
-            className="absolute top-0 right-0 z-10 flex size-[23px] -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full border border-card-border bg-card text-[0.9375rem] leading-none text-muted"
+            aria-label={t("expiry.reducePrice")}
+            title={t("expiry.reducePrice")}
+            className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-md border border-card-border bg-transparent text-muted"
             onClick={(event) => {
               event.stopPropagation();
-              onRemove();
+              onReducePrice();
             }}
           >
-            ×
+            <PriceReduceIcon className="size-3.5" />
           </button>
-        </>
-      ) : null}
-
-      <div className="flex overflow-hidden rounded-lg border border-card-border bg-card">
-        <div
-          className={`w-1 shrink-0 ${expiryUrgencyStripeClass(expiry)}`}
-          aria-hidden
-        />
+        ) : null}
 
         <button
           type="button"
           aria-label={t("expiry.viewEntry")}
-          className="flex min-w-0 flex-1 items-center gap-2 px-2 py-1 text-left"
+          className="flex min-w-0 flex-1 items-center gap-2 self-center text-left"
           onClick={onOpen}
           disabled={viewOnly}
         >
           <ProductImage
             src={imagePath}
             alt=""
-            className="h-10 w-10 shrink-0 rounded-md object-cover"
-            placeholderClassName="h-10 w-10 shrink-0 rounded-md text-[9px]"
+            className="size-12 shrink-0 rounded-lg object-cover"
+            placeholderClassName="size-12 shrink-0 rounded-lg text-[9px]"
           />
 
           <div className="min-w-0 flex-1">
-            <p className="line-clamp-2 text-xs font-semibold leading-tight text-foreground">
+            <p className="line-clamp-2 text-sm font-semibold leading-tight text-foreground">
               {name}
             </p>
             <p className="mt-0.5 text-[10px] leading-tight text-muted">
-              {t("expiry.enteredOn")}{" "}
-              {formatLocaleDay(entered, dateLocale)}
+              {t("expiry.enteredOn")} {formatLocaleDay(entered, dateLocale)}
             </p>
             <p className="text-[13px] leading-tight text-primary">
               <span className="text-[10px] font-semibold text-primary/80">
                 {t("expiry.validUntil")}
-              </span>
-              {" "}
+              </span>{" "}
               <span className="font-bold tabular-nums text-primary">
                 {formatLocaleDay(expiry, dateLocale)}
               </span>
@@ -173,16 +159,7 @@ export function ExpiryListCard({
           </div>
 
           <div className="flex shrink-0 items-stretch gap-1">
-            {!homeUser && priceReduced ? (
-              <div
-                className="flex min-w-[2.5rem] flex-col items-center justify-center rounded-md border border-card-border bg-subtle px-1.5 py-0.5 text-center"
-                title={t("expiry.priceReduced")}
-                aria-label={t("expiry.priceReduced")}
-              >
-                <PriceReduceIcon className="h-4 w-4 text-foreground" />
-              </div>
-            ) : null}
-            <div className="flex min-w-[2.5rem] flex-col items-center justify-center rounded-md border border-card-border bg-subtle px-1.5 py-0.5 text-center">
+            <div className="flex min-w-[2.5rem] flex-col items-center justify-center rounded-md border border-card-border bg-transparent px-1.5 py-0.5 text-center">
               <p className="text-base font-bold leading-none tabular-nums text-foreground">
                 {quantity}
               </p>
@@ -209,6 +186,37 @@ export function ExpiryListCard({
             </div>
           </div>
         </button>
+
+        {!viewOnly && homeUser && onToggleFavourite ? (
+          <button
+            type="button"
+            aria-label={favourite ? t("favourites.remove") : t("favourites.add")}
+            title={favourite ? t("favourites.remove") : t("favourites.add")}
+            className={`mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-md border border-card-border bg-transparent ${
+              favourite ? "text-amber-400" : "text-muted"
+            }`}
+            onClick={(event) => {
+              event.stopPropagation();
+              onToggleFavourite();
+            }}
+          >
+            <StarFavouriteIcon className="size-3.5" filled={favourite} />
+          </button>
+        ) : null}
+
+        {!viewOnly ? (
+          <button
+            type="button"
+            aria-label={t("expiry.remove")}
+            className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-md border border-card-border bg-transparent text-base leading-none text-muted"
+            onClick={(event) => {
+              event.stopPropagation();
+              onRemove();
+            }}
+          >
+            ×
+          </button>
+        ) : null}
       </div>
     </article>
   );

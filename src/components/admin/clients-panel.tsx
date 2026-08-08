@@ -383,7 +383,7 @@ export function ClientsPanel({ onRefresh }: Props) {
                       className={`w-full rounded-xl border p-3 text-left transition-colors ${
                         selectedId === client.id
                           ? "border-primary bg-selected"
-                          : "border-card-border hover:bg-subtle"
+                          : "border-card-border hover:bg-transparent"
                       } ${!client.active ? "opacity-60" : ""}`}
                     >
                       <p className="font-medium text-foreground">{client.name}</p>
@@ -712,24 +712,24 @@ function StoreCard({
       {editing ? (
         <div className="space-y-2">
           <input
-            className="w-full rounded-lg border border-input-border bg-card px-2 py-1 text-sm text-foreground"
+            className="w-full rounded-lg border border-input-border bg-transparent px-2 py-1 text-sm text-foreground"
             value={form.name}
             onChange={(event) => setForm({ ...form, name: event.target.value })}
           />
           <input
-            className="w-full rounded-lg border border-input-border bg-card px-2 py-1 text-sm text-foreground"
+            className="w-full rounded-lg border border-input-border bg-transparent px-2 py-1 text-sm text-foreground"
             placeholder={t("common.address")}
             value={form.address}
             onChange={(event) => setForm({ ...form, address: event.target.value })}
           />
           <input
-            className="w-full rounded-lg border border-input-border bg-card px-2 py-1 text-sm text-foreground"
+            className="w-full rounded-lg border border-input-border bg-transparent px-2 py-1 text-sm text-foreground"
             placeholder={t("common.phone")}
             value={form.phone}
             onChange={(event) => setForm({ ...form, phone: event.target.value })}
           />
           <textarea
-            className="w-full rounded-lg border border-input-border bg-card px-2 py-1 text-sm text-foreground"
+            className="w-full rounded-lg border border-input-border bg-transparent px-2 py-1 text-sm text-foreground"
             placeholder={t("common.additionalInfo")}
             value={form.additionalInfo}
             onChange={(event) =>
@@ -747,7 +747,7 @@ function StoreCard({
             </button>
             <button
               type="button"
-              className="w-full rounded-lg border border-input-border bg-card px-2 py-2 text-xs text-foreground"
+              className="w-full rounded-lg border border-input-border bg-transparent px-2 py-2 text-xs text-foreground"
               onClick={cancelEdit}
             >
               {t("common.cancel")}
@@ -793,14 +793,14 @@ function StoreCard({
             ) : null}
             <button
               type="button"
-              className="rounded-lg border border-input-border bg-card px-2 py-1 text-xs text-foreground"
+              className="rounded-lg border border-input-border bg-transparent px-2 py-1 text-xs text-foreground"
               onClick={openEdit}
             >
               {t("common.edit")}
             </button>
             <button
               type="button"
-              className="rounded-lg border border-input-border bg-card px-2 py-1 text-xs text-foreground"
+              className="rounded-lg border border-input-border bg-transparent px-2 py-1 text-xs text-foreground"
               onClick={onToggle}
             >
               {store.active ? t("common.deactivate") : t("common.activate")}

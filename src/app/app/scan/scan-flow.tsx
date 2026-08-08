@@ -370,7 +370,7 @@ export function ScanFlow() {
       ) : null}
 
       {step === "date" ? (
-        <div className="space-y-4">
+        <div className="space-y-3">
           <div className="flex items-center gap-3 rounded-2xl border border-card-border p-3">
             <ProductImage
               src={previewImage}
@@ -393,8 +393,13 @@ export function ScanFlow() {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-card-border p-4">
-            <ExpiryDatePicker value={expiryDate} onChange={setExpiryDate} />
+          <div className="space-y-3">
+            <ExpiryDatePicker
+              value={expiryDate}
+              onChange={setExpiryDate}
+              showTypeHint={false}
+              compact
+            />
           </div>
 
           {message ? <p className="text-sm text-error">{message}</p> : null}

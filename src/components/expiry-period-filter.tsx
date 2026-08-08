@@ -32,7 +32,7 @@ export function ExpiryPeriodFilter({ value, onChange }: Props) {
       <p className="mb-0.5 text-[10px] font-medium leading-none text-muted">
         {t("expiry.periodLabel")}
       </p>
-      <div className="flex gap-0.5">
+      <div className="grid grid-cols-4 gap-0.5">
         {EXPIRY_PERIOD_OPTIONS.map((period) => {
           const active = period === value;
           return (
@@ -40,10 +40,10 @@ export function ExpiryPeriodFilter({ value, onChange }: Props) {
               key={period}
               type="button"
               onClick={() => onChange(period)}
-              className={`min-w-0 flex-1 rounded-md border px-1 py-0.5 text-[10px] font-medium leading-tight transition-colors ${
+              className={`flex min-h-7 min-w-0 items-center justify-center rounded-md border px-1 py-1 text-center text-[10px] font-medium leading-tight transition-colors ${
                 active
                   ? "border-primary bg-selected text-primary"
-                  : "border-input-border bg-card text-foreground"
+                  : "border-input-border bg-transparent text-foreground"
               }`}
             >
               {periodLabel(period, t)}

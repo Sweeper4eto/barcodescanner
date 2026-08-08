@@ -101,7 +101,7 @@ function HomeLinkCard({
   return (
     <Link
       href={href}
-      className="mb-3 flex items-center gap-3 rounded-2xl border border-card-border bg-card px-4 py-3.5 transition-colors hover:border-primary/40"
+      className="mb-3 flex items-center gap-3 rounded-2xl border border-card-border bg-transparent px-4 py-3.5 transition-colors hover:border-primary/40"
     >
       <span
         aria-hidden

@@ -496,7 +496,7 @@ function BuyListContent() {
           <MobilePageHeader title={t("buyList.title")} className="mb-0" />
         </div>
         <div className={listPageScrollClassName}>
-          <p className="rounded-xl bg-subtle p-4 text-sm text-muted">
+          <p className="rounded-xl bg-transparent p-4 text-sm text-muted">
             {t("buyList.loading")}
           </p>
         </div>
@@ -511,7 +511,7 @@ function BuyListContent() {
           <MobilePageHeader title={t("buyList.title")} className="mb-0" />
         </div>
         <div className={listPageScrollClassName}>
-          <p className="rounded-xl bg-subtle p-4 text-sm text-muted">
+          <p className="rounded-xl bg-transparent p-4 text-sm text-muted">
             {t("buyList.unavailable")}
           </p>
         </div>
@@ -560,7 +560,7 @@ function BuyListContent() {
             className={`flex h-9 shrink-0 items-center justify-center gap-1 rounded-lg border px-2 text-[10px] font-medium leading-none ${
               showScanner
                 ? "border-primary bg-selected text-primary"
-                : "border-input-border bg-card text-primary"
+                : "border-input-border bg-transparent text-primary"
             }`}
           >
             <ScanNavIcon className="h-4 w-4 text-primary" />
@@ -602,7 +602,7 @@ function BuyListContent() {
                     type="button"
                     aria-label={t("favourites.remove")}
                     title={t("favourites.remove")}
-                    className="absolute -top-1 left-1/2 z-10 flex h-5 w-5 -translate-x-1/2 items-center justify-center rounded-full border border-card-border bg-card text-amber-400"
+                    className="absolute -top-1 left-1/2 z-10 flex h-5 w-5 -translate-x-1/2 items-center justify-center rounded-full border border-card-border bg-transparent text-amber-400"
                     onClick={() => void toggleFavourite(product.id)}
                   >
                     <StarFavouriteIcon className="h-3 w-3" filled />
@@ -613,7 +613,7 @@ function BuyListContent() {
                     onClick={() => void addFavouriteToOrders(product)}
                     title={t("buyList.addFavouriteToOrders")}
                     aria-label={`${t("buyList.addFavouriteToOrders")}: ${product.name}`}
-                    className="flex w-full flex-col items-center gap-1 rounded-lg border border-card-border bg-card p-1.5 pt-2.5 text-center disabled:opacity-60"
+                    className="flex w-full flex-col items-center gap-1 rounded-lg border border-card-border bg-transparent p-1.5 pt-2.5 text-center disabled:opacity-60"
                   >
                     <ProductImage
                       src={product.imagePath}
@@ -636,7 +636,7 @@ function BuyListContent() {
 
       <div className={`${listPageScrollClassName} space-y-1`}>
         {loading && page === 1 && entries.length === 0 ? (
-          <p className="rounded-xl bg-subtle p-4 text-sm text-muted">
+          <p className="rounded-xl bg-transparent p-4 text-sm text-muted">
             {isSearching ? t("buyList.searching") : t("buyList.loading")}
           </p>
         ) : null}
@@ -646,7 +646,7 @@ function BuyListContent() {
         ) : null}
 
         {!loading && entries.length === 0 ? (
-          <p className="rounded-xl bg-subtle p-4 text-sm text-muted">
+          <p className="rounded-xl bg-transparent p-4 text-sm text-muted">
             {emptyMessage}
           </p>
         ) : null}
@@ -700,13 +700,13 @@ function BuyListContent() {
           aria-labelledby="orders-confirm-title"
         >
           <div className="w-full max-w-lg px-3 pb-[calc(var(--app-bottom-nav-height)+env(safe-area-inset-bottom,0px)+0.5rem)]">
-            <div className="rounded-xl border border-card-border bg-card p-3">
+            <div className="rounded-xl border border-card-border bg-background p-3">
               <p id="orders-confirm-title" className="text-sm font-semibold">{t("buyList.confirmTitle")}</p>
               <p className="mt-1 text-xs text-muted">{t("buyList.confirmMessage")}</p>
               <div className="mt-3 grid grid-cols-2 gap-2">
                 <button
                   type="button"
-                  className="rounded-lg border border-input-border bg-card px-3 py-2 text-sm text-foreground"
+                  className="rounded-lg border border-input-border bg-transparent px-3 py-2 text-sm text-foreground"
                   onClick={() => setConfirmId(null)}
                 >
                   {t("buyList.confirmCancel")}
@@ -730,7 +730,7 @@ function BuyListContent() {
           style={{ top: offsetTop, bottom: keyboardInset }}
         >
           <div className="max-h-full w-full max-w-lg overflow-y-auto px-3 pb-[calc(var(--app-bottom-nav-height)+env(safe-area-inset-bottom,0px)+0.5rem)]">
-            <div className="rounded-xl border border-card-border bg-card p-3">
+            <div className="rounded-xl border border-card-border bg-background p-3">
               <p className="text-sm font-semibold">
                 {t("buyList.moveToExpiryTitle")}
               </p>
@@ -746,7 +746,7 @@ function BuyListContent() {
               <div className="mt-3 grid grid-cols-2 gap-2">
                 <button
                   type="button"
-                  className="rounded-lg border border-input-border bg-card px-3 py-2 text-sm text-foreground"
+                  className="rounded-lg border border-input-border bg-transparent px-3 py-2 text-sm text-foreground"
                   onClick={() => {
                     setMoveToExpiryId(null);
                     setMoveExpiryYmd("");
@@ -776,7 +776,7 @@ function BuyListContent() {
           style={{ top: offsetTop, bottom: keyboardInset }}
         >
           <div className="max-h-full w-full max-w-lg overflow-y-auto px-3 pb-[calc(var(--app-bottom-nav-height)+env(safe-area-inset-bottom,0px)+0.5rem)]">
-            <div className="space-y-3 rounded-xl border border-card-border bg-card p-3">
+            <div className="space-y-3 rounded-xl border border-card-border bg-background p-3">
               <p className="text-sm font-semibold">{t("buyList.addManualTitle")}</p>
               <p className="text-xs text-muted">{t("buyList.addManualHint")}</p>
 
@@ -833,7 +833,7 @@ function BuyListContent() {
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
-                  className="rounded-lg border border-input-border bg-card px-3 py-2 text-sm text-foreground"
+                  className="rounded-lg border border-input-border bg-transparent px-3 py-2 text-sm text-foreground"
                   onClick={resetManualAdd}
                   disabled={manualSaving}
                 >

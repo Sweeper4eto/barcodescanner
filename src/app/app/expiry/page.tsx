@@ -11,8 +11,12 @@ import {
 } from "@/components/expiry-entry-detail-sheet";
 import { ExpiryPeriodFilter } from "@/components/expiry-period-filter";
 import { ActionFlash } from "@/components/action-flash";
-import { MobilePageHeader, listPageChromeClassName, listPageScrollClassName, listPageShellClassName } from "@/components/mobile-page-header";
+import { MobilePageHeader, listPageChromeClassName } from "@/components/mobile-page-header";
 import { QuantityPicker } from "@/components/quantity-picker";
+import {
+  DEFAULT_DISCOUNT_PERCENT,
+  DiscountPercentPicker,
+} from "@/components/discount-percent-picker";
 import { SearchField } from "@/components/search-field";
 import { useT } from "@/components/i18n-provider";
 import {
@@ -37,6 +41,7 @@ type Entry = {
   enteredAt: string;
   expiryDate: string;
   priceReducedAt: string | null;
+  priceDiscountPercent: number | null;
   product: { id: string; name: string; imagePath: string | null };
 };
 
@@ -66,6 +71,7 @@ function ExpiryList() {
   const [showScanner, setShowScanner] = useState(false);
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [priceReduceConfirmId, setPriceReduceConfirmId] = useState<string | null>(null);
+  const [discountPercent, setDiscountPercent] = useState(DEFAULT_DISCOUNT_PERCENT);
   const [moveToOrdersEntry, setMoveToOrdersEntry] = useState<Entry | null>(null);
   const [moveOrdersQty, setMoveOrdersQty] = useState("1");
   const [moveOrdersSaving, setMoveOrdersSaving] = useState(false);
@@ -101,7 +107,10 @@ function ExpiryList() {
     {
       id: "price-reduce",
       open: priceReduceConfirmId !== null,
-      close: () => setPriceReduceConfirmId(null),
+      close: () => {
+        setPriceReduceConfirmId(null);
+        setDiscountPercent(DEFAULT_DISCOUNT_PERCENT);
+      },
     },
     {
       id: "move-to-orders",
@@ -270,18 +279,62 @@ function ExpiryList() {
     }
   }
 
-  async function reducePriceEntry(entryId: string) {
-    const response = await fetch("/api/inventory", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ entryId, storeId, priceReduced: true }),
-    });
-    const data = (await response.json()) as {
-      entry?: ExpiryDetailEntry;
-    };
-    setPriceReduceConfirmId(null);
-    if (response.ok && data.entry) {
+  async function reducePriceEntry(entryId: string, percent: number) {
+    try {
+      const response = await fetch("/api/inventory", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          entryId,
+          storeId,
+          priceReduced: true,
+          priceDiscountPercent: percent,
+        }),
+      });
+      const data = (await response.json()) as {
+        entry?: ExpiryDetailEntry;
+        error?: string;
+      };
+      if (!response.ok || !data.entry) {
+        setFlashTone("error");
+        setFlashMessage(data.error ?? t("errors.networkError"));
+        return;
+      }
+      setPriceReduceConfirmId(null);
+      setDiscountPercent(DEFAULT_DISCOUNT_PERCENT);
       handleEntryUpdated(data.entry);
+    } catch {
+      setFlashTone("error");
+      setFlashMessage(t("errors.networkError"));
+    }
+  }
+
+  async function clearDiscountEntry(entryId: string) {
+    try {
+      const response = await fetch("/api/inventory", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          entryId,
+          storeId,
+          priceReduced: false,
+        }),
+      });
+      const data = (await response.json()) as {
+        entry?: ExpiryDetailEntry;
+        error?: string;
+      };
+      if (!response.ok || !data.entry) {
+        setFlashTone("error");
+        setFlashMessage(data.error ?? t("errors.networkError"));
+        return;
+      }
+      setPriceReduceConfirmId(null);
+      setDiscountPercent(DEFAULT_DISCOUNT_PERCENT);
+      handleEntryUpdated(data.entry);
+    } catch {
+      setFlashTone("error");
+      setFlashMessage(t("errors.networkError"));
     }
   }
 
@@ -359,6 +412,7 @@ function ExpiryList() {
               quantity: updated.quantity,
               expiryDate: updated.expiryDate,
               priceReducedAt: updated.priceReducedAt,
+              priceDiscountPercent: updated.priceDiscountPercent ?? null,
               product: updated.product,
             };
           }
@@ -385,6 +439,7 @@ function ExpiryList() {
             enteredAt: new Date().toISOString(),
             expiryDate: updated.expiryDate,
             priceReducedAt: updated.priceReducedAt,
+            priceDiscountPercent: updated.priceDiscountPercent ?? null,
             product: updated.product,
           },
         ];
@@ -405,11 +460,18 @@ function ExpiryList() {
   const isSearching = debouncedSearch.length > 0;
   const emptyMessage = isSearching ? t("expiry.noResults") : t("expiry.empty");
   const isHomeUser = homeUser === true;
+  const priceReduceEntry = priceReduceConfirmId
+    ? (entries.find((entry) => entry.id === priceReduceConfirmId) ?? null)
+    : null;
+  const isEditingDiscount = Boolean(priceReduceEntry?.priceReducedAt);
 
   return (
-    <div className={listPageShellClassName}>
-      <div className={listPageChromeClassName}>
-        <MobilePageHeader title={t("expiry.title")} className="mb-0" />
+    <div className="mx-auto flex h-[calc(100dvh-var(--app-bottom-nav-height)-env(safe-area-inset-bottom,0px))] min-h-0 w-full max-w-lg flex-col overflow-x-visible pt-1">
+      <div className={`${listPageChromeClassName} px-4`}>
+        <MobilePageHeader
+          title={homeUser === false ? t("expiry.storeTitle") : t("expiry.title")}
+          className="mb-0"
+        />
 
         <ActionFlash
           message={flashMessage}
@@ -434,7 +496,7 @@ function ExpiryList() {
             className={`flex h-9 shrink-0 items-center justify-center gap-1 rounded-lg border px-2 text-[10px] font-medium leading-none ${
               showScanner
                 ? "border-primary bg-selected text-primary"
-                : "border-input-border bg-card text-primary"
+                : "border-input-border bg-transparent text-primary"
             }`}
           >
             <ScanNavIcon className="h-4 w-4 text-primary" />
@@ -454,9 +516,9 @@ function ExpiryList() {
         ) : null}
       </div>
 
-      <div className={`${listPageScrollClassName} space-y-1`}>
+      <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto overscroll-y-contain px-2.5 pb-3.5 pt-3 [scrollbar-width:thin]">
         {loading && page === 1 && entries.length === 0 ? (
-          <p className="rounded-xl bg-subtle p-4 text-sm text-muted">
+          <p className="rounded-xl bg-transparent p-4 text-sm text-muted">
             {isSearching ? t("expiry.searching") : t("expiry.loading")}
           </p>
         ) : null}
@@ -466,7 +528,7 @@ function ExpiryList() {
         ) : null}
 
         {!loading && entries.length === 0 ? (
-          <p className="rounded-xl bg-subtle p-4 text-sm text-muted">
+          <p className="rounded-xl bg-transparent p-4 text-sm text-muted">
             {emptyMessage}
           </p>
         ) : null}
@@ -481,11 +543,17 @@ function ExpiryList() {
             enteredAt={entry.enteredAt}
             quantity={entry.quantity}
             priceReduced={entry.priceReducedAt !== null}
+            discountPercent={entry.priceDiscountPercent}
             homeUser={isHomeUser}
             favourite={Boolean(favouriteProductIds[entry.product.id])}
             onOpen={() => setDetailEntry(entry)}
             onRemove={() => setConfirmId(entry.id)}
-            onReducePrice={() => setPriceReduceConfirmId(entry.id)}
+            onReducePrice={() => {
+              setDiscountPercent(
+                entry.priceDiscountPercent ?? DEFAULT_DISCOUNT_PERCENT,
+              );
+              setPriceReduceConfirmId(entry.id);
+            }}
             onMoveToOrders={() => {
               setMoveToOrdersEntry(entry);
               setMoveOrdersQty("1");
@@ -532,13 +600,13 @@ function ExpiryList() {
           aria-labelledby="expiry-confirm-title"
         >
           <div className="w-full max-w-lg px-3 pb-[calc(var(--app-bottom-nav-height)+env(safe-area-inset-bottom,0px)+0.5rem)]">
-            <div className="rounded-xl border border-card-border bg-card p-3">
+            <div className="rounded-xl border border-card-border bg-background p-3">
               <p id="expiry-confirm-title" className="text-sm font-semibold">{t("expiry.confirmTitle")}</p>
               <p className="mt-1 text-xs text-muted">{t("expiry.confirmMessage")}</p>
               <div className="mt-3 grid grid-cols-2 gap-2">
                 <button
                   type="button"
-                  className="rounded-lg border border-input-border bg-card px-3 py-2 text-sm text-foreground"
+                  className="rounded-lg border border-input-border bg-transparent px-3 py-2 text-sm text-foreground"
                   onClick={() => setConfirmId(null)}
                 >
                   {t("expiry.confirmCancel")}
@@ -562,27 +630,53 @@ function ExpiryList() {
           style={{ top: offsetTop, bottom: keyboardInset }}
         >
           <div className="w-full max-w-lg px-3 pb-[calc(var(--app-bottom-nav-height)+env(safe-area-inset-bottom,0px)+0.5rem)]">
-            <div className="rounded-xl border border-card-border bg-card p-3">
+            <div className="rounded-xl border border-card-border bg-background p-3">
               <p className="text-sm font-semibold">
-                {t("expiry.reducePriceConfirmTitle")}
+                {isEditingDiscount
+                  ? t("expiry.editDiscountTitle")
+                  : t("expiry.reducePriceConfirmTitle")}
               </p>
               <p className="mt-1 text-xs text-muted">
-                {t("expiry.reducePriceConfirmMessage")}
+                {isEditingDiscount
+                  ? t("expiry.editDiscountMessage")
+                  : t("expiry.reducePriceConfirmMessage")}
               </p>
+              <div className="mt-3">
+                <DiscountPercentPicker
+                  value={discountPercent}
+                  onChange={setDiscountPercent}
+                />
+              </div>
+              {isEditingDiscount ? (
+                <button
+                  type="button"
+                  className="mt-3 w-full rounded-lg border border-danger-border px-3 py-2 text-sm text-error"
+                  onClick={() => void clearDiscountEntry(priceReduceConfirmId)}
+                >
+                  {t("expiry.removeDiscount")}
+                </button>
+              ) : null}
               <div className="mt-3 grid grid-cols-2 gap-2">
                 <button
                   type="button"
-                  className="rounded-lg border border-input-border bg-card px-3 py-2 text-sm text-foreground"
-                  onClick={() => setPriceReduceConfirmId(null)}
+                  className="rounded-lg border border-input-border bg-transparent px-3 py-2 text-sm text-foreground"
+                  onClick={() => {
+                    setPriceReduceConfirmId(null);
+                    setDiscountPercent(DEFAULT_DISCOUNT_PERCENT);
+                  }}
                 >
                   {t("expiry.confirmCancel")}
                 </button>
                 <button
                   type="button"
                   className="rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-fg"
-                  onClick={() => void reducePriceEntry(priceReduceConfirmId)}
+                  onClick={() =>
+                    void reducePriceEntry(priceReduceConfirmId, discountPercent)
+                  }
                 >
-                  {t("expiry.reducePrice")}
+                  {isEditingDiscount
+                    ? t("expiry.saveDiscount")
+                    : t("expiry.reducePrice")}
                 </button>
               </div>
             </div>
@@ -596,7 +690,7 @@ function ExpiryList() {
           style={{ top: offsetTop, bottom: keyboardInset }}
         >
           <div className="max-h-full w-full max-w-lg overflow-y-auto px-3 pb-[calc(var(--app-bottom-nav-height)+env(safe-area-inset-bottom,0px)+0.5rem)]">
-            <div className="rounded-xl border border-card-border bg-card p-3">
+            <div className="rounded-xl border border-card-border bg-background p-3">
               <p className="text-sm font-semibold">
                 {t("expiry.moveToOrdersTitle")}
               </p>
@@ -613,7 +707,7 @@ function ExpiryList() {
               <div className="mt-3 grid grid-cols-2 gap-2">
                 <button
                   type="button"
-                  className="rounded-lg border border-input-border bg-card px-3 py-2 text-sm text-foreground"
+                  className="rounded-lg border border-input-border bg-transparent px-3 py-2 text-sm text-foreground"
                   onClick={() => {
                     setMoveToOrdersEntry(null);
                     setMoveOrdersQty("1");

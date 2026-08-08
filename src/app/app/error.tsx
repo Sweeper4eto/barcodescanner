@@ -31,7 +31,7 @@ export default function AppError({
         </button>
         <button
           type="button"
-          className="rounded-xl border border-input-border bg-card px-4 py-3 text-foreground"
+          className="rounded-xl border border-input-border bg-transparent px-4 py-3 text-foreground"
           onClick={() => navigateApp("/app")}
         >
           {t("errors.goHome")}

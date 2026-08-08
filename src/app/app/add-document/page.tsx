@@ -427,7 +427,7 @@ function AddDocumentContent() {
               onClick={() => setConfirmRemoveNoExpiry(true)}
               title={t("addDocument.removeNoExpiryHint", { count: noExpiryCount })}
               aria-label={t("addDocument.removeNoExpiryHint", { count: noExpiryCount })}
-              className="flex h-10 shrink-0 items-center justify-center rounded-xl border border-input-border bg-card px-2.5 text-[11px] font-medium leading-tight text-foreground disabled:opacity-40"
+              className="flex h-10 shrink-0 items-center justify-center rounded-xl border border-input-border bg-transparent px-2.5 text-[11px] font-medium leading-tight text-foreground disabled:opacity-40"
             >
               {t("addDocument.removeNoExpiry")}
               {noExpiryCount > 0 ? (
@@ -438,7 +438,7 @@ function AddDocumentContent() {
 
           <div className="space-y-1 pt-1">
             {filteredItems.length === 0 ? (
-              <p className="rounded-xl bg-subtle p-4 text-sm text-muted">
+              <p className="rounded-xl bg-transparent p-4 text-sm text-muted">
                 {items.length === 0
                   ? t("addDocument.emptyReview")
                   : t("addDocument.noResults")}
@@ -484,13 +484,13 @@ function AddDocumentContent() {
               {t("addDocument.doneTitle")}
             </p>
             <div className="mt-3 grid grid-cols-2 gap-2 text-left">
-              <div className="rounded-xl bg-subtle p-3">
+              <div className="rounded-xl bg-transparent p-3">
                 <p className="text-2xl font-bold tabular-nums text-foreground">
                   {lastResult?.created ?? 0}
                 </p>
                 <p className="mt-0.5 text-xs text-muted">{t("addDocument.newLabel")}</p>
               </div>
-              <div className="rounded-xl bg-subtle p-3">
+              <div className="rounded-xl bg-transparent p-3">
                 <p className="text-2xl font-bold tabular-nums text-foreground">
                   {lastResult?.merged ?? 0}
                 </p>
@@ -545,7 +545,7 @@ function AddDocumentContent() {
           aria-labelledby="doc-remove-title"
         >
           <div className="w-full max-w-lg px-3 pb-[calc(var(--app-bottom-nav-height)+env(safe-area-inset-bottom,0px)+0.5rem)]">
-            <div className="rounded-xl border border-card-border bg-card p-3">
+            <div className="rounded-xl border border-card-border bg-background p-3">
               <p id="doc-remove-title" className="text-sm font-semibold">
                 {t("expiry.confirmTitle")}
               </p>
@@ -555,7 +555,7 @@ function AddDocumentContent() {
               <div className="mt-3 grid grid-cols-2 gap-2">
                 <button
                   type="button"
-                  className="rounded-lg border border-input-border bg-card px-3 py-2 text-sm text-foreground"
+                  className="rounded-lg border border-input-border bg-transparent px-3 py-2 text-sm text-foreground"
                   onClick={() => setRemoveKey(null)}
                 >
                   {t("expiry.confirmCancel")}
@@ -581,7 +581,7 @@ function AddDocumentContent() {
           aria-labelledby="doc-remove-no-expiry-title"
         >
           <div className="w-full max-w-lg px-3 pb-[calc(var(--app-bottom-nav-height)+env(safe-area-inset-bottom,0px)+0.5rem)]">
-            <div className="rounded-xl border border-card-border bg-card p-3">
+            <div className="rounded-xl border border-card-border bg-background p-3">
               <p id="doc-remove-no-expiry-title" className="text-sm font-semibold">
                 {t("expiry.confirmTitle")}
               </p>
@@ -591,7 +591,7 @@ function AddDocumentContent() {
               <div className="mt-3 grid grid-cols-2 gap-2">
                 <button
                   type="button"
-                  className="rounded-lg border border-input-border bg-card px-3 py-2 text-sm text-foreground"
+                  className="rounded-lg border border-input-border bg-transparent px-3 py-2 text-sm text-foreground"
                   onClick={() => setConfirmRemoveNoExpiry(false)}
                 >
                   {t("expiry.confirmCancel")}

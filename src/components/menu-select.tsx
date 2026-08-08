@@ -79,7 +79,7 @@ export function MenuSelect<T extends string>({
         className={
           buttonClassName ||
           (compact
-            ? "flex h-8 w-full min-w-0 items-center gap-1.5 rounded-lg border border-input-border bg-card px-2 pr-1.5 text-left text-xs text-foreground disabled:opacity-50"
+            ? "flex h-8 w-full min-w-0 items-center gap-1.5 rounded-lg border border-input-border bg-transparent px-2 pr-1.5 text-left text-xs text-foreground disabled:opacity-50"
             : "mt-1 flex w-full min-w-0 items-center gap-2 rounded-xl border border-input-border bg-transparent py-2.5 pl-3 pr-3 text-left text-base text-foreground outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary/40 disabled:opacity-50")
         }
         aria-haspopup="listbox"
@@ -121,7 +121,7 @@ export function MenuSelect<T extends string>({
           id={listId}
           role="listbox"
           aria-label={label}
-          className={`absolute top-full z-[70] mt-1 max-h-60 min-w-full overflow-y-auto rounded-xl border border-input-border bg-card py-1 shadow-lg shadow-black/40 ${
+          className={`absolute top-full z-[70] mt-1 max-h-60 min-w-full overflow-y-auto rounded-xl border border-input-border bg-background py-1 shadow-lg shadow-black/40 ${
             menuAlign === "end" ? "right-0" : "left-0"
           }`}
         >
@@ -140,7 +140,7 @@ export function MenuSelect<T extends string>({
                     className={`flex w-full px-3 py-2.5 text-left text-sm disabled:cursor-not-allowed disabled:opacity-40 ${
                       active
                         ? "bg-selected text-primary"
-                        : "text-foreground hover:bg-subtle"
+                        : "text-foreground hover:bg-transparent"
                     }`}
                     onClick={() => {
                       if (option.disabled) return;

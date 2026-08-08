@@ -327,7 +327,7 @@ export default function TeamPage() {
       {error ? <p className="mb-3 text-sm text-error">{error}</p> : null}
       {message ? <p className="mb-3 text-sm text-success-fg">{message}</p> : null}
 
-      <section className="relative z-0 mb-4 overflow-hidden rounded-2xl border border-card-border bg-card">
+      <section className="relative z-0 mb-4 overflow-hidden rounded-2xl border border-card-border bg-transparent">
         {!loading && users.length === 0 ? (
           <p className="px-3 py-4 text-sm text-muted">{t("team.empty")}</p>
         ) : null}
@@ -518,7 +518,7 @@ export default function TeamPage() {
         </ul>
       </section>
 
-      <section className="relative z-0 space-y-3 rounded-2xl border border-card-border bg-card p-3">
+      <section className="relative z-0 space-y-3 rounded-2xl border border-card-border bg-transparent p-3">
         <div>
           <h2 className="text-base font-semibold text-foreground">{t("team.addMember")}</h2>
           <p className="mt-0.5 text-xs text-muted">{t("team.addMemberHint")}</p>
@@ -670,7 +670,7 @@ export default function TeamPage() {
           onClick={() => (!deleting ? setDeleteTarget(null) : undefined)}
         >
           <div
-            className="w-full max-w-sm rounded-2xl border border-card-border bg-card p-4 shadow-[0_20px_50px_rgba(0,0,0,0.45)]"
+            className="w-full max-w-sm rounded-2xl border border-card-border bg-background p-4 shadow-[0_20px_50px_rgba(0,0,0,0.45)]"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="mb-3 flex size-11 items-center justify-center rounded-full border border-danger/40 bg-danger/10 text-danger">

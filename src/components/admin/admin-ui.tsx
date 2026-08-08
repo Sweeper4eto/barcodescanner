@@ -27,7 +27,7 @@ export function AdminTabBar<T extends string>({
             onClick={() => onChange(tab.id)}
             className={`-mb-px rounded-t-lg px-3 py-2 text-xs font-medium transition-colors sm:px-4 sm:py-2.5 sm:text-sm ${
               isActive
-                ? "relative z-10 border border-b-0 border-card-border bg-card text-primary"
+                ? "relative z-10 border border-b-0 border-card-border bg-transparent text-primary"
                 : "text-muted hover:text-foreground"
             }`}
           >
@@ -41,7 +41,7 @@ export function AdminTabBar<T extends string>({
 
 export function AdminPanel({ children }: { children: ReactNode }) {
   return (
-    <div className="min-w-0 rounded-2xl border border-card-border bg-card shadow-sm">
+    <div className="min-w-0 rounded-2xl border border-card-border bg-transparent shadow-sm">
       {children}
     </div>
   );

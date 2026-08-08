@@ -185,7 +185,7 @@ export function PushNotifications() {
 
   if (state === "loading") {
     return (
-      <section className="mb-3 flex items-center gap-3 rounded-2xl border border-card-border bg-card px-4 py-3.5 opacity-60">
+      <section className="mb-3 flex items-center gap-3 rounded-2xl border border-card-border bg-transparent px-4 py-3.5 opacity-60">
         <span
           aria-hidden
           className="flex size-11 shrink-0 items-center justify-center rounded-full border border-primary/45 text-primary"
@@ -202,7 +202,7 @@ export function PushNotifications() {
         </div>
         <span
           aria-hidden
-          className="relative h-7 w-12 shrink-0 rounded-full border border-card-border bg-subtle"
+          className="relative h-7 w-12 shrink-0 rounded-full border border-card-border bg-transparent"
         >
           <span className="absolute left-0.5 top-0.5 size-6 rounded-full bg-white" />
         </span>
@@ -220,7 +220,7 @@ export function PushNotifications() {
     state !== "unconfigured";
 
   return (
-    <section className="mb-3 flex items-center gap-3 rounded-2xl border border-card-border bg-card px-4 py-3.5">
+    <section className="mb-3 flex items-center gap-3 rounded-2xl border border-card-border bg-transparent px-4 py-3.5">
       <span
         aria-hidden
         className="flex size-11 shrink-0 items-center justify-center rounded-full border border-primary/45 text-primary"
@@ -236,7 +236,7 @@ export function PushNotifications() {
         </p>
 
         {state === "iosNeedsInstall" ? (
-          <p className="mt-2 rounded-lg border border-card-border bg-subtle px-2.5 py-1.5 text-xs text-foreground">
+          <p className="mt-2 rounded-lg border border-card-border bg-transparent px-2.5 py-1.5 text-xs text-foreground">
             {t("push.iosInstallRequired")}
           </p>
         ) : null}
@@ -267,7 +267,7 @@ export function PushNotifications() {
           className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${
             state === "enabled"
               ? "bg-primary"
-              : "border border-card-border bg-subtle"
+              : "border border-card-border bg-transparent"
           }`}
         >
           <span

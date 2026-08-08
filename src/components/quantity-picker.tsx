@@ -72,7 +72,7 @@ export function QuantityPicker({
                 className={`min-w-0 rounded-md border px-0.5 py-1 text-xs font-medium tabular-nums ${
                   value === String(amount)
                     ? "border-primary bg-selected text-primary"
-                    : "border-input-border bg-card text-foreground"
+                    : "border-input-border bg-transparent text-foreground"
                 }`}
                 onClick={() => pick(amount)}
               >
@@ -98,7 +98,7 @@ export function QuantityStepper({
   value,
   onChange,
   min = 1,
-  max = 99,
+  max = 9999,
 }: {
   value: string;
   onChange: (value: string) => void;
@@ -109,10 +109,29 @@ export function QuantityStepper({
   const parsed = Number(value);
   const current =
     Number.isInteger(parsed) && parsed >= min ? parsed : min;
+  const [draft, setDraft] = useState(String(current));
+
+  useEffect(() => {
+    setDraft(String(current));
+  }, [current]);
 
   function setQty(next: number) {
     onChange(String(Math.min(max, Math.max(min, next))));
   }
+
+  function commitDraft() {
+    const next = Number(draft);
+    if (!Number.isInteger(next) || next < min) {
+      setQty(min);
+      setDraft(String(min));
+      return;
+    }
+    const clamped = Math.min(max, next);
+    setQty(clamped);
+    setDraft(String(clamped));
+  }
+
+  const digits = String(max).length;
 
   return (
     <div className="inline-flex shrink-0 items-center gap-1">
@@ -125,9 +144,36 @@ export function QuantityStepper({
       >
         <ChevronLeftIcon className="size-4" />
       </button>
-      <span className="min-w-7 text-center text-sm font-semibold tabular-nums text-foreground">
-        {current}
-      </span>
+      <label className="inline-flex min-w-12 cursor-text items-baseline justify-center gap-0.5 rounded-md px-0.5 text-sm font-semibold tabular-nums text-foreground">
+        <input
+          type="text"
+          inputMode="numeric"
+          autoComplete="off"
+          aria-label={t("scan.changeQuantity")}
+          value={draft}
+          onChange={(event) => {
+            const raw = event.target.value.replace(/[^\d]/g, "");
+            setDraft(raw);
+            if (!raw) return;
+            const next = Number(raw);
+            if (Number.isInteger(next) && next >= min) {
+              onChange(String(Math.min(max, next)));
+            }
+          }}
+          onFocus={(event) => event.currentTarget.select()}
+          onBlur={commitDraft}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              event.currentTarget.blur();
+            }
+          }}
+          style={{ width: `${Math.max(draft.length, 1)}ch` }}
+          className="max-w-[4.5ch] border-0 bg-transparent p-0 text-center text-sm font-semibold tabular-nums text-foreground outline-none"
+          maxLength={digits}
+        />
+        <span className="font-medium text-muted">{t("scan.quantityUnit")}</span>
+      </label>
       <button
         type="button"
         aria-label={t("scan.increaseQuantity")}

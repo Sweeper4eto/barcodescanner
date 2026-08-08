@@ -269,6 +269,7 @@ const patchSchema = z.object({
   quantity: z.number().int().positive().optional(),
   expiryDate: z.string().datetime().optional(),
   priceReduced: z.boolean().optional(),
+  priceDiscountPercent: z.number().int().min(5).max(100).optional(),
   articul: z.string().nullable().optional(),
   imagePath: z.string().nullable().optional(),
   name: z.string().nullable().optional(),
@@ -336,7 +337,7 @@ export async function PATCH(request: Request) {
 
     const entry = await db.inventoryEntry.update({
       where: { id: existing.id },
-      data: { priceReducedAt: null },
+      data: { priceReducedAt: null, priceDiscountPercent: null },
       include: { product: true },
     });
 
@@ -373,13 +374,48 @@ export async function PATCH(request: Request) {
       );
     }
 
+    const discountPercent = parsed.data.priceDiscountPercent;
+    if (discountPercent === undefined) {
+      return NextResponse.json(
+        { error: apiT(request, "errors.invalidData") },
+        { status: 400 },
+      );
+    }
+
     if (existing.priceReducedAt) {
-      return NextResponse.json({ entry: existing });
+      if (existing.priceDiscountPercent === discountPercent) {
+        return NextResponse.json({ entry: existing });
+      }
+
+      const entry = await db.inventoryEntry.update({
+        where: { id: existing.id },
+        data: { priceDiscountPercent: discountPercent },
+        include: { product: true },
+      });
+
+      await logAuditEvent(
+        request,
+        session,
+        "inventory_price_reduced",
+        auditInventoryPriceReduced({
+          productName: existing.product.name,
+          barcode: existing.barcode,
+          quantity: existing.quantity,
+          storeName: store.name,
+          expiryDate: existing.expiryDate,
+          discountPercent,
+        }),
+      );
+
+      return NextResponse.json({ entry });
     }
 
     const entry = await db.inventoryEntry.update({
       where: { id: existing.id },
-      data: { priceReducedAt: new Date() },
+      data: {
+        priceReducedAt: new Date(),
+        priceDiscountPercent: discountPercent,
+      },
       include: { product: true },
     });
 
@@ -393,6 +429,7 @@ export async function PATCH(request: Request) {
         quantity: existing.quantity,
         storeName: store.name,
         expiryDate: existing.expiryDate,
+        discountPercent,
       }),
     );
 
@@ -507,7 +544,10 @@ export async function PATCH(request: Request) {
             data: {
               quantity: conflict.quantity + nextQuantity,
               ...(existing.priceReducedAt && !conflict.priceReducedAt
-                ? { priceReducedAt: existing.priceReducedAt }
+                ? {
+                    priceReducedAt: existing.priceReducedAt,
+                    priceDiscountPercent: existing.priceDiscountPercent,
+                  }
                 : {}),
             },
           });
@@ -559,10 +599,13 @@ export async function PATCH(request: Request) {
           ? { imagePath: parsed.data.imagePath?.trim() || null }
           : {}),
         ...(parsed.data.priceReduced === true && !existing.priceReducedAt
-          ? { priceReducedAt: new Date() }
+          ? {
+              priceReducedAt: new Date(),
+              priceDiscountPercent: parsed.data.priceDiscountPercent ?? 25,
+            }
           : {}),
         ...(parsed.data.priceReduced === false
-          ? { priceReducedAt: null }
+          ? { priceReducedAt: null, priceDiscountPercent: null }
           : {}),
       },
       include: { product: true },
@@ -630,6 +673,7 @@ export async function PATCH(request: Request) {
           quantity: entry.quantity,
           storeName: store.name,
           expiryDate: entry.expiryDate,
+          discountPercent: entry.priceDiscountPercent ?? undefined,
         }),
       );
     } else if (

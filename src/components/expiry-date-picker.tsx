@@ -5,15 +5,19 @@ import {
   useEffect,
   useImperativeHandle,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { useT } from "@/components/i18n-provider";
 import { MenuSelect } from "@/components/menu-select";
 import {
-  formatYmdAsDmy,
-  parseFlexibleExpiryInput,
+  acceptDmyDigits,
+  dmyDigitsToYmd,
+  dmyMaskCaretPos,
+  formatDmyMask,
   parseYmdLocal,
   toYmdLocal,
+  ymdToDmyDigits,
 } from "@/lib/expiry-date-input";
 import { expiryDateBounds } from "@/lib/expiry-date-bounds";
 
@@ -42,10 +46,23 @@ type Props = {
   onChange: (value: string) => void;
   /** When true, dates up to 3 years in the past can be selected (edit/OCR correction). */
   allowPast?: boolean;
+  /** When false, hides the “type date to correct OCR” hint above the manual field. */
+  showTypeHint?: boolean;
+  /** Tighter spacing for constrained screens (e.g. scan details). */
+  compact?: boolean;
 };
 
 export const ExpiryDatePicker = forwardRef<ExpiryDatePickerHandle, Props>(
-  function ExpiryDatePicker({ value, onChange, allowPast = false }, ref) {
+  function ExpiryDatePicker(
+    {
+      value,
+      onChange,
+      allowPast = false,
+      showTypeHint = true,
+      compact = false,
+    },
+    ref,
+  ) {
     const { t, monthName } = useT();
     const { min, max } = expiryDateBounds(allowPast);
     const minDate = useMemo(() => parseYmdLocal(min)!, [min]);
@@ -56,22 +73,19 @@ export const ExpiryDatePicker = forwardRef<ExpiryDatePickerHandle, Props>(
 
     const [viewYear, setViewYear] = useState(initial.getFullYear());
     const [viewMonth, setViewMonth] = useState(initial.getMonth());
-    const [typed, setTyped] = useState(() =>
-      value ? formatYmdAsDmy(value) : "",
+    const [digits, setDigits] = useState(() =>
+      value ? ymdToDmyDigits(value) : "",
     );
     const [typedError, setTypedError] = useState(false);
+    const maskInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
-      if (!value) {
-        setTyped("");
-        setTypedError(false);
-        return;
-      }
+      if (!value) return;
       const parsed = parseYmdLocal(value);
       if (!parsed) return;
       setViewYear(parsed.getFullYear());
       setViewMonth(parsed.getMonth());
-      setTyped(formatYmdAsDmy(value));
+      setDigits(ymdToDmyDigits(value));
       setTypedError(false);
     }, [value]);
 
@@ -149,35 +163,48 @@ export const ExpiryDatePicker = forwardRef<ExpiryDatePickerHandle, Props>(
       commitYmd(nextYear, month, dayHint);
     }
 
-    function tryParseTyped(raw: string): string | null {
-      const parsed = parseFlexibleExpiryInput(raw);
-      if (!parsed) return null;
-      return clampToBounds(parsed);
+    function commitDigits(nextDigits: string) {
+      setDigits(nextDigits);
+      setTypedError(false);
+      if (nextDigits.length === 8) {
+        const ymd = dmyDigitsToYmd(nextDigits);
+        const bounded = ymd ? clampToBounds(ymd) : null;
+        if (!bounded) {
+          setTypedError(true);
+          return;
+        }
+        onChange(bounded);
+      }
     }
 
-    function applyTyped(): string | null {
-      const raw = typed.trim();
-      if (!raw) {
-        setTypedError(false);
-        return value && parseYmdLocal(value) ? value : null;
-      }
-      const bounded = tryParseTyped(raw);
-      if (!bounded) {
-        setTypedError(true);
-        return null;
-      }
+    function applyDigitsFromRaw(raw: string) {
+      const accepted = acceptDmyDigits(raw, min, max);
+      commitDigits(accepted);
+      requestAnimationFrame(() => {
+        const input = maskInputRef.current;
+        if (!input) return;
+        const pos = dmyMaskCaretPos(accepted.length);
+        input.setSelectionRange(pos, pos);
+      });
+    }
+
+    function clearDate() {
+      setDigits("");
       setTypedError(false);
-      onChange(bounded);
-      return bounded;
+      onChange("");
     }
 
     useImperativeHandle(ref, () => ({
       flush: () => {
-        const raw = typed.trim();
-        if (!raw) {
+        if (digits.length === 0) {
           return value && parseYmdLocal(value) ? value : null;
         }
-        const bounded = tryParseTyped(raw);
+        if (digits.length !== 8) {
+          setTypedError(true);
+          return null;
+        }
+        const ymd = dmyDigitsToYmd(digits);
+        const bounded = ymd ? clampToBounds(ymd) : null;
         if (!bounded) {
           setTypedError(true);
           return null;
@@ -189,60 +216,107 @@ export const ExpiryDatePicker = forwardRef<ExpiryDatePickerHandle, Props>(
     }));
 
     const weekdayLabels = t("expiry.weekdays").split(",");
+    const masked = formatDmyMask(digits);
+    const maskChars = masked.split("");
 
-    return (
-      <div className="space-y-2">
-        <p className="text-sm font-medium text-foreground">
-          {t("expiry.dateLabel")}
-        </p>
-
-        <label className="block text-xs text-muted">
-          {t("expiry.dateTypeHint")}
-          <div className="mt-0.5 flex gap-2">
+    const dateField = (
+      <div>
+        {showTypeHint ? (
+          <p className="mb-1 text-xs text-muted">{t("expiry.dateTypeHint")}</p>
+        ) : null}
+        <div className="flex items-center gap-2">
+          <CalendarIcon className="size-5 shrink-0 text-primary" />
+          <div className="relative min-w-0 flex-1 font-mono text-base tabular-nums">
+            <div
+              className="pointer-events-none absolute inset-0 flex items-center"
+              aria-hidden
+            >
+              {maskChars.map((ch, index) => {
+                const isPlaceholder =
+                  ch === "D" || ch === "M" || ch === "Y";
+                return (
+                  <span
+                    key={`${ch}-${index}`}
+                    className={
+                      isPlaceholder
+                        ? "text-muted"
+                        : typedError
+                          ? "text-error"
+                          : "text-foreground"
+                    }
+                  >
+                    {ch}
+                  </span>
+                );
+              })}
+            </div>
             <input
+              ref={maskInputRef}
               type="text"
               inputMode="numeric"
               autoComplete="off"
-              placeholder={t("expiry.dateTypePlaceholder")}
-              className={`min-w-0 flex-1 rounded-lg border bg-card px-2 py-1.5 font-mono text-base tabular-nums text-foreground ${
-                typedError ? "border-danger-border" : "border-input-border"
-              }`}
-              value={typed}
-              onChange={(event) => {
-                const next = event.target.value;
-                setTyped(next);
-                setTypedError(false);
-                // Commit as soon as DD.MM.YYYY (or ISO) is complete & valid.
-                const bounded = tryParseTyped(next);
-                if (bounded) onChange(bounded);
+              spellCheck={false}
+              aria-label={t("expiry.selectedDate")}
+              className="relative w-full border-0 bg-transparent px-0 py-1 text-transparent caret-foreground outline-none"
+              value={masked}
+              onChange={(event) => applyDigitsFromRaw(event.target.value)}
+              onFocus={(event) => {
+                const pos = dmyMaskCaretPos(digits.length);
+                event.currentTarget.setSelectionRange(pos, pos);
               }}
-              onBlur={() => {
-                if (typed.trim()) applyTyped();
+              onClick={(event) => {
+                const pos = dmyMaskCaretPos(digits.length);
+                event.currentTarget.setSelectionRange(pos, pos);
               }}
               onKeyDown={(event) => {
                 if (event.key === "Enter") {
                   event.preventDefault();
-                  applyTyped();
+                  if (digits.length === 8) {
+                    const ymd = dmyDigitsToYmd(digits);
+                    const bounded = ymd ? clampToBounds(ymd) : null;
+                    if (!bounded) setTypedError(true);
+                  } else if (digits.length > 0) {
+                    setTypedError(true);
+                  }
+                }
+                if (event.key === "Backspace") {
+                  event.preventDefault();
+                  commitDigits(digits.slice(0, -1));
+                  requestAnimationFrame(() => {
+                    const input = maskInputRef.current;
+                    if (!input) return;
+                    const pos = dmyMaskCaretPos(Math.max(0, digits.length - 1));
+                    input.setSelectionRange(pos, pos);
+                  });
                 }
               }}
             />
-            <button
-              type="button"
-              className="shrink-0 rounded-lg border border-input-border bg-card px-3 py-1.5 text-sm font-medium text-foreground"
-              onClick={() => applyTyped()}
-            >
-              {t("expiry.dateTypeApply")}
-            </button>
           </div>
-          {typedError ? (
-            <span className="mt-1 block text-[11px] text-error">
-              {t("expiry.dateTypeInvalid")}
-            </span>
-          ) : null}
-        </label>
+          <button
+            type="button"
+            className="shrink-0 px-0.5 text-sm font-medium text-primary disabled:opacity-40"
+            disabled={!digits && !value}
+            onClick={clearDate}
+          >
+            {t("expiry.dateClear")}
+          </button>
+        </div>
+        {typedError ? (
+          <span className="mt-1 block text-[11px] text-error">
+            {t("expiry.dateTypeInvalid")}
+          </span>
+        ) : null}
+      </div>
+    );
+
+    return (
+      <div className={compact ? "space-y-1.5" : "space-y-2"}>
+        <p className="text-sm font-medium text-foreground">
+          {t("expiry.dateLabel")}
+        </p>
 
         <div className="rounded-xl border border-input-border bg-transparent p-2">
-          <div className="mb-2 grid grid-cols-2 gap-2">
+          <div className={`grid grid-cols-2 gap-2 ${compact ? "mb-1.5" : "mb-2"}`}>
             <label className="block text-xs text-muted">
               {t("expiry.monthLabel")}
               <MenuSelect
@@ -278,7 +352,7 @@ export const ExpiryDatePicker = forwardRef<ExpiryDatePickerHandle, Props>(
             ))}
           </div>
 
-          <div className="grid grid-cols-7 gap-0.5">
+          <div className={`grid grid-cols-7 ${compact ? "gap-1" : "gap-0.5"}`}>
             {dayCells.map((day, index) =>
               day === null ? (
                 <span key={`blank-${index}`} aria-hidden />
@@ -293,7 +367,7 @@ export const ExpiryDatePicker = forwardRef<ExpiryDatePickerHandle, Props>(
                     selected.getMonth() === viewMonth &&
                     selected.getDate() === day
                       ? "bg-primary text-primary-fg"
-                      : "text-foreground hover:bg-subtle"
+                      : "text-foreground hover:bg-transparent"
                   }`}
                   onClick={() => selectDay(day)}
                 >
@@ -303,7 +377,29 @@ export const ExpiryDatePicker = forwardRef<ExpiryDatePickerHandle, Props>(
             )}
           </div>
         </div>
+
+        {dateField}
       </div>
     );
   },
 );
+
+function CalendarIcon({ className = "size-5" }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <rect x="3" y="5" width="18" height="16" rx="2" />
+      <path d="M3 10h18" />
+      <path d="M8 3v4" />
+      <path d="M16 3v4" />
+    </svg>
+  );
+}

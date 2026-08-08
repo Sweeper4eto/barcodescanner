@@ -168,7 +168,7 @@ export function AuthShell({
 
   return (
     <div className="mx-auto flex min-h-full w-full min-w-0 max-w-md flex-col justify-center px-4 py-6">
-      <div className="relative rounded-2xl border border-card-border bg-card/80 p-5 pt-12 shadow-[0_0_40px_rgb(16_185_129/0.08)]">
+      <div className="relative rounded-2xl border border-card-border bg-transparent p-5 pt-12 shadow-[0_0_40px_rgb(16_185_129/0.08)]">
         {showLanguageSwitch ? (
           <div className="absolute right-4 top-4 z-40">
             <LanguageSwitch />
@@ -416,7 +416,7 @@ export function SecondaryButton({
       type={type}
       onClick={onClick}
       disabled={disabled}
-      className="w-full rounded-xl border border-input-border bg-card px-3 py-[0.45rem] text-base font-medium text-foreground disabled:opacity-40"
+      className="w-full rounded-xl border border-input-border bg-transparent px-3 py-[0.45rem] text-base font-medium text-foreground disabled:opacity-40"
     >
       {children}
     </button>

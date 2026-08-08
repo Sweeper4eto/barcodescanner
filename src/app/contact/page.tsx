@@ -80,7 +80,7 @@ function ContactPageContent() {
       <p className="mt-2 text-sm text-muted">{t("support.guestSubtitle")}</p>
 
       <form
-        className="mt-6 space-y-3 rounded-2xl border border-card-border bg-card p-4"
+        className="mt-6 space-y-3 rounded-2xl border border-card-border bg-transparent p-4"
         onSubmit={onSubmit}
       >
         <div className="block text-sm font-medium text-foreground">

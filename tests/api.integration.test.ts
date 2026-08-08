@@ -261,10 +261,12 @@ test("PATCH /api/inventory marks item for price reduction", async () => {
       entryId,
       storeId: store.id,
       priceReduced: true,
+      priceDiscountPercent: 25,
     }),
   });
   assert.equal(reducePrice.response.status, 200);
   assert.ok(reducePrice.data.entry.priceReducedAt);
+  assert.equal(reducePrice.data.entry.priceDiscountPercent, 25);
 
   const reduceAgain = await jsonRequest(inventoryPatch, {
     method: "PATCH",
@@ -273,6 +275,7 @@ test("PATCH /api/inventory marks item for price reduction", async () => {
       entryId,
       storeId: store.id,
       priceReduced: true,
+      priceDiscountPercent: 50,
     }),
   });
   assert.equal(reduceAgain.response.status, 200);
@@ -280,6 +283,7 @@ test("PATCH /api/inventory marks item for price reduction", async () => {
     reduceAgain.data.entry.priceReducedAt,
     reducePrice.data.entry.priceReducedAt,
   );
+  assert.equal(reduceAgain.data.entry.priceDiscountPercent, 50);
 
   const restorePrice = await jsonRequest(inventoryPatch, {
     method: "PATCH",
@@ -292,6 +296,7 @@ test("PATCH /api/inventory marks item for price reduction", async () => {
   });
   assert.equal(restorePrice.response.status, 200);
   assert.equal(restorePrice.data.entry.priceReducedAt, null);
+  assert.equal(restorePrice.data.entry.priceDiscountPercent, null);
 });
 
 test("full inventory flow via APIs", async () => {

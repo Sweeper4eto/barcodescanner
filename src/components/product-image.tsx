@@ -110,7 +110,7 @@ export function ProductImage({
   if (!showImage) {
     return (
       <div
-        className={`flex select-none items-center justify-center bg-subtle text-center text-muted ${placeholderClassName || className}`}
+        className={`flex select-none items-center justify-center border border-card-border bg-transparent text-center text-muted ${placeholderClassName || className}`}
         role="img"
         aria-label={t("common.noPicture")}
         {...interactiveProps}

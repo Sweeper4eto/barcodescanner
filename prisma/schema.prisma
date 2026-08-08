@@ -113,6 +113,8 @@ model InventoryEntry {
   enteredAt  DateTime  @default(now())
   removedAt  DateTime?
   priceReducedAt DateTime?
+  /** Discount % when price is reduced (5–100). Cleared when priceReducedAt is cleared. */
+  priceDiscountPercent Int?
   deletedAt  DateTime?
 
   @@index([storeId, expiryDate])

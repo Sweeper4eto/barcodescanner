@@ -15,6 +15,10 @@ export const DEFAULT_EXPIRY_FUTURE_DAYS = EXPIRY_PERIOD_DAYS[DEFAULT_EXPIRY_PERI
 export const EXPIRY_LIST_MAX_FUTURE_DAYS = DEFAULT_EXPIRY_FUTURE_DAYS;
 
 export function parseExpiryPeriod(value: string | null | undefined): ExpiryPeriod {
+  // Migrate briefly used redesign keys back to the classic periods.
+  if (value === "today" || value === "3d" || value === "7d") return "2w";
+  if (value === "30d") return "1m";
+  if (value === "expired") return "all";
   if (value === "6m") return "all";
   if (value && (EXPIRY_PERIOD_OPTIONS as readonly string[]).includes(value)) {
     return value as ExpiryPeriod;
@@ -37,6 +41,9 @@ export function parseExpiryWithinDays(value: string | null | undefined): number 
   if (allowed.includes(parsed as (typeof allowed)[number])) {
     return parsed;
   }
+  // Accept redesign API values without breaking callers.
+  if (parsed === 3 || parsed === 7) return 14;
+  if (parsed === 30) return 30;
   return expiryPeriodDays("1m");
 }
 
@@ -93,7 +100,7 @@ export function expiryUrgencyBadgeClass(expiryDate: Date, now = new Date()): str
   if (days <= 28) {
     return "border-[var(--urgency-soon-border)] bg-[var(--urgency-soon-bg)] text-foreground";
   }
-  return "border-card-border bg-subtle text-foreground";
+  return "border-card-border bg-transparent text-foreground";
 }
 
 export function daysUntilExpiry(expiryDate: Date, now = new Date()): number {

@@ -103,7 +103,7 @@ export function PaymentsPanel() {
         <div className="flex items-center justify-between gap-2">
           <button
             type="button"
-            className="shrink-0 rounded-lg border border-input-border bg-card px-3 py-2 text-foreground"
+            className="shrink-0 rounded-lg border border-input-border bg-transparent px-3 py-2 text-foreground"
             onClick={() => shiftMonth(-1)}
           >
             ←
@@ -113,7 +113,7 @@ export function PaymentsPanel() {
           </h2>
           <button
             type="button"
-            className="shrink-0 rounded-lg border border-input-border bg-card px-3 py-2 text-foreground"
+            className="shrink-0 rounded-lg border border-input-border bg-transparent px-3 py-2 text-foreground"
             onClick={() => shiftMonth(1)}
           >
             →

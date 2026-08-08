@@ -89,7 +89,7 @@ export function DocumentDraftListCard({
       <button
         type="button"
         aria-label={t("expiry.remove")}
-        className="absolute top-0 right-0 z-10 flex size-[23px] -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full border border-card-border bg-card text-[0.9375rem] leading-none text-muted"
+        className="absolute top-0 right-0 z-10 flex size-[23px] -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full border border-card-border bg-transparent text-[0.9375rem] leading-none text-muted"
         onClick={(event) => {
           event.stopPropagation();
           onRemove();
@@ -99,7 +99,7 @@ export function DocumentDraftListCard({
       </button>
 
       <div
-        className={`flex overflow-hidden rounded-lg border bg-card ${cardBorderClass}`}
+        className={`flex overflow-hidden rounded-lg border bg-transparent ${cardBorderClass}`}
       >
         <div className={`w-1 shrink-0 ${stripeClass}`} aria-hidden />
 
@@ -141,7 +141,7 @@ export function DocumentDraftListCard({
           </div>
 
           <div className="flex shrink-0 items-stretch gap-1">
-            <div className="flex min-w-[2.5rem] flex-col items-center justify-center rounded-md border border-card-border bg-subtle px-1.5 py-0.5 text-center">
+            <div className="flex min-w-[2.5rem] flex-col items-center justify-center rounded-md border border-card-border bg-transparent px-1.5 py-0.5 text-center">
               <p className="text-base font-bold leading-none tabular-nums text-foreground">
                 {quantityDisplay}
               </p>

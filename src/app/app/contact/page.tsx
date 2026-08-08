@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { PrimaryButton, SecondaryButton } from "@/components/auth-forms";
+import { BrandName } from "@/components/brand-name";
 import { MobilePageHeader } from "@/components/mobile-page-header";
 import { MenuSelect } from "@/components/menu-select";
 import { useT } from "@/components/i18n-provider";
@@ -13,6 +14,7 @@ type Store = { id: string; name: string; active: boolean };
 type Topic = "bug" | "ocr" | "billing" | "other";
 
 const MESSAGE_MAX = 2000;
+const MESSAGE_MIN = 8;
 
 function BugIcon({ className = "size-4" }: { className?: string }) {
   return (
@@ -97,6 +99,24 @@ function ShieldIcon({ className = "size-3.5" }: { className?: string }) {
   );
 }
 
+function CheckCircleIcon({ className = "size-8" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <circle cx="12" cy="12" r="9.25" />
+      <path d="m8.2 12.2 2.5 2.5 5.1-5.4" />
+    </svg>
+  );
+}
+
 function TopicButton({
   active,
   label,
@@ -125,6 +145,11 @@ function TopicButton({
       <span className="whitespace-nowrap">{label}</span>
     </button>
   );
+}
+
+function formatTicketDisplay(ticketId: string): string {
+  const short = ticketId.replace(/[^a-zA-Z0-9]/g, "").slice(0, 8).toUpperCase();
+  return short ? `#SUP-${short}` : "#SUP---------";
 }
 
 export default function ContactSupportPage() {
@@ -158,6 +183,12 @@ export default function ContactSupportPage() {
   }, []);
 
   async function send() {
+    const trimmed = message.trim();
+    if (trimmed.length < MESSAGE_MIN) {
+      setError(t("support.messageTooShort"));
+      return;
+    }
+
     setSending(true);
     setError("");
     try {
@@ -168,7 +199,7 @@ export default function ContactSupportPage() {
           topic,
           storeId: storeId || null,
           contact: contact.trim() || null,
-          message: message.trim(),
+          message: trimmed,
         }),
       });
       const data = await response.json().catch(() => null);
@@ -193,6 +224,64 @@ export default function ContactSupportPage() {
     { id: "billing", label: t("support.topicBillingShort"), icon: <BillingIcon /> },
     { id: "other", label: t("support.topicOtherShort"), icon: <OtherIcon /> },
   ];
+
+  if (sent) {
+    return (
+      <div className="relative mx-auto flex min-h-[calc(100dvh-var(--app-bottom-nav-height)-env(safe-area-inset-bottom,0px))] min-w-0 max-w-lg flex-col overflow-x-visible px-4 pb-6 pt-1">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 top-0 h-48 bg-[radial-gradient(ellipse_at_50%_0%,rgb(52_211_153/0.2),transparent_60%)]"
+        />
+
+        <div className="relative z-10 flex flex-1 flex-col items-center justify-center text-center">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/landing/brand-mark.png?v=3"
+            alt=""
+            width={144}
+            height={144}
+            className="mb-3 h-36 w-36 object-contain drop-shadow-[0_0_32px_rgb(52_211_153/0.45)]"
+            decoding="async"
+          />
+          <BrandName className="text-3xl" />
+          <p className="mt-1 text-[0.7rem] font-semibold tracking-[0.2em] text-muted">
+            {t("support.supportBadge")}
+          </p>
+
+          <div className="mt-8 flex items-center justify-center gap-2.5">
+            <CheckCircleIcon className="size-8 shrink-0 text-primary" />
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+              {t("support.sentTitle")}
+            </h1>
+          </div>
+          <p className="mt-2 max-w-xs text-sm leading-relaxed text-muted">
+            {t("support.sentBody")}
+          </p>
+
+          <div className="mt-6 w-full rounded-2xl border border-input-border bg-transparent px-4 py-4 text-center">
+            <p className="text-[0.7rem] font-semibold tracking-[0.14em] text-primary">
+              {t("support.ticketLabel").toUpperCase()}
+            </p>
+            <p className="mt-2 font-mono text-xl font-semibold tracking-wide text-primary">
+              {formatTicketDisplay(ticketId)}
+            </p>
+            <p className="mt-2 text-xs leading-relaxed text-muted">
+              {t("support.ticketHint")}
+            </p>
+          </div>
+
+          <div className="mt-6 w-full">
+            <PrimaryButton onClick={() => navigateApp("/app")}>
+              <span className="inline-flex items-center justify-center gap-1.5">
+                <span aria-hidden>←</span>
+                {t("support.backToHome")}
+              </span>
+            </PrimaryButton>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative mx-auto min-w-0 max-w-lg overflow-x-visible px-4 pb-4 pt-1">
@@ -220,7 +309,7 @@ export default function ContactSupportPage() {
         />
       </div>
 
-      <div className="relative z-0 space-y-2.5 rounded-2xl border border-card-border bg-card p-3">
+      <div className="relative z-0 space-y-2.5 rounded-2xl border border-card-border bg-transparent p-3">
         <div>
           <p className="mb-1 text-sm font-medium text-foreground">{t("support.topic")}</p>
           <div className="grid grid-cols-4 gap-1.5">
@@ -291,15 +380,12 @@ export default function ContactSupportPage() {
           </span>
         </label>
 
-        {sent ? (
-          <p className="text-sm text-success-fg">
-            {t("support.sent")}
-            {ticketId ? ` #${ticketId.slice(0, 8)}` : ""}
-          </p>
-        ) : null}
         {error ? <p className="text-sm text-error">{error}</p> : null}
 
-        <PrimaryButton onClick={send} disabled={sending || !message.trim()}>
+        <PrimaryButton
+          onClick={send}
+          disabled={sending || message.trim().length < MESSAGE_MIN}
+        >
           <span className="inline-flex items-center justify-center gap-2">
             <SendIcon className="size-4" />
             {sending ? t("support.sending") : t("support.send")}

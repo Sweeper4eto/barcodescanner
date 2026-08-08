@@ -43,7 +43,7 @@ function CopyTextButton({
       type="button"
       aria-label={copied ? copiedLabel : label}
       title={copied ? copiedLabel : label}
-      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-card-border bg-card text-muted hover:text-foreground"
+      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-card-border bg-transparent text-muted hover:text-foreground"
       onClick={() => void onCopy()}
     >
       {copied ? (
@@ -168,7 +168,7 @@ export function BuyListEntryDetailSheet({
 
   return (
     <div
-      className="fixed inset-x-0 z-[60] flex flex-col bg-card"
+      className="fixed inset-x-0 z-[60] flex flex-col bg-background"
       style={{ top: offsetTop, bottom: keyboardInset }}
       role="dialog"
       aria-modal="true"
@@ -186,7 +186,7 @@ export function BuyListEntryDetailSheet({
               favourite ? t("favourites.remove") : t("favourites.add")
             }
             title={favourite ? t("favourites.remove") : t("favourites.add")}
-            className={`absolute top-2 left-2 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-card-border bg-card ${
+            className={`absolute top-2 left-2 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-card-border bg-transparent ${
               favourite ? "text-amber-400" : "text-muted"
             }`}
             onClick={onToggleFavourite}
@@ -199,7 +199,7 @@ export function BuyListEntryDetailSheet({
         <button
           type="button"
           aria-label={t("buyList.closeImage")}
-          className="absolute top-2 right-2 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-card-border bg-card text-lg leading-none text-foreground"
+          className="absolute top-2 right-2 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-card-border bg-transparent text-lg leading-none text-foreground"
           onClick={onClose}
           disabled={saving}
         >
@@ -326,7 +326,7 @@ export function BuyListEntryDetailSheet({
               className={`flex w-full items-center justify-between rounded-xl border px-3 py-2.5 text-left disabled:opacity-60 ${
                 editingQuantity
                   ? "border-primary bg-selected"
-                  : "border-card-border bg-subtle"
+                  : "border-card-border bg-transparent"
               }`}
               onClick={() => setEditingQuantity((open) => !open)}
               disabled={saving}
@@ -348,14 +348,14 @@ export function BuyListEntryDetailSheet({
         </div>
 
         {hasChanges ? (
-          <div className="shrink-0 border-t border-card-border bg-card p-3 shadow-[0_-6px_16px_rgba(0,0,0,0.08)]">
+          <div className="shrink-0 border-t border-card-border bg-background p-3 shadow-[0_-6px_16px_rgba(0,0,0,0.08)]">
             <p className="text-sm font-semibold text-foreground">
               {t("buyList.confirmUpdateTitle")}
             </p>
             <div className="mt-2 grid grid-cols-2 gap-2">
               <button
                 type="button"
-                className="rounded-lg border border-input-border bg-card px-3 py-2 text-sm text-foreground"
+                className="rounded-lg border border-input-border bg-transparent px-3 py-2 text-sm text-foreground"
                 onClick={revertDraft}
                 disabled={saving}
               >

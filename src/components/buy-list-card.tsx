@@ -45,7 +45,7 @@ export function BuyListCard({
         type="button"
         aria-label={t("buyList.moveToExpiry")}
         title={t("buyList.moveToExpiry")}
-        className="absolute top-0 left-0 z-10 flex size-[28px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-card-border bg-card text-muted"
+        className="absolute top-0 left-0 z-10 flex size-[28px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-card-border bg-transparent text-muted"
         onClick={(event) => {
           event.stopPropagation();
           onMoveToExpiry();
@@ -58,7 +58,7 @@ export function BuyListCard({
         type="button"
         aria-label={favourite ? t("favourites.remove") : t("favourites.add")}
         title={favourite ? t("favourites.remove") : t("favourites.add")}
-        className={`absolute top-0 left-1/2 z-10 flex size-[28px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-card-border bg-card ${
+        className={`absolute top-0 left-1/2 z-10 flex size-[28px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-card-border bg-transparent ${
           favourite ? "text-amber-400" : "text-muted"
         }`}
         onClick={(event) => {
@@ -72,7 +72,7 @@ export function BuyListCard({
       <button
         type="button"
         aria-label={t("buyList.remove")}
-        className="absolute top-0 right-0 z-10 flex size-[28px] -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full border border-card-border bg-card text-[1.2rem] leading-none text-muted"
+        className="absolute top-0 right-0 z-10 flex size-[28px] -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full border border-card-border bg-transparent text-[1.2rem] leading-none text-muted"
         onClick={(event) => {
           event.stopPropagation();
           onRemove();
@@ -85,7 +85,7 @@ export function BuyListCard({
         className={`flex overflow-hidden rounded-lg border transition-colors ${
           checked
             ? "border-primary bg-success-bg"
-            : "border-card-border bg-card"
+            : "border-card-border bg-transparent"
         }`}
       >
         <div
@@ -127,7 +127,7 @@ export function BuyListCard({
           </div>
 
           <div className="flex shrink-0 items-stretch gap-1">
-            <div className="flex min-w-[2.5rem] flex-col items-center justify-center rounded-md border border-card-border bg-subtle px-1.5 py-0.5 text-center">
+            <div className="flex min-w-[2.5rem] flex-col items-center justify-center rounded-md border border-card-border bg-transparent px-1.5 py-0.5 text-center">
               <p className="text-base font-bold leading-none tabular-nums text-foreground">
                 {quantity}
               </p>
@@ -146,7 +146,7 @@ export function BuyListCard({
                 className={`flex min-w-[2.5rem] flex-col items-center justify-center rounded-md border px-1.5 py-0.5 text-center transition-colors ${
                   checked
                     ? "border-primary/50 bg-black/20"
-                    : "border-card-border bg-subtle text-foreground"
+                    : "border-card-border bg-transparent text-foreground"
                 }`}
                 onClick={(event) => {
                   event.stopPropagation();

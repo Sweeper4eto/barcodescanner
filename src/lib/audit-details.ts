@@ -294,9 +294,13 @@ export function auditInventoryPriceReduced(input: {
   quantity: number;
   storeName: string;
   expiryDate: Date;
+  discountPercent?: number;
 }): string {
   return auditJoin([
     `price reduced for "${input.productName}"`,
+    input.discountPercent !== undefined
+      ? `discount ${input.discountPercent}%`
+      : null,
     `barcode ${input.barcode}`,
     `qty ${input.quantity}`,
     `store "${input.storeName}"`,

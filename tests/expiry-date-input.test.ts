@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  formatDmyMask,
   formatYmdAsDmy,
+  acceptDmyDigits,
+  dmyDigitsToYmd,
+  isValidPartialDmyDigits,
   parseFlexibleExpiryInput,
 } from "../src/lib/expiry-date-input";
 import {
@@ -23,6 +27,30 @@ describe("parseFlexibleExpiryInput", () => {
 
   it("formats ymd as dmy for the typed field", () => {
     assert.equal(formatYmdAsDmy("2027-06-08"), "08.06.2027");
+  });
+});
+
+describe("dmy mask helpers", () => {
+  it("keeps DD.MM.YYYY placeholders while typing", () => {
+    assert.equal(formatDmyMask(""), "DD.MM.YYYY");
+    assert.equal(formatDmyMask("1"), "1D.MM.YYYY");
+    assert.equal(formatDmyMask("12"), "12.MM.YYYY");
+    assert.equal(formatDmyMask("120"), "12.0M.YYYY");
+    assert.equal(formatDmyMask("1208"), "12.08.YYYY");
+    assert.equal(formatDmyMask("12082026"), "12.08.2026");
+  });
+
+  it("rejects impossible digits while typing", () => {
+    assert.equal(isValidPartialDmyDigits("4"), false);
+    assert.equal(isValidPartialDmyDigits("32"), false);
+    assert.equal(isValidPartialDmyDigits("001"), false);
+    assert.equal(isValidPartialDmyDigits("0012"), false);
+    assert.equal(isValidPartialDmyDigits("3111"), false);
+    assert.equal(isValidPartialDmyDigits("3102"), false);
+    assert.equal(acceptDmyDigits("32122026"), "3");
+    assert.equal(acceptDmyDigits("29022027"), "2902202");
+    assert.equal(dmyDigitsToYmd("29022027"), null);
+    assert.equal(dmyDigitsToYmd("01032027"), "2027-03-01");
   });
 });
 

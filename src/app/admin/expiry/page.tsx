@@ -25,6 +25,7 @@ type Entry = {
   enteredAt: string;
   expiryDate: string;
   priceReducedAt: string | null;
+  priceDiscountPercent: number | null;
   product: { id: string; name: string; imagePath: string | null };
 };
 
@@ -168,7 +169,7 @@ function AdminExpiryContent() {
       </div>
 
       {!storeId ? (
-        <p className="rounded-xl bg-subtle p-4 text-sm text-muted">
+        <p className="rounded-xl bg-transparent p-4 text-sm text-muted">
           {t("admin.selectStoreForExpiry")}
         </p>
       ) : (
@@ -194,12 +195,12 @@ function AdminExpiryContent() {
 
           <div className="space-y-1">
             {loading && page === 1 && entries.length === 0 ? (
-              <p className="rounded-xl bg-subtle p-4 text-sm text-muted">
+              <p className="rounded-xl bg-transparent p-4 text-sm text-muted">
                 {isSearching ? t("expiry.searching") : t("expiry.loading")}
               </p>
             ) : null}
             {!loading && entries.length === 0 ? (
-              <p className="rounded-xl bg-subtle p-4 text-sm text-muted">
+              <p className="rounded-xl bg-transparent p-4 text-sm text-muted">
                 {isSearching ? t("expiry.noResults") : t("expiry.empty")}
               </p>
             ) : null}
@@ -217,6 +218,7 @@ function AdminExpiryContent() {
                 enteredAt={entry.enteredAt}
                 quantity={entry.quantity}
                 priceReduced={entry.priceReducedAt !== null}
+                discountPercent={entry.priceDiscountPercent}
                 onOpen={() => undefined}
                 onRemove={() => undefined}
                 onReducePrice={() => undefined}

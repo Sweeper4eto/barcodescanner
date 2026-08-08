@@ -90,7 +90,7 @@ export function LanguageSwitch() {
     <div ref={rootRef} className="relative z-[60] shrink-0">
       <button
         type="button"
-        className="flex h-8 items-center gap-1.5 rounded-lg border border-input-border bg-card px-2 pr-1.5 text-xs text-foreground"
+        className="flex h-8 items-center gap-1.5 rounded-lg border border-input-border bg-transparent px-2 pr-1.5 text-xs text-foreground"
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={listId}
@@ -108,7 +108,7 @@ export function LanguageSwitch() {
           id={listId}
           role="listbox"
           aria-label="Language"
-          className="absolute right-0 top-full z-[70] mt-1 min-w-full overflow-hidden rounded-lg border border-input-border bg-card py-1 shadow-lg shadow-black/40"
+          className="absolute right-0 top-full z-[70] mt-1 min-w-full overflow-hidden rounded-lg border border-input-border bg-background py-1 shadow-lg shadow-black/40"
         >
           {options.map((option) => {
             const OptionFlag = option.Flag;
@@ -122,7 +122,7 @@ export function LanguageSwitch() {
                   className={`flex w-full items-center gap-1.5 px-2.5 py-2 text-left text-xs ${
                     active
                       ? "bg-selected text-primary"
-                      : "text-foreground hover:bg-subtle"
+                      : "text-foreground hover:bg-transparent"
                   }`}
                   onClick={() => {
                     setLocale(option.value);

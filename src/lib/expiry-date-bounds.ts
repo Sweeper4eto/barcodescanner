@@ -1,6 +1,6 @@
 import { toYmdLocal } from "@/lib/expiry-date-input";
 
-export const EXPIRY_PICKER_YEARS_AHEAD = 5;
+export const EXPIRY_PICKER_YEARS_AHEAD = 20;
 export const EXPIRY_PICKER_YEARS_PAST = 3;
 
 export function expiryDateBounds(allowPast = false): { min: string; max: string } {

@@ -56,7 +56,7 @@ export function SearchField({
               type="button"
               aria-label={t("common.clearSearch")}
               title={t("common.clearSearch")}
-              className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-card-border bg-card text-sm leading-none text-muted"
+              className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-card-border bg-transparent text-sm leading-none text-muted"
               onClick={clear}
             >
               {"\u00d7"}
@@ -69,7 +69,7 @@ export function SearchField({
           type="button"
           aria-label={t("common.clearSearch")}
           title={t("common.clearSearch")}
-          className="absolute top-0 right-0 z-10 flex h-5 w-5 -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full border border-card-border bg-card text-sm leading-none text-muted"
+          className="absolute top-0 right-0 z-10 flex h-5 w-5 -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full border border-card-border bg-transparent text-sm leading-none text-muted"
           onClick={clear}
         >
           {"\u00d7"}

@@ -273,7 +273,7 @@ export function ItemsPanel({ onRefresh }: Props) {
                   className={`flex w-full items-center gap-3 rounded-xl border p-3 text-left transition-colors ${
                     selectedId === product.id
                       ? "border-primary bg-primary/5"
-                      : "border-card-border bg-background hover:bg-subtle"
+                      : "border-card-border bg-background hover:bg-transparent"
                   }`}
                 >
                   {product.imagePath ? (
@@ -284,7 +284,7 @@ export function ItemsPanel({ onRefresh }: Props) {
                       className="h-12 w-12 shrink-0 rounded-lg object-cover"
                     />
                   ) : (
-                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-subtle text-xs text-muted">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-transparent text-xs text-muted">
                       {t("admin.noImage")}
                     </div>
                   )}
@@ -349,7 +349,7 @@ export function ItemsPanel({ onRefresh }: Props) {
                         className="h-40 w-40 rounded-2xl object-cover"
                       />
                     ) : (
-                      <div className="flex h-40 w-40 items-center justify-center rounded-2xl bg-subtle text-sm text-muted">
+                      <div className="flex h-40 w-40 items-center justify-center rounded-2xl bg-transparent text-sm text-muted">
                         {t("admin.noImage")}
                       </div>
                     )}

@@ -72,13 +72,13 @@ export function PwaInstallPrompt() {
       aria-modal="true"
       aria-label={t("pwa.installTitle")}
     >
-      <div className="w-full max-w-md rounded-2xl border border-card-border bg-card p-4 shadow-lg">
+      <div className="w-full max-w-md rounded-2xl border border-card-border bg-background p-4 shadow-lg">
         <h2 className="text-lg font-semibold text-foreground">
           {t("pwa.installTitle")}
         </h2>
         <p className="mt-2 text-sm text-muted">{t("pwa.installBody")}</p>
         {manualHint ? (
-          <p className="mt-3 rounded-xl border border-card-border bg-subtle px-3 py-2 text-sm text-foreground">
+          <p className="mt-3 rounded-xl border border-card-border bg-transparent px-3 py-2 text-sm text-foreground">
             {isIosDevice() ? t("pwa.iosHint") : t("pwa.browserHint")}
           </p>
         ) : null}

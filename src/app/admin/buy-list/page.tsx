@@ -157,7 +157,7 @@ function AdminBuyListContent() {
       </div>
 
       {!storeId ? (
-        <p className="rounded-xl bg-subtle p-4 text-sm text-muted">
+        <p className="rounded-xl bg-transparent p-4 text-sm text-muted">
           {t("admin.selectStoreForCart")}
         </p>
       ) : (
@@ -176,12 +176,12 @@ function AdminBuyListContent() {
 
           <div className="space-y-2">
             {loading && page === 1 && entries.length === 0 ? (
-              <p className="rounded-xl bg-subtle p-4 text-sm text-muted">
+              <p className="rounded-xl bg-transparent p-4 text-sm text-muted">
                 {isSearching ? t("buyList.searching") : t("buyList.loading")}
               </p>
             ) : null}
             {!loading && entries.length === 0 ? (
-              <p className="rounded-xl bg-subtle p-4 text-sm text-muted">
+              <p className="rounded-xl bg-transparent p-4 text-sm text-muted">
                 {isSearching ? t("buyList.noResults") : t("buyList.empty")}
               </p>
             ) : null}
@@ -191,7 +191,7 @@ function AdminBuyListContent() {
                 className={`rounded-xl border p-3 ${
                   entry.checkedAt
                     ? "border-primary/35 bg-success-bg"
-                    : "border-card-border bg-card"
+                    : "border-card-border bg-transparent"
                 }`}
               >
                 <div className="flex items-center gap-3">
@@ -209,7 +209,7 @@ function AdminBuyListContent() {
                       {t("buyList.enteredOn")} {formatLocaleDay(new Date(entry.enteredAt), dateLocale)}
                     </p>
                   </div>
-                  <div className="rounded-lg border border-card-border bg-subtle px-2 py-1 text-center">
+                  <div className="rounded-lg border border-card-border bg-transparent px-2 py-1 text-center">
                     <p className="text-base font-semibold leading-none text-foreground">
                       {entry.quantity}
                     </p>

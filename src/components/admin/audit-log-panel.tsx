@@ -133,7 +133,7 @@ export function AuditLogPanel() {
 
   function eventClass(event: string) {
     if (event === "login") return "bg-emerald-100 text-emerald-800";
-    if (event === "logout") return "bg-zinc-100 text-zinc-700";
+    if (event === "logout") return "border border-card-border bg-transparent text-muted";
     if (event.startsWith("client_") || event.startsWith("store_") || event === "user_updated" || event === "payment_recorded") {
       return "bg-violet-100 text-violet-800";
     }
@@ -274,7 +274,7 @@ export function AuditLogPanel() {
           <p className="p-6 text-sm text-muted">{t("admin.noAuditEntries")}</p>
         ) : (
           <table className="min-w-full text-left text-sm">
-            <thead className="border-b border-card-border bg-subtle/50 text-xs uppercase tracking-wide text-muted">
+            <thead className="border-b border-card-border bg-transparent text-xs uppercase tracking-wide text-muted">
               <tr>
                 <th className="px-4 py-3 font-medium">{t("admin.auditWhen")}</th>
                 <th className="px-4 py-3 font-medium">{t("admin.eventType")}</th>

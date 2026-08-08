@@ -100,7 +100,7 @@ export function DocumentDraftDetailSheet({ item, onClose, onSave }: Props) {
 
   return (
     <div
-      className="fixed inset-x-0 z-[60] flex flex-col bg-card"
+      className="fixed inset-x-0 z-[60] flex flex-col bg-background"
       style={{ top: offsetTop, bottom: keyboardInset }}
       role="dialog"
       aria-modal="true"
@@ -110,7 +110,7 @@ export function DocumentDraftDetailSheet({ item, onClose, onSave }: Props) {
         <button
           type="button"
           aria-label={t("common.cancel")}
-          className="absolute top-2 right-2 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-card-border bg-card text-lg leading-none text-foreground"
+          className="absolute top-2 right-2 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-card-border bg-transparent text-lg leading-none text-foreground"
           onClick={onClose}
         >
           ×
@@ -165,7 +165,7 @@ export function DocumentDraftDetailSheet({ item, onClose, onSave }: Props) {
             className={`flex w-full items-center justify-between rounded-xl border px-3 py-2.5 text-left ${
               editingExpiry
                 ? "border-primary bg-selected"
-                : "border-card-border bg-subtle"
+                : "border-card-border bg-transparent"
             }`}
             onClick={() => {
               setEditingQuantity(false);
@@ -198,7 +198,7 @@ export function DocumentDraftDetailSheet({ item, onClose, onSave }: Props) {
             className={`flex w-full items-center justify-between rounded-xl border px-3 py-2.5 text-left ${
               editingQuantity
                 ? "border-primary bg-selected"
-                : "border-card-border bg-subtle"
+                : "border-card-border bg-transparent"
             }`}
             onClick={() => {
               setEditingExpiry(false);
