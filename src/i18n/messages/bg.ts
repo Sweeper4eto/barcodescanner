@@ -497,6 +497,8 @@ export const bg = {
     saveFailed: "Промените не бяха запазени",
     confirmUpdateTitle: "Запазване на промените?",
     confirmSave: "Запази",
+    changePhotoButton: "Смени снимка",
+    saveChangesButton: "Запази промените",
     copyName: "Копирай името на продукта",
     copyBarcode: "Копирай баркода",
     copied: "Копирано",

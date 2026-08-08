@@ -107,14 +107,6 @@ export function DocumentDraftDetailSheet({ item, onClose, onSave }: Props) {
       aria-label={t("addDocument.editItem")}
     >
       <div className="relative flex h-[min(17vh,6.5rem)] shrink-0 items-center justify-center bg-black/90">
-        <button
-          type="button"
-          aria-label={t("common.cancel")}
-          className="absolute top-2 right-2 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-card-border bg-transparent text-lg leading-none text-foreground"
-          onClick={onClose}
-        >
-          ×
-        </button>
         <ProductImage
           src={item.productImagePath}
           alt=""

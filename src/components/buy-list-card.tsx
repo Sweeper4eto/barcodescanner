@@ -40,82 +40,48 @@ export function BuyListCard({
   const entered = new Date(enteredAt);
 
   return (
-    <article className="relative overflow-visible">
-      <button
-        type="button"
-        aria-label={t("buyList.moveToExpiry")}
-        title={t("buyList.moveToExpiry")}
-        className="absolute top-0 left-0 z-10 flex size-[28px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-card-border bg-transparent text-muted"
-        onClick={(event) => {
-          event.stopPropagation();
-          onMoveToExpiry();
-        }}
-      >
-        <MoveToExpiryIcon className="size-[16px]" />
-      </button>
-
-      <button
-        type="button"
-        aria-label={favourite ? t("favourites.remove") : t("favourites.add")}
-        title={favourite ? t("favourites.remove") : t("favourites.add")}
-        className={`absolute top-0 left-1/2 z-10 flex size-[28px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-card-border bg-transparent ${
-          favourite ? "text-amber-400" : "text-muted"
-        }`}
-        onClick={(event) => {
-          event.stopPropagation();
-          onToggleFavourite();
-        }}
-      >
-        <StarFavouriteIcon className="size-[16px]" filled={favourite} />
-      </button>
-
-      <button
-        type="button"
-        aria-label={t("buyList.remove")}
-        className="absolute top-0 right-0 z-10 flex size-[28px] -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full border border-card-border bg-transparent text-[1.2rem] leading-none text-muted"
-        onClick={(event) => {
-          event.stopPropagation();
-          onRemove();
-        }}
-      >
-        ×
-      </button>
-
+    <article
+      className={`flex w-full overflow-hidden rounded-xl border bg-transparent ${
+        checked ? "border-primary" : "border-card-border"
+      }`}
+    >
       <div
-        className={`flex overflow-hidden rounded-lg border transition-colors ${
-          checked
-            ? "border-primary bg-success-bg"
-            : "border-card-border bg-transparent"
+        className={`w-1 shrink-0 self-stretch ${
+          checked ? "bg-primary" : "bg-card-border"
         }`}
-      >
-        <div
-          className={`w-1 shrink-0 ${checked ? "bg-primary" : "bg-card-border"}`}
-          aria-hidden
-        />
+        aria-hidden
+      />
 
-        <div
-          role="button"
-          tabIndex={0}
-          aria-label={t("buyList.viewEntry")}
-          className="flex min-w-0 flex-1 items-center gap-2 px-2 py-1 text-left"
-          onClick={onOpen}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" || event.key === " ") {
-              event.preventDefault();
-              onOpen();
-            }
+      <div className="flex min-w-0 flex-1 items-start gap-1.5 px-1.5 py-1">
+        <button
+          type="button"
+          aria-label={t("buyList.moveToExpiry")}
+          title={t("buyList.moveToExpiry")}
+          className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-md border border-card-border bg-transparent text-muted"
+          onClick={(event) => {
+            event.stopPropagation();
+            onMoveToExpiry();
           }}
+        >
+          <MoveToExpiryIcon className="size-3.5" />
+        </button>
+
+        <button
+          type="button"
+          aria-label={t("buyList.viewEntry")}
+          className="flex min-w-0 flex-1 items-center gap-2 self-center text-left"
+          onClick={onOpen}
         >
           <ProductImage
             src={imagePath}
             alt=""
-            className="h-10 w-10 shrink-0 rounded-md object-cover"
-            placeholderClassName="h-10 w-10 shrink-0 rounded-md text-[9px]"
+            className="size-12 shrink-0 rounded-lg object-cover"
+            placeholderClassName="size-12 shrink-0 rounded-lg text-[9px]"
           />
 
           <div className="min-w-0 flex-1">
             <p
-              className={`line-clamp-2 text-xs font-semibold leading-tight ${
+              className={`line-clamp-2 text-sm font-semibold leading-tight ${
                 checked ? "text-foreground/70 line-through" : "text-foreground"
               }`}
             >
@@ -126,54 +92,83 @@ export function BuyListCard({
             </p>
           </div>
 
-          <div className="flex shrink-0 items-stretch gap-1">
-            <div className="flex min-w-[2.5rem] flex-col items-center justify-center rounded-md border border-card-border bg-transparent px-1.5 py-0.5 text-center">
-              <p className="text-base font-bold leading-none tabular-nums text-foreground">
-                {quantity}
-              </p>
-              <p className="text-[10px] font-semibold leading-none text-muted">
-                {t("buyList.pieces")}
-              </p>
-            </div>
-
-            {onToggleChecked ? (
-              <button
-                type="button"
-                role="checkbox"
-                aria-checked={checked}
-                aria-label={checked ? t("buyList.markNotBought") : t("buyList.markBought")}
-                title={checked ? t("buyList.markNotBought") : t("buyList.markBought")}
-                className={`flex min-w-[2.5rem] flex-col items-center justify-center rounded-md border px-1.5 py-0.5 text-center transition-colors ${
-                  checked
-                    ? "border-primary/50 bg-black/20"
-                    : "border-card-border bg-transparent text-foreground"
-                }`}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onToggleChecked();
-                }}
-              >
-                {checked ? (
-                  <span className="flex size-[23px] items-center justify-center rounded-sm bg-primary text-primary-fg">
-                    <CheckIcon className="size-[18px]" />
-                  </span>
-                ) : (
-                  <span
-                    aria-hidden
-                    className="size-[23px] rounded-sm border-2 border-muted"
-                  />
-                )}
-                <p
-                  className={`text-[10px] font-semibold leading-none ${
-                    checked ? "text-primary" : "text-muted"
-                  }`}
-                >
-                  {t("buyList.done")}
-                </p>
-              </button>
-            ) : null}
+          <div className="flex min-w-[2.5rem] shrink-0 flex-col items-center justify-center rounded-md border border-card-border bg-transparent px-1.5 py-0.5 text-center">
+            <p className="text-base font-bold leading-none tabular-nums text-foreground">
+              {quantity}
+            </p>
+            <p className="text-[10px] font-semibold leading-none text-muted">
+              {t("buyList.pieces")}
+            </p>
           </div>
-        </div>
+        </button>
+
+        {onToggleChecked ? (
+          <button
+            type="button"
+            role="checkbox"
+            aria-checked={checked}
+            aria-label={
+              checked ? t("buyList.markNotBought") : t("buyList.markBought")
+            }
+            title={
+              checked ? t("buyList.markNotBought") : t("buyList.markBought")
+            }
+            className={`mt-0.5 flex min-w-[2.5rem] shrink-0 flex-col items-center justify-center self-center rounded-md border px-1.5 py-0.5 text-center transition-colors ${
+              checked
+                ? "border-primary/50 bg-black/20"
+                : "border-card-border bg-transparent text-foreground"
+            }`}
+            onClick={(event) => {
+              event.stopPropagation();
+              onToggleChecked();
+            }}
+          >
+            {checked ? (
+              <span className="flex size-[23px] items-center justify-center rounded-sm bg-primary text-primary-fg">
+                <CheckIcon className="size-[18px]" />
+              </span>
+            ) : (
+              <span
+                aria-hidden
+                className="size-[23px] rounded-sm border-2 border-muted"
+              />
+            )}
+            <p
+              className={`text-[10px] font-semibold leading-none ${
+                checked ? "text-primary" : "text-muted"
+              }`}
+            >
+              {t("buyList.done")}
+            </p>
+          </button>
+        ) : null}
+
+        <button
+          type="button"
+          aria-label={favourite ? t("favourites.remove") : t("favourites.add")}
+          title={favourite ? t("favourites.remove") : t("favourites.add")}
+          className={`mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-md border border-card-border bg-transparent ${
+            favourite ? "text-amber-400" : "text-muted"
+          }`}
+          onClick={(event) => {
+            event.stopPropagation();
+            onToggleFavourite();
+          }}
+        >
+          <StarFavouriteIcon className="size-3.5" filled={favourite} />
+        </button>
+
+        <button
+          type="button"
+          aria-label={t("buyList.remove")}
+          className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-md border border-card-border bg-transparent text-base leading-none text-muted"
+          onClick={(event) => {
+            event.stopPropagation();
+            onRemove();
+          }}
+        >
+          ×
+        </button>
       </div>
     </article>
   );

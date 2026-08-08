@@ -329,18 +329,7 @@ export function ExpiryEntryDetailSheet({
       aria-label={displayName}
     >
       <div className="shrink-0 px-4 pt-1">
-        <div className="relative">
-          <MobilePageHeader className="mb-2 pr-10" />
-          <button
-            type="button"
-            aria-label={t("expiry.closeImage")}
-            className="absolute top-[max(0.75rem,env(safe-area-inset-top,0px))] right-0 z-20 flex size-8 items-center justify-center rounded-full border border-card-border text-lg leading-none text-foreground"
-            onClick={onClose}
-            disabled={saving}
-          >
-            ×
-          </button>
-        </div>
+        <MobilePageHeader className="mb-2" />
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-4 pb-3">

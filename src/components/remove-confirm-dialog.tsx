@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { BrandMarkIcon, TrashIcon } from "@/components/app-nav-icons";
+import { TrashIcon } from "@/components/app-nav-icons";
 import { useViewportInsets } from "@/hooks/use-viewport-insets";
 
 type Props = {
@@ -68,8 +68,16 @@ export function RemoveConfirmDialog({
         className="w-full max-w-[22rem] rounded-2xl border border-card-border bg-background px-5 pb-5 pt-6 shadow-[0_20px_50px_rgba(0,0,0,0.5)]"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="flex justify-center text-primary">
-          <BrandMarkIcon className="size-[4.5rem]" />
+        <div className="flex justify-center">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/icons/icon-192.png?v=10"
+            alt=""
+            width={112}
+            height={112}
+            className="size-28 object-contain"
+            decoding="async"
+          />
         </div>
 
         <h2

@@ -497,6 +497,8 @@ export const en = {
     saveFailed: "Could not save changes",
     confirmUpdateTitle: "Save changes?",
     confirmSave: "Save",
+    changePhotoButton: "Change Photo",
+    saveChangesButton: "Save Changes",
     copyName: "Copy product name",
     copyBarcode: "Copy barcode",
     copied: "Copied",

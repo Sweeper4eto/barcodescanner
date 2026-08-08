@@ -243,6 +243,8 @@ const patchSchema = z.object({
   quantity: z.number().int().positive().optional(),
   checked: z.boolean().optional(),
   imagePath: z.string().nullable().optional(),
+  name: z.string().optional(),
+  barcode: z.string().nullable().optional(),
 });
 
 export async function PATCH(request: Request) {
@@ -273,7 +275,14 @@ export async function PATCH(request: Request) {
     );
   }
 
-  if (parsed.data.quantity !== undefined) {
+  const hasFieldUpdate =
+    parsed.data.quantity !== undefined ||
+    parsed.data.checked !== undefined ||
+    parsed.data.imagePath !== undefined ||
+    parsed.data.name !== undefined ||
+    parsed.data.barcode !== undefined;
+
+  if (hasFieldUpdate) {
     const existing = await db.buyListEntry.findFirst({
       where: {
         id: parsed.data.entryId,
@@ -290,82 +299,86 @@ export async function PATCH(request: Request) {
       );
     }
 
-    const entry = await db.buyListEntry.update({
-      where: { id: existing.id },
-      data: { quantity: parsed.data.quantity },
-      include: { product: true },
-    });
+    if (parsed.data.quantity !== undefined) {
+      await db.buyListEntry.update({
+        where: { id: existing.id },
+        data: { quantity: parsed.data.quantity },
+      });
 
-    await logAuditEvent(
-      request,
-      session,
-      "buy_list_updated",
-      auditBuyListUpdated({
-        productName: existing.product.name,
-        barcode: existing.barcode,
-        storeName: store.name,
-        beforeQty: existing.quantity,
-        afterQty: entry.quantity,
-      }),
-    );
-
-    return NextResponse.json({ entry });
-  }
-
-  if (parsed.data.imagePath !== undefined) {
-    const existing = await db.buyListEntry.findFirst({
-      where: {
-        id: parsed.data.entryId,
-        storeId: parsed.data.storeId,
-        ...activeBuyListWhere,
-      },
-      include: { product: true },
-    });
-
-    if (!existing) {
-      return NextResponse.json(
-        { error: apiT(request, "errors.entryNotFound") },
-        { status: 404 },
+      await logAuditEvent(
+        request,
+        session,
+        "buy_list_updated",
+        auditBuyListUpdated({
+          productName: existing.product.name,
+          barcode: existing.barcode,
+          storeName: store.name,
+          beforeQty: existing.quantity,
+          afterQty: parsed.data.quantity,
+        }),
       );
     }
 
-    const nextImagePath = parsed.data.imagePath?.trim() || null;
-    const product = await db.product.update({
-      where: { id: existing.productId },
-      data: { imagePath: nextImagePath },
-    });
+    if (parsed.data.checked !== undefined) {
+      await db.buyListEntry.update({
+        where: { id: existing.id },
+        data: { checkedAt: parsed.data.checked ? new Date() : null },
+      });
+    }
 
-    if (existing.product.imagePath && existing.product.imagePath !== product.imagePath) {
-      await deleteLocalUpload(existing.product.imagePath);
+    const productData: { name?: string; imagePath?: string | null; barcode?: string } =
+      {};
+
+    if (parsed.data.imagePath !== undefined) {
+      productData.imagePath = parsed.data.imagePath?.trim() || null;
+    }
+    if (parsed.data.name !== undefined) {
+      productData.name = parsed.data.name.trim();
+    }
+    if (parsed.data.barcode !== undefined) {
+      const normalized = normalizeBarcode(parsed.data.barcode ?? "");
+      const nextBarcode = normalized || makeAdhocBarcode();
+      if (nextBarcode !== existing.product.barcode) {
+        const clash = await db.product.findFirst({
+          where: {
+            id: { not: existing.productId },
+            barcode: { in: barcodeLookupValues(nextBarcode) },
+          },
+        });
+        if (clash) {
+          return NextResponse.json(
+            { error: apiT(request, "errors.productExistsGlobal") },
+            { status: 409 },
+          );
+        }
+      }
+      productData.barcode = nextBarcode;
+    }
+
+    if (Object.keys(productData).length > 0) {
+      const product = await db.product.update({
+        where: { id: existing.productId },
+        data: productData,
+      });
+
+      if (
+        productData.imagePath !== undefined &&
+        existing.product.imagePath &&
+        existing.product.imagePath !== product.imagePath
+      ) {
+        await deleteLocalUpload(existing.product.imagePath);
+      }
+
+      if (productData.barcode !== undefined) {
+        await db.buyListEntry.update({
+          where: { id: existing.id },
+          data: { barcode: productData.barcode },
+        });
+      }
     }
 
     const entry = await db.buyListEntry.findFirst({
       where: { id: existing.id },
-      include: { product: true },
-    });
-
-    return NextResponse.json({ entry });
-  }
-
-  if (parsed.data.checked !== undefined) {
-    const existing = await db.buyListEntry.findFirst({
-      where: {
-        id: parsed.data.entryId,
-        storeId: parsed.data.storeId,
-        ...activeBuyListWhere,
-      },
-    });
-
-    if (!existing) {
-      return NextResponse.json(
-        { error: apiT(request, "errors.entryNotFound") },
-        { status: 404 },
-      );
-    }
-
-    const entry = await db.buyListEntry.update({
-      where: { id: existing.id },
-      data: { checkedAt: parsed.data.checked ? new Date() : null },
       include: { product: true },
     });
 
