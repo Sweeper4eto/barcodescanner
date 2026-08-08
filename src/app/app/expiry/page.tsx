@@ -455,6 +455,10 @@ function ExpiryList() {
 
   function onBarcodeScanned(barcode: string) {
     setSearch(barcode);
+  }
+
+  function confirmBarcodeSearch(barcode: string) {
+    setSearch(barcode);
     setShowScanner(false);
   }
 
@@ -491,7 +495,7 @@ function ExpiryList() {
             onChange={setSearch}
             placeholder={t("expiry.searchPlaceholder")}
             aria-label={t("expiry.searchPlaceholder")}
-            inputClassName="h-9 rounded-lg border border-input-border bg-input px-2.5 text-base text-foreground"
+            inputClassName="h-9 rounded-lg border border-input-border bg-input pl-2.5 text-base text-foreground"
             onClear={() => setShowScanner(false)}
           />
           <button
@@ -509,18 +513,19 @@ function ExpiryList() {
         </div>
 
         {showScanner ? (
-          <div className="rounded-2xl border border-card-border p-4">
+          <div className="rounded-2xl border border-card-border p-3">
             <BarcodeScanner
               autoStart
-              submitOnScan
-              onScan={async (barcode) => onBarcodeScanned(barcode)}
+              continuousFill
+              onDetect={onBarcodeScanned}
+              onScan={async (barcode) => confirmBarcodeSearch(barcode)}
               onCancel={() => setShowScanner(false)}
             />
           </div>
         ) : null}
       </div>
 
-      <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto overscroll-y-contain px-2.5 pb-3.5 pt-3 [scrollbar-width:thin]">
+      <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto overscroll-y-contain px-1.5 pb-3.5 pt-3 [scrollbar-width:thin]">
         {loading && page === 1 && entries.length === 0 ? (
           <p className="rounded-xl bg-transparent p-4 text-sm text-muted">
             {isSearching ? t("expiry.searching") : t("expiry.loading")}

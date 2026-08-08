@@ -270,6 +270,25 @@ export function TrashIcon({ className = "h-4 w-4" }: { className?: string }) {
   );
 }
 
+export function FlashlightIcon({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <path d="M9 3h6l1 4H8l1-4z" />
+      <path d="M8 7h8v3a2 2 0 0 1-.6 1.4L14 13v7a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1v-7l-1.4-1.6A2 2 0 0 1 8 10V7z" />
+      <path d="M12 10v1" />
+    </svg>
+  );
+}
+
 export function CalendarIcon({ className = "h-4 w-4" }: { className?: string }) {
   return (
     <svg

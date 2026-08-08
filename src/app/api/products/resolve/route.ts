@@ -48,7 +48,10 @@ export async function POST(request: Request) {
   }
 
   const local = await db.product.findFirst({
-    where: { barcode: { in: barcodeLookupValues(barcode) } },
+    where: {
+      barcode: { in: barcodeLookupValues(barcode) },
+      NOT: { barcode: { startsWith: "NB" } },
+    },
   });
   if (local) {
     if (!local.imagePath?.trim()) {

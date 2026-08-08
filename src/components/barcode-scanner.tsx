@@ -8,11 +8,12 @@ import {
 } from "html5-qrcode";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { PrimaryButton, SecondaryButton } from "@/components/auth-forms";
+import { FlashlightIcon } from "@/components/app-nav-icons";
 import { useT } from "@/components/i18n-provider";
 import { ScannerViewfinderOverlay } from "@/components/scanner-viewfinder-overlay";
 import { startEnhancedAutoScan, startFastVideoScan, toggleBarcodeTorch, applyBarcodeCameraConstraints, startAutoRefocus, captureScannerPreview } from "@/lib/barcode-camera";
 import { prepareBarcodeDecoders } from "@/lib/barcode-decode";
-import { CrossDecoderBarcodeConsensus, normalizeBarcode } from "@/lib/barcode";
+import { CrossDecoderBarcodeConsensus, isPlausibleBarcode, normalizeBarcode } from "@/lib/barcode";
 
 type Props = {
   onScan: (barcode: string) => void | Promise<void>;
@@ -21,6 +22,13 @@ type Props = {
   autoStart?: boolean;
   /** When false, camera scan fills the barcode field for manual edit before confirm. */
   submitOnScan?: boolean;
+  /**
+   * Keep scanning after each decode; call `onDetect` so a parent search field
+   * can update. UI shows Confirm + Cancel only (no nested barcode input).
+   */
+  continuousFill?: boolean;
+  /** Fired on every accepted decode while `continuousFill` is on. */
+  onDetect?: (barcode: string) => void;
   /** Double-tap the preview to continue without a barcode (passes a live photo when possible). */
   onSkipWithoutBarcode?: (photoDataUrl?: string) => void;
 };
@@ -36,8 +44,13 @@ const PRODUCT_BARCODE_FORMATS = [
 ];
 
 const SCAN_CONFIG: Html5QrcodeCameraScanConfig = {
-  fps: 10,
+  fps: 12,
   disableFlip: false,
+  // Full preview decode — laptop webcams need as many pixels as possible.
+  qrbox: (viewfinderWidth, viewfinderHeight) => ({
+    width: Math.max(120, Math.floor(viewfinderWidth * 0.98)),
+    height: Math.max(100, Math.floor(viewfinderHeight * 0.98)),
+  }),
 };
 
 const CAMERA_ATTEMPTS: MediaTrackConstraints[] = [
@@ -119,6 +132,7 @@ async function startScanner(
   fileDecoder: Html5Qrcode,
   containerId: string,
   onDecoded: (value: string) => void | Promise<void>,
+  isContinuous: () => boolean,
 ): Promise<() => void> {
   let lastError: unknown;
   const consensus = new CrossDecoderBarcodeConsensus();
@@ -152,14 +166,22 @@ async function startScanner(
 
   const deliver = (accepted: string) => {
     void (async () => {
-      stopEnhanced();
-      try {
-        scanner.pause(true);
-      } catch {
-        // Scanner may not be running yet while the camera is still starting.
+      const continuous = isContinuous();
+      if (!continuous) {
+        stopEnhanced();
+        try {
+          scanner.pause(true);
+        } catch {
+          // Scanner may not be running yet while the camera is still starting.
+        }
       }
       try {
         await onDecoded(accepted);
+        if (continuous) {
+          // Allow the next barcode (or a re-read) without waiting on stale consensus.
+          consensus.reset();
+          return;
+        }
         try {
           if (scanner.isScanning) {
             restartEnhancedScan();
@@ -179,7 +201,24 @@ async function startScanner(
     })();
   };
 
+  let lastContinuousCode = "";
+  let lastContinuousAt = 0;
+
   const consider = (decoded: string, source = "live") => {
+    // List search mode: fill as soon as we get one plausible read.
+    // Full scan flows keep the stricter multi-hit consensus.
+    if (isContinuous()) {
+      const code = normalizeBarcode(decoded);
+      if (!isPlausibleBarcode(code)) return;
+      const now = Date.now();
+      // Avoid spamming the same code every frame; still allow a new code immediately.
+      if (code === lastContinuousCode && now - lastContinuousAt < 900) return;
+      lastContinuousCode = code;
+      lastContinuousAt = now;
+      deliver(code);
+      return;
+    }
+
     const accepted = consensus.addFromSource(decoded, source);
     if (accepted) deliver(accepted);
   };
@@ -288,6 +327,8 @@ export function BarcodeScanner({
   onCancel,
   autoStart = false,
   submitOnScan = false,
+  continuousFill = false,
+  onDetect,
   onSkipWithoutBarcode,
 }: Props) {
   const { t } = useT();
@@ -297,7 +338,9 @@ export function BarcodeScanner({
   const fileDecoderRef = useRef<Html5Qrcode | null>(null);
   const scanCleanupRef = useRef<(() => void) | null>(null);
   const onScanRef = useRef(onScan);
+  const onDetectRef = useRef(onDetect);
   const submitOnScanRef = useRef(submitOnScan);
+  const continuousFillRef = useRef(continuousFill);
   const lastTapRef = useRef(0);
   const handledRef = useRef(false);
   const abortedRef = useRef(false);
@@ -313,8 +356,16 @@ export function BarcodeScanner({
   }, [onScan]);
 
   useEffect(() => {
+    onDetectRef.current = onDetect;
+  }, [onDetect]);
+
+  useEffect(() => {
     submitOnScanRef.current = submitOnScan;
   }, [submitOnScan]);
+
+  useEffect(() => {
+    continuousFillRef.current = continuousFill;
+  }, [continuousFill]);
 
   useEffect(() => {
     if (typeof window === "undefined" || !window.isSecureContext) return;
@@ -350,6 +401,12 @@ export function BarcodeScanner({
   const deliverBarcode = useCallback(async (value: string) => {
     const barcode = normalizeBarcode(value);
     if (!barcode) {
+      return;
+    }
+
+    if (continuousFillRef.current) {
+      setManual(barcode);
+      onDetectRef.current?.(barcode);
       return;
     }
 
@@ -421,6 +478,7 @@ export function BarcodeScanner({
         fileDecoder,
         elementId,
         deliverBarcode,
+        () => continuousFillRef.current,
       );
 
       if (abortedRef.current) {
@@ -479,12 +537,14 @@ export function BarcodeScanner({
     }
   }
 
+  const hasBarcode = Boolean(normalizeBarcode(manual));
+
   return (
     <div className="space-y-3">
       <div
         className={
           scanning || starting
-            ? "barcode-scanner-view overflow-hidden rounded-xl border border-card-border"
+            ? "barcode-scanner-view relative overflow-hidden rounded-xl border border-card-border"
             : "h-0 overflow-hidden"
         }
         style={
@@ -507,9 +567,25 @@ export function BarcodeScanner({
       >
         <div id={elementId} className="w-full max-w-full" />
         {scanning || starting ? <ScannerViewfinderOverlay /> : null}
+        {scanning && torchAvailable ? (
+          <button
+            type="button"
+            className={`absolute right-2.5 bottom-2.5 z-10 flex size-9 items-center justify-center rounded-full border border-white/25 bg-black/55 text-white backdrop-blur-sm ${
+              torchOn ? "bg-primary/90 text-primary-fg border-primary" : ""
+            }`}
+            onClick={(event) => {
+              event.stopPropagation();
+              void onTorchToggle();
+            }}
+            aria-label={torchOn ? t("scanner.torchOff") : t("scanner.torchOn")}
+            title={torchOn ? t("scanner.torchOff") : t("scanner.torchOn")}
+          >
+            <FlashlightIcon className="size-4" />
+          </button>
+        ) : null}
       </div>
       <div id={fileDecoderId} className="hidden" aria-hidden />
-      {scanning ? (
+      {scanning && !continuousFill ? (
         <div className="space-y-0.5 text-center text-[11px] leading-snug text-muted">
           <p>{starting ? t("scanner.starting") : t("scanner.tips")}</p>
           {onSkipWithoutBarcode && !starting ? (
@@ -521,32 +597,60 @@ export function BarcodeScanner({
         <PrimaryButton onClick={() => void startCamera()} disabled={starting}>
           {starting ? t("scanner.starting") : t("scanner.startCamera")}
         </PrimaryButton>
-      ) : torchAvailable ? (
+      ) : !continuousFill && torchAvailable ? (
         <SecondaryButton onClick={() => void onTorchToggle()}>
           {torchOn ? t("scanner.torchOff") : t("scanner.torchOn")}
         </SecondaryButton>
       ) : null}
       {error ? <p className="text-sm text-warning-fg">{error}</p> : null}
-      <label className="block text-sm font-medium text-foreground">
-        {t("common.barcode")}
-        <input
-          data-testid="barcode-manual-input"
-          className="mt-1 w-full min-w-0 rounded-xl border border-input-border bg-input px-3 py-3 text-base text-foreground"
-          placeholder={t("scanner.manualPlaceholder")}
-          value={manual}
-          onChange={(event) => setManual(event.target.value)}
-        />
-      </label>
-      <button
-        type="button"
-        data-testid="scanner-confirm-barcode"
-        className="w-full rounded-xl bg-primary px-4 py-2 font-medium text-primary-fg disabled:opacity-50"
-        disabled={!normalizeBarcode(manual)}
-        onClick={() => void confirmManual()}
-      >
-        {t("scanner.confirmBarcode")}
-      </button>
-      {onCancel ? <SecondaryButton onClick={onCancel}>{t("common.cancel")}</SecondaryButton> : null}
+
+      {continuousFill ? (
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            data-testid="scanner-confirm-barcode"
+            className="rounded-xl bg-primary px-3 py-2.5 text-sm font-semibold text-primary-fg disabled:opacity-50"
+            disabled={!hasBarcode}
+            onClick={() => void confirmManual()}
+          >
+            {t("scanner.confirm")}
+          </button>
+          {onCancel ? (
+            <button
+              type="button"
+              className="rounded-xl border border-card-border bg-transparent px-3 py-2.5 text-sm font-semibold text-foreground"
+              onClick={onCancel}
+            >
+              {t("common.cancel")}
+            </button>
+          ) : null}
+        </div>
+      ) : (
+        <>
+          <label className="block text-sm font-medium text-foreground">
+            {t("common.barcode")}
+            <input
+              data-testid="barcode-manual-input"
+              className="mt-1 w-full min-w-0 rounded-xl border border-input-border bg-input px-3 py-3 text-base text-foreground"
+              placeholder={t("scanner.manualPlaceholder")}
+              value={manual}
+              onChange={(event) => setManual(event.target.value)}
+            />
+          </label>
+          <button
+            type="button"
+            data-testid="scanner-confirm-barcode"
+            className="w-full rounded-xl bg-primary px-4 py-2 font-medium text-primary-fg disabled:opacity-50"
+            disabled={!hasBarcode}
+            onClick={() => void confirmManual()}
+          >
+            {t("scanner.confirmBarcode")}
+          </button>
+          {onCancel ? (
+            <SecondaryButton onClick={onCancel}>{t("common.cancel")}</SecondaryButton>
+          ) : null}
+        </>
+      )}
     </div>
   );
 }

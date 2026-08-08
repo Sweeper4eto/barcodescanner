@@ -19,6 +19,7 @@
     "db:refresh-names": "tsx scripts/refresh-product-names-from-dumps.ts",
     "db:fix-names-online": "tsx scripts/fix-names-from-internet.ts",
     "db:fix-images-online": "tsx scripts/fix-images-from-internet.ts",
+    "db:purge-local-products": "tsx scripts/purge-local-products.ts",
     "icons": "node scripts/generate-icons.mjs",
     "vapid": "node scripts/generate-vapid-keys.mjs",
     "admin:password": "tsx scripts/set-admin-password.ts",

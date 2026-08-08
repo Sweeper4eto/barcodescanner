@@ -7,6 +7,7 @@ import { CameraCapture, prepareDocumentImage } from "@/components/camera-capture
 import { assessDocumentPhotoQuality } from "@/lib/document-image";
 import { DocumentDraftDetailSheet } from "@/components/document-draft-detail-sheet";
 import { DocumentDraftListCard } from "@/components/document-draft-list-card";
+import { DocumentProcessingPanel } from "@/components/document-processing-panel";
 import { MobilePageHeader } from "@/components/mobile-page-header";
 import { SearchField } from "@/components/search-field";
 import { useT } from "@/components/i18n-provider";
@@ -55,6 +56,7 @@ function AddDocumentContent() {
     current: number;
     total: number;
   } | null>(null);
+  const [failedFiles, setFailedFiles] = useState<string[]>([]);
 
   const detailItem = useMemo(
     () => items.find((item) => item.key === detailKey) ?? null,
@@ -219,6 +221,7 @@ function AddDocumentContent() {
   async function onCapture(dataUrl: string) {
     if (!storeId) return;
     setError("");
+    setFailedFiles([]);
     setStep("processing");
     setProcessingProgress(null);
     const result = await processDocumentImageWithRetry(dataUrl);
@@ -232,19 +235,27 @@ function AddDocumentContent() {
     setStep("review");
   }
 
-  async function onMultipleCapture(dataUrls: string[]) {
-    if (!storeId || dataUrls.length === 0) return;
+  async function onMultipleCapture(
+    pages: { dataUrl: string; name: string }[],
+  ) {
+    if (!storeId || pages.length === 0) return;
     setError("");
+    setFailedFiles([]);
     setStep("processing");
     const collected: DocumentDraftItem[] = [];
     let failed = 0;
-    for (let index = 0; index < dataUrls.length; index += 1) {
-      setProcessingProgress({ current: index + 1, total: dataUrls.length });
-      const result = await processDocumentImageWithRetry(dataUrls[index]);
+    for (let index = 0; index < pages.length; index += 1) {
+      setProcessingProgress({ current: index + 1, total: pages.length });
+      const page = pages[index];
+      const label =
+        page.name.trim() ||
+        t("addDocument.pageLabel", { n: index + 1 });
+      const result = await processDocumentImageWithRetry(page.dataUrl);
       if (result.ok) {
         collected.push(...toDraftItems(result.items));
       } else {
         failed += 1;
+        setFailedFiles((current) => [...current, label]);
       }
     }
     setProcessingProgress(null);
@@ -252,17 +263,19 @@ function AddDocumentContent() {
     if (collected.length === 0) {
       setError(t("errors.documentParseFailed"));
       setStep("camera");
+      setFailedFiles([]);
       return;
     }
 
     setItems(collected);
     setSearch("");
     setStep("review");
+    setFailedFiles([]);
     if (failed > 0) {
       setError(
         t("addDocument.multiPartialFailure", {
           failed,
-          total: dataUrls.length,
+          total: pages.length,
         }),
       );
     }
@@ -362,20 +375,22 @@ function AddDocumentContent() {
 
   return (
     <div className="mx-auto min-w-0 max-w-lg overflow-x-visible px-4 pb-3 pt-1">
-      <MobilePageHeader title={t("addDocument.title")} sticky />
+      <MobilePageHeader
+        title={step === "processing" ? undefined : t("addDocument.title")}
+        sticky
+      />
 
       {step === "camera" ? (
-        <div className="space-y-3 rounded-2xl border border-card-border p-3">
-          <p className="text-xs text-muted">{t("addDocument.hint")}</p>
+        <div className="space-y-3">
           {error ? <p className="text-sm text-error">{error}</p> : null}
           <CameraCapture
+            variant="document"
             autoStart
             allowFileUpload
             allowMultipleFiles
-            compact
             showViewfinder
             onCapture={(dataUrl) => void onCapture(dataUrl)}
-            onMultipleCapture={(dataUrls) => void onMultipleCapture(dataUrls)}
+            onMultipleCapture={(pages) => void onMultipleCapture(pages)}
             onCancel={() =>
               goBackOrApp(
                 storeId
@@ -388,16 +403,11 @@ function AddDocumentContent() {
       ) : null}
 
       {step === "processing" ? (
-        <div className="rounded-2xl border border-card-border p-6 text-center">
-          <p className="text-sm text-muted">
-            {processingProgress
-              ? t("addDocument.processingMulti", {
-                  current: processingProgress.current,
-                  total: processingProgress.total,
-                })
-              : t("addDocument.processing")}
-          </p>
-        </div>
+        <DocumentProcessingPanel
+          current={processingProgress?.current}
+          total={processingProgress?.total}
+          failedFiles={failedFiles}
+        />
       ) : null}
 
       {step === "review" ? (

@@ -73,7 +73,7 @@ export function ExpiryListCard({
         aria-hidden
       />
 
-      <div className="flex min-w-0 flex-1 items-start gap-1.5 px-1.5 py-1">
+      <div className="flex min-w-0 flex-1 items-start gap-1 px-1 py-1">
         {!viewOnly && homeUser ? (
           <button
             type="button"
@@ -130,7 +130,7 @@ export function ExpiryListCard({
         <button
           type="button"
           aria-label={t("expiry.viewEntry")}
-          className="flex min-w-0 flex-1 items-center gap-2 self-center text-left"
+          className="flex min-w-0 flex-1 items-center gap-1.5 self-center text-left"
           onClick={onOpen}
           disabled={viewOnly}
         >
@@ -148,7 +148,7 @@ export function ExpiryListCard({
             <p className="mt-0.5 text-[10px] leading-tight text-muted">
               {t("expiry.enteredOn")} {formatLocaleDay(entered, dateLocale)}
             </p>
-            <p className="text-[13px] leading-tight text-primary">
+            <p className="whitespace-nowrap text-[12px] leading-tight text-primary">
               <span className="text-[10px] font-semibold text-primary/80">
                 {t("expiry.validUntil")}
               </span>{" "}
@@ -158,8 +158,8 @@ export function ExpiryListCard({
             </p>
           </div>
 
-          <div className="flex shrink-0 items-stretch gap-1">
-            <div className="flex min-w-[2.5rem] flex-col items-center justify-center rounded-md border border-card-border bg-transparent px-1.5 py-0.5 text-center">
+          <div className="flex shrink-0 items-stretch gap-0.5">
+            <div className="flex min-w-[2.25rem] flex-col items-center justify-center rounded-md border border-card-border bg-transparent px-1 py-0.5 text-center">
               <p className="text-base font-bold leading-none tabular-nums text-foreground">
                 {quantity}
               </p>
@@ -169,7 +169,7 @@ export function ExpiryListCard({
             </div>
 
             <div
-              className={`flex min-w-[2.5rem] flex-col items-center justify-center rounded-md border px-1.5 py-0.5 text-center ${expiryUrgencyBadgeClass(expiry)}`}
+              className={`flex min-w-[2.25rem] flex-col items-center justify-center rounded-md border px-1 py-0.5 text-center ${expiryUrgencyBadgeClass(expiry)}`}
             >
               {days !== 0 ? (
                 <>

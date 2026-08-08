@@ -484,6 +484,10 @@ function BuyListContent() {
 
   function onBarcodeScanned(barcode: string) {
     setSearch(barcode);
+  }
+
+  function confirmBarcodeSearch(barcode: string) {
+    setSearch(barcode);
     setShowScanner(false);
   }
 
@@ -540,7 +544,7 @@ function BuyListContent() {
             onChange={setSearch}
             placeholder={t("buyList.searchPlaceholder")}
             aria-label={t("buyList.searchPlaceholder")}
-            inputClassName="h-9 rounded-lg border border-input-border bg-input pl-2.5 pr-[4.5rem] text-base text-foreground"
+            inputClassName="h-9 rounded-lg border border-input-border bg-input pl-2.5 text-base text-foreground"
             onClear={() => setShowScanner(false)}
             trailingAction={
               <button
@@ -576,8 +580,9 @@ function BuyListContent() {
           <div className="rounded-xl border border-card-border p-2">
             <BarcodeScanner
               autoStart
-              submitOnScan
-              onScan={async (barcode) => onBarcodeScanned(barcode)}
+              continuousFill
+              onDetect={onBarcodeScanned}
+              onScan={async (barcode) => confirmBarcodeSearch(barcode)}
               onCancel={() => setShowScanner(false)}
             />
           </div>

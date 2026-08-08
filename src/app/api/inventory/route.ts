@@ -22,7 +22,11 @@ import { filterInventoryEntriesBySearch } from "@/lib/inventory-search";
 import { db } from "@/lib/db";
 import { userCanAccessStore } from "@/lib/store-access";
 import { deleteLocalUpload } from "@/lib/upload";
-import { makeAdhocBarcode } from "@/lib/inventory-entry-display";
+import {
+  isAdhocBarcode,
+  makeAdhocBarcode,
+} from "@/lib/inventory-entry-display";
+import { deleteLocalProductIfUnused } from "@/lib/local-product";
 import { apiT } from "@/i18n";
 
 const createSchema = z.object({
@@ -551,10 +555,16 @@ export async function PATCH(request: Request) {
                 : {}),
             },
           });
-          await tx.inventoryEntry.update({
-            where: { id: existing.id },
-            data: { removedAt: new Date() },
-          });
+          // Merged-away row: hard-delete for local products so soft-removed
+          // NB… rows do not keep scaffolding products alive.
+          if (isAdhocBarcode(existing.barcode)) {
+            await tx.inventoryEntry.delete({ where: { id: existing.id } });
+          } else {
+            await tx.inventoryEntry.update({
+              where: { id: existing.id },
+              data: { removedAt: new Date() },
+            });
+          }
           return tx.inventoryEntry.findUniqueOrThrow({
             where: { id: conflict.id },
             include: { product: true },
@@ -619,10 +629,13 @@ export async function PATCH(request: Request) {
       await deleteLocalUpload(existing.imagePath);
     }
 
-    if (parsed.data.imagePath !== undefined) {
-      // The product record is shared across the cart, favourites, and every
-      // other expiry batch of this product, so a picture set here should be
-      // visible everywhere else that product appears too.
+    if (
+      parsed.data.imagePath !== undefined &&
+      !isAdhocBarcode(existing.barcode)
+    ) {
+      // Shared catalog products: keep the product photo in sync so cart,
+      // favourites, and other batches see the same image. Local (NB…)
+      // products stay entry-only so they never pad the global catalog.
       const nextProductImagePath = parsed.data.imagePath?.trim() || null;
       const product = await db.product.update({
         where: { id: existing.productId },
@@ -707,40 +720,43 @@ export async function PATCH(request: Request) {
     include: { product: true },
   });
 
-  const entry = await db.inventoryEntry.updateMany({
-    where: {
-      id: parsed.data.entryId,
-      storeId: parsed.data.storeId,
-      ...activeInventoryWhere,
-    },
-    data: { removedAt: new Date() },
-  });
-
-  if (entry.count === 0) {
+  if (!removed) {
     return NextResponse.json(
       { error: apiT(request, "errors.entryNotFound") },
       { status: 404 },
     );
   }
 
-  if (removed?.imagePath) {
-    await deleteLocalUpload(removed.imagePath);
+  // No-barcode items are local scaffolding — hard-delete so the synthetic
+  // Product row can be garbage-collected instead of bloating the catalog.
+  if (isAdhocBarcode(removed.barcode)) {
+    await db.inventoryEntry.delete({ where: { id: removed.id } });
+    if (removed.imagePath) {
+      await deleteLocalUpload(removed.imagePath);
+    }
+    await deleteLocalProductIfUnused(removed.productId);
+  } else {
+    await db.inventoryEntry.update({
+      where: { id: removed.id },
+      data: { removedAt: new Date() },
+    });
+    if (removed.imagePath) {
+      await deleteLocalUpload(removed.imagePath);
+    }
   }
 
-  if (removed) {
-    await logAuditEvent(
-      request,
-      session,
-      "inventory_removed",
-      auditInventoryRemoved({
-        productName: removed.product.name,
-        barcode: removed.barcode,
-        quantity: removed.quantity,
-        storeName: store.name,
-        expiryDate: removed.expiryDate,
-      }),
-    );
-  }
+  await logAuditEvent(
+    request,
+    session,
+    "inventory_removed",
+    auditInventoryRemoved({
+      productName: removed.product.name,
+      barcode: removed.barcode,
+      quantity: removed.quantity,
+      storeName: store.name,
+      expiryDate: removed.expiryDate,
+    }),
+  );
 
   return NextResponse.json({ ok: true });
 }

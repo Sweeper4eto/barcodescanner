@@ -1,0 +1,23 @@
+---
+description: Reminder — one-time purge of orphan system-generated (NB…) products after other page fixes
+alwaysApply: true
+---
+
+# Pending: purge orphan local products
+
+The user deferred a one-time cleanup of old system-generated (`NB…`) products that accumulated in the Product table before local-catalog rules.
+
+**Do not run it unprompted.** When wrapping up a session, finishing UI/page work, or when the user asks what is left / about the catalog / NB barcodes / local products, **remind them** to run (after dry-run) on production:
+
+```bash
+DATABASE_URL="file:/path/to/prod.db" npm run db:purge-local-products -- --dry-run
+DATABASE_URL="file:/path/to/prod.db" npm run db:purge-local-products
+```
+
+Script: `scripts/purge-local-products.ts` (`db:purge-local-products`).
+
+Safe: does **not** remove active expiry, cart, or favourites. Only soft-removed NB rows and unused NB products.
+
+Ongoing GC already runs on remove/unfavourite and inventory purge cron — this script is only for the existing backlog.
+
+When the user confirms they ran it (or no longer need it), delete this rule file.

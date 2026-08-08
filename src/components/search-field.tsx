@@ -32,48 +32,49 @@ export function SearchField({
   ...inputProps
 }: Props) {
   const { t } = useT();
+  const hasValue = Boolean(value);
+  const showClear = hasValue;
 
   function clear() {
     onChange("");
     onClear?.();
   }
 
+  // Keep typed text clear of the in-field clear / trailing controls.
+  const endPad = trailingAction
+    ? showClear
+      ? "pr-20"
+      : "pr-14"
+    : showClear
+      ? "pr-9"
+      : "";
+
   return (
     <div className={`relative min-w-0 flex-1 ${className}`}>
       <input
         type="text"
-        className={`w-full ${inputClassName}`}
+        className={`w-full ${endPad} ${inputClassName}`.trim()}
         value={value}
         placeholder={placeholder}
         aria-label={ariaLabel ?? placeholder}
         onChange={(event) => onChange(event.target.value)}
         {...inputProps}
       />
-      {trailingAction ? (
-        <div className="absolute top-1/2 right-1.5 z-10 flex -translate-y-1/2 items-center gap-1">
-          {value ? (
+      {showClear || trailingAction ? (
+        <div className="absolute inset-y-0 right-1.5 z-10 flex items-center gap-1">
+          {showClear ? (
             <button
               type="button"
               aria-label={t("common.clearSearch")}
               title={t("common.clearSearch")}
-              className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-card-border bg-transparent text-sm leading-none text-muted"
+              className="flex size-6 shrink-0 items-center justify-center rounded-full border border-card-border bg-transparent text-base leading-none text-muted"
               onClick={clear}
             >
-              {"\u00d7"}
+              ×
             </button>
           ) : null}
           {trailingAction}
         </div>
-      ) : value ? (
-        <button
-          type="button"
-          aria-label={t("common.clearSearch")}
-          title={t("common.clearSearch")}
-          className="absolute top-0 right-0 z-10 flex h-5 w-5 -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full border border-card-border bg-transparent text-sm leading-none text-muted"
-          onClick={clear}
-        >
-          {"\u00d7"}
-        </button>
       ) : null}
     </div>
   );

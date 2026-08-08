@@ -11,9 +11,13 @@ import { requireSession } from "@/lib/auth";
 import { barcodeLookupValues, normalizeBarcode } from "@/lib/barcode";
 import { activeBuyListWhere } from "@/lib/buy-list";
 import { userCanAccessHomeStore } from "@/lib/home-user";
-import { makeAdhocBarcode } from "@/lib/inventory-entry-display";
+import {
+  isAdhocBarcode,
+  makeAdhocBarcode,
+} from "@/lib/inventory-entry-display";
 import { filterInventoryEntriesBySearch } from "@/lib/inventory-search";
 import { db } from "@/lib/db";
+import { deleteLocalProductIfUnused } from "@/lib/local-product";
 import { deleteLocalUpload } from "@/lib/upload";
 import { apiT } from "@/i18n";
 
@@ -394,35 +398,34 @@ export async function PATCH(request: Request) {
     include: { product: true },
   });
 
-  const result = await db.buyListEntry.updateMany({
-    where: {
-      id: parsed.data.entryId,
-      storeId: parsed.data.storeId,
-      ...activeBuyListWhere,
-    },
-    data: { removedAt: new Date() },
-  });
-
-  if (result.count === 0) {
+  if (!removed) {
     return NextResponse.json(
       { error: apiT(request, "errors.entryNotFound") },
       { status: 404 },
     );
   }
 
-  if (removed) {
-    await logAuditEvent(
-      request,
-      session,
-      "buy_list_removed",
-      auditBuyListRemoved({
-        productName: removed.product.name,
-        barcode: removed.barcode,
-        quantity: removed.quantity,
-        storeName: store.name,
-      }),
-    );
+  if (isAdhocBarcode(removed.barcode)) {
+    await db.buyListEntry.delete({ where: { id: removed.id } });
+    await deleteLocalProductIfUnused(removed.productId);
+  } else {
+    await db.buyListEntry.update({
+      where: { id: removed.id },
+      data: { removedAt: new Date() },
+    });
   }
+
+  await logAuditEvent(
+    request,
+    session,
+    "buy_list_removed",
+    auditBuyListRemoved({
+      productName: removed.product.name,
+      barcode: removed.barcode,
+      quantity: removed.quantity,
+      storeName: store.name,
+    }),
+  );
 
   return NextResponse.json({ ok: true });
 }

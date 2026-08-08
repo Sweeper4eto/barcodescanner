@@ -14,6 +14,7 @@ import {
   expiryDateDayBounds,
   normalizeExpiryDate,
 } from "@/lib/inventory";
+import { isAdhocBarcode } from "@/lib/inventory-entry-display";
 import { db } from "@/lib/db";
 import { apiT } from "@/i18n";
 
@@ -83,10 +84,16 @@ export async function POST(request: Request) {
   });
 
   const result = await db.$transaction(async (tx) => {
-    await tx.buyListEntry.update({
-      where: { id: orderEntry.id },
-      data: { removedAt: new Date() },
-    });
+    // Hard-delete when moving: soft-removed cart rows would keep local (NB…)
+    // products alive forever and bloat the Product table.
+    if (isAdhocBarcode(orderEntry.barcode)) {
+      await tx.buyListEntry.delete({ where: { id: orderEntry.id } });
+    } else {
+      await tx.buyListEntry.update({
+        where: { id: orderEntry.id },
+        data: { removedAt: new Date() },
+      });
+    }
 
     if (existing) {
       const entry = await tx.inventoryEntry.update({
@@ -104,7 +111,7 @@ export async function POST(request: Request) {
         barcode: orderEntry.barcode,
         quantity: orderEntry.quantity,
         expiryDate,
-        imagePath: null,
+        imagePath: orderEntry.product.imagePath,
       },
       include: { product: true },
     });

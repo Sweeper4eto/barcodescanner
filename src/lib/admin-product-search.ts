@@ -38,8 +38,13 @@ export async function searchAdminProducts(
   const skip = Math.max(0, (page - 1) * pageSize);
   const needle = q?.trim() ?? "";
 
+  // Exclude synthetic no-barcode (NB…) rows — those are store-local scaffolding,
+  // not shared catalog products.
+  const catalogOnly = Prisma.sql`AND barcode NOT LIKE 'NB%'`;
+
   if (!needle) {
     const rows = await db.product.findMany({
+      where: { NOT: { barcode: { startsWith: "NB" } } },
       orderBy: { name: "asc" },
       skip,
       take,
@@ -57,8 +62,8 @@ export async function searchAdminProducts(
     const rows = await db.$queryRaw<AdminProductListItem[]>(Prisma.sql`
       SELECT id, name, barcode, imagePath
       FROM Product
-      WHERE barcode = ${digits}
-         OR barcode LIKE ${prefix}
+      WHERE (barcode = ${digits} OR barcode LIKE ${prefix})
+        ${catalogOnly}
       ORDER BY
         CASE WHEN barcode = ${digits} THEN 0 ELSE 1 END,
         barcode
@@ -75,6 +80,7 @@ export async function searchAdminProducts(
     SELECT id, name, barcode, imagePath
     FROM Product
     WHERE name LIKE ${namePrefix}
+      ${catalogOnly}
     ORDER BY name
     LIMIT ${take} OFFSET ${skip}
   `);
@@ -104,6 +110,7 @@ export async function searchAdminProducts(
     SELECT id, name, barcode, imagePath
     FROM Product
     WHERE (name LIKE ${contains} OR barcode LIKE ${contains})
+      ${catalogOnly}
     ${excludeSql}
     LIMIT ${needed}
   `);

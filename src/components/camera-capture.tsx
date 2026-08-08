@@ -9,21 +9,26 @@ type Props = {
   onCapture: (dataUrl: string) => void;
   /**
    * Called instead of `onCapture` when the user selects more than one file
-   * at once from the gallery (requires `allowFileUpload` + `allowMultipleFiles`).
+   * at once from Upload (requires `allowFileUpload` + `allowMultipleFiles`).
    * Bypasses the single-photo preview step since reviewing many photos one
    * by one before continuing isn't useful for a multi-page document.
    */
-  onMultipleCapture?: (dataUrls: string[]) => void;
+  onMultipleCapture?: (pages: { dataUrl: string; name: string }[]) => void;
   onCancel?: () => void;
   autoStart?: boolean;
   allowFileUpload?: boolean;
-  /** Allow selecting multiple images at once from the gallery picker. */
+  /** Allow selecting multiple images at once (phone and PC). */
   allowMultipleFiles?: boolean;
   /**
    * Cap the live/preview image height so Capture / Upload / Cancel stay on
    * screen (needed on Add document where the phone camera is otherwise huge).
    */
   compact?: boolean;
+  /**
+   * Document scan layout: large viewfinder, icon row Upload | Capture | Cancel,
+   * multi-select Upload tip. Implies viewfinder corners when live.
+   */
+  variant?: "default" | "document";
   /** L-shaped corner guides over the live camera preview (document scanning). */
   showViewfinder?: boolean;
   /**
@@ -40,6 +45,78 @@ type Props = {
    */
   confirmMode?: "next" | "save";
 };
+
+function UploadIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M12 16V5" />
+      <path d="m8 9 4-4 4 4" />
+      <path d="M4 19h16" />
+    </svg>
+  );
+}
+
+function CaptureIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M4 8h3l1.5-2h7L17 8h3v11H4V8Z" />
+      <circle cx="12" cy="13" r="3.25" />
+    </svg>
+  );
+}
+
+function CancelIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      aria-hidden
+    >
+      <path d="M6 6l12 12" />
+      <path d="M18 6 6 18" />
+    </svg>
+  );
+}
+
+function FrameCameraIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M4 8h3l1.5-2h7L17 8h3v11H4V8Z" />
+      <circle cx="12" cy="13" r="3.25" />
+    </svg>
+  );
+}
 
 const MAX_UPLOAD_BYTES = 12 * 1024 * 1024;
 const ACCEPTED_TYPES = new Set([
@@ -387,6 +464,7 @@ export function CameraCapture({
   allowFileUpload = false,
   allowMultipleFiles = false,
   compact = false,
+  variant = "default",
   showViewfinder = false,
   forceInAppCamera = false,
   captureOnPreviewTap = false,
@@ -405,7 +483,10 @@ export function CameraCapture({
   const [error, setError] = useState("");
   const [useNativeCapture, setUseNativeCapture] = useState(false);
   const [platformReady, setPlatformReady] = useState(false);
+  const [tipDismissed, setTipDismissed] = useState(false);
   const autoStartedRef = useRef(false);
+  const documentLayout = variant === "document";
+  const showCorners = showViewfinder || documentLayout;
 
   useEffect(() => {
     setUseNativeCapture(!forceInAppCamera && prefersNativeCameraCapture());
@@ -507,9 +588,14 @@ export function CameraCapture({
     setError("");
     try {
       if (files.length > 1 && onMultipleCapture) {
-        const dataUrls = await Promise.all(files.map(readFileAsDataUrl));
+        const pages = await Promise.all(
+          files.map(async (file) => ({
+            dataUrl: await readFileAsDataUrl(file),
+            name: file.name?.trim() || "",
+          })),
+        );
         stopCamera();
-        onMultipleCapture(dataUrls);
+        onMultipleCapture(pages);
         return;
       }
       const dataUrl = await readFileAsDataUrl(files[0]);
@@ -531,13 +617,17 @@ export function CameraCapture({
     void startCamera();
   }
 
-  const previewFrameClass = compact
-    ? "h-full w-full object-contain"
-    : "max-h-[min(52dvh,24rem)] w-full object-contain";
+  const previewFrameClass = documentLayout
+    ? "h-full w-full object-cover"
+    : compact
+      ? "h-full w-full object-contain"
+      : "max-h-[min(52dvh,24rem)] w-full object-contain";
 
-  const previewShellClass = compact
-    ? "relative mx-auto flex h-[min(28dvh,12.5rem)] w-full items-center justify-center overflow-hidden rounded-xl border border-card-border bg-black"
-    : "relative mx-auto flex max-h-[min(52dvh,24rem)] w-full items-center justify-center overflow-hidden rounded-xl border border-card-border bg-black";
+  const previewShellClass = documentLayout
+    ? "relative mx-auto flex aspect-[3/4] max-h-[min(58dvh,28rem)] w-full items-center justify-center overflow-hidden rounded-2xl border border-card-border bg-black"
+    : compact
+      ? "relative mx-auto flex h-[min(28dvh,12.5rem)] w-full items-center justify-center overflow-hidden rounded-xl border border-card-border bg-black"
+      : "relative mx-auto flex max-h-[min(52dvh,24rem)] w-full items-center justify-center overflow-hidden rounded-xl border border-card-border bg-black";
 
   const acceptAttr =
     "image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif,.heic,.heif";
@@ -545,105 +635,266 @@ export function CameraCapture({
   const showNativePath = useNativeCapture && !forceInAppCamera;
   const productSaveFlow = confirmMode === "save";
 
+  function openUploadPicker() {
+    galleryInputRef.current?.click();
+  }
+
+  function triggerCapture() {
+    if (showNativePath && !active) {
+      nativeCameraInputRef.current?.click();
+      return;
+    }
+    if (!active) {
+      void startCamera();
+      return;
+    }
+    void takePhoto();
+  }
+
+  const fileInputs = (allowFileUpload || showNativePath) && (
+    <>
+      <input
+        ref={nativeCameraInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={(event) => void onFileSelected(event)}
+      />
+      <input
+        ref={galleryInputRef}
+        type="file"
+        accept={acceptAttr}
+        multiple={allowMultipleFiles}
+        className="hidden"
+        onChange={(event) => void onFileSelected(event)}
+      />
+    </>
+  );
+
+  const documentToolbar = documentLayout && !preview && (
+    <div className="flex items-end justify-center gap-5 pt-1">
+      {allowFileUpload || showNativePath ? (
+        <button
+          type="button"
+          onClick={openUploadPicker}
+          disabled={starting || capturing}
+          className="flex h-14 w-14 flex-col items-center justify-center rounded-2xl border border-primary/50 bg-transparent text-primary disabled:opacity-50"
+          aria-label={t("camera.upload")}
+        >
+          <UploadIcon className="h-6 w-6" />
+          <span className="mt-0.5 text-[10px] font-medium leading-none">
+            {t("camera.upload")}
+          </span>
+        </button>
+      ) : (
+        <span className="h-14 w-14" aria-hidden />
+      )}
+
+      <button
+        type="button"
+        onClick={triggerCapture}
+        disabled={starting || capturing}
+        className="flex h-[5.25rem] w-[5.25rem] flex-col items-center justify-center gap-0.5 rounded-full border-[3px] border-primary/35 bg-primary text-primary-fg shadow-md disabled:opacity-50"
+        aria-label={
+          capturing
+            ? t("scanner.starting")
+            : active || showNativePath
+              ? t("camera.capture")
+              : t("camera.start")
+        }
+      >
+        <CaptureIcon className="h-9 w-9" />
+        <span className="max-w-[4.5rem] truncate text-[11px] font-semibold leading-tight">
+          {t("camera.captureShort")}
+        </span>
+      </button>
+
+      {onCancel ? (
+        <button
+          type="button"
+          onClick={onCancel}
+          disabled={capturing}
+          className="flex h-14 w-14 flex-col items-center justify-center rounded-2xl border border-card-border bg-transparent disabled:opacity-50"
+          aria-label={t("common.cancel")}
+        >
+          <CancelIcon className="h-6 w-6 text-foreground" />
+          <span className="mt-0.5 text-[10px] font-medium leading-none text-danger">
+            {t("common.cancel")}
+          </span>
+        </button>
+      ) : (
+        <span className="h-14 w-14" aria-hidden />
+      )}
+    </div>
+  );
+
   return (
     <div className={`relative space-y-3 ${active && !preview ? "isolate" : ""}`}>
       {error ? <p className="text-sm text-error">{error}</p> : null}
 
       {!preview ? (
         <>
-          {showNativePath ? (
+          {showNativePath && !documentLayout ? (
             <p className="text-xs text-muted">{t("camera.iosNativeHint")}</p>
           ) : null}
-          <div
-            className={
-              active
-                ? `${previewShellClass}${
-                    captureOnPreviewTap ? " cursor-pointer" : ""
-                  }`
-                : "pointer-events-none absolute h-px w-px overflow-hidden opacity-0"
-            }
-            aria-hidden={!active}
-            onClick={() => {
-              if (captureOnPreviewTap && active && !capturing) {
-                void takePhoto();
+
+          {documentLayout ? (
+            <div className={previewShellClass}>
+              <div
+                className={
+                  active
+                    ? `absolute inset-0${captureOnPreviewTap ? " cursor-pointer" : ""}`
+                    : "pointer-events-none absolute inset-0 opacity-0"
+                }
+                aria-hidden={!active}
+                onClick={() => {
+                  if (captureOnPreviewTap && active && !capturing) {
+                    void takePhoto();
+                  }
+                }}
+              >
+                <video
+                  ref={videoRef}
+                  className={previewFrameClass}
+                  playsInline
+                  muted
+                  autoPlay
+                />
+              </div>
+              {!active ? (
+                <div className="relative z-[1] flex max-w-[16rem] flex-col items-center gap-3 px-6 text-center text-white/85">
+                  <FrameCameraIcon className="h-10 w-10 opacity-80" />
+                  <p className="text-sm leading-snug">
+                    {starting
+                      ? t("scanner.starting")
+                      : t("addDocument.frameHint")}
+                  </p>
+                </div>
+              ) : null}
+              {showCorners ? (
+                <ScannerViewfinderOverlay
+                  variant="document"
+                  showScanLine={false}
+                />
+              ) : null}
+            </div>
+          ) : (
+            <div
+              className={
+                active
+                  ? `${previewShellClass}${
+                      captureOnPreviewTap ? " cursor-pointer" : ""
+                    }`
+                  : "pointer-events-none absolute h-px w-px overflow-hidden opacity-0"
               }
-            }}
-          >
-            <video
-              ref={videoRef}
-              className={previewFrameClass}
-              playsInline
-              muted
-              autoPlay
-            />
-            {showViewfinder ? (
-              <ScannerViewfinderOverlay variant="document" showScanLine={false} />
-            ) : null}
-          </div>
-          <div className="flex flex-col gap-2">
-            {showNativePath && !active ? (
-              <PrimaryButton
-                onClick={() => nativeCameraInputRef.current?.click()}
-                disabled={starting}
-              >
-                {t("camera.capture")}
-              </PrimaryButton>
-            ) : !active ? (
-              autoStart && !error ? (
-                <p className="text-center text-sm text-muted">
-                  {t("scanner.starting")}
-                </p>
-              ) : (
-                <PrimaryButton onClick={() => void startCamera()} disabled={starting}>
-                  {starting ? t("scanner.starting") : t("camera.start")}
-                </PrimaryButton>
-              )
-            ) : (
-              <PrimaryButton
-                onClick={() => void takePhoto()}
-                disabled={capturing || starting}
-              >
-                {t("camera.capture")}
-              </PrimaryButton>
-            )}
-            {allowFileUpload || showNativePath ? (
-              <>
-                <SecondaryButton
-                  onClick={() => galleryInputRef.current?.click()}
+              aria-hidden={!active}
+              onClick={() => {
+                if (captureOnPreviewTap && active && !capturing) {
+                  void takePhoto();
+                }
+              }}
+            >
+              <video
+                ref={videoRef}
+                className={previewFrameClass}
+                playsInline
+                muted
+                autoPlay
+              />
+              {showCorners ? (
+                <ScannerViewfinderOverlay
+                  variant="document"
+                  showScanLine={false}
+                />
+              ) : null}
+            </div>
+          )}
+
+          {documentLayout ? (
+            <>
+              {documentToolbar}
+              {fileInputs}
+              {allowMultipleFiles && !tipDismissed ? (
+                <div className="flex items-start gap-2 rounded-xl border border-primary/35 bg-primary/10 px-3 py-2.5 text-sm text-foreground">
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="mt-0.5 h-5 w-5 shrink-0 text-primary"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.75"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden
+                  >
+                    <path d="M9 18h6" />
+                    <path d="M10 21h4" />
+                    <path d="M12 3a6 6 0 0 0-4 10.5V15h8v-1.5A6 6 0 0 0 12 3Z" />
+                  </svg>
+                  <p className="min-w-0 flex-1 leading-snug">
+                    {t("addDocument.multiTip")}
+                  </p>
+                  <button
+                    type="button"
+                    className="shrink-0 rounded-lg px-2 py-0.5 text-xs font-semibold text-primary"
+                    onClick={() => setTipDismissed(true)}
+                  >
+                    {t("common.ok")}
+                  </button>
+                </div>
+              ) : null}
+            </>
+          ) : (
+            <div className="flex flex-col gap-2">
+              {showNativePath && !active ? (
+                <PrimaryButton
+                  onClick={() => nativeCameraInputRef.current?.click()}
                   disabled={starting}
                 >
-                  {t("camera.uploadExisting")}
-                </SecondaryButton>
-                {showNativePath && !active ? (
+                  {t("camera.capture")}
+                </PrimaryButton>
+              ) : !active ? (
+                autoStart && !error ? (
+                  <p className="text-center text-sm text-muted">
+                    {t("scanner.starting")}
+                  </p>
+                ) : (
+                  <PrimaryButton onClick={() => void startCamera()} disabled={starting}>
+                    {starting ? t("scanner.starting") : t("camera.start")}
+                  </PrimaryButton>
+                )
+              ) : (
+                <PrimaryButton
+                  onClick={() => void takePhoto()}
+                  disabled={capturing || starting}
+                >
+                  {t("camera.capture")}
+                </PrimaryButton>
+              )}
+              {allowFileUpload || showNativePath ? (
+                <>
                   <SecondaryButton
-                    onClick={() => void startCamera()}
+                    onClick={openUploadPicker}
                     disabled={starting}
                   >
-                    {starting ? t("scanner.starting") : t("camera.startBrowser")}
+                    {t("camera.upload")}
                   </SecondaryButton>
-                ) : null}
-                <input
-                  ref={nativeCameraInputRef}
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  className="hidden"
-                  onChange={(event) => void onFileSelected(event)}
-                />
-                <input
-                  ref={galleryInputRef}
-                  type="file"
-                  accept={acceptAttr}
-                  multiple={allowMultipleFiles}
-                  className="hidden"
-                  onChange={(event) => void onFileSelected(event)}
-                />
-              </>
-            ) : null}
-            {onCancel ? (
-              <SecondaryButton onClick={onCancel}>{t("common.cancel")}</SecondaryButton>
-            ) : null}
-          </div>
+                  {showNativePath && !active ? (
+                    <SecondaryButton
+                      onClick={() => void startCamera()}
+                      disabled={starting}
+                    >
+                      {starting ? t("scanner.starting") : t("camera.startBrowser")}
+                    </SecondaryButton>
+                  ) : null}
+                  {fileInputs}
+                </>
+              ) : null}
+              {onCancel ? (
+                <SecondaryButton onClick={onCancel}>{t("common.cancel")}</SecondaryButton>
+              ) : null}
+            </div>
+          )}
         </>
       ) : (
         <>
@@ -652,9 +903,11 @@ export function CameraCapture({
             src={preview}
             alt={t("camera.productPhoto")}
             className={
-              compact
-                ? "mx-auto max-h-[min(28dvh,12.5rem)] w-full rounded-xl border border-card-border bg-black object-contain"
-                : "mx-auto max-h-[min(52dvh,24rem)] w-full rounded-xl border border-card-border bg-black object-contain"
+              documentLayout
+                ? "mx-auto max-h-[min(58dvh,28rem)] w-full rounded-2xl border border-card-border bg-black object-contain"
+                : compact
+                  ? "mx-auto max-h-[min(28dvh,12.5rem)] w-full rounded-xl border border-card-border bg-black object-contain"
+                  : "mx-auto max-h-[min(52dvh,24rem)] w-full rounded-xl border border-card-border bg-black object-contain"
             }
           />
           <div className="flex flex-col gap-2">
@@ -674,25 +927,10 @@ export function CameraCapture({
                     {t("camera.capture")}
                   </SecondaryButton>
                 ) : null}
-                <SecondaryButton onClick={() => galleryInputRef.current?.click()}>
-                  {t("camera.uploadExisting")}
+                <SecondaryButton onClick={openUploadPicker}>
+                  {t("camera.upload")}
                 </SecondaryButton>
-                <input
-                  ref={nativeCameraInputRef}
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  className="hidden"
-                  onChange={(event) => void onFileSelected(event)}
-                />
-                <input
-                  ref={galleryInputRef}
-                  type="file"
-                  accept={acceptAttr}
-                  multiple={allowMultipleFiles}
-                  className="hidden"
-                  onChange={(event) => void onFileSelected(event)}
-                />
+                {fileInputs}
               </>
             ) : null}
             {!productSaveFlow && onCancel ? (

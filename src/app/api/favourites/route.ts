@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireSession } from "@/lib/auth";
 import { userCanAccessHomeStore } from "@/lib/home-user";
 import { db } from "@/lib/db";
+import { deleteLocalProductIfUnused } from "@/lib/local-product";
 import { apiT } from "@/i18n";
 
 const mutateSchema = z.object({
@@ -155,6 +156,10 @@ export async function DELETE(request: Request) {
       productId: parsed.data.productId,
     },
   });
+
+  // Local (NB…) products: keep while favourited; purge only when also gone
+  // from expiry and cart.
+  await deleteLocalProductIfUnused(parsed.data.productId);
 
   return NextResponse.json({ ok: true });
 }
