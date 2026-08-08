@@ -92,3 +92,85 @@ export function QuantityPicker({
     </div>
   );
 }
+
+/** Compact − / value / + control for inline quantity editing. */
+export function QuantityStepper({
+  value,
+  onChange,
+  min = 1,
+  max = 99,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  min?: number;
+  max?: number;
+}) {
+  const { t } = useT();
+  const parsed = Number(value);
+  const current =
+    Number.isInteger(parsed) && parsed >= min ? parsed : min;
+
+  function setQty(next: number) {
+    onChange(String(Math.min(max, Math.max(min, next))));
+  }
+
+  return (
+    <div className="inline-flex shrink-0 items-center gap-1">
+      <button
+        type="button"
+        aria-label={t("scan.decreaseQuantity")}
+        disabled={current <= min}
+        onClick={() => setQty(current - 1)}
+        className="flex size-8 items-center justify-center rounded-lg border border-card-border text-foreground disabled:opacity-40"
+      >
+        <ChevronLeftIcon className="size-4" />
+      </button>
+      <span className="min-w-7 text-center text-sm font-semibold tabular-nums text-foreground">
+        {current}
+      </span>
+      <button
+        type="button"
+        aria-label={t("scan.increaseQuantity")}
+        disabled={current >= max}
+        onClick={() => setQty(current + 1)}
+        className="flex size-8 items-center justify-center rounded-lg border border-card-border text-foreground disabled:opacity-40"
+      >
+        <ChevronRightIcon className="size-4" />
+      </button>
+    </div>
+  );
+}
+
+function ChevronLeftIcon({ className = "size-4" }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <path d="M15 6l-6 6 6 6" />
+    </svg>
+  );
+}
+
+function ChevronRightIcon({ className = "size-4" }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <path d="M9 6l6 6-6 6" />
+    </svg>
+  );
+}

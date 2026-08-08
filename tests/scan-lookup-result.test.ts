@@ -22,7 +22,7 @@ test("applyLookupResult handles found product without throwing", () => {
     },
   );
 
-  assert.deepEqual(steps, ["barcode:123", "product", "qty"]);
+  assert.deepEqual(steps, ["barcode:123", "product", "date"]);
 });
 
 test("applyLookupResult handles missing product without throwing", () => {

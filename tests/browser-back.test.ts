@@ -6,10 +6,10 @@ import {
 } from "../src/lib/wizard-steps";
 
 test("scan wizard previous step mapping", () => {
-  assert.equal(getPreviousScanStep("date", true), "qty");
-  assert.equal(getPreviousScanStep("qty", true), "scan");
-  assert.equal(getPreviousScanStep("qty", false), "name");
+  assert.equal(getPreviousScanStep("date", true), "scan");
+  assert.equal(getPreviousScanStep("date", false), "name");
   assert.equal(getPreviousScanStep("missing", false), "scan");
+  assert.equal(getPreviousScanStep("name", false), "scan");
   assert.equal(getPreviousScanStep("scan", false), null);
 });
 

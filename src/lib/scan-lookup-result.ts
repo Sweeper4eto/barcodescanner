@@ -36,7 +36,7 @@ export function applyLookupResult<TStep extends string>(
     case "found":
       handlers.setBarcode(result.barcode);
       handlers.setProduct(result.product);
-      handlers.goToStep("qty" as TStep);
+      handlers.goToStep("date" as TStep);
       return;
   }
 }

@@ -8,7 +8,7 @@ import { CameraCapture, uploadImage } from "@/components/camera-capture";
 import { ExpiryDatePicker } from "@/components/expiry-date-picker";
 import { MobilePageHeader } from "@/components/mobile-page-header";
 import { ProductImage } from "@/components/product-image";
-import { QuantityPicker } from "@/components/quantity-picker";
+import { QuantityStepper } from "@/components/quantity-picker";
 import { useT } from "@/components/i18n-provider";
 import { goBackOrApp, navigateApp } from "@/lib/app-navigation";
 import { normalizeBarcode } from "@/lib/barcode";
@@ -62,8 +62,10 @@ export function ScanFlow() {
       setName(next.name);
       setEntryImagePath(null);
       setCapturingPhoto(false);
+      setQuantity("1");
+      setExpiryDate("");
       setMessage("");
-      goToStep("qty");
+      goToStep("date");
     },
     [goToStep],
   );
@@ -75,6 +77,8 @@ export function ScanFlow() {
       setName("");
       setEntryImagePath(null);
       setCapturingPhoto(false);
+      setQuantity("1");
+      setExpiryDate("");
       setMessage("");
       goToStep("name");
     },
@@ -86,6 +90,8 @@ export function ScanFlow() {
       setProduct(null);
       setBarcode("");
       setName("");
+      setQuantity("1");
+      setExpiryDate("");
       setMessage("");
       goToStep("name");
 
@@ -259,9 +265,6 @@ export function ScanFlow() {
           <p className="mt-2 max-w-sm text-sm leading-relaxed text-muted">
             {t("scan.productNotFoundBody")}
           </p>
-          {barcode ? (
-            <p className="mt-2 font-mono text-xs text-muted">{barcode}</p>
-          ) : null}
 
           <div className="mt-6 w-full space-y-3 text-left">
             <ScanMissingActionCard
@@ -353,7 +356,11 @@ export function ScanFlow() {
           <p className="text-xs text-muted">{t("scan.skipPhotoHint")}</p>
           {message ? <p className="text-sm text-error">{message}</p> : null}
           <PrimaryButton
-            onClick={() => goToStep("qty")}
+            onClick={() => {
+              setQuantity("1");
+              setExpiryDate("");
+              goToStep("date");
+            }}
             disabled={capturingPhoto || uploadingPhoto}
           >
             {t("common.next")}
@@ -362,66 +369,40 @@ export function ScanFlow() {
         </div>
       ) : null}
 
-      {step === "qty" ? (
-        <div className="space-y-4 rounded-2xl border border-card-border p-4">
-          <ProductImage
-            src={previewImage}
-            alt={displayName}
-            className="mx-auto max-h-52 rounded-xl object-cover"
-            placeholderClassName="mx-auto h-40 w-40 rounded-xl"
-          />
-          <p className="font-medium">{displayName}</p>
-          {showBarcode ? (
-            <label className="block text-sm font-medium text-foreground">
-              {t("common.barcode")}
-              <input
-                className="mt-1 w-full rounded-xl border border-input-border bg-input px-3 py-3 text-base text-foreground"
-                value={displayBarcode}
-                onChange={(event) => setBarcode(event.target.value)}
-              />
-            </label>
-          ) : null}
-          <QuantityPicker
-            value={quantity}
-            onChange={setQuantity}
-            onGridSelect={() => goToStep("date")}
-          />
-          <PrimaryButton
-            onClick={() => goToStep("date")}
-            disabled={!quantity || Number(quantity) < 1}
-          >
-            {t("common.next")}
-          </PrimaryButton>
-          <SecondaryButton onClick={() => navigateApp("/app")}>
-            {t("common.cancel")}
-          </SecondaryButton>
-        </div>
-      ) : null}
-
       {step === "date" ? (
-        <div className="space-y-4 rounded-2xl border border-card-border p-4">
-          <ProductImage
-            src={previewImage}
-            alt={displayName}
-            className="mx-auto max-h-52 w-full rounded-xl border border-card-border object-contain"
-            placeholderClassName="mx-auto h-40 w-40 rounded-xl"
-          />
-          <p className="font-medium">{displayName}</p>
-          {showBarcode ? (
-            <p className="font-mono text-xs text-muted">{displayBarcode}</p>
-          ) : null}
-          <QuantityPicker
-            value={quantity}
-            onChange={setQuantity}
-            startWithGridOpen={false}
-          />
-          <ExpiryDatePicker value={expiryDate} onChange={setExpiryDate} />
+        <div className="space-y-4">
+          <div className="flex items-center gap-3 rounded-2xl border border-card-border p-3">
+            <ProductImage
+              src={previewImage}
+              alt={displayName}
+              className="size-16 shrink-0 rounded-xl object-cover"
+              placeholderClassName="size-16 shrink-0 rounded-xl"
+            />
+            <div className="flex min-w-0 flex-1 items-center gap-2">
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-base font-semibold text-foreground">
+                  {displayName}
+                </p>
+                {showBarcode ? (
+                  <p className="mt-0.5 truncate font-mono text-xs text-muted">
+                    {displayBarcode}
+                  </p>
+                ) : null}
+              </div>
+              <QuantityStepper value={quantity} onChange={setQuantity} />
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-card-border p-4">
+            <ExpiryDatePicker value={expiryDate} onChange={setExpiryDate} />
+          </div>
+
           {message ? <p className="text-sm text-error">{message}</p> : null}
           <PrimaryButton
             onClick={() => void submitInventory()}
-            disabled={!expiryDate || saving}
+            disabled={!expiryDate || Number(quantity) < 1 || saving}
           >
-            {t("scan.enter")}
+            {t("scan.saveToExpiry")}
           </PrimaryButton>
           <SecondaryButton onClick={goBack}>{t("common.cancel")}</SecondaryButton>
         </div>
@@ -455,7 +436,7 @@ function ScanMissingActionCard({
       <button
         type="button"
         onClick={onAction}
-        className="shrink-0 rounded-lg border border-primary px-2.5 py-1.5 text-xs font-semibold text-primary"
+        className="inline-flex h-8 w-[6.25rem] shrink-0 items-center justify-center rounded-lg border border-primary px-2 text-xs font-semibold text-primary"
       >
         {actionLabel}
       </button>

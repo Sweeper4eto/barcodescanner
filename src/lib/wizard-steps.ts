@@ -1,4 +1,4 @@
-export type ScanWizardStep = "scan" | "missing" | "name" | "qty" | "date";
+export type ScanWizardStep = "scan" | "missing" | "name" | "date";
 export type AddProductWizardStep = "scan" | "name" | "photo" | "confirm";
 
 export function getPreviousScanStep(
@@ -7,8 +7,6 @@ export function getPreviousScanStep(
 ): ScanWizardStep | null {
   switch (step) {
     case "date":
-      return "qty";
-    case "qty":
       return hasProduct ? "scan" : "name";
     case "name":
     case "missing":
