@@ -86,26 +86,31 @@ export function BuyListEntryDetailSheet({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [changingPicture, setChangingPicture] = useState(false);
-  const [uploadingPicture, setUploadingPicture] = useState(false);
+  const [imageDraft, setImageDraft] = useState<string | null>(null);
 
   const parsedQuantity = Number(quantity);
   const quantityValid =
     quantity.length > 0 &&
     Number.isInteger(parsedQuantity) &&
     parsedQuantity >= 1;
-  const hasChanges = quantityValid && parsedQuantity !== entry.quantity;
+  const hasChanges =
+    Boolean(imageDraft) || (quantityValid && parsedQuantity !== entry.quantity);
   const canConfirm = hasChanges && quantityValid;
   const compactLayout = editingQuantity || hasChanges;
+  const displayImage = imageDraft ?? entry.product.imagePath;
 
   useEffect(() => {
     setQuantity(String(entry.quantity));
     setEditingQuantity(false);
+    setImageDraft(null);
+    setChangingPicture(false);
     setError(null);
-  }, [entry.id, entry.quantity]);
+  }, [entry.id, entry.quantity, entry.product.imagePath]);
 
   function revertDraft() {
     setQuantity(String(entry.quantity));
     setEditingQuantity(false);
+    setImageDraft(null);
     setError(null);
   }
 
@@ -132,14 +137,21 @@ export function BuyListEntryDetailSheet({
     setError(null);
 
     try {
+      const body: Record<string, unknown> = {
+        entryId: entry.id,
+        storeId,
+      };
+      if (imageDraft) {
+        body.imagePath = await uploadImage(imageDraft);
+      }
+      if (parsedQuantity !== entry.quantity) {
+        body.quantity = parsedQuantity;
+      }
+
       const response = await fetch("/api/buy-list", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          entryId: entry.id,
-          storeId,
-          quantity: parsedQuantity,
-        }),
+        body: JSON.stringify(body),
       });
       const data = (await response.json()) as {
         entry?: BuyListDetailEntry;
@@ -153,6 +165,7 @@ export function BuyListEntryDetailSheet({
 
       onUpdated(data.entry);
       setQuantity(String(data.entry.quantity));
+      setImageDraft(null);
       setEditingQuantity(false);
     } catch {
       setError(t("buyList.saveFailed"));
@@ -208,7 +221,7 @@ export function BuyListEntryDetailSheet({
 
         {changingPicture ? null : (
           <ProductImage
-            src={entry.product.imagePath}
+            src={displayImage}
             alt={entry.product.name}
             className={
               compactLayout
@@ -235,40 +248,17 @@ export function BuyListEntryDetailSheet({
             </p>
             <CameraCapture
               compact
+              autoStart
+              forceInAppCamera
+              captureOnPreviewTap
+              confirmMode="save"
               onCapture={(dataUrl) => {
-                void (async () => {
-                  setUploadingPicture(true);
-                  setError(null);
-                  try {
-                    const path = await uploadImage(dataUrl);
-                    const response = await fetch("/api/buy-list", {
-                      method: "PATCH",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({
-                        entryId: entry.id,
-                        storeId,
-                        imagePath: path,
-                      }),
-                    });
-                    const data = await response.json();
-                    if (!response.ok || !data.entry) {
-                      setError(data.error ?? t("buyList.saveFailed"));
-                      return;
-                    }
-                    onUpdated(data.entry);
-                    setChangingPicture(false);
-                  } catch {
-                    setError(t("errors.uploadFailed"));
-                  } finally {
-                    setUploadingPicture(false);
-                  }
-                })();
+                setImageDraft(dataUrl);
+                setChangingPicture(false);
+                setError(null);
               }}
               onCancel={() => setChangingPicture(false)}
             />
-            {uploadingPicture ? (
-              <p className="text-center text-xs text-muted">{t("scanner.starting")}</p>
-            ) : null}
           </div>
         </div>
       ) : null}

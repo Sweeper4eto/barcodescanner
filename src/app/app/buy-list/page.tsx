@@ -16,6 +16,7 @@ import { ExpiryDatePicker } from "@/components/expiry-date-picker";
 import { MobilePageHeader, listPageChromeClassName, listPageScrollClassName, listPageShellClassName } from "@/components/mobile-page-header";
 import { ProductImage } from "@/components/product-image";
 import { QuantityPicker } from "@/components/quantity-picker";
+import { RemoveConfirmDialog } from "@/components/remove-confirm-dialog";
 import { SearchField } from "@/components/search-field";
 import { useT } from "@/components/i18n-provider";
 import { useBrowserBackStack } from "@/lib/browser-back";
@@ -488,6 +489,9 @@ function BuyListContent() {
 
   const isSearching = debouncedSearch.length > 0;
   const emptyMessage = isSearching ? t("buyList.noResults") : t("buyList.empty");
+  const confirmEntry = confirmId
+    ? (entries.find((entry) => entry.id === confirmId) ?? null)
+    : null;
 
   if (homeUser === null) {
     return (
@@ -691,37 +695,16 @@ function BuyListContent() {
         />
       ) : null}
 
-      {confirmId ? (
-        <div
-          className="fixed inset-x-0 z-[60] flex items-end justify-center bg-black/40"
-          style={{ top: offsetTop, bottom: keyboardInset }}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="orders-confirm-title"
-        >
-          <div className="w-full max-w-lg px-3 pb-[calc(var(--app-bottom-nav-height)+env(safe-area-inset-bottom,0px)+0.5rem)]">
-            <div className="rounded-xl border border-card-border bg-background p-3">
-              <p id="orders-confirm-title" className="text-sm font-semibold">{t("buyList.confirmTitle")}</p>
-              <p className="mt-1 text-xs text-muted">{t("buyList.confirmMessage")}</p>
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  className="rounded-lg border border-input-border bg-transparent px-3 py-2 text-sm text-foreground"
-                  onClick={() => setConfirmId(null)}
-                >
-                  {t("buyList.confirmCancel")}
-                </button>
-                <button
-                  type="button"
-                  className="rounded-lg bg-danger px-3 py-2 text-sm text-danger-fg"
-                  onClick={() => void removeEntry(confirmId)}
-                >
-                  {t("buyList.remove")}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+      {confirmId && confirmEntry ? (
+        <RemoveConfirmDialog
+          title={t("buyList.confirmTitle")}
+          message={t("buyList.confirmMessage")}
+          itemLabel={`${confirmEntry.product.name.trim() || t("common.noName")} (${confirmEntry.quantity} ${t("buyList.pieces")})`}
+          cancelLabel={t("buyList.confirmCancel")}
+          removeLabel={t("buyList.remove")}
+          onCancel={() => setConfirmId(null)}
+          onConfirm={() => void removeEntry(confirmId)}
+        />
       ) : null}
 
       {moveToExpiryId ? (

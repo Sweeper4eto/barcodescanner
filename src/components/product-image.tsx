@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type MouseEvent, type PointerEvent } from "react";
+import { useEffect, useRef, useState, type MouseEvent, type PointerEvent } from "react";
 import { useT } from "@/components/i18n-provider";
 
 type Props = {
@@ -28,6 +28,10 @@ export function ProductImage({
   const lastTapRef = useRef(0);
   const longPressFiredRef = useRef(false);
   const showImage = Boolean(src?.trim()) && !broken;
+
+  useEffect(() => {
+    setBroken(false);
+  }, [src]);
 
   function clearPress() {
     if (pressTimer.current) {

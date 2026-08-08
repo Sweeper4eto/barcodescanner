@@ -26,6 +26,19 @@ type Props = {
   compact?: boolean;
   /** L-shaped corner guides over the live camera preview (document scanning). */
   showViewfinder?: boolean;
+  /**
+   * Always use the in-app getUserMedia preview (skip iOS native camera shortcut).
+   * Useful for product photo changes that need Take / Retake / Save in-app.
+   */
+  forceInAppCamera?: boolean;
+  /** Tap the live camera preview to take a photo. */
+  captureOnPreviewTap?: boolean;
+  /**
+   * Preview confirm button:
+   * - `next` — document/scan flows (Continue)
+   * - `save` — product photo flows (Save photo + Retake + Cancel)
+   */
+  confirmMode?: "next" | "save";
 };
 
 const MAX_UPLOAD_BYTES = 12 * 1024 * 1024;
@@ -375,6 +388,9 @@ export function CameraCapture({
   allowMultipleFiles = false,
   compact = false,
   showViewfinder = false,
+  forceInAppCamera = false,
+  captureOnPreviewTap = false,
+  confirmMode = "next",
 }: Props) {
   const { t } = useT();
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -392,9 +408,9 @@ export function CameraCapture({
   const autoStartedRef = useRef(false);
 
   useEffect(() => {
-    setUseNativeCapture(prefersNativeCameraCapture());
+    setUseNativeCapture(!forceInAppCamera && prefersNativeCameraCapture());
     setPlatformReady(true);
-  }, []);
+  }, [forceInAppCamera]);
 
   const stopCamera = useCallback(() => {
     streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -448,11 +464,10 @@ export function CameraCapture({
 
   useEffect(() => {
     if (!autoStart || !platformReady || autoStartedRef.current) return;
-    // iOS Safari: skip weak in-browser preview; native Camera app is sharper for OCR.
     autoStartedRef.current = true;
-    if (useNativeCapture) return;
+    if (useNativeCapture && !forceInAppCamera) return;
     void startCamera();
-  }, [autoStart, platformReady, startCamera, useNativeCapture]);
+  }, [autoStart, forceInAppCamera, platformReady, startCamera, useNativeCapture]);
 
   async function takePhoto() {
     const video = videoRef.current;
@@ -510,6 +525,12 @@ export function CameraCapture({
     onCapture(preview);
   }
 
+  function retakePhoto() {
+    setPreview(null);
+    if (useNativeCapture && !forceInAppCamera) return;
+    void startCamera();
+  }
+
   const previewFrameClass = compact
     ? "h-full w-full object-contain"
     : "max-h-[min(52dvh,24rem)] w-full object-contain";
@@ -521,22 +542,32 @@ export function CameraCapture({
   const acceptAttr =
     "image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif,.heic,.heif";
 
+  const showNativePath = useNativeCapture && !forceInAppCamera;
+  const productSaveFlow = confirmMode === "save";
+
   return (
     <div className={`relative space-y-3 ${active && !preview ? "isolate" : ""}`}>
       {error ? <p className="text-sm text-error">{error}</p> : null}
 
       {!preview ? (
         <>
-          {useNativeCapture ? (
+          {showNativePath ? (
             <p className="text-xs text-muted">{t("camera.iosNativeHint")}</p>
           ) : null}
           <div
             className={
               active
-                ? previewShellClass
+                ? `${previewShellClass}${
+                    captureOnPreviewTap ? " cursor-pointer" : ""
+                  }`
                 : "pointer-events-none absolute h-px w-px overflow-hidden opacity-0"
             }
             aria-hidden={!active}
+            onClick={() => {
+              if (captureOnPreviewTap && active && !capturing) {
+                void takePhoto();
+              }
+            }}
           >
             <video
               ref={videoRef}
@@ -550,7 +581,7 @@ export function CameraCapture({
             ) : null}
           </div>
           <div className="flex flex-col gap-2">
-            {useNativeCapture && !active ? (
+            {showNativePath && !active ? (
               <PrimaryButton
                 onClick={() => nativeCameraInputRef.current?.click()}
                 disabled={starting}
@@ -558,9 +589,15 @@ export function CameraCapture({
                 {t("camera.capture")}
               </PrimaryButton>
             ) : !active ? (
-              <PrimaryButton onClick={() => void startCamera()} disabled={starting}>
-                {starting ? t("scanner.starting") : t("camera.start")}
-              </PrimaryButton>
+              autoStart && !error ? (
+                <p className="text-center text-sm text-muted">
+                  {t("scanner.starting")}
+                </p>
+              ) : (
+                <PrimaryButton onClick={() => void startCamera()} disabled={starting}>
+                  {starting ? t("scanner.starting") : t("camera.start")}
+                </PrimaryButton>
+              )
             ) : (
               <PrimaryButton
                 onClick={() => void takePhoto()}
@@ -569,7 +606,7 @@ export function CameraCapture({
                 {t("camera.capture")}
               </PrimaryButton>
             )}
-            {allowFileUpload || useNativeCapture ? (
+            {allowFileUpload || showNativePath ? (
               <>
                 <SecondaryButton
                   onClick={() => galleryInputRef.current?.click()}
@@ -577,7 +614,7 @@ export function CameraCapture({
                 >
                   {t("camera.uploadExisting")}
                 </SecondaryButton>
-                {useNativeCapture && !active ? (
+                {showNativePath && !active ? (
                   <SecondaryButton
                     onClick={() => void startCamera()}
                     disabled={starting}
@@ -585,7 +622,6 @@ export function CameraCapture({
                     {starting ? t("scanner.starting") : t("camera.startBrowser")}
                   </SecondaryButton>
                 ) : null}
-                {/* Native iOS Camera app — full still resolution for OCR */}
                 <input
                   ref={nativeCameraInputRef}
                   type="file"
@@ -623,23 +659,17 @@ export function CameraCapture({
           />
           <div className="flex flex-col gap-2">
             <PrimaryButton onClick={() => void uploadAndContinue()}>
-              {t("common.next")}
+              {productSaveFlow ? t("camera.savePhoto") : t("common.next")}
             </PrimaryButton>
-            <SecondaryButton
-              onClick={() => {
-                setPreview(null);
-                if (useNativeCapture) {
-                  // Stay on native path; user taps Take photo again.
-                  return;
-                }
-                void startCamera();
-              }}
-            >
-              {t("camera.newPhoto")}
+            <SecondaryButton onClick={retakePhoto}>
+              {productSaveFlow ? t("camera.retakePhoto") : t("camera.newPhoto")}
             </SecondaryButton>
-            {allowFileUpload || useNativeCapture ? (
+            {productSaveFlow && onCancel ? (
+              <SecondaryButton onClick={onCancel}>{t("common.cancel")}</SecondaryButton>
+            ) : null}
+            {!productSaveFlow && (allowFileUpload || showNativePath) ? (
               <>
-                {useNativeCapture ? (
+                {showNativePath ? (
                   <SecondaryButton onClick={() => nativeCameraInputRef.current?.click()}>
                     {t("camera.capture")}
                   </SecondaryButton>
@@ -665,7 +695,7 @@ export function CameraCapture({
                 />
               </>
             ) : null}
-            {onCancel ? (
+            {!productSaveFlow && onCancel ? (
               <SecondaryButton onClick={onCancel}>{t("common.cancel")}</SecondaryButton>
             ) : null}
           </div>

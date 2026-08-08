@@ -17,6 +17,7 @@ import {
   DEFAULT_DISCOUNT_PERCENT,
   DiscountPercentPicker,
 } from "@/components/discount-percent-picker";
+import { RemoveConfirmDialog } from "@/components/remove-confirm-dialog";
 import { SearchField } from "@/components/search-field";
 import { useT } from "@/components/i18n-provider";
 import {
@@ -460,6 +461,9 @@ function ExpiryList() {
   const isSearching = debouncedSearch.length > 0;
   const emptyMessage = isSearching ? t("expiry.noResults") : t("expiry.empty");
   const isHomeUser = homeUser === true;
+  const confirmEntry = confirmId
+    ? (entries.find((entry) => entry.id === confirmId) ?? null)
+    : null;
   const priceReduceEntry = priceReduceConfirmId
     ? (entries.find((entry) => entry.id === priceReduceConfirmId) ?? null)
     : null;
@@ -591,37 +595,16 @@ function ExpiryList() {
         />
       ) : null}
 
-      {confirmId ? (
-        <div
-          className="fixed inset-x-0 z-[60] flex items-end justify-center bg-black/40"
-          style={{ top: offsetTop, bottom: keyboardInset }}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="expiry-confirm-title"
-        >
-          <div className="w-full max-w-lg px-3 pb-[calc(var(--app-bottom-nav-height)+env(safe-area-inset-bottom,0px)+0.5rem)]">
-            <div className="rounded-xl border border-card-border bg-background p-3">
-              <p id="expiry-confirm-title" className="text-sm font-semibold">{t("expiry.confirmTitle")}</p>
-              <p className="mt-1 text-xs text-muted">{t("expiry.confirmMessage")}</p>
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  className="rounded-lg border border-input-border bg-transparent px-3 py-2 text-sm text-foreground"
-                  onClick={() => setConfirmId(null)}
-                >
-                  {t("expiry.confirmCancel")}
-                </button>
-                <button
-                  type="button"
-                  className="rounded-lg bg-danger px-3 py-2 text-sm text-danger-fg"
-                  onClick={() => void removeEntry(confirmId)}
-                >
-                  {t("expiry.remove")}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+      {confirmId && confirmEntry ? (
+        <RemoveConfirmDialog
+          title={t("expiry.confirmTitle")}
+          message={t("expiry.confirmMessage")}
+          itemLabel={`${confirmEntry.product.name.trim() || t("common.noName")} (${confirmEntry.quantity} ${t("expiry.pieces")})`}
+          cancelLabel={t("expiry.confirmCancel")}
+          removeLabel={t("expiry.remove")}
+          onCancel={() => setConfirmId(null)}
+          onConfirm={() => void removeEntry(confirmId)}
+        />
       ) : null}
 
       {priceReduceConfirmId ? (

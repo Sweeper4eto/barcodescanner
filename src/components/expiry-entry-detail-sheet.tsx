@@ -5,18 +5,28 @@ import {
   ExpiryDatePicker,
   type ExpiryDatePickerHandle,
 } from "@/components/expiry-date-picker";
-import { QuantityPicker } from "@/components/quantity-picker";
+import { QuantityStepper } from "@/components/quantity-picker";
 import {
+  DEFAULT_DISCOUNT_PERCENT,
+  DiscountPercentPicker,
+} from "@/components/discount-percent-picker";
+import {
+  CalendarIcon,
+  CameraIcon,
+  CheckIcon,
   CopyIcon,
-  PriceReduceIcon,
   StarFavouriteIcon,
 } from "@/components/app-nav-icons";
 import { CameraCapture, uploadImage } from "@/components/camera-capture";
 import { ProductImage } from "@/components/product-image";
+import { MobilePageHeader } from "@/components/mobile-page-header";
 import { useT } from "@/components/i18n-provider";
 import { useViewportInsets } from "@/hooks/use-viewport-insets";
-import { formatLocaleDay } from "@/lib/expiry";
-import { isAdhocBarcode, resolveEntryImagePath } from "@/lib/inventory-entry-display";
+import { daysUntilExpiry, formatLocaleDay } from "@/lib/expiry";
+import {
+  isAdhocBarcode,
+  resolveEntryImagePath,
+} from "@/lib/inventory-entry-display";
 import { expiryIsoToYmd, expiryYmdToIso } from "@/lib/inventory";
 
 function CopyTextButton({
@@ -54,13 +64,13 @@ function CopyTextButton({
       type="button"
       aria-label={copied ? copiedLabel : label}
       title={copied ? copiedLabel : label}
-      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-card-border bg-transparent text-muted hover:text-foreground"
+      className="flex size-8 shrink-0 items-center justify-center rounded-md border border-card-border text-muted hover:text-foreground"
       onClick={() => void onCopy()}
     >
       {copied ? (
-        <span className="text-[10px] font-semibold text-primary">OK</span>
+        <span className="text-[9px] font-semibold text-primary">OK</span>
       ) : (
-        <CopyIcon className="h-4 w-4" />
+        <CopyIcon className="size-3.5" />
       )}
     </button>
   );
@@ -93,6 +103,17 @@ type Props = {
   onUpdated: (entry: ExpiryDetailEntry, meta?: UpdateMeta) => void;
 };
 
+function daysRemainingLabel(
+  days: number,
+  t: ReturnType<typeof useT>["t"],
+): string {
+  if (days === 0) return t("expiry.today");
+  if (days === 1) return t("expiry.dayLeft");
+  if (days > 1) return t("expiry.daysLeft", { count: days });
+  const overdue = Math.abs(days);
+  return t("expiry.expiredAgo", { count: overdue });
+}
+
 export function ExpiryEntryDetailSheet({
   entry,
   storeId,
@@ -106,22 +127,27 @@ export function ExpiryEntryDetailSheet({
   const { offsetTop, keyboardInset } = useViewportInsets();
   const datePickerRef = useRef<ExpiryDatePickerHandle>(null);
   const [quantity, setQuantity] = useState(String(entry.quantity));
-  const [expiryYmd, setExpiryYmd] = useState(() => expiryIsoToYmd(entry.expiryDate));
+  const [expiryYmd, setExpiryYmd] = useState(() =>
+    expiryIsoToYmd(entry.expiryDate),
+  );
   const [editingExpiry, setEditingExpiry] = useState(false);
-  const [editingQuantity, setEditingQuantity] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const savedPriceReduced = entry.priceReducedAt !== null;
+  const savedDiscountPercent =
+    entry.priceDiscountPercent ?? DEFAULT_DISCOUNT_PERCENT;
   const [priceReducedDraft, setPriceReducedDraft] = useState(savedPriceReduced);
+  const [discountPercentDraft, setDiscountPercentDraft] =
+    useState(savedDiscountPercent);
   const [articulDraft, setArticulDraft] = useState(entry.articul ?? "");
   const [nameDraft, setNameDraft] = useState(entry.product.name);
   const [barcodeDraft, setBarcodeDraft] = useState(
     isAdhocBarcode(entry.barcode) ? "" : entry.barcode,
   );
   const [changingPicture, setChangingPicture] = useState(false);
-  const [uploadingPicture, setUploadingPicture] = useState(false);
-  const [textFieldFocused, setTextFieldFocused] = useState(false);
+  const [imageDraft, setImageDraft] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState(false);
 
   const savedExpiryYmd = expiryIsoToYmd(entry.expiryDate);
   const savedBarcodeDisplay = isAdhocBarcode(entry.barcode) ? "" : entry.barcode;
@@ -130,64 +156,58 @@ export function ExpiryEntryDetailSheet({
     quantity.length > 0 &&
     Number.isInteger(parsedQuantity) &&
     parsedQuantity >= 1;
-  const displayImage = resolveEntryImagePath(entry.imagePath, entry.product.imagePath);
+  const displayImage =
+    imageDraft ??
+    resolveEntryImagePath(entry.imagePath, entry.product.imagePath);
   const displayName = nameDraft.trim() || t("common.noName");
+
+  const discountChanged =
+    !homeUser &&
+    priceReducedDraft &&
+    discountPercentDraft !== savedDiscountPercent;
   const hasChanges =
+    Boolean(imageDraft) ||
     expiryYmd !== savedExpiryYmd ||
     (quantityValid && parsedQuantity !== entry.quantity) ||
     (!homeUser && priceReducedDraft !== savedPriceReduced) ||
+    discountChanged ||
     articulDraft.trim() !== (entry.articul ?? "").trim() ||
     nameDraft.trim() !== entry.product.name.trim() ||
     barcodeDraft.trim() !== savedBarcodeDisplay.trim();
   const canConfirm = hasChanges && quantityValid;
-  const compactLayout =
-    editingExpiry || editingQuantity || hasChanges || textFieldFocused;
 
   useEffect(() => {
     setQuantity(String(entry.quantity));
     setExpiryYmd(expiryIsoToYmd(entry.expiryDate));
     setPriceReducedDraft(entry.priceReducedAt !== null);
+    setDiscountPercentDraft(
+      entry.priceDiscountPercent ?? DEFAULT_DISCOUNT_PERCENT,
+    );
     setArticulDraft(entry.articul ?? "");
     setNameDraft(entry.product.name);
     setBarcodeDraft(isAdhocBarcode(entry.barcode) ? "" : entry.barcode);
+    setImageDraft(null);
     setChangingPicture(false);
     setEditingExpiry(false);
-    setEditingQuantity(false);
-    setTextFieldFocused(false);
+    setEditingName(false);
     setError(null);
   }, [
     entry.id,
     entry.quantity,
     entry.expiryDate,
     entry.priceReducedAt,
+    entry.priceDiscountPercent,
     entry.articul,
     entry.imagePath,
     entry.barcode,
     entry.product.name,
   ]);
 
-  function revertDraft() {
-    setQuantity(String(entry.quantity));
-    setExpiryYmd(savedExpiryYmd);
-    setPriceReducedDraft(savedPriceReduced);
-    setArticulDraft(entry.articul ?? "");
-    setNameDraft(entry.product.name);
-    setBarcodeDraft(savedBarcodeDisplay);
-    setEditingExpiry(false);
-    setEditingQuantity(false);
-    setTextFieldFocused(false);
-    setError(null);
-  }
-
   useEffect(() => {
     document.body.style.overflow = "hidden";
-
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && !saving) {
-        onClose();
-      }
+      if (event.key === "Escape" && !saving) onClose();
     };
-
     window.addEventListener("keydown", onKeyDown);
     return () => {
       document.body.style.overflow = "";
@@ -198,31 +218,26 @@ export function ExpiryEntryDetailSheet({
   async function confirmChanges() {
     const flushed = editingExpiry ? datePickerRef.current?.flush() : null;
     const effectiveExpiry = flushed ?? expiryYmd;
-    if (flushed && flushed !== expiryYmd) {
-      setExpiryYmd(flushed);
-    }
+    if (flushed && flushed !== expiryYmd) setExpiryYmd(flushed);
 
     const qtyValid =
       quantity.length > 0 &&
       Number.isInteger(Number(quantity)) &&
       Number(quantity) >= 1;
+    if (!qtyValid) return;
+
     const nextHasChanges =
+      Boolean(imageDraft) ||
       effectiveExpiry !== savedExpiryYmd ||
-      (qtyValid && Number(quantity) !== entry.quantity) ||
+      Number(quantity) !== entry.quantity ||
       (!homeUser && priceReducedDraft !== savedPriceReduced) ||
+      (!homeUser &&
+        priceReducedDraft &&
+        discountPercentDraft !== savedDiscountPercent) ||
       articulDraft.trim() !== (entry.articul ?? "").trim() ||
       nameDraft.trim() !== entry.product.name.trim() ||
       barcodeDraft.trim() !== savedBarcodeDisplay.trim();
-
-    if (!nextHasChanges || !qtyValid) return;
-
-    const updates: { quantity?: number; expiryDate?: string } = {};
-    if (Number(quantity) !== entry.quantity) {
-      updates.quantity = Number(quantity);
-    }
-    if (effectiveExpiry !== savedExpiryYmd) {
-      updates.expiryDate = effectiveExpiry;
-    }
+    if (!nextHasChanges) return;
 
     setSaving(true);
     setError(null);
@@ -232,16 +247,24 @@ export function ExpiryEntryDetailSheet({
         entryId: entry.id,
         storeId,
       };
-      if (updates.quantity !== undefined) {
-        body.quantity = updates.quantity;
+      if (imageDraft) {
+        body.imagePath = await uploadImage(imageDraft);
       }
-      if (updates.expiryDate !== undefined) {
-        body.expiryDate = expiryYmdToIso(updates.expiryDate);
+      if (Number(quantity) !== entry.quantity) {
+        body.quantity = Number(quantity);
       }
-      if (priceReducedDraft !== savedPriceReduced) {
-        body.priceReduced = priceReducedDraft;
-        if (priceReducedDraft) {
-          body.priceDiscountPercent = entry.priceDiscountPercent ?? 25;
+      if (effectiveExpiry !== savedExpiryYmd) {
+        body.expiryDate = expiryYmdToIso(effectiveExpiry);
+      }
+      if (!homeUser) {
+        if (priceReducedDraft !== savedPriceReduced) {
+          body.priceReduced = priceReducedDraft;
+          if (priceReducedDraft) {
+            body.priceDiscountPercent = discountPercentDraft;
+          }
+        } else if (priceReducedDraft && discountChanged) {
+          body.priceReduced = true;
+          body.priceDiscountPercent = discountPercentDraft;
         }
       }
       if (articulDraft.trim() !== (entry.articul ?? "").trim()) {
@@ -275,17 +298,8 @@ export function ExpiryEntryDetailSheet({
         merged: data.merged,
         removedId: data.removedId,
       });
-
-      setQuantity(String(data.entry.quantity));
-      setExpiryYmd(expiryIsoToYmd(data.entry.expiryDate));
-      setPriceReducedDraft(data.entry.priceReducedAt !== null);
-      setArticulDraft(data.entry.articul ?? "");
-      setNameDraft(data.entry.product.name);
-      setBarcodeDraft(
-        isAdhocBarcode(data.entry.barcode) ? "" : data.entry.barcode,
-      );
       setEditingExpiry(false);
-      setEditingQuantity(false);
+      onClose();
     } catch {
       setError(t("expiry.saveFailed"));
     } finally {
@@ -293,19 +307,18 @@ export function ExpiryEntryDetailSheet({
     }
   }
 
-  function onExpiryChange(nextYmd: string) {
-    setExpiryYmd(nextYmd);
-    setError(null);
-  }
+  const expiryDisplay = useMemo(
+    () => formatLocaleDay(expiryYmd, dateLocale, { utc: true }),
+    [expiryYmd, dateLocale],
+  );
 
-  function onQuantityChange(nextRaw: string) {
-    setQuantity(nextRaw);
-    setError(null);
-  }
-
-  const expiryDisplay = useMemo(() => {
-    return formatLocaleDay(expiryYmd, dateLocale, { utc: true });
-  }, [expiryYmd, dateLocale]);
+  const daysLeft = useMemo(() => {
+    const ymd = /^(\d{4})-(\d{2})-(\d{2})$/.exec(expiryYmd.trim());
+    const date = ymd
+      ? new Date(Date.UTC(Number(ymd[1]), Number(ymd[2]) - 1, Number(ymd[3])))
+      : new Date(expiryYmd);
+    return daysUntilExpiry(date);
+  }, [expiryYmd]);
 
   return (
     <div
@@ -315,57 +328,260 @@ export function ExpiryEntryDetailSheet({
       aria-modal="true"
       aria-label={displayName}
     >
-      <div
-        className={`relative flex shrink-0 items-center justify-center bg-black/90 transition-[height] duration-200 ${
-          compactLayout ? "h-[min(17vh,6.5rem)]" : "h-[50vh]"
-        }`}
-      >
-        {onToggleFavourite ? (
+      <div className="shrink-0 px-4 pt-1">
+        <div className="relative">
+          <MobilePageHeader className="mb-2 pr-10" />
           <button
             type="button"
-            aria-label={
-              favourite ? t("favourites.remove") : t("favourites.add")
-            }
-            title={favourite ? t("favourites.remove") : t("favourites.add")}
-            className={`absolute top-2 left-2 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-card-border bg-transparent ${
-              favourite ? "text-amber-400" : "text-muted"
-            }`}
-            onClick={onToggleFavourite}
+            aria-label={t("expiry.closeImage")}
+            className="absolute top-[max(0.75rem,env(safe-area-inset-top,0px))] right-0 z-20 flex size-8 items-center justify-center rounded-full border border-card-border text-lg leading-none text-foreground"
+            onClick={onClose}
             disabled={saving}
           >
-            <StarFavouriteIcon className="h-4 w-4" filled={favourite} />
+            ×
           </button>
+        </div>
+      </div>
+
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-4 pb-3">
+        <div className="overflow-hidden rounded-2xl border border-card-border p-3">
+          <div className="flex items-stretch gap-3">
+            <div className="flex w-[42%] shrink-0 flex-col justify-between gap-2">
+              <ProductImage
+                src={displayImage}
+                alt={displayName}
+                className="aspect-square w-full rounded-xl object-cover"
+                placeholderClassName="aspect-square w-full rounded-xl text-xs"
+              />
+              <button
+                type="button"
+                className="inline-flex h-8 items-center justify-center gap-1.5 rounded-md border border-card-border px-1.5 text-xs font-medium text-foreground"
+                onClick={() => setChangingPicture(true)}
+                disabled={saving}
+              >
+                <CameraIcon className="size-3.5" />
+                {t("expiry.changePhotoButton")}
+              </button>
+            </div>
+
+            <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+              <div className="flex min-w-0 items-start gap-1.5">
+                {editingName ? (
+                  <textarea
+                    autoFocus
+                    rows={4}
+                    className="max-h-[5.4rem] w-0 min-w-0 flex-1 resize-none overflow-hidden break-words bg-transparent text-base font-semibold leading-tight text-foreground outline-none"
+                    value={nameDraft}
+                    onChange={(event) => setNameDraft(event.target.value)}
+                    onBlur={() => setEditingName(false)}
+                    placeholder={t("common.noName")}
+                    disabled={saving}
+                    aria-label={t("common.name")}
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    className="line-clamp-4 min-w-0 flex-1 break-words text-left text-base font-semibold leading-tight text-foreground"
+                    onClick={() => {
+                      if (!saving) setEditingName(true);
+                    }}
+                    aria-label={t("common.name")}
+                  >
+                    {displayName}
+                  </button>
+                )}
+                <CopyTextButton
+                  text={nameDraft.trim() || entry.product.name}
+                  label={t("expiry.copyName")}
+                  copiedLabel={t("expiry.copied")}
+                />
+                {onToggleFavourite ? (
+                  <button
+                    type="button"
+                    aria-label={
+                      favourite ? t("favourites.remove") : t("favourites.add")
+                    }
+                    className={`mt-0.5 shrink-0 ${
+                      favourite ? "text-amber-400" : "text-muted"
+                    }`}
+                    onClick={onToggleFavourite}
+                    disabled={saving}
+                  >
+                    <StarFavouriteIcon className="size-5" filled={favourite} />
+                  </button>
+                ) : null}
+              </div>
+
+              <div className="mt-auto space-y-0 pt-1.5">
+                <label className="block">
+                  <span className="text-[10px] font-medium leading-none text-muted">
+                    {t("expiry.articul")}
+                  </span>
+                  <input
+                    className="mt-px h-8 w-full rounded-md border border-card-border bg-transparent px-1.5 text-sm leading-none text-foreground outline-none focus:border-primary"
+                    value={articulDraft}
+                    onChange={(event) => setArticulDraft(event.target.value)}
+                    disabled={saving}
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-[10px] font-medium leading-none text-muted">
+                    {t("common.barcode")}
+                  </span>
+                  <div className="mt-px flex min-w-0 items-center gap-1">
+                    <input
+                      className="h-8 min-w-0 flex-1 rounded-md border border-card-border bg-transparent px-1.5 font-mono text-sm leading-none text-foreground outline-none focus:border-primary"
+                      value={barcodeDraft}
+                      onChange={(event) => setBarcodeDraft(event.target.value)}
+                      disabled={saving}
+                    />
+                    <CopyTextButton
+                      text={barcodeDraft.trim() || entry.barcode}
+                      label={t("expiry.copyBarcode")}
+                      copiedLabel={t("expiry.copied")}
+                    />
+                  </div>
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {!homeUser ? (
+          <div className="mt-3 rounded-2xl border border-card-border px-3 py-3">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-foreground">
+                  {t("expiry.priceReduced")}
+                </p>
+                <p className="mt-0.5 text-xs text-muted">
+                  {t("expiry.priceReducedHint")}
+                </p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={priceReducedDraft}
+                aria-label={t("expiry.priceReduced")}
+                className={`relative h-7 w-11 shrink-0 rounded-full border p-0.5 transition-colors ${
+                  priceReducedDraft
+                    ? "border-primary bg-primary"
+                    : "border-card-border bg-transparent"
+                }`}
+                onClick={() => {
+                  setPriceReducedDraft((current) => {
+                    const next = !current;
+                    if (next && !priceReducedDraft) {
+                      setDiscountPercentDraft(
+                        entry.priceDiscountPercent ?? DEFAULT_DISCOUNT_PERCENT,
+                      );
+                    }
+                    return next;
+                  });
+                }}
+                disabled={saving}
+              >
+                <span
+                  className={`block size-5 rounded-full transition-transform ${
+                    priceReducedDraft
+                      ? "translate-x-4 bg-primary-fg"
+                      : "translate-x-0 bg-muted"
+                  }`}
+                />
+              </button>
+            </div>
+            {priceReducedDraft ? (
+              <div className="mt-3 border-t border-card-border pt-3">
+                <DiscountPercentPicker
+                  value={discountPercentDraft}
+                  onChange={setDiscountPercentDraft}
+                />
+              </div>
+            ) : null}
+          </div>
         ) : null}
 
-        <button
-          type="button"
-          aria-label={t("expiry.closeImage")}
-          className="absolute top-2 right-2 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-card-border bg-transparent text-lg leading-none text-foreground"
-          onClick={onClose}
-          disabled={saving}
-        >
-          ×
-        </button>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <div className="rounded-2xl border border-card-border p-2.5">
+            <p className="text-[10px] font-medium text-muted">
+              {t("common.quantity")}
+            </p>
+            <div className="mt-2 flex justify-center">
+              <QuantityStepper value={quantity} onChange={setQuantity} />
+            </div>
+          </div>
 
-        {changingPicture ? null : (
-          <ProductImage
-            src={displayImage}
-            alt={displayName}
-            className={
-              compactLayout
-                ? "h-full max-h-20 w-auto max-w-[45%] object-contain"
-                : "h-full w-full object-contain p-3"
-            }
-            placeholderClassName={
-              compactLayout
-                ? "h-14 w-28 rounded-xl text-xs"
-                : "h-28 w-40 rounded-2xl text-sm"
-            }
-            onLongPress={() => {
-              if (!saving) setChangingPicture(true);
-            }}
-          />
-        )}
+          <div className="rounded-2xl border border-card-border p-2.5">
+            <p className="text-[10px] font-medium text-muted">
+              {t("expiry.expiryDateLabel")}
+            </p>
+            <button
+              type="button"
+              className={`mt-2 flex w-full items-center gap-1.5 rounded-lg border px-2 py-1.5 text-left ${
+                editingExpiry
+                  ? "border-primary bg-selected"
+                  : "border-card-border bg-transparent"
+              }`}
+              onClick={() => setEditingExpiry((open) => !open)}
+              disabled={saving}
+              aria-expanded={editingExpiry}
+            >
+              <CalendarIcon className="size-3.5 shrink-0 text-muted" />
+              <span className="min-w-0 truncate text-xs font-semibold text-foreground">
+                {expiryDisplay}
+              </span>
+            </button>
+            <p
+              className={`mt-1.5 text-[11px] font-medium ${
+                daysLeft < 0 ? "text-error" : "text-primary"
+              }`}
+            >
+              {daysRemainingLabel(daysLeft, t)}
+            </p>
+          </div>
+        </div>
+
+        {editingExpiry ? (
+          <div className="mt-3 rounded-2xl border border-card-border p-2">
+            <ExpiryDatePicker
+              ref={datePickerRef}
+              value={expiryYmd}
+              onChange={(next) => {
+                setExpiryYmd(next);
+                setError(null);
+              }}
+              allowPast
+            />
+          </div>
+        ) : null}
+
+        {error ? (
+          <p className="mt-2 text-sm text-danger" role="alert">
+            {error}
+          </p>
+        ) : null}
+      </div>
+
+      <div className="shrink-0 border-t border-card-border px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]">
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-primary px-3 py-2.5 text-sm font-semibold text-primary-fg disabled:opacity-50"
+            onClick={() => void confirmChanges()}
+            disabled={saving || !canConfirm}
+          >
+            <CheckIcon className="size-4" />
+            {saving ? t("expiry.saving") : t("expiry.saveChangesButton")}
+          </button>
+          <button
+            type="button"
+            className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-card-border px-3 py-2.5 text-sm font-semibold text-foreground disabled:opacity-50"
+            onClick={onClose}
+            disabled={saving}
+          >
+            {t("expiry.confirmCancel")}
+          </button>
+        </div>
       </div>
 
       {changingPicture ? (
@@ -376,242 +592,20 @@ export function ExpiryEntryDetailSheet({
             </p>
             <CameraCapture
               compact
+              autoStart
+              forceInAppCamera
+              captureOnPreviewTap
+              confirmMode="save"
               onCapture={(dataUrl) => {
-                void (async () => {
-                  setUploadingPicture(true);
-                  setError(null);
-                  try {
-                    const path = await uploadImage(dataUrl);
-                    const response = await fetch("/api/inventory", {
-                      method: "PATCH",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({
-                        entryId: entry.id,
-                        storeId,
-                        imagePath: path,
-                      }),
-                    });
-                    const data = await response.json();
-                    if (!response.ok || !data.entry) {
-                      setError(data.error ?? t("expiry.saveFailed"));
-                      return;
-                    }
-                    onUpdated(data.entry);
-                    setChangingPicture(false);
-                  } catch {
-                    setError(t("errors.uploadFailed"));
-                  } finally {
-                    setUploadingPicture(false);
-                  }
-                })();
+                setImageDraft(dataUrl);
+                setChangingPicture(false);
+                setError(null);
               }}
               onCancel={() => setChangingPicture(false)}
             />
-            {uploadingPicture ? (
-              <p className="text-center text-xs text-muted">{t("scanner.starting")}</p>
-            ) : null}
           </div>
         </div>
       ) : null}
-
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden border-t border-card-border">
-        <div className="min-h-0 flex-1 overflow-y-auto p-4">
-          <div className="space-y-1">
-            <label className="block text-sm font-medium text-foreground">
-              {t("common.name")}
-              <div className="mt-1 flex items-center gap-2">
-                <input
-                  className="min-w-0 flex-1 rounded-xl border border-input-border bg-input px-3 py-2 text-base text-foreground"
-                  value={nameDraft}
-                  onChange={(event) => setNameDraft(event.target.value)}
-                  onFocus={() => setTextFieldFocused(true)}
-                  onBlur={() => setTextFieldFocused(false)}
-                  placeholder={t("common.noName")}
-                  disabled={saving}
-                />
-                <CopyTextButton
-                  text={nameDraft.trim() || entry.product.name}
-                  label={t("expiry.copyName")}
-                  copiedLabel={t("expiry.copied")}
-                />
-              </div>
-            </label>
-            <label className="mt-3 block text-sm font-medium text-foreground">
-              {t("common.barcode")}
-              <div className="mt-1 flex items-center gap-2">
-                <input
-                  className="min-w-0 flex-1 rounded-xl border border-input-border bg-input px-3 py-2 font-mono text-base text-foreground"
-                  value={barcodeDraft}
-                  onChange={(event) => setBarcodeDraft(event.target.value)}
-                  onFocus={() => setTextFieldFocused(true)}
-                  onBlur={() => setTextFieldFocused(false)}
-                  disabled={saving}
-                />
-                <CopyTextButton
-                  text={barcodeDraft.trim() || entry.barcode}
-                  label={t("expiry.copyBarcode")}
-                  copiedLabel={t("expiry.copied")}
-                />
-              </div>
-            </label>
-            <label className="mt-3 block text-sm font-medium text-foreground">
-              {t("expiry.articul")}
-              <input
-                className="mt-1 w-full rounded-xl border border-input-border bg-input px-3 py-2 text-base text-foreground"
-                value={articulDraft}
-                onChange={(event) => setArticulDraft(event.target.value)}
-                onFocus={() => setTextFieldFocused(true)}
-                onBlur={() => setTextFieldFocused(false)}
-                disabled={saving}
-              />
-            </label>
-            <p className="mt-1 text-[11px] text-muted">{t("expiry.changePicture")}</p>
-          </div>
-
-          {error ? (
-            <p className="mt-2 text-sm text-danger" role="alert">
-              {error}
-            </p>
-          ) : null}
-
-          {saving && !hasChanges ? (
-            <p className="mt-2 text-xs text-muted">{t("expiry.saving")}</p>
-          ) : null}
-
-          {compactLayout && editingExpiry ? (
-            <div className="mt-3">
-              <ExpiryDatePicker
-                ref={datePickerRef}
-                value={expiryYmd}
-                onChange={onExpiryChange}
-                allowPast
-              />
-            </div>
-          ) : null}
-
-          {compactLayout && editingQuantity ? (
-            <div className="mt-3">
-              <QuantityPicker
-                value={quantity}
-                onChange={onQuantityChange}
-                startWithGridOpen
-              />
-            </div>
-          ) : null}
-
-          <div className="mt-3 space-y-2">
-            <button
-              type="button"
-              className={`flex w-full items-center justify-between rounded-xl border px-3 py-2.5 text-left disabled:opacity-60 ${
-                editingExpiry
-                  ? "border-primary bg-selected"
-                  : "border-card-border bg-transparent"
-              }`}
-              onClick={() => {
-                setEditingQuantity(false);
-                setEditingExpiry((open) => !open);
-              }}
-              disabled={saving}
-              aria-expanded={editingExpiry}
-            >
-              <span className="text-sm text-muted">{t("expiry.validUntil")}</span>
-              <span className="text-sm font-semibold text-foreground">
-                {expiryDisplay}
-              </span>
-            </button>
-            {!compactLayout && editingExpiry ? (
-              <ExpiryDatePicker
-                ref={datePickerRef}
-                value={expiryYmd}
-                onChange={onExpiryChange}
-                allowPast
-              />
-            ) : null}
-
-            <button
-              type="button"
-              className={`flex w-full items-center justify-between rounded-xl border px-3 py-2.5 text-left disabled:opacity-60 ${
-                editingQuantity
-                  ? "border-primary bg-selected"
-                  : "border-card-border bg-transparent"
-              }`}
-              onClick={() => {
-                setEditingExpiry(false);
-                setEditingQuantity((open) => !open);
-              }}
-              disabled={saving}
-              aria-expanded={editingQuantity}
-            >
-              <span className="text-sm text-muted">{t("expiry.pieces")}</span>
-              <span className="text-lg font-bold tabular-nums text-foreground">
-                {quantity}
-              </span>
-            </button>
-            {!compactLayout && editingQuantity ? (
-              <QuantityPicker
-                value={quantity}
-                onChange={onQuantityChange}
-                startWithGridOpen={false}
-              />
-            ) : null}
-
-            {!homeUser ? (
-              <button
-                type="button"
-                className={`flex w-full items-center justify-between rounded-xl border px-3 py-2.5 text-left disabled:opacity-60 ${
-                  priceReducedDraft !== savedPriceReduced
-                    ? "border-primary bg-selected"
-                    : "border-card-border bg-transparent"
-                }`}
-                onClick={() => {
-                  setEditingExpiry(false);
-                  setEditingQuantity(false);
-                  setPriceReducedDraft((current) => !current);
-                }}
-                disabled={saving}
-              >
-                <span className="text-sm text-muted">{t("expiry.priceReduction")}</span>
-                <span className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
-                  {priceReducedDraft ? (
-                    <>
-                      <PriceReduceIcon className="h-4 w-4 shrink-0" aria-hidden />
-                      {t("expiry.priceReductionYes")}
-                    </>
-                  ) : (
-                    t("expiry.priceReductionNo")
-                  )}
-                </span>
-              </button>
-            ) : null}
-          </div>
-        </div>
-
-        {hasChanges ? (
-          <div className="shrink-0 border-t border-card-border bg-background p-3 shadow-[0_-6px_16px_rgba(0,0,0,0.08)]">
-            <p className="text-sm font-semibold text-foreground">
-              {t("expiry.confirmUpdateTitle")}
-            </p>
-            <div className="mt-2 grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                className="rounded-lg border border-input-border bg-transparent px-3 py-2 text-sm text-foreground"
-                onClick={revertDraft}
-                disabled={saving}
-              >
-                {t("expiry.confirmCancel")}
-              </button>
-              <button
-                type="button"
-                className="rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-fg disabled:opacity-60"
-                onClick={() => void confirmChanges()}
-                disabled={saving || !canConfirm}
-              >
-                {saving ? t("expiry.saving") : t("expiry.confirmSave")}
-              </button>
-            </div>
-          </div>
-        ) : null}
-      </div>
     </div>
   );
 }
