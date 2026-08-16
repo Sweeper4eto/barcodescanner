@@ -225,3 +225,19 @@ model SupportRequest {
   @@index([storeId, createdAt])
   @@index([userId, createdAt])
 }
+
+/** Admin-managed “What’s new” bullets shown once to app users when published. */
+model WhatsNewItem {
+  id        String   @id @default(cuid())
+  /** Stable key from code catalog (`whats-new-catalog.ts`). Null for manual admin rows. */
+  sourceKey String?  @unique
+  titleEn   String
+  titleBg   String
+  href      String?
+  active    Boolean  @default(false)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([active, sortOrder])
+}

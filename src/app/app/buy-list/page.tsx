@@ -745,7 +745,7 @@ function BuyListContent() {
                 </button>
                 <button
                   type="button"
-                  className="rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-fg disabled:opacity-60"
+                  className="rounded-lg border border-primary bg-transparent px-3 py-2 text-sm font-medium text-primary disabled:opacity-60"
                   onClick={() => void confirmMoveToExpiry()}
                   disabled={!moveExpiryYmd || moveSaving}
                 >
@@ -829,7 +829,7 @@ function BuyListContent() {
                 </button>
                 <button
                   type="button"
-                  className="rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-fg disabled:opacity-60"
+                  className="rounded-lg border border-primary bg-transparent px-3 py-2 text-sm font-medium text-primary disabled:opacity-60"
                   disabled={
                     manualSaving ||
                     manualCapturing ||

@@ -2,7 +2,7 @@ type ScannerViewfinderVariant = "barcode" | "document";
 
 export function ScannerViewfinderOverlay({
   variant = "barcode",
-  showScanLine = variant === "barcode",
+  showScanLine = true,
 }: {
   variant?: ScannerViewfinderVariant;
   showScanLine?: boolean;

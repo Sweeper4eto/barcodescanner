@@ -11,7 +11,7 @@ import { DocumentProcessingPanel } from "@/components/document-processing-panel"
 import { MobilePageHeader } from "@/components/mobile-page-header";
 import { SearchField } from "@/components/search-field";
 import { useT } from "@/components/i18n-provider";
-import { goBackOrApp, navigateApp } from "@/lib/app-navigation";
+import { navigateApp } from "@/lib/app-navigation";
 import { useBrowserBackStack } from "@/lib/browser-back";
 import { useViewportInsets } from "@/hooks/use-viewport-insets";
 import {
@@ -39,6 +39,7 @@ function AddDocumentContent() {
   const storeId = searchParams.get("storeId") ?? "";
   const [checking, setChecking] = useState(true);
   const [step, setStep] = useState<Step>("camera");
+  const [cameraSession, setCameraSession] = useState(0);
   const [items, setItems] = useState<DocumentDraftItem[]>([]);
   const [error, setError] = useState("");
   const [importing, setImporting] = useState(false);
@@ -391,13 +392,13 @@ function AddDocumentContent() {
             showViewfinder
             onCapture={(dataUrl) => void onCapture(dataUrl)}
             onMultipleCapture={(pages) => void onMultipleCapture(pages)}
-            onCancel={() =>
-              goBackOrApp(
-                storeId
-                  ? `/app/expiry?storeId=${encodeURIComponent(storeId)}`
-                  : "/app",
-              )
-            }
+            onNewDocument={() => {
+              setError("");
+              // Return to the document start screen (fresh camera).
+              setCameraSession((n) => n + 1);
+            }}
+            onCancel={() => navigateApp("/app")}
+            key={cameraSession}
           />
         </div>
       ) : null}
@@ -572,7 +573,7 @@ function AddDocumentContent() {
                 </button>
                 <button
                   type="button"
-                  className="rounded-lg bg-danger px-3 py-2 text-sm text-danger-fg"
+                  className="rounded-lg border border-danger bg-transparent px-3 py-2 text-sm text-danger"
                   onClick={() => removeItem(removeKey)}
                 >
                   {t("expiry.remove")}
@@ -608,7 +609,7 @@ function AddDocumentContent() {
                 </button>
                 <button
                   type="button"
-                  className="rounded-lg bg-danger px-3 py-2 text-sm text-danger-fg"
+                  className="rounded-lg border border-danger bg-transparent px-3 py-2 text-sm text-danger"
                   onClick={removeItemsWithoutExpiry}
                 >
                   {t("expiry.remove")}

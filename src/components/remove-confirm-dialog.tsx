@@ -103,7 +103,7 @@ export function RemoveConfirmDialog({
           <button
             type="button"
             disabled={busy}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-danger px-3 py-3 text-sm font-semibold text-danger-fg disabled:opacity-50"
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-danger bg-transparent px-3 py-3 text-sm font-semibold text-danger disabled:opacity-50"
             onClick={onConfirm}
           >
             <TrashIcon className="size-4 shrink-0" />

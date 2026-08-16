@@ -657,7 +657,7 @@ function ExpiryList() {
                 </button>
                 <button
                   type="button"
-                  className="rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-fg"
+                  className="rounded-lg border border-primary bg-transparent px-3 py-2 text-sm font-medium text-primary"
                   onClick={() =>
                     void reducePriceEntry(priceReduceConfirmId, discountPercent)
                   }
@@ -706,7 +706,7 @@ function ExpiryList() {
                 </button>
                 <button
                   type="button"
-                  className="rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-fg disabled:opacity-60"
+                  className="rounded-lg border border-primary bg-transparent px-3 py-2 text-sm font-medium text-primary disabled:opacity-60"
                   onClick={() => void confirmMoveToOrders()}
                   disabled={
                     moveOrdersSaving ||

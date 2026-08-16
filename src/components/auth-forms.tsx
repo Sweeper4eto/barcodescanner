@@ -393,7 +393,7 @@ export function PrimaryButton({
       type={type}
       disabled={disabled}
       onClick={onClick}
-      className={`w-full rounded-xl bg-primary px-3 py-2 text-base font-semibold text-primary-fg disabled:opacity-50 ${className}`.trim()}
+      className={`w-full rounded-xl border border-primary bg-transparent px-3 py-2 text-base font-semibold text-primary disabled:opacity-50 ${className}`.trim()}
     >
       {children}
     </button>

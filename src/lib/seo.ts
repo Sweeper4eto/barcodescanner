@@ -8,6 +8,7 @@ const description = t("metadata.description");
 const ogTitle = t("metadata.ogTitle");
 const ogDescription = t("metadata.ogDescription");
 const keywords = t("metadata.keywords");
+const googleVerification = process.env.GOOGLE_SITE_VERIFICATION?.trim();
 
 export const rootMetadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -33,6 +34,12 @@ export const rootMetadata: Metadata = {
     description: ogDescription,
     images: [
       {
+        url: "/landing/preview-panel.png",
+        width: 920,
+        height: 400,
+        alt: "expire365 expiry tracking preview",
+      },
+      {
         url: "/icons/icon-512.png",
         width: 512,
         height: 512,
@@ -41,10 +48,10 @@ export const rootMetadata: Metadata = {
     ],
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
     title: ogTitle,
     description: ogDescription,
-    images: ["/icons/icon-512.png"],
+    images: ["/landing/preview-panel.png"],
   },
   robots: {
     index: true,
@@ -52,8 +59,13 @@ export const rootMetadata: Metadata = {
     googleBot: {
       index: true,
       follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
     },
   },
+  ...(googleVerification
+    ? { verification: { google: googleVerification } }
+    : {}),
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",

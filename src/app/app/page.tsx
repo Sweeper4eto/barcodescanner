@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { MobilePageHeader, appPageClassName } from "@/components/mobile-page-header";
 import { PushNotifications } from "@/components/push-notifications";
+import { WhatsNewDialog } from "@/components/whats-new-dialog";
 import { useT } from "@/components/i18n-provider";
-import { markPwaInstallOffered, shouldOfferPwaInstall } from "@/lib/pwa-install";
 import { getStoredStoreId, setStoredStoreId } from "@/lib/store-selection";
 
 type Store = { id: string; name: string; active: boolean };
@@ -152,7 +152,6 @@ export default function AppHomePage() {
       const nextId = valid?.id ?? list[0]?.id ?? "";
       if (nextId) setStoredStoreId(nextId);
       setBootstrapped(true);
-      if (shouldOfferPwaInstall()) markPwaInstallOffered();
     }
 
     void load();
@@ -219,6 +218,7 @@ export default function AppHomePage() {
       />
 
       <PushNotifications />
+      <WhatsNewDialog ready={bootstrapped} />
     </div>
   );
 }

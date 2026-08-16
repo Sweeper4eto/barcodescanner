@@ -311,7 +311,7 @@ export function BuyListEntryDetailSheet({
         <div className="grid grid-cols-2 gap-2">
           <button
             type="button"
-            className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-primary px-3 py-2.5 text-sm font-semibold text-primary-fg disabled:opacity-50"
+            className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-primary bg-transparent px-3 py-2.5 text-sm font-semibold text-primary disabled:opacity-50"
             onClick={() => void confirmChanges()}
             disabled={saving || !canConfirm}
           >

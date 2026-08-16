@@ -1,0 +1,15 @@
+---
+description: Auto-update What's New admin checklist when shipping user-facing changes
+alwaysApply: true
+---
+
+# What's New catalog
+
+When you ship **user-facing** product changes (UI, flows, features users should notice), do **not** leave the admin checklist empty for the user to fill by hand.
+
+1. Append a new entry to `src/lib/whats-new-catalog.ts` with a **new unique `key`** (never reuse), `titleEn`, `titleBg`, and optional `href`.
+2. Keep copy short (one bullet). EN + BG required.
+3. Do not mark items Live in code — admin Push still controls publish.
+4. Skip for pure internal/refactors, SEO-only, admin-only tooling, or tiny bugfixes users won't notice.
+
+Opening Admin → What's new runs sync and creates Draft rows automatically.

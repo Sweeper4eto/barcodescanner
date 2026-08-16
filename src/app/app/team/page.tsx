@@ -498,7 +498,7 @@ export default function TeamPage() {
                           editUsername.trim().length < 3 ||
                           editStoreIds.length === 0
                         }
-                        className="min-w-0 flex-1 rounded-xl bg-primary px-3 py-1.5 text-sm font-semibold text-primary-fg disabled:opacity-50"
+                        className="min-w-0 flex-1 rounded-xl border border-primary bg-transparent px-3 py-1.5 text-sm font-semibold text-primary disabled:opacity-50"
                       >
                         {editSaving ? t("common.loading") : t("team.saveChanges")}
                       </button>
@@ -690,7 +690,7 @@ export default function TeamPage() {
                 type="button"
                 disabled={deleting}
                 onClick={() => void confirmDelete()}
-                className="w-full rounded-xl bg-danger px-3 py-2 text-base font-semibold text-danger-fg disabled:opacity-50"
+                className="w-full rounded-xl border border-danger bg-transparent px-3 py-2 text-base font-semibold text-danger disabled:opacity-50"
               >
                 {deleting ? t("common.loading") : t("team.confirmDelete")}
               </button>

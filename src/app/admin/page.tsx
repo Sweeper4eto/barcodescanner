@@ -13,6 +13,7 @@ import { ItemsPanel } from "@/components/admin/items-panel";
 import { PaymentsPanel } from "@/components/admin/payments-panel";
 import { SupportRequestsPanel } from "@/components/admin/support-requests-panel";
 import { UsersPanel } from "@/components/admin/users-panel";
+import { WhatsNewPanel } from "@/components/admin/whats-new-panel";
 import { AppHeaderLogo } from "@/components/app-header-logo";
 import { useT } from "@/components/i18n-provider";
 
@@ -20,7 +21,7 @@ export default function AdminPage() {
   const router = useRouter();
   const { t } = useT();
   const [tab, setTab] = useState<
-    "clients" | "users" | "payments" | "items" | "support" | "audit"
+    "clients" | "users" | "payments" | "items" | "support" | "whatsNew" | "audit"
   >("clients");
   const [clients, setClients] = useState<Client[]>([]);
   const [supportNewCount, setSupportNewCount] = useState(0);
@@ -109,6 +110,7 @@ export default function AdminPage() {
                     </span>
                   ),
                 },
+                { id: "whatsNew" as const, label: t("admin.whatsNewTab") },
                 { id: "audit" as const, label: t("admin.auditLog") },
               ]}
               active={tab}
@@ -133,6 +135,7 @@ export default function AdminPage() {
                 onCounts={(counts) => setSupportNewCount(counts.new)}
               />
             ) : null}
+            {tab === "whatsNew" ? <WhatsNewPanel /> : null}
             {tab === "audit" ? <AuditLogPanel /> : null}
           </AdminPanelBody>
         </AdminPanel>

@@ -90,7 +90,7 @@ function HomePageContent() {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/landing/brand-mark.png?v=3"
-              alt=""
+              alt={t("home.previewAlt")}
               width={200}
               height={200}
               className="box-border h-[1.55em] w-[1.55em] shrink-0 object-contain"
@@ -113,14 +113,14 @@ function HomePageContent() {
         <div className="mt-6 grid w-full max-w-sm grid-cols-2 gap-2.5">
           <Link
             href="/login"
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-primary px-2.5 text-sm font-semibold text-primary-fg"
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-primary bg-transparent px-2.5 text-sm font-semibold text-primary"
           >
             <LoginIcon className="size-5 shrink-0" />
             {t("home.login")}
           </Link>
           <Link
             href="/register"
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-primary bg-transparent px-2.5 text-sm font-semibold text-foreground"
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-primary bg-transparent px-2.5 text-sm font-semibold text-primary"
           >
             <RegisterIcon className="size-5 shrink-0 text-primary" />
             {t("home.register")}
@@ -161,6 +161,15 @@ function HomePageContent() {
             />
           </div>
         </div>
+
+        <section className="mt-10 w-full max-w-sm text-center">
+          <h2 className="text-base font-semibold text-foreground">
+            {t("home.seoTitle")}
+          </h2>
+          <p className="mt-2 text-sm leading-relaxed text-muted">
+            {t("home.seoBody")}
+          </p>
+        </section>
 
         <div className="mt-10 w-full max-w-sm border-t border-card-border/70 pt-6 text-center">
           <p className="text-sm text-muted">{t("home.contactCta")}</p>

@@ -366,7 +366,7 @@ export function ClientsPanel({ onRefresh }: Props) {
                 />
                 <button
                   type="submit"
-                  className="shrink-0 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-fg"
+                  className="shrink-0 rounded-xl border border-primary bg-transparent px-4 py-2 text-sm font-medium text-primary"
                 >
                   {t("common.search")}
                 </button>
@@ -740,7 +740,7 @@ function StoreCard({
             <button
               type="button"
               disabled={!storeDirty || saving}
-              className="w-full rounded-lg bg-primary px-2 py-2 text-xs text-primary-fg disabled:opacity-50"
+              className="w-full rounded-lg border border-primary bg-transparent px-2 py-2 text-xs text-primary disabled:opacity-50"
               onClick={() => void save()}
             >
               {saving ? t("admin.saving") : t("common.save")}

@@ -609,7 +609,7 @@ export function BarcodeScanner({
           <button
             type="button"
             data-testid="scanner-confirm-barcode"
-            className="rounded-xl bg-primary px-3 py-2.5 text-sm font-semibold text-primary-fg disabled:opacity-50"
+            className="rounded-xl border border-primary bg-transparent px-3 py-2.5 text-sm font-semibold text-primary disabled:opacity-50"
             disabled={!hasBarcode}
             onClick={() => void confirmManual()}
           >
@@ -640,7 +640,7 @@ export function BarcodeScanner({
           <button
             type="button"
             data-testid="scanner-confirm-barcode"
-            className="w-full rounded-xl bg-primary px-4 py-2 font-medium text-primary-fg disabled:opacity-50"
+            className="w-full rounded-xl border border-primary bg-transparent px-4 py-2 font-medium text-primary disabled:opacity-50"
             disabled={!hasBarcode}
             onClick={() => void confirmManual()}
           >

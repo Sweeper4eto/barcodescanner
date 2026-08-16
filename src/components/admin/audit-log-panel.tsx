@@ -241,7 +241,7 @@ export function AuditLogPanel() {
         />
         <button
           type="submit"
-          className="rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-fg"
+          className="rounded-xl border border-primary bg-transparent px-4 py-2 text-sm font-medium text-primary"
         >
           {t("common.search")}
         </button>

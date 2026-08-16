@@ -15,6 +15,8 @@ type Props = {
    */
   onMultipleCapture?: (pages: { dataUrl: string; name: string }[]) => void;
   onCancel?: () => void;
+  /** Document preview: abandon this photo and return to the document start screen. */
+  onNewDocument?: () => void;
   autoStart?: boolean;
   allowFileUpload?: boolean;
   /** Allow selecting multiple images at once (phone and PC). */
@@ -96,6 +98,42 @@ function CancelIcon({ className = "" }: { className?: string }) {
     >
       <path d="M6 6l12 12" />
       <path d="M18 6 6 18" />
+    </svg>
+  );
+}
+
+function BackIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M19 12H5" />
+      <path d="m12 19-7-7 7-7" />
+    </svg>
+  );
+}
+
+function NextIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M5 12h14" />
+      <path d="m13 6 6 6-6 6" />
     </svg>
   );
 }
@@ -460,6 +498,7 @@ export function CameraCapture({
   onCapture,
   onMultipleCapture,
   onCancel,
+  onNewDocument,
   autoStart = false,
   allowFileUpload = false,
   allowMultipleFiles = false,
@@ -729,6 +768,58 @@ export function CameraCapture({
     </div>
   );
 
+  function handleNewDocument() {
+    if (onNewDocument) {
+      onNewDocument();
+      return;
+    }
+    retakePhoto();
+  }
+
+  const documentPreviewToolbar = documentLayout && preview ? (
+    <div className="flex items-end justify-center gap-5 pt-1">
+      <button
+        type="button"
+        onClick={handleNewDocument}
+        className="flex h-14 w-14 flex-col items-center justify-center rounded-2xl border border-primary/50 bg-transparent text-primary"
+        aria-label={t("common.back")}
+      >
+        <BackIcon className="h-6 w-6" />
+        <span className="mt-0.5 max-w-[3.75rem] truncate text-center text-[10px] font-medium leading-none">
+          {t("common.back")}
+        </span>
+      </button>
+
+      <button
+        type="button"
+        onClick={() => void uploadAndContinue()}
+        className="flex h-[5.25rem] w-[5.25rem] flex-col items-center justify-center gap-0.5 rounded-full border-[3px] border-primary/35 bg-primary text-primary-fg shadow-md"
+        aria-label={t("common.next")}
+      >
+        <NextIcon className="h-9 w-9" />
+        <span className="max-w-[4.5rem] truncate text-[11px] font-semibold leading-tight">
+          {t("common.next")}
+        </span>
+      </button>
+
+      {onCancel ? (
+        <button
+          type="button"
+          onClick={onCancel}
+          className="flex h-14 w-14 flex-col items-center justify-center rounded-2xl border border-card-border bg-transparent"
+          aria-label={t("common.cancel")}
+        >
+          <CancelIcon className="h-6 w-6 text-foreground" />
+          <span className="mt-0.5 text-[10px] font-medium leading-none text-danger">
+            {t("common.cancel")}
+          </span>
+        </button>
+      ) : (
+        <span className="h-14 w-14" aria-hidden />
+      )}
+    </div>
+  ) : null;
+
   return (
     <div className={`relative space-y-3 ${active && !preview ? "isolate" : ""}`}>
       {error ? <p className="text-sm text-error">{error}</p> : null}
@@ -775,7 +866,6 @@ export function CameraCapture({
               {showCorners ? (
                 <ScannerViewfinderOverlay
                   variant="document"
-                  showScanLine={false}
                 />
               ) : null}
             </div>
@@ -805,7 +895,6 @@ export function CameraCapture({
               {showCorners ? (
                 <ScannerViewfinderOverlay
                   variant="document"
-                  showScanLine={false}
                 />
               ) : null}
             </div>
@@ -896,6 +985,18 @@ export function CameraCapture({
             </div>
           )}
         </>
+      ) : documentLayout ? (
+        <>
+          <div className={previewShellClass}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={preview}
+              alt={t("camera.productPhoto")}
+              className="h-full w-full object-contain"
+            />
+          </div>
+          {documentPreviewToolbar}
+        </>
       ) : (
         <>
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -903,11 +1004,9 @@ export function CameraCapture({
             src={preview}
             alt={t("camera.productPhoto")}
             className={
-              documentLayout
-                ? "mx-auto max-h-[min(58dvh,28rem)] w-full rounded-2xl border border-card-border bg-black object-contain"
-                : compact
-                  ? "mx-auto max-h-[min(28dvh,12.5rem)] w-full rounded-xl border border-card-border bg-black object-contain"
-                  : "mx-auto max-h-[min(52dvh,24rem)] w-full rounded-xl border border-card-border bg-black object-contain"
+              compact
+                ? "mx-auto max-h-[min(28dvh,12.5rem)] w-full rounded-xl border border-card-border bg-black object-contain"
+                : "mx-auto max-h-[min(52dvh,24rem)] w-full rounded-xl border border-card-border bg-black object-contain"
             }
           />
           <div className="flex flex-col gap-2">
