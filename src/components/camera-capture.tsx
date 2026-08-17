@@ -75,10 +75,14 @@ function CaptureIcon({ className = "" }: { className?: string }) {
       fill="none"
       stroke="currentColor"
       strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
       aria-hidden
     >
-      <circle cx="9" cy="12" r="6.25" />
-      <circle cx="17.5" cy="12" r="3.75" fill="currentColor" stroke="none" />
+      <path d="M5.5 9.5V5.5h4" />
+      <path d="M14.5 5.5h4v4" />
+      <path d="M5.5 14.5v4h4" />
+      <path d="M18.5 14.5h-4v4" />
     </svg>
   );
 }
@@ -732,7 +736,7 @@ export function CameraCapture({
         type="button"
         onClick={triggerCapture}
         disabled={starting || capturing}
-        className="flex h-[5.25rem] w-[5.25rem] flex-col items-center justify-center gap-1 rounded-full border-2 border-primary bg-background text-primary disabled:opacity-50"
+        className="flex h-[5.5rem] w-[5.5rem] flex-col items-center rounded-full border-2 border-primary bg-background text-primary disabled:opacity-50"
         aria-label={
           capturing
             ? t("scanner.starting")
@@ -741,9 +745,11 @@ export function CameraCapture({
               : t("camera.start")
         }
       >
-        <CaptureIcon className="h-10 w-10" />
-        <span className="max-w-[4.5rem] truncate text-[10px] font-medium leading-none">
-          {t("camera.captureShort")}
+        <span className="flex h-full w-full flex-col items-center justify-between px-2 pt-3 pb-2.5">
+          <CaptureIcon className="h-10 w-10 shrink-0" />
+          <span className="text-[9px] font-medium leading-none">
+            {t("camera.captureShort")}
+          </span>
         </span>
       </button>
 
