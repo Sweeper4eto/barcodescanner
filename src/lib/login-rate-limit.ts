@@ -4,7 +4,7 @@ const buckets = new Map<string, Bucket>();
 
 const WINDOW_MS = 15 * 60 * 1000;
 const MAX_FAILS = 8;
-const LOCK_MS = 15 * 60 * 1000;
+const LOCK_MS = 5 * 60 * 1000;
 
 function keyFor(ip: string, username: string): string {
   return `${ip.trim() || "unknown"}:${username.trim().toLowerCase()}`;

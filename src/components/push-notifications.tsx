@@ -212,8 +212,7 @@ export function PushNotifications() {
 
   if (state === "unsupported") return null;
 
-  const canToggle =
-    state === "default" || state === "enabled" || state === "loading";
+  const canToggle = state === "default" || state === "enabled";
   const showToggle =
     state !== "iosNeedsInstall" &&
     state !== "denied" &&

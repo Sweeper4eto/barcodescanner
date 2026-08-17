@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
-import { AdminField, adminPaginationClass, adminSearchInputClass } from "@/components/admin/admin-ui";
+import { AdminField, adminInputClass, adminPaginationClass, adminSearchInputClass } from "@/components/admin/admin-ui";
 import { MenuSelect } from "@/components/menu-select";
 import { SearchField } from "@/components/search-field";
 import { useT } from "@/components/i18n-provider";
