@@ -36,6 +36,19 @@ export function validateOptionalEmail(email: string): MessageKey | null {
   return null;
 }
 
+export function normalizeSupportEmail(email: string): string {
+  return email.trim().toLowerCase();
+}
+
+export function validateSupportEmail(email: string): MessageKey | null {
+  const normalized = normalizeSupportEmail(email);
+  if (!normalized) return "support.contactRequired";
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) {
+    return "auth.invalidEmail";
+  }
+  return null;
+}
+
 export function validateOptionalOrgName(name: string): MessageKey | null {
   if (name.trim().length > ORG_NAME_MAX) return "auth.organizationNameTooLong";
   return null;

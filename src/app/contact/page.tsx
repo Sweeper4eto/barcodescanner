@@ -8,6 +8,7 @@ import { LanguageSwitch } from "@/components/language-switch";
 import { useT } from "@/components/i18n-provider";
 import { MenuSelect } from "@/components/menu-select";
 import { MobileI18nProvider } from "@/components/mobile-i18n-provider";
+import { validateSupportEmail } from "@/lib/register-validation";
 
 type Topic = "bug" | "ocr" | "billing" | "other";
 
@@ -30,6 +31,11 @@ function ContactPageContent() {
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const emailError = validateSupportEmail(contact);
+    if (emailError) {
+      setError(t(emailError));
+      return;
+    }
     setSending(true);
     setError("");
     try {
@@ -39,7 +45,7 @@ function ContactPageContent() {
         body: JSON.stringify({
           guest: true,
           topic,
-          contact: contact.trim(),
+          contact: contact.trim().toLowerCase(),
           message: message.trim(),
         }),
       });
@@ -96,6 +102,10 @@ function ContactPageContent() {
         <label className="block text-sm font-medium text-foreground">
           {t("support.contact")}
           <input
+            type="email"
+            inputMode="email"
+            autoCapitalize="none"
+            spellCheck={false}
             className="mt-1 w-full rounded-xl border border-input-border bg-input px-3 py-2 text-base text-foreground"
             value={contact}
             required
@@ -126,7 +136,14 @@ function ContactPageContent() {
         {error ? <p className="text-sm text-error">{error}</p> : null}
 
         <div className="flex flex-col gap-2">
-          <PrimaryButton type="submit" disabled={sending || !message.trim() || !contact.trim()}>
+          <PrimaryButton
+            type="submit"
+            disabled={
+              sending ||
+              !message.trim() ||
+              Boolean(validateSupportEmail(contact))
+            }
+          >
             {sending ? t("support.sending") : t("support.send")}
           </PrimaryButton>
           <Link href="/">

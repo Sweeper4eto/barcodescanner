@@ -8,6 +8,7 @@ import { MenuSelect } from "@/components/menu-select";
 import { useT } from "@/components/i18n-provider";
 import { navigateApp } from "@/lib/app-navigation";
 import { getStoredStoreId } from "@/lib/store-selection";
+import { validateSupportEmail } from "@/lib/register-validation";
 
 type Store = { id: string; name: string; active: boolean };
 
@@ -188,6 +189,11 @@ export default function ContactSupportPage() {
       setError(t("support.messageTooShort"));
       return;
     }
+    const emailError = validateSupportEmail(contact);
+    if (emailError) {
+      setError(t(emailError));
+      return;
+    }
 
     setSending(true);
     setError("");
@@ -198,7 +204,7 @@ export default function ContactSupportPage() {
         body: JSON.stringify({
           topic,
           storeId: storeId || null,
-          contact: contact.trim() || null,
+          contact: contact.trim().toLowerCase(),
           message: trimmed,
         }),
       });
@@ -353,6 +359,12 @@ export default function ContactSupportPage() {
               <MailIcon className="size-4" />
             </span>
             <input
+              type="email"
+              inputMode="email"
+              autoCapitalize="none"
+              spellCheck={false}
+              required
+              autoComplete="email"
               className="w-full rounded-xl border border-input-border bg-input py-2 pl-10 pr-3 text-base text-foreground outline-none transition-colors placeholder:text-muted focus:border-primary focus:ring-1 focus:ring-primary/40"
               value={contact}
               placeholder={t("support.contactPlaceholder")}
@@ -384,7 +396,11 @@ export default function ContactSupportPage() {
 
         <PrimaryButton
           onClick={send}
-          disabled={sending || message.trim().length < MESSAGE_MIN}
+          disabled={
+            sending ||
+            message.trim().length < MESSAGE_MIN ||
+            Boolean(validateSupportEmail(contact))
+          }
         >
           <span className="inline-flex items-center justify-center gap-2">
             <SendIcon className="size-4" />

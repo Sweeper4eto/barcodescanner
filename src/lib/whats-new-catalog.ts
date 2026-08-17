@@ -13,6 +13,13 @@ export type WhatsNewCatalogEntry = {
 
 export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
   {
+    key: "2026-08-document-capture-outline",
+    titleEn: "Document scan: capture button uses outline style with a new shutter icon.",
+    titleBg:
+      "Сканиране на документ: бутонът „Снимай“ е с контур и нова икона.",
+    href: "/app/add-document",
+  },
+  {
     key: "2026-08-document-preview-toolbar",
     titleEn:
       "Document scan: review the photo, then use Back, Next, or Cancel in one toolbar.",

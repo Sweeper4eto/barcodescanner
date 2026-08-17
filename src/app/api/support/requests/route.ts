@@ -4,6 +4,10 @@ import { requireSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { userCanAccessStore } from "@/lib/store-access";
 import { apiT } from "@/i18n";
+import {
+  normalizeSupportEmail,
+  validateSupportEmail,
+} from "@/lib/register-validation";
 
 const createSchema = z.object({
   topic: z.enum(["bug", "ocr", "billing", "other"]),
@@ -25,16 +29,18 @@ export async function POST(request: Request) {
     }
 
     const asGuest = parsed.data.guest === true;
-    const contact = parsed.data.contact?.trim() || null;
+    const rawContact = parsed.data.contact?.trim() ?? "";
+    const contactError = validateSupportEmail(rawContact);
+    if (contactError) {
+      return NextResponse.json(
+        { error: apiT(request, contactError) },
+        { status: 400 },
+      );
+    }
+
+    const contact = normalizeSupportEmail(rawContact);
 
     if (asGuest) {
-      if (!contact || contact.length < 3) {
-        return NextResponse.json(
-          { error: apiT(request, "support.contactRequired") },
-          { status: 400 },
-        );
-      }
-
       const row = await db.supportRequest.create({
         data: {
           userId: null,
