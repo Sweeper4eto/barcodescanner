@@ -80,9 +80,9 @@ function CaptureIcon({ className = "" }: { className?: string }) {
       aria-hidden
     >
       <path d="M5.5 9.5V5.5h4" />
-      <path d="M14.5 5.5h4v4" />
+      <path d="M18.5 9.5V5.5h-4" />
       <path d="M5.5 14.5v4h4" />
-      <path d="M18.5 14.5h-4v4" />
+      <path d="M18.5 14.5v4h-4" />
     </svg>
   );
 }
