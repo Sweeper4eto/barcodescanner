@@ -736,7 +736,7 @@ export function CameraCapture({
         type="button"
         onClick={triggerCapture}
         disabled={starting || capturing}
-        className="flex h-[5.5rem] w-[5.5rem] flex-col items-center rounded-full border-2 border-primary bg-background text-primary disabled:opacity-50"
+        className="flex h-[4.4rem] w-[4.4rem] flex-col items-center rounded-full border-2 border-primary bg-background text-primary disabled:opacity-50"
         aria-label={
           capturing
             ? t("scanner.starting")
@@ -745,7 +745,7 @@ export function CameraCapture({
               : t("camera.start")
         }
       >
-        <span className="flex h-full w-full flex-col items-center justify-between px-2 pt-3 pb-2.5">
+        <span className="flex h-full w-full flex-col items-center justify-between px-1.5 pt-1.5 pb-1">
           <CaptureIcon className="h-10 w-10 shrink-0" />
           <span className="text-[9px] font-medium leading-none">
             {t("camera.captureShort")}
@@ -797,12 +797,14 @@ export function CameraCapture({
       <button
         type="button"
         onClick={() => void uploadAndContinue()}
-        className="flex h-[5.25rem] w-[5.25rem] flex-col items-center justify-center gap-0.5 rounded-full border-[3px] border-primary/35 bg-primary text-primary-fg shadow-md"
+        className="flex h-[4.4rem] w-[4.4rem] flex-col items-center rounded-full border-2 border-primary bg-background text-primary"
         aria-label={t("common.next")}
       >
-        <NextIcon className="h-9 w-9" />
-        <span className="max-w-[4.5rem] truncate text-[11px] font-semibold leading-tight">
-          {t("common.next")}
+        <span className="flex h-full w-full flex-col items-center justify-between px-1.5 pt-1.5 pb-1">
+          <NextIcon className="h-10 w-10 shrink-0" />
+          <span className="text-[9px] font-medium leading-none">
+            {t("common.next")}
+          </span>
         </span>
       </button>
 
