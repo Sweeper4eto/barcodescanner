@@ -5,6 +5,7 @@ import {
   CLIENT_COOKIE_NAME,
   MAX_AGE_SECONDS,
 } from "@/lib/session-token";
+import { isSignedOut } from "@/lib/client-session";
 
 /**
  * On /app?__session=… (and once in sessionStorage), write the JS-readable
@@ -13,6 +14,7 @@ import {
 export function SessionClientBootstrap() {
   useEffect(() => {
     try {
+      if (isSignedOut()) return;
       const url = new URL(window.location.href);
       const fromQuery = url.searchParams.get("__session")?.trim() ?? "";
       const fromStore = sessionStorage.getItem(CLIENT_COOKIE_NAME)?.trim() ?? "";

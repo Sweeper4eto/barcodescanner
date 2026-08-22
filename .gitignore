@@ -17,6 +17,7 @@ cookies.txt
 prisma/test.db
 prisma/e2e.db
 dev.db
+dev.db-*
 prod-import*.db
 prod-import*.db-*
 /data/

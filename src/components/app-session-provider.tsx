@@ -37,14 +37,23 @@ export function useAppSession() {
 }
 
 export function AppSessionProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<AppSessionState>(() => ({
+  const [state, setState] = useState<AppSessionState>({
     ready: false,
     user: null,
-    homeUser: readCachedHomeUser(),
-  }));
+    // Keep null until after mount so SSR and the first client paint match.
+    homeUser: null,
+  });
 
   useEffect(() => {
     let cancelled = false;
+    const cached = readCachedHomeUser();
+    if (cached !== null) {
+      setState((current) =>
+        current.homeUser === null
+          ? { ...current, homeUser: cached }
+          : current,
+      );
+    }
 
     async function load() {
       try {

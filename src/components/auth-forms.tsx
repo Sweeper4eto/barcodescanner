@@ -1,10 +1,6 @@
 "use client";
 
-import {
-  appButtonDangerFull,
-  appButtonNeutralFull,
-  appButtonPrimaryFull,
-} from "@/lib/app-ui";
+import { appButtonNeutralFull, appButtonPrimaryFull } from "@/lib/app-ui";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { LoadingSpinner } from "@/components/loading-spinner";
@@ -460,7 +456,7 @@ export function SecondaryButton({
   );
 }
 
-/** Isolated so parent re-renders (errors/loading) do not reset script-toggled type/icons. */
+/** Isolated so parent re-renders (errors/loading) do not reset visibility toggle. */
 const LoginPasswordField = memo(function LoginPasswordField({
   label,
   showLabel,
@@ -472,6 +468,8 @@ const LoginPasswordField = memo(function LoginPasswordField({
   hideLabel: string;
   readOnly?: boolean;
 }) {
+  const [visible, setVisible] = useState(false);
+
   return (
     <div className="relative">
       <label htmlFor="login-password" className="sr-only">
@@ -483,7 +481,7 @@ const LoginPasswordField = memo(function LoginPasswordField({
       <input
         id="login-password"
         name="password"
-        type="password"
+        type={visible ? "text" : "password"}
         placeholder={label}
         autoComplete="off"
         autoCapitalize="off"
@@ -496,20 +494,17 @@ const LoginPasswordField = memo(function LoginPasswordField({
       <div className="absolute right-1 top-1/2 z-[1] -translate-y-1/2">
         <button
           type="button"
-          data-toggle-password="#login-password"
-          data-label-show={showLabel}
-          data-label-hide={hideLabel}
           disabled={readOnly}
           className="rounded-lg p-2 text-muted hover:text-foreground disabled:opacity-50"
-          aria-label={showLabel}
-          aria-pressed="false"
+          aria-label={visible ? hideLabel : showLabel}
+          aria-pressed={visible}
+          onClick={() => setVisible((v) => !v)}
         >
-          <span data-eye-hidden>
-            <EyeOffIcon className="size-5" />
-          </span>
-          <span data-eye-shown hidden>
+          {visible ? (
             <EyeIcon className="size-5" />
-          </span>
+          ) : (
+            <EyeOffIcon className="size-5" />
+          )}
         </button>
       </div>
     </div>
@@ -544,7 +539,6 @@ export function LoginForm({
       method="post"
       action="/api/auth/login-form"
       autoComplete="off"
-      data-login-form
       onSubmit={() => {
         setBusy(true);
         setError("");

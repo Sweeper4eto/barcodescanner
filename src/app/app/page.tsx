@@ -8,6 +8,7 @@ import { MobilePageHeader, appPageClassName } from "@/components/mobile-page-hea
 import { PushNotifications } from "@/components/push-notifications";
 import { WhatsNewDialog } from "@/components/whats-new-dialog";
 import { useT } from "@/components/i18n-provider";
+import { isSignedOut, logoutSession } from "@/lib/client-session";
 import { getStoredStoreId, setStoredStoreId } from "@/lib/store-selection";
 
 type Store = { id: string; name: string; active: boolean };
@@ -142,7 +143,7 @@ export default function AppHomePage() {
       try {
         const url = new URL(window.location.href);
         const token = url.searchParams.get("__session")?.trim();
-        if (token) {
+        if (token && !isSignedOut()) {
           const { CLIENT_COOKIE_NAME, MAX_AGE_SECONDS } = await import(
             "@/lib/session-token"
           );
@@ -198,14 +199,7 @@ export default function AppHomePage() {
   }, [router]);
 
   async function logout() {
-    try {
-      const { CLIENT_COOKIE_NAME } = await import("@/lib/session-token");
-      document.cookie = `${CLIENT_COOKIE_NAME}=; Path=/; Max-Age=0; SameSite=Lax`;
-      sessionStorage.removeItem(CLIENT_COOKIE_NAME);
-    } catch {
-      /* ignore */
-    }
-    await fetch("/api/auth/logout", { method: "POST" });
+    await logoutSession();
     router.push("/login");
     router.refresh();
   }

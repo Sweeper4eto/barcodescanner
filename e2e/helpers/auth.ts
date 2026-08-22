@@ -1,4 +1,9 @@
-import { request as playwrightRequest, type APIRequestContext, type Page } from "@playwright/test";
+import {
+  expect,
+  request as playwrightRequest,
+  type APIRequestContext,
+  type Page,
+} from "@playwright/test";
 
 async function createAdminApiContext(baseURL: string): Promise<APIRequestContext> {
   const context = await playwrightRequest.newContext({ baseURL });
@@ -12,6 +17,36 @@ async function createAdminApiContext(baseURL: string): Promise<APIRequestContext
   return context;
 }
 
+/** Fails if the Next.js client error overlay is present (React runtime/console errors). */
+export async function assertNoNextJsOverlay(page: Page): Promise<void> {
+  await expect(
+    page.getByText(
+      /Encountered a script tag|Unhandled Runtime Error|Application error: a client-side exception|Console Error/i,
+    ),
+  ).toHaveCount(0);
+  await expect(page.locator("[data-nextjs-dialog]")).toHaveCount(0);
+}
+
+/**
+ * Real form POST login (same path users use). Prefer this when testing /login itself.
+ * Faster API-cookie login remains in {@link loginInBrowser} for unrelated UI tests.
+ */
+export async function loginViaForm(
+  page: Page,
+  username: string,
+  password: string,
+): Promise<void> {
+  await page.goto("/login");
+  await page.waitForLoadState("domcontentloaded");
+  await expect(page.getByRole("button", { name: "Log in" })).toBeVisible();
+  await assertNoNextJsOverlay(page);
+
+  await page.getByLabel("Username").fill(username);
+  await page.getByLabel("Password", { exact: true }).fill(password);
+  await page.getByRole("button", { name: "Log in" }).click();
+}
+
+/** API login + navigate — skips form/hydration. Use when the test is not about login UI. */
 export async function loginInBrowser(
   page: Page,
   username: string,
@@ -87,15 +122,52 @@ export async function registerUserViaApi(
   request: APIRequestContext,
   username: string,
   password = "password123",
+  accountType: "home" | "retail" = "home",
+  organizationName?: string,
 ) {
-  const response = await request.post("/api/auth/register", {
-    data: { username, password, accountType: "home" },
-  });
-  if (!response.ok()) {
-    throw new Error(`Register failed: ${await response.text()}`);
+  let lastError = "";
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    const response = await request.post("/api/auth/register", {
+      data: {
+        username,
+        password,
+        accountType,
+        ...(organizationName ? { organizationName } : {}),
+      },
+    });
+    if (response.ok()) {
+      const data = await response.json();
+      return data.user as { id: string; username: string };
+    }
+    lastError = await response.text();
+    if (attempt < 3) await new Promise((r) => setTimeout(r, 750 * attempt));
   }
-  const data = await response.json();
-  return data.user as { id: string; username: string };
+  throw new Error(`Register failed: ${lastError}`);
+}
+
+/**
+ * Register on a throwaway context: `/api/auth/register` logs the new user in, so
+ * reusing an admin context here would replace the admin session cookie.
+ */
+export async function registerUserOnFreshContext(
+  baseURL: string,
+  username: string,
+  password = "password123",
+  accountType: "home" | "retail" = "home",
+  organizationName?: string,
+) {
+  const context = await playwrightRequest.newContext({ baseURL });
+  try {
+    return await registerUserViaApi(
+      context,
+      username,
+      password,
+      accountType,
+      organizationName,
+    );
+  } finally {
+    await context.dispose();
+  }
 }
 
 export async function assignUserViaApi(
@@ -103,12 +175,31 @@ export async function assignUserViaApi(
   userId: string,
   clientId: string,
   storeIds: string[],
+  clientRole: "OWNER" | "MEMBER" = "OWNER",
 ) {
-  const response = await request.patch("/api/admin/users", {
-    data: { userId, clientId, storeIds, active: true },
+  let lastError = "";
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    const response = await request.patch("/api/admin/users", {
+      data: { userId, clientId, storeIds, active: true, clientRole },
+    });
+    if (response.ok()) return;
+    lastError = await response.text();
+    if (attempt < 3) await new Promise((r) => setTimeout(r, 750 * attempt));
+  }
+  throw new Error(`Assign user failed: ${lastError}`);
+}
+
+/** Admin sets a temporary password; the user must then choose a new one. */
+export async function setUserPasswordViaApi(
+  request: APIRequestContext,
+  userId: string,
+  password: string,
+) {
+  const response = await request.post("/api/admin/users/password", {
+    data: { userId, password, confirmPassword: password },
   });
   if (!response.ok()) {
-    throw new Error(`Assign user failed: ${await response.text()}`);
+    throw new Error(`Set password failed: ${await response.text()}`);
   }
 }
 
@@ -117,12 +208,17 @@ export async function createProductViaApi(
   barcode: string,
   name: string,
 ) {
-  const response = await request.post("/api/products", {
-    data: { barcode, name },
-  });
-  if (!response.ok()) {
-    throw new Error(`Create product failed: ${await response.text()}`);
+  let lastError = "";
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    const response = await request.post("/api/products", {
+      data: { barcode, name },
+    });
+    if (response.ok()) {
+      const data = await response.json();
+      return data.product as { id: string; barcode: string; name: string };
+    }
+    lastError = await response.text();
+    if (attempt < 3) await new Promise((r) => setTimeout(r, 750 * attempt));
   }
-  const data = await response.json();
-  return data.product as { id: string; barcode: string; name: string };
+  throw new Error(`Create product failed: ${lastError}`);
 }

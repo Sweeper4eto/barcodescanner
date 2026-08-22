@@ -27,16 +27,16 @@ export function AppBottomNav() {
   const pathname = usePathname();
   const { t } = useT();
   const { homeUser } = useAppSession();
-  const [storeId, setStoreId] = useState(() =>
-    typeof window !== "undefined" ? (getStoredStoreId() ?? "") : "",
-  );
+  const [storeId, setStoreId] = useState("");
   const [cartCount, setCartCount] = useState(0);
+  const [navReady, setNavReady] = useState(false);
 
   useEffect(() => {
     function syncStoreId() {
       setStoreId(getStoredStoreId() ?? "");
     }
     syncStoreId();
+    setNavReady(true);
     window.addEventListener("magazin:store-changed", syncStoreId);
     return () => window.removeEventListener("magazin:store-changed", syncStoreId);
   }, [pathname]);
@@ -68,7 +68,8 @@ export function AppBottomNav() {
   }, [homeUser, storeId, pathname]);
 
   const query = storeId ? `?storeId=${encodeURIComponent(storeId)}` : "";
-  const disabled = !storeId;
+  // Keep links disabled until after mount so SSR matches the first client paint.
+  const disabled = !navReady || !storeId;
 
   const tabs: Tab[] = [
     {
@@ -98,7 +99,7 @@ export function AppBottomNav() {
         path.startsWith("/app/orders") || path.startsWith("/app/buy-list"),
       badge: cartCount > 0 ? cartCount : undefined,
     });
-  } else {
+  } else if (homeUser === false) {
     tabs.push({
       id: "document",
       href: `/app/add-document${query}`,

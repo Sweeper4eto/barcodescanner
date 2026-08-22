@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { KeyIcon } from "@/components/app-nav-icons";
 import {
@@ -25,6 +25,13 @@ function ChangePasswordContent() {
   const [passwordError, setPasswordError] = useState("");
   const [confirmError, setConfirmError] = useState("");
   const [loading, setLoading] = useState(false);
+  // Submitting before hydration would fall back to a native GET and put the
+  // new password in the URL, so keep the button inert until React is live.
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    setReady(true);
+  }, []);
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -112,7 +119,7 @@ function ChangePasswordContent() {
           {error ? <p className="text-sm text-error">{error}</p> : null}
           <PrimaryButton
             type="submit"
-            disabled={loading}
+            disabled={loading || !ready}
             icon={
               loading ? undefined : <KeyIcon className="size-4 shrink-0" />
             }

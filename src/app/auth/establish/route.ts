@@ -55,7 +55,7 @@ async function establish(request: Request) {
   const safeNext =
     next.startsWith("/") && !next.startsWith("//") ? next : "/app";
 
-  let token = (ticketId ? resolveLoginTicket(ticketId) : null) ?? legacyToken;
+  const token = (ticketId ? resolveLoginTicket(ticketId) : null) ?? legacyToken;
 
   if (!token) {
     const existing =

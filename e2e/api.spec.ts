@@ -4,7 +4,7 @@ import {
   createClientViaApi,
   createProductViaApi,
   createStoreViaApi,
-  registerUserViaApi,
+  registerUserOnFreshContext,
   withAdminApi,
 } from "./helpers/auth";
 
@@ -18,7 +18,7 @@ test.describe("API end-to-end", () => {
     await withAdminApi(baseURL, async (api) => {
       const client = await createClientViaApi(api, "API Client", 25);
       const store = await createStoreViaApi(api, client.id, "API Store");
-      const user = await registerUserViaApi(api, username);
+      const user = await registerUserOnFreshContext(baseURL, username);
       await assignUserViaApi(api, user.id, client.id, [store.id]);
       const product = await createProductViaApi(api, barcode, "API Product");
 

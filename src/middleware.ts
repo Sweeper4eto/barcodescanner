@@ -56,7 +56,12 @@ export async function middleware(request: NextRequest) {
 
   // Phone/Safari often drops Set-Cookie on redirects. Bootstrap from ?__session=
   // on this document response (200), not on a 302 — cookies stick that way.
-  const bootstrapToken = searchParams.get(SESSION_QUERY)?.trim() ?? "";
+  // Router prefetches/RSC fetches of the same URL must not bootstrap: they would
+  // hand the session back after a logout, since the token lingers in the URL.
+  const isRscRequest = request.headers.get("rsc") !== null;
+  const bootstrapToken = isRscRequest
+    ? ""
+    : (searchParams.get(SESSION_QUERY)?.trim() ?? "");
   if (bootstrapToken) {
     const bootSession = await verifySessionToken(bootstrapToken);
     if (bootSession) {

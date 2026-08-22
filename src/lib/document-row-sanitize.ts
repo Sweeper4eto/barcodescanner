@@ -21,7 +21,8 @@ export function isLikelyInvalidBarcode(value: string): boolean {
 
 /** Clean OCR output without moving values between barcode and articul. */
 export function sanitizeDocumentRow(row: DocumentOcrRow): DocumentOcrRow {
-  let { name, barcode, articul, expiryYmd, quantity } = row;
+  const { name, expiryYmd } = row;
+  let { barcode, articul, quantity } = row;
 
   if (barcode) {
     const trimmed = barcode.trim();

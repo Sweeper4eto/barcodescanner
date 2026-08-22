@@ -16,6 +16,7 @@ import { UsersPanel } from "@/components/admin/users-panel";
 import { WhatsNewPanel } from "@/components/admin/whats-new-panel";
 import { AppHeaderLogo } from "@/components/app-header-logo";
 import { useT } from "@/components/i18n-provider";
+import { logoutSession } from "@/lib/client-session";
 
 export default function AdminPage() {
   const router = useRouter();
@@ -64,7 +65,7 @@ export default function AdminPage() {
   }, []);
 
   async function logout() {
-    await fetch("/api/auth/logout", { method: "POST" });
+    await logoutSession();
     router.push("/login");
     router.refresh();
   }
