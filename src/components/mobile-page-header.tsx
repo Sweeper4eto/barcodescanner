@@ -1,7 +1,10 @@
 "use client";
 
 import { AppHeaderLogo } from "@/components/app-header-logo";
-import { AppTopActions } from "@/components/app-top-actions";
+import {
+  AppLanguageAction,
+  AppStoreSelect,
+} from "@/components/app-top-actions";
 
 export function MobilePageHeader({
   title,
@@ -27,14 +30,16 @@ export function MobilePageHeader({
 
   return (
     <div className={`${base} ${className}`.trim()}>
+      {/* Brand stays intact; location sits on its own row so long names never cover "365". */}
       <div className="flex h-11 items-center justify-between gap-2 overflow-visible sm:gap-3">
-        <div className="min-w-0 shrink overflow-visible">
+        <div className="min-w-0 shrink-0 overflow-visible">
           <AppHeaderLogo />
         </div>
-        <div className="flex h-11 max-w-[min(100%,16rem)] shrink-0 items-center overflow-visible sm:max-w-none">
-          <AppTopActions />
+        <div className="flex h-11 shrink-0 items-center overflow-visible">
+          <AppLanguageAction />
         </div>
       </div>
+      <AppStoreSelect />
 
       {title || action ? (
         <div className="mt-2 flex items-start justify-between gap-2">

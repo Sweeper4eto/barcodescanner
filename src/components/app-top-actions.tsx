@@ -26,7 +26,13 @@ function StoreIcon({ className = "size-3.5" }: { className?: string }) {
   );
 }
 
-export function AppTopActions() {
+/** Language control for the header top row (keeps brand free of the store chip). */
+export function AppLanguageAction() {
+  return <LanguageSwitch />;
+}
+
+/** Full-width location picker for the header second row. */
+export function AppStoreSelect() {
   const { t } = useT();
   const { user, ready } = useAppSession();
   const stores = useMemo(() => user?.stores ?? [], [user?.stores]);
@@ -56,33 +62,39 @@ export function AppTopActions() {
     window.location.reload();
   }
 
-  const storePlaceholder = !ready && stores.length === 0;
+  if (!ready && stores.length === 0) {
+    return (
+      <span
+        aria-hidden
+        className="mt-2 inline-block h-8 w-full rounded-lg border border-card-border/60 bg-card-border/20"
+      />
+    );
+  }
+
+  if (stores.length < 1) return null;
 
   return (
-    <div className="inline-flex min-w-0 max-w-full shrink items-center justify-end gap-1.5">
-      {stores.length >= 1 ? (
-        <MenuSelect
-          size="compact"
-          menuAlign="end"
-          className="min-w-0 max-w-[11.5rem] flex-1"
-          label={t("app.selectStore")}
-          value={storeId}
-          options={stores.map((store) => ({
-            value: store.id,
-            label: store.name,
-          }))}
-          onChange={onStoreChange}
-          disabled={stores.length < 2}
-          leadingIcon={<StoreIcon />}
-          placeholder={t("app.selectStore")}
-        />
-      ) : storePlaceholder ? (
-        <span
-          aria-hidden
-          className="inline-block h-8 w-[7.5rem] shrink-0 rounded-lg border border-card-border/60 bg-card-border/20"
-        />
-      ) : null}
-      <LanguageSwitch />
+    <div className="mt-2 min-w-0">
+      <MenuSelect
+        size="compact"
+        menuAlign="start"
+        className="w-full min-w-0"
+        label={t("app.selectStore")}
+        value={storeId}
+        options={stores.map((store) => ({
+          value: store.id,
+          label: store.name,
+        }))}
+        onChange={onStoreChange}
+        disabled={stores.length < 2}
+        leadingIcon={<StoreIcon />}
+        placeholder={t("app.selectStore")}
+      />
     </div>
   );
+}
+
+/** Prefer AppLanguageAction + AppStoreSelect in the two-row header. */
+export function AppTopActions() {
+  return <AppLanguageAction />;
 }

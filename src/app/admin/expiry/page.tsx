@@ -15,7 +15,7 @@ import {
 } from "@/lib/expiry-period";
 import { resolveEntryImagePath } from "@/lib/inventory-entry-display";
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 40;
 
 type Entry = {
   id: string;

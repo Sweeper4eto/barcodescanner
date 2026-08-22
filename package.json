@@ -23,6 +23,7 @@
     "icons": "node scripts/generate-icons.mjs",
     "vapid": "node scripts/generate-vapid-keys.mjs",
     "admin:password": "tsx scripts/set-admin-password.ts",
+    "push:test": "tsx scripts/send-test-push.ts",
     "db:reset": "prisma migrate reset --force",
     "test": "tsx --test --test-concurrency=1 tests/**/*.test.ts",
     "test:e2e": "playwright test",
