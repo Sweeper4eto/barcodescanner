@@ -1,5 +1,5 @@
 /**
- * expire365-v24 — push + cache cleanup only.
+ * expire365-v25 — push + cache cleanup only.
  * Does not cache pages or intercept fetches (that broke phone login).
  * Must stay registered: PushManager.subscribe needs an active worker.
  */
@@ -45,12 +45,15 @@ self.addEventListener("push", (event) => {
         if (text) body = text;
       }
 
+      // Absolute URLs — relative icon paths often fail on Chrome Android.
+      const origin = self.location.origin;
       await self.registration.showNotification(title, {
         body,
         data: { url },
-        // Mint logo on black — same brand tile for large + small slots.
-        icon: "/icons/icon-notification.png?v=12",
-        badge: "/icons/icon-badge.png?v=12",
+        // Full-color mint on black (large / right on many Androids).
+        icon: `${origin}/icons/icon-notification.png?v=13`,
+        // Monochrome logo silhouette — required to replace Chrome's calendar glyph.
+        badge: `${origin}/icons/icon-badge.png?v=13`,
       });
     })(),
   );

@@ -52,9 +52,35 @@ for (const [rel, size] of transparentOutputs) {
   await png(size, rel, transparent);
 }
 
-// Push notification tiles
+// Push: color tile for notification `icon`; monochrome silhouette for Android `badge`
+// (Chrome ignores colored badges and falls back to a generic calendar glyph).
 await brandOnBlack(192, "public/icons/icon-notification.png");
-await brandOnBlack(96, "public/icons/icon-badge.png");
+{
+  const badgeRel = "public/icons/icon-badge.png";
+  const badgeSize = 96;
+  const mark = await sharp(src)
+    .ensureAlpha()
+    .resize(badgeSize, badgeSize, { fit: "contain", background: transparent })
+    .png()
+    .toBuffer();
+  const { data, info } = await sharp(mark)
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  for (let i = 0; i < data.length; i += 4) {
+    const a = data[i + 3];
+    data[i] = 255;
+    data[i + 1] = 255;
+    data[i + 2] = 255;
+    data[i + 3] = a;
+  }
+  await sharp(data, {
+    raw: { width: info.width, height: info.height, channels: 4 },
+  })
+    .png()
+    .toFile(path.join(root, badgeRel));
+  console.log("wrote", badgeRel);
+}
 
 // Apple home-screen + Next apple-icon — opaque black, not white
 await brandOnBlack(180, "public/icons/apple-touch-icon.png");
