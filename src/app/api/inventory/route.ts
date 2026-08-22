@@ -11,7 +11,6 @@ import {
 import { logAuditEvent } from "@/lib/audit-log";
 import { requireSession } from "@/lib/auth";
 import { barcodeLookupValues, normalizeBarcode } from "@/lib/barcode";
-import { purgeExpiredInventory } from "@/lib/inventory-purge";
 import { expiryListDateBounds, parseExpiryWithinDays } from "@/lib/expiry";
 import {
   activeInventoryWhere,
@@ -195,7 +194,6 @@ export async function GET(request: Request) {
   }
 
   const now = new Date();
-  await purgeExpiredInventory();
 
   const withinDays = parseExpiryWithinDays(searchParams.get("withinDays"));
   const { maxPast, maxFuture } = expiryListDateBounds(now, withinDays);

@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
-import { purgeExpiredInventory } from "@/lib/inventory-purge";
 import { expiryListDateBounds, parseExpiryWithinDays } from "@/lib/expiry";
 import { activeInventoryWhere } from "@/lib/inventory";
 import { filterInventoryEntriesBySearch } from "@/lib/inventory-search";
@@ -50,7 +49,6 @@ export async function GET(request: Request) {
   }
 
   const now = new Date();
-  await purgeExpiredInventory();
 
   const withinDays = parseExpiryWithinDays(searchParams.get("withinDays"));
   const { maxPast, maxFuture } = expiryListDateBounds(now, withinDays);
