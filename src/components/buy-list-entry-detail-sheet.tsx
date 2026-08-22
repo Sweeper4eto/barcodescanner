@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { QuantityStepper } from "@/components/quantity-picker";
 import {
   CameraIcon,
-  CheckIcon,
   CopyIcon,
   StarFavouriteIcon,
 } from "@/components/app-nav-icons";
@@ -13,6 +12,9 @@ import { ProductImage } from "@/components/product-image";
 import { MobilePageHeader } from "@/components/mobile-page-header";
 import { useT } from "@/components/i18n-provider";
 import { useViewportInsets } from "@/hooks/use-viewport-insets";
+import { CancelButton } from "@/components/cancel-button";
+import { ConfirmButton } from "@/components/confirm-button";
+import { appFooterButtonGrid } from "@/lib/app-ui";
 import { isAdhocBarcode } from "@/lib/inventory-entry-display";
 
 function CopyTextButton({
@@ -166,7 +168,7 @@ export function BuyListEntryDetailSheet({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      const data = (await response.json()) as {
+      const data = ((await response.json().catch(() => null)) ?? {}) as {
         entry?: BuyListDetailEntry;
         error?: string;
       };
@@ -179,8 +181,12 @@ export function BuyListEntryDetailSheet({
       onUpdated(data.entry);
       setImageDraft(null);
       onClose();
-    } catch {
-      setError(t("buyList.saveFailed"));
+    } catch (err) {
+      setError(
+        err instanceof Error && err.message
+          ? err.message
+          : t("buyList.saveFailed"),
+      );
     } finally {
       setSaving(false);
     }
@@ -308,35 +314,27 @@ export function BuyListEntryDetailSheet({
       </div>
 
       <div className="shrink-0 border-t border-card-border px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]">
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            type="button"
-            className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-primary bg-transparent px-3 py-2.5 text-sm font-semibold text-primary disabled:opacity-50"
+        <div className={appFooterButtonGrid}>
+          <ConfirmButton
+            busy={saving}
+            disabled={!canConfirm}
             onClick={() => void confirmChanges()}
-            disabled={saving || !canConfirm}
           >
-            <CheckIcon className="size-4" />
-            {saving ? t("buyList.saving") : t("buyList.saveChangesButton")}
-          </button>
-          <button
-            type="button"
-            className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-card-border px-3 py-2.5 text-sm font-semibold text-foreground disabled:opacity-50"
-            onClick={onClose}
-            disabled={saving}
-          >
+            {t("buyList.saveChangesButton")}
+          </ConfirmButton>
+          <CancelButton onClick={onClose} disabled={saving}>
             {t("buyList.confirmCancel")}
-          </button>
+          </CancelButton>
         </div>
       </div>
 
       {changingPicture ? (
-        <div className="fixed inset-0 z-[70] flex select-none flex-col overflow-y-auto bg-background p-4">
-          <div className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center gap-3">
+        <div className="fixed inset-0 z-[70] flex select-none flex-col overflow-y-auto bg-background px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(0.75rem,env(safe-area-inset-top))]">
+          <div className="mx-auto flex w-full max-w-md flex-col gap-3">
             <p className="text-center text-sm font-medium text-foreground select-none">
               {t("camera.changePhotoTitle")}
             </p>
             <CameraCapture
-              compact
               autoStart
               forceInAppCamera
               captureOnPreviewTap

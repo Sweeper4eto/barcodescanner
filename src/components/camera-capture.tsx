@@ -2,6 +2,14 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { PrimaryButton, SecondaryButton } from "@/components/auth-forms";
+import { CancelButton } from "@/components/cancel-button";
+import { ConfirmButton } from "@/components/confirm-button";
+import { ForwardButton } from "@/components/forward-button";
+import {
+  CameraIcon,
+  CheckIcon,
+  CloseIcon,
+} from "@/components/app-nav-icons";
 import { useT } from "@/components/i18n-provider";
 import { ScannerViewfinderOverlay } from "@/components/scanner-viewfinder-overlay";
 
@@ -87,23 +95,6 @@ function CaptureIcon({ className = "" }: { className?: string }) {
   );
 }
 
-function CancelIcon({ className = "" }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className={className}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.75"
-      strokeLinecap="round"
-      aria-hidden
-    >
-      <path d="M6 6l12 12" />
-      <path d="M18 6 6 18" />
-    </svg>
-  );
-}
-
 function BackIcon({ className = "" }: { className?: string }) {
   return (
     <svg
@@ -118,24 +109,6 @@ function BackIcon({ className = "" }: { className?: string }) {
     >
       <path d="M19 12H5" />
       <path d="m12 19-7-7 7-7" />
-    </svg>
-  );
-}
-
-function NextIcon({ className = "" }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className={className}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="M5 12h14" />
-      <path d="m13 6 6 6-6 6" />
     </svg>
   );
 }
@@ -351,16 +324,21 @@ function readFileAsDataUrl(file: File): Promise<string> {
   });
 }
 
-function blobToDataUrl(blob: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === "string") resolve(reader.result);
-      else reject(new Error("READ_FAILED"));
-    };
-    reader.onerror = () => reject(reader.error ?? new Error("READ_FAILED"));
-    reader.readAsDataURL(blob);
+async function blobToJpegDataUrl(blob: Blob, quality = 0.92): Promise<string> {
+  const bitmap = await createImageBitmap(blob, {
+    imageOrientation: "from-image",
   });
+  try {
+    const canvas = document.createElement("canvas");
+    canvas.width = bitmap.width;
+    canvas.height = bitmap.height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("READ_FAILED");
+    ctx.drawImage(bitmap, 0, 0);
+    return canvas.toDataURL("image/jpeg", quality);
+  } finally {
+    bitmap.close();
+  }
 }
 
 function wait(ms: number): Promise<void> {
@@ -414,7 +392,7 @@ async function captureWithImageCapture(
     const blob = await imageCapture.takePhoto(
       Object.keys(photoSettings).length > 0 ? photoSettings : undefined,
     );
-    if (blob.size > 0) return await blobToDataUrl(blob);
+    if (blob.size > 0) return await blobToJpegDataUrl(blob);
   } catch {
     // try grabFrame next
   }
@@ -758,11 +736,11 @@ export function CameraCapture({
           type="button"
           onClick={onCancel}
           disabled={capturing}
-          className="flex h-14 w-14 flex-col items-center justify-center rounded-2xl border border-card-border bg-transparent disabled:opacity-50"
+          className="flex h-14 w-14 flex-col items-center justify-center rounded-2xl border border-white bg-transparent text-white disabled:opacity-50"
           aria-label={t("common.cancel")}
         >
-          <CancelIcon className="h-6 w-6 text-foreground" />
-          <span className="mt-0.5 text-[10px] font-medium leading-none text-danger">
+          <CloseIcon className="h-4 w-4 shrink-0" />
+          <span className="mt-0.5 inline-flex items-center gap-0.5 text-[10px] font-medium leading-none">
             {t("common.cancel")}
           </span>
         </button>
@@ -801,7 +779,7 @@ export function CameraCapture({
         aria-label={t("common.next")}
       >
         <span className="flex h-full w-full flex-col items-center justify-between px-1.5 pt-1.5 pb-1">
-          <NextIcon className="h-10 w-10 shrink-0" />
+          <CheckIcon className="size-10 shrink-0" />
           <span className="text-[9px] font-medium leading-none">
             {t("common.next")}
           </span>
@@ -812,11 +790,11 @@ export function CameraCapture({
         <button
           type="button"
           onClick={onCancel}
-          className="flex h-14 w-14 flex-col items-center justify-center rounded-2xl border border-card-border bg-transparent"
+          className="flex h-14 w-14 flex-col items-center justify-center rounded-2xl border border-white bg-transparent text-white"
           aria-label={t("common.cancel")}
         >
-          <CancelIcon className="h-6 w-6 text-foreground" />
-          <span className="mt-0.5 text-[10px] font-medium leading-none text-danger">
+          <CloseIcon className="h-4 w-4 shrink-0" />
+          <span className="mt-0.5 inline-flex items-center gap-0.5 text-[10px] font-medium leading-none">
             {t("common.cancel")}
           </span>
         </button>
@@ -931,9 +909,10 @@ export function CameraCapture({
                   </p>
                   <button
                     type="button"
-                    className="shrink-0 rounded-lg px-2 py-0.5 text-xs font-semibold text-primary"
+                    className="inline-flex shrink-0 items-center gap-1 rounded-lg px-2 py-0.5 text-xs font-semibold text-primary"
                     onClick={() => setTipDismissed(true)}
                   >
+                    <CheckIcon className="size-3.5 shrink-0" />
                     {t("common.ok")}
                   </button>
                 </div>
@@ -945,6 +924,7 @@ export function CameraCapture({
                 <PrimaryButton
                   onClick={() => nativeCameraInputRef.current?.click()}
                   disabled={starting}
+                  icon={<CameraIcon className="size-4 shrink-0" />}
                 >
                   {t("camera.capture")}
                 </PrimaryButton>
@@ -954,7 +934,11 @@ export function CameraCapture({
                     {t("scanner.starting")}
                   </p>
                 ) : (
-                  <PrimaryButton onClick={() => void startCamera()} disabled={starting}>
+                  <PrimaryButton
+                    onClick={() => void startCamera()}
+                    disabled={starting}
+                    icon={<CameraIcon className="size-4 shrink-0" />}
+                  >
                     {starting ? t("scanner.starting") : t("camera.start")}
                   </PrimaryButton>
                 )
@@ -962,6 +946,7 @@ export function CameraCapture({
                 <PrimaryButton
                   onClick={() => void takePhoto()}
                   disabled={capturing || starting}
+                  icon={<CameraIcon className="size-4 shrink-0" />}
                 >
                   {t("camera.capture")}
                 </PrimaryButton>
@@ -986,7 +971,7 @@ export function CameraCapture({
                 </>
               ) : null}
               {onCancel ? (
-                <SecondaryButton onClick={onCancel}>{t("common.cancel")}</SecondaryButton>
+                <CancelButton onClick={onCancel}>{t("common.cancel")}</CancelButton>
               ) : null}
             </div>
           )}
@@ -1016,14 +1001,23 @@ export function CameraCapture({
             }
           />
           <div className="flex flex-col gap-2">
-            <PrimaryButton onClick={() => void uploadAndContinue()}>
-              {productSaveFlow ? t("camera.savePhoto") : t("common.next")}
-            </PrimaryButton>
-            <SecondaryButton onClick={retakePhoto}>
+            {productSaveFlow ? (
+              <ConfirmButton onClick={() => void uploadAndContinue()}>
+                {t("camera.savePhoto")}
+              </ConfirmButton>
+            ) : (
+              <ForwardButton onClick={() => void uploadAndContinue()}>
+                {t("common.next")}
+              </ForwardButton>
+            )}
+            <SecondaryButton
+              onClick={retakePhoto}
+              icon={<CameraIcon className="size-4 shrink-0" />}
+            >
               {productSaveFlow ? t("camera.retakePhoto") : t("camera.newPhoto")}
             </SecondaryButton>
             {productSaveFlow && onCancel ? (
-              <SecondaryButton onClick={onCancel}>{t("common.cancel")}</SecondaryButton>
+              <CancelButton onClick={onCancel}>{t("common.cancel")}</CancelButton>
             ) : null}
             {!productSaveFlow && (allowFileUpload || showNativePath) ? (
               <>
@@ -1039,7 +1033,7 @@ export function CameraCapture({
               </>
             ) : null}
             {!productSaveFlow && onCancel ? (
-              <SecondaryButton onClick={onCancel}>{t("common.cancel")}</SecondaryButton>
+              <CancelButton onClick={onCancel}>{t("common.cancel")}</CancelButton>
             ) : null}
           </div>
         </>
@@ -1051,13 +1045,21 @@ export function CameraCapture({
 }
 
 async function uploadImage(dataUrl: string): Promise<string> {
+  const { prepareProductPhoto } = await import("@/lib/product-photo");
+  const prepared = await prepareProductPhoto(dataUrl);
+  const blob = await fetch(prepared).then((response) => response.blob());
+  const form = new FormData();
+  form.append("file", blob, "photo.jpg");
+
   const response = await fetch("/api/upload", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     credentials: "same-origin",
-    body: JSON.stringify({ dataUrl }),
+    body: form,
   });
-  const data = await response.json().catch(() => null);
+  const data = (await response.json().catch(() => null)) as {
+    path?: string;
+    error?: string;
+  } | null;
   if (!response.ok) {
     throw new Error(
       typeof data?.error === "string" && data.error

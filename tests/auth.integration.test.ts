@@ -36,9 +36,9 @@ test("registerUser validates username and password length", async () => {
   assert.equal(shortName.ok, false);
   if (!shortName.ok) assert.equal(shortName.errorKey, "auth.usernameTooShort");
 
-  const shortPass = await registerUser("validuser", "12345", registerOpts);
-  assert.equal(shortPass.ok, false);
-  if (!shortPass.ok) assert.equal(shortPass.errorKey, "auth.passwordTooShort");
+  const emptyPass = await registerUser("validuser", "", registerOpts);
+  assert.equal(emptyPass.ok, false);
+  if (!emptyPass.ok) assert.equal(emptyPass.errorKey, "auth.passwordRequired");
 });
 
 test("registerUser rejects duplicate usernames", async () => {

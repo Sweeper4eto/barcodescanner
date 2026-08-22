@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { LoadingSpinnerBlock } from "@/components/loading-spinner";
 import { ProductImage } from "@/components/product-image";
 import { SearchField } from "@/components/search-field";
 import { useT } from "@/components/i18n-provider";
@@ -176,9 +177,13 @@ function AdminBuyListContent() {
 
           <div className="space-y-2">
             {loading && page === 1 && entries.length === 0 ? (
-              <p className="rounded-xl bg-transparent p-4 text-sm text-muted">
-                {isSearching ? t("buyList.searching") : t("buyList.loading")}
-              </p>
+              isSearching ? (
+                <p className="rounded-xl bg-transparent p-4 text-center text-sm text-muted">
+                  {t("buyList.searching")}
+                </p>
+              ) : (
+                <LoadingSpinnerBlock wrapperClassName="flex justify-center rounded-xl bg-transparent p-4" />
+              )
             ) : null}
             {!loading && entries.length === 0 ? (
               <p className="rounded-xl bg-transparent p-4 text-sm text-muted">

@@ -67,13 +67,26 @@ export async function saveUpload(file: File): Promise<string> {
   return `/uploads/${filename}`;
 }
 
+const DATA_URL_EXT: Record<string, string> = {
+  jpeg: "jpg",
+  jpg: "jpg",
+  png: "png",
+  webp: "webp",
+  gif: "gif",
+};
+
 export async function saveDataUrl(dataUrl: string): Promise<string> {
-  const match = dataUrl.match(/^data:image\/(\w+);base64,(.+)$/);
+  const match = dataUrl.match(
+    /^data:image\/([\w+-]+);(?:charset=[\w-]+;)?base64,(.+)$/,
+  );
   if (!match) {
     throw new UploadError("errors.invalidImage");
   }
 
-  const ext = match[1] === "jpeg" ? "jpg" : match[1];
+  const ext = DATA_URL_EXT[match[1].toLowerCase()];
+  if (!ext) {
+    throw new UploadError("errors.invalidImage");
+  }
   const buffer = Buffer.from(match[2], "base64");
 
   if (buffer.length > 10 * 1024 * 1024) {

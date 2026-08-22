@@ -19,6 +19,7 @@ test("createSessionToken and verifySessionToken round-trip", async () => {
     username: "alice",
     role: "USER",
     clientId: "client-1",
+    mustChangePassword: false,
   });
 });
 

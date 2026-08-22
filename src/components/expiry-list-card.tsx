@@ -127,82 +127,88 @@ export function ExpiryListCard({
           </button>
         ) : null}
 
-        <button
-          type="button"
-          aria-label={t("expiry.viewEntry")}
-          className="flex min-w-0 flex-1 items-center gap-1.5 self-center text-left"
-          onClick={onOpen}
-          disabled={viewOnly}
-        >
-          <ProductImage
-            src={imagePath}
-            alt=""
-            className="size-12 shrink-0 rounded-lg object-cover"
-            placeholderClassName="size-12 shrink-0 rounded-lg text-[9px]"
-          />
-
-          <div className="min-w-0 flex-1">
-            <p className="line-clamp-2 text-sm font-semibold leading-tight text-foreground">
-              {name}
-            </p>
-            <p className="mt-0.5 text-[10px] leading-tight text-muted">
-              {t("expiry.enteredOn")} {formatLocaleDay(entered, dateLocale)}
-            </p>
-            <p className="whitespace-nowrap text-[12px] leading-tight text-primary">
-              <span className="text-[10px] font-semibold text-primary/80">
-                {t("expiry.validUntil")}
-              </span>{" "}
-              <span className="font-bold tabular-nums text-primary">
-                {formatLocaleDay(expiry, dateLocale)}
-              </span>
-            </p>
+        <div className="flex min-w-0 flex-1 items-center gap-1.5 self-center">
+          <div className="relative size-12 shrink-0">
+            <ProductImage
+              src={imagePath}
+              alt=""
+              className="size-12 rounded-lg object-cover"
+              placeholderClassName="size-12 rounded-lg text-[9px]"
+            />
+            {!viewOnly && homeUser && onToggleFavourite ? (
+              <button
+                type="button"
+                aria-label={favourite ? t("favourites.remove") : t("favourites.add")}
+                title={favourite ? t("favourites.remove") : t("favourites.add")}
+                className={`absolute -right-0.5 -top-0.5 flex size-5 items-center justify-center rounded-md border border-card-border bg-background/95 ${
+                  favourite ? "text-amber-400" : "text-muted"
+                }`}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onToggleFavourite();
+                }}
+              >
+                <StarFavouriteIcon className="size-3" filled={favourite} />
+              </button>
+            ) : null}
           </div>
 
-          <div className="flex shrink-0 items-stretch gap-0.5">
-            <div className="flex min-w-[2.25rem] flex-col items-center justify-center rounded-md border border-card-border bg-transparent px-1 py-0.5 text-center">
-              <p className="text-base font-bold leading-none tabular-nums text-foreground">
-                {quantity}
-              </p>
-              <p className="text-[10px] font-semibold leading-none text-muted">
-                {t("expiry.pieces")}
-              </p>
-            </div>
-
-            <div
-              className={`flex min-w-[2.25rem] flex-col items-center justify-center rounded-md border px-1 py-0.5 text-center ${expiryUrgencyBadgeClass(expiry)}`}
-            >
-              {days !== 0 ? (
-                <>
-                  <p className="text-base font-bold leading-none tabular-nums">
-                    {days}
-                  </p>
-                  <p className="text-[10px] font-semibold leading-none">
-                    {daysLabel}
-                  </p>
-                </>
-              ) : (
-                <p className="text-xs font-bold leading-tight">{daysLabel}</p>
-              )}
-            </div>
-          </div>
-        </button>
-
-        {!viewOnly && homeUser && onToggleFavourite ? (
           <button
             type="button"
-            aria-label={favourite ? t("favourites.remove") : t("favourites.add")}
-            title={favourite ? t("favourites.remove") : t("favourites.add")}
-            className={`mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-md border border-card-border bg-transparent ${
-              favourite ? "text-amber-400" : "text-muted"
-            }`}
-            onClick={(event) => {
-              event.stopPropagation();
-              onToggleFavourite();
-            }}
+            aria-label={t("expiry.viewEntry")}
+            className="flex min-w-0 flex-1 basis-0 items-start gap-1.5 overflow-hidden text-left"
+            onClick={onOpen}
+            disabled={viewOnly}
           >
-            <StarFavouriteIcon className="size-3.5" filled={favourite} />
+            <div className="min-w-0 flex-1 overflow-hidden">
+              <p
+                title={name}
+                className="line-clamp-2 break-words text-sm font-semibold leading-tight text-foreground"
+              >
+                {name}
+              </p>
+              <p className="mt-0.5 text-[10px] leading-tight text-muted">
+                {t("expiry.enteredOn")} {formatLocaleDay(entered, dateLocale)}
+              </p>
+              <p className="whitespace-nowrap text-[12px] leading-tight text-primary">
+                <span className="text-[10px] font-semibold text-primary/80">
+                  {t("expiry.validUntil")}
+                </span>{" "}
+                <span className="font-bold tabular-nums text-primary">
+                  {formatLocaleDay(expiry, dateLocale)}
+                </span>
+              </p>
+            </div>
+
+            <div className="flex shrink-0 items-stretch gap-0.5 self-center">
+              <div className="flex h-[2.375rem] w-9 flex-col items-center justify-center rounded-md border border-card-border bg-transparent px-0.5 py-0.5 text-center">
+                <p className="text-base font-bold leading-none tabular-nums text-foreground">
+                  {quantity}
+                </p>
+                <p className="text-[10px] font-semibold leading-none text-muted">
+                  {t("expiry.pieces")}
+                </p>
+              </div>
+
+              <div
+                className={`flex h-[2.375rem] w-9 flex-col items-center justify-center rounded-md border px-0.5 py-0.5 text-center ${expiryUrgencyBadgeClass(expiry)}`}
+              >
+                {days === 0 ? (
+                  <p className="text-[10px] font-bold leading-tight">{daysLabel}</p>
+                ) : (
+                  <>
+                    <p className="text-base font-bold leading-none tabular-nums">
+                      {days}
+                    </p>
+                    <p className="max-w-full truncate text-[10px] font-semibold leading-none">
+                      {daysLabel}
+                    </p>
+                  </>
+                )}
+              </div>
+            </div>
           </button>
-        ) : null}
+        </div>
 
         {!viewOnly ? (
           <button

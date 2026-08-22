@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
+import { LoadingSpinnerBlock } from "@/components/loading-spinner";
 import { MobilePageHeader, appPageClassName } from "@/components/mobile-page-header";
 import { PushNotifications } from "@/components/push-notifications";
 import { WhatsNewDialog } from "@/components/whats-new-dialog";
@@ -131,18 +132,54 @@ export default function AppHomePage() {
   const [username, setUsername] = useState("");
   const [isOwner, setIsOwner] = useState(false);
   const [bootstrapped, setBootstrapped] = useState(false);
+  const [sessionMissing, setSessionMissing] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
 
     async function load() {
-      const response = await fetch("/api/auth/me");
-      const data = await response.json();
+      // Ensure LAN JS cookie exists before /me (HttpOnly Set-Cookie is often dropped).
+      try {
+        const url = new URL(window.location.href);
+        const token = url.searchParams.get("__session")?.trim();
+        if (token) {
+          const { CLIENT_COOKIE_NAME, MAX_AGE_SECONDS } = await import(
+            "@/lib/session-token"
+          );
+          document.cookie = `${CLIENT_COOKIE_NAME}=${encodeURIComponent(token)}; Path=/; Max-Age=${MAX_AGE_SECONDS}; SameSite=Lax`;
+          sessionStorage.setItem(CLIENT_COOKIE_NAME, token);
+        }
+      } catch {
+        /* ignore */
+      }
+
+      async function fetchMe() {
+        const response = await fetch("/api/auth/me", {
+          credentials: "same-origin",
+          cache: "no-store",
+        });
+        return response.json().catch(() => ({}));
+      }
+
+      let data = await fetchMe();
       if (cancelled) return;
+
       if (!data.user) {
-        router.push("/login");
+        for (const wait of [100, 300, 600]) {
+          await new Promise((r) => setTimeout(r, wait));
+          if (cancelled) return;
+          data = await fetchMe();
+          if (data.user) break;
+        }
+      }
+
+      if (!data.user) {
+        setSessionMissing(true);
+        setBootstrapped(true);
         return;
       }
+
+      setSessionMissing(false);
       setUsername(data.user.username);
       setIsOwner(data.user.clientRole === "OWNER");
       const list: Store[] = data.user.stores ?? [];
@@ -161,6 +198,13 @@ export default function AppHomePage() {
   }, [router]);
 
   async function logout() {
+    try {
+      const { CLIENT_COOKIE_NAME } = await import("@/lib/session-token");
+      document.cookie = `${CLIENT_COOKIE_NAME}=; Path=/; Max-Age=0; SameSite=Lax`;
+      sessionStorage.removeItem(CLIENT_COOKIE_NAME);
+    } catch {
+      /* ignore */
+    }
     await fetch("/api/auth/logout", { method: "POST" });
     router.push("/login");
     router.refresh();
@@ -173,20 +217,22 @@ export default function AppHomePage() {
     <div className={appPageClassName}>
       <MobilePageHeader className="mb-1" />
 
-      <div className="mb-6 flex items-center justify-between gap-3">
+      <div className="mb-6 flex items-start justify-between gap-3">
         <h1 className="min-w-0 flex-1 text-[1.65rem] font-semibold leading-tight tracking-tight text-foreground">
           {bootstrapped ? (
             <>
-              {greetingBefore}
-              <span className="text-primary">{username}</span>
-              {greetingAfter}
+              <span className="block text-foreground">{greetingBefore.trimEnd()}</span>
+              <span className="block text-primary">{username}</span>
+              {greetingAfter ? (
+                <span className="block text-foreground">{greetingAfter}</span>
+              ) : null}
             </>
           ) : null}
         </h1>
         <button
           type="button"
           onClick={() => void logout()}
-          className="inline-flex shrink-0 items-center gap-1.5 text-sm font-medium text-primary transition-opacity hover:opacity-80"
+          className="mt-1 inline-flex shrink-0 items-center gap-1.5 text-sm font-medium text-primary transition-opacity hover:opacity-80"
         >
           <LogoutIcon />
           <span>{t("common.logout")}</span>
@@ -194,14 +240,21 @@ export default function AppHomePage() {
       </div>
 
       {!bootstrapped ? (
-        <p className="text-sm text-muted">{t("expiry.loading")}</p>
+        <LoadingSpinnerBlock wrapperClassName="flex justify-center py-6" />
+      ) : sessionMissing ? (
+        <p className="mb-3 rounded-2xl border border-danger-border bg-danger/10 p-4 text-sm text-error">
+          Session not found.{" "}
+          <Link className="font-medium underline" href="/login">
+            {t("auth.login")}
+          </Link>
+        </p>
       ) : stores.length === 0 ? (
         <p className="mb-3 rounded-2xl bg-warning-bg p-4 text-sm text-warning-fg">
           {t("app.noStores")}
         </p>
       ) : null}
 
-      {isOwner ? (
+      {isOwner && !sessionMissing ? (
         <HomeLinkCard
           href="/app/team"
           title={t("app.team")}
@@ -210,15 +263,17 @@ export default function AppHomePage() {
         />
       ) : null}
 
-      <HomeLinkCard
-        href="/app/contact"
-        title={t("app.contact")}
-        hint={t("app.contactHint")}
-        icon={<HeadsetIcon />}
-      />
+      {!sessionMissing ? (
+        <HomeLinkCard
+          href="/app/contact"
+          title={t("app.contact")}
+          hint={t("app.contactHint")}
+          icon={<HeadsetIcon />}
+        />
+      ) : null}
 
       <PushNotifications />
-      <WhatsNewDialog ready={bootstrapped} />
+      <WhatsNewDialog ready={bootstrapped && !sessionMissing} />
     </div>
   );
 }

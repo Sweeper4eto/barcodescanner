@@ -11,6 +11,10 @@ import {
   isDocumentAiConfigured,
 } from "@/lib/document-ai";
 import { matchDocumentRows } from "@/lib/document-match";
+import {
+  mockDocumentOcrRows,
+  shouldMockDocumentOcr,
+} from "@/lib/document-ocr-mock";
 import { deleteLocalUpload } from "@/lib/upload";
 import { apiT } from "@/i18n";
 
@@ -38,7 +42,7 @@ function publicOcrError(request: Request, message: string): string {
       : apiT(request, "errors.documentParseFailed");
   }
   if (message.startsWith("OCR_EMPTY:")) {
-    return apiT(request, "errors.documentParseFailed");
+    return apiT(request, "errors.documentNoItems");
   }
   if (message === "OCR_PARSE_FAILED") {
     return apiT(request, "errors.documentParseFailed");
@@ -63,7 +67,8 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!isDocumentAiConfigured()) {
+    const useMock = shouldMockDocumentOcr();
+    if (!useMock && !isDocumentAiConfigured()) {
       return NextResponse.json(
         { error: apiT(request, "errors.documentAiNotConfigured") },
         { status: 503 },
@@ -107,14 +112,26 @@ export async function POST(request: Request) {
 
     try {
       const extractStart = Date.now();
-      const rows = parsed.data.imagePath
-        ? await extractDocumentRowsFromPath(parsed.data.imagePath)
-        : await extractDocumentRows(parsed.data.dataUrl!);
-      const extractMs = Date.now() - extractStart;
-
-      if (parsed.data.imagePath) {
-        await deleteLocalUpload(parsed.data.imagePath);
+      let rows;
+      if (useMock) {
+        // Brief delay so the processing UI is visible while testing design.
+        await new Promise((r) => setTimeout(r, 700));
+        rows = mockDocumentOcrRows();
+        console.info(
+          `[document parse] OCR mock — ${rows.length} rows (set OCR_MOCK=0 for real AI)`,
+        );
+        if (parsed.data.imagePath) {
+          await deleteLocalUpload(parsed.data.imagePath);
+        }
+      } else {
+        rows = parsed.data.imagePath
+          ? await extractDocumentRowsFromPath(parsed.data.imagePath)
+          : await extractDocumentRows(parsed.data.dataUrl!);
+        if (parsed.data.imagePath) {
+          await deleteLocalUpload(parsed.data.imagePath);
+        }
       }
+      const extractMs = Date.now() - extractStart;
 
       if (rows.length === 0) {
         return NextResponse.json(
@@ -125,9 +142,9 @@ export async function POST(request: Request) {
       const matchStart = Date.now();
       const items = await matchDocumentRows(parsed.data.storeId, rows);
       console.log(
-        `document parse timing: extract=${extractMs}ms match=${Date.now() - matchStart}ms rows=${rows.length}`,
+        `document parse timing: extract=${extractMs}ms match=${Date.now() - matchStart}ms rows=${rows.length}${useMock ? " mock=1" : ""}`,
       );
-      return NextResponse.json({ items });
+      return NextResponse.json({ items, mock: useMock || undefined });
     } catch (error) {
       const message = error instanceof Error ? error.message : "";
       if (message === "INVALID_IMAGE") {

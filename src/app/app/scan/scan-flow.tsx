@@ -1,8 +1,12 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
-import { PrimaryButton, SecondaryButton } from "@/components/auth-forms";
+import { PrimaryButton } from "@/components/auth-forms";
+import { CancelButton } from "@/components/cancel-button";
+import { ConfirmButton } from "@/components/confirm-button";
+import { ForwardButton } from "@/components/forward-button";
+import { CameraIcon, ForwardArrowIcon } from "@/components/app-nav-icons";
 import { BarcodeScanner } from "@/components/barcode-scanner";
 import { CameraCapture, uploadImage } from "@/components/camera-capture";
 import { ExpiryDatePicker } from "@/components/expiry-date-picker";
@@ -20,6 +24,7 @@ import { getPreviousScanStep, type ScanWizardStep } from "@/lib/wizard-steps";
 type ScanStep = ScanWizardStep;
 
 export function ScanFlow() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const storeId = searchParams.get("storeId") ?? "";
   const urlBarcode = normalizeBarcode(searchParams.get("barcode") ?? "");
@@ -194,7 +199,7 @@ export function ScanFlow() {
         setMessage(data?.error ?? t("errors.saveFailed"));
         return;
       }
-      navigateApp(
+      router.push(
         storeId
           ? `/app/expiry?storeId=${encodeURIComponent(storeId)}`
           : "/app",
@@ -272,13 +277,15 @@ export function ScanFlow() {
               title={t("scan.enterManuallyTitle")}
               hint={t("scan.enterManuallyHint")}
               actionLabel={t("scan.enterManuallyAction")}
+              actionIcon={<PencilIcon className="size-3.5 shrink-0" />}
               onAction={() => beginManualEntry(barcode)}
             />
             <ScanMissingActionCard
-              icon={<SkipForwardIcon className="size-5" />}
+              icon={<ForwardArrowIcon className="size-5" />}
               title={t("scan.skipTitle")}
               hint={t("scan.skipHint")}
               actionLabel={t("scan.skipAction")}
+              actionIcon={<ForwardArrowIcon className="size-3.5 shrink-0" />}
               onAction={skipMissingItem}
             />
           </div>
@@ -324,6 +331,7 @@ export function ScanFlow() {
               <PrimaryButton
                 onClick={() => setCapturingPhoto(true)}
                 disabled={uploadingPhoto}
+                icon={<CameraIcon className="size-4 shrink-0" />}
               >
                 {entryImagePath
                   ? t("camera.newPhoto")
@@ -355,7 +363,7 @@ export function ScanFlow() {
           </label>
           <p className="text-xs text-muted">{t("scan.skipPhotoHint")}</p>
           {message ? <p className="text-sm text-error">{message}</p> : null}
-          <PrimaryButton
+          <ForwardButton
             onClick={() => {
               setQuantity("1");
               setExpiryDate("");
@@ -364,8 +372,8 @@ export function ScanFlow() {
             disabled={capturingPhoto || uploadingPhoto}
           >
             {t("common.next")}
-          </PrimaryButton>
-          <SecondaryButton onClick={goBack}>{t("common.cancel")}</SecondaryButton>
+          </ForwardButton>
+          <CancelButton onClick={goBack}>{t("common.cancel")}</CancelButton>
         </div>
       ) : null}
 
@@ -403,13 +411,14 @@ export function ScanFlow() {
           </div>
 
           {message ? <p className="text-sm text-error">{message}</p> : null}
-          <PrimaryButton
+          <ConfirmButton
             onClick={() => void submitInventory()}
             disabled={!expiryDate || Number(quantity) < 1 || saving}
+            busy={saving}
           >
             {t("scan.saveToExpiry")}
-          </PrimaryButton>
-          <SecondaryButton onClick={goBack}>{t("common.cancel")}</SecondaryButton>
+          </ConfirmButton>
+          <CancelButton onClick={goBack}>{t("common.cancel")}</CancelButton>
         </div>
       ) : null}
     </div>
@@ -421,12 +430,14 @@ function ScanMissingActionCard({
   title,
   hint,
   actionLabel,
+  actionIcon,
   onAction,
 }: {
   icon: ReactNode;
   title: string;
   hint: string;
   actionLabel: string;
+  actionIcon: ReactNode;
   onAction: () => void;
 }) {
   return (
@@ -441,9 +452,10 @@ function ScanMissingActionCard({
       <button
         type="button"
         onClick={onAction}
-        className="inline-flex h-8 w-[6.25rem] shrink-0 items-center justify-center rounded-lg border border-primary px-2 text-xs font-semibold text-primary"
+        className="inline-flex h-8 w-[6.25rem] shrink-0 items-center justify-center gap-1 rounded-lg border border-primary px-2 text-xs font-semibold text-primary"
       >
-        {actionLabel}
+        {actionIcon}
+        <span className="truncate">{actionLabel}</span>
       </button>
     </div>
   );
@@ -507,24 +519,6 @@ function PencilIcon({ className = "size-5" }: { className?: string }) {
     >
       <path d="M12 20h9" />
       <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
-    </svg>
-  );
-}
-
-function SkipForwardIcon({ className = "size-5" }: { className?: string }) {
-  return (
-    <svg
-      aria-hidden
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-    >
-      <path d="M5 6l7 6-7 6V6Z" />
-      <path d="M13 6l7 6-7 6V6Z" />
     </svg>
   );
 }

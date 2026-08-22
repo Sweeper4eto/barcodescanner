@@ -2,6 +2,7 @@
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { AdminField, adminInputClass, adminPaginationClass, adminSearchInputClass } from "@/components/admin/admin-ui";
+import { LoadingSpinnerBlock } from "@/components/loading-spinner";
 import { MenuSelect } from "@/components/menu-select";
 import { SearchField } from "@/components/search-field";
 import { useT } from "@/components/i18n-provider";
@@ -269,7 +270,7 @@ export function AuditLogPanel() {
 
       <div className="overflow-x-auto rounded-xl border border-card-border">
         {loading ? (
-          <p className="p-6 text-sm text-muted">{t("admin.loadingAuditLog")}</p>
+          <LoadingSpinnerBlock wrapperClassName="flex justify-center p-6" />
         ) : entries.length === 0 ? (
           <p className="p-6 text-sm text-muted">{t("admin.noAuditEntries")}</p>
         ) : (

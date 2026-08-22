@@ -1,6 +1,8 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { appButtonDangerFull, appFooterButtonGrid } from "@/lib/app-ui";
+import { CancelButton } from "@/components/cancel-button";
 import { TrashIcon } from "@/components/app-nav-icons";
 import { useViewportInsets } from "@/hooks/use-viewport-insets";
 
@@ -91,19 +93,14 @@ export function RemoveConfirmDialog({
           <MessageWithItem template={message} item={itemLabel} />
         </p>
 
-        <div className="mt-6 grid grid-cols-2 gap-3">
-          <button
-            type="button"
-            disabled={busy}
-            className="rounded-xl border border-primary bg-transparent px-3 py-3 text-sm font-semibold text-primary disabled:opacity-50"
-            onClick={onCancel}
-          >
+        <div className={`mt-6 ${appFooterButtonGrid}`}>
+          <CancelButton disabled={busy} onClick={onCancel}>
             {cancelLabel}
-          </button>
+          </CancelButton>
           <button
             type="button"
             disabled={busy}
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-danger bg-transparent px-3 py-3 text-sm font-semibold text-danger disabled:opacity-50"
+            className={`${appButtonDangerFull} gap-2`}
             onClick={onConfirm}
           >
             <TrashIcon className="size-4 shrink-0" />

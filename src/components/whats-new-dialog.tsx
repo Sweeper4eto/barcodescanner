@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { appButtonNeutralFull } from "@/lib/app-ui";
 import { useT } from "@/components/i18n-provider";
 import { useViewportInsets } from "@/hooks/use-viewport-insets";
 import { markPwaInstallOffered, shouldOfferPwaInstall } from "@/lib/pwa-install";
@@ -172,7 +173,7 @@ export function WhatsNewDialog({ ready = true }: Props) {
           <button
             type="button"
             onClick={dismiss}
-            className="w-full rounded-xl border border-card-border bg-transparent px-3 py-3 text-sm font-semibold text-foreground"
+            className={appButtonNeutralFull}
           >
             {t("whatsNew.gotIt")}
           </button>

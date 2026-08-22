@@ -12,14 +12,16 @@ import {
 import { ExpiryPeriodFilter } from "@/components/expiry-period-filter";
 import { ActionFlash } from "@/components/action-flash";
 import { MobilePageHeader, listPageChromeClassName } from "@/components/mobile-page-header";
-import { QuantityPicker } from "@/components/quantity-picker";
 import {
   DEFAULT_DISCOUNT_PERCENT,
   DiscountPercentPicker,
 } from "@/components/discount-percent-picker";
+import { LoadingSpinnerBlock } from "@/components/loading-spinner";
+import { MoveToCartConfirmDialog } from "@/components/move-to-cart-confirm-dialog";
 import { RemoveConfirmDialog } from "@/components/remove-confirm-dialog";
 import { SearchField } from "@/components/search-field";
 import { useT } from "@/components/i18n-provider";
+import { useAppSession } from "@/components/app-session-provider";
 import {
   type ExpiryPeriod,
   DEFAULT_EXPIRY_PERIOD,
@@ -29,6 +31,12 @@ import {
 } from "@/lib/expiry-period";
 import { useBrowserBackStack } from "@/lib/browser-back";
 import { useViewportInsets } from "@/hooks/use-viewport-insets";
+import { CancelButton } from "@/components/cancel-button";
+import { ConfirmButton } from "@/components/confirm-button";
+import { DangerRemoveButton } from "@/components/danger-remove-button";
+import {
+  appFooterButtonGrid,
+} from "@/lib/app-ui";
 import { resolveEntryImagePath } from "@/lib/inventory-entry-display";
 
 const PAGE_SIZE = 20;
@@ -55,10 +63,10 @@ type Pagination = {
 
 function ExpiryList() {
   const { t } = useT();
+  const { homeUser } = useAppSession();
   const { offsetTop, keyboardInset } = useViewportInsets();
   const searchParams = useSearchParams();
   const storeId = searchParams.get("storeId") ?? "";
-  const [homeUser, setHomeUser] = useState<boolean | null>(null);
   const [entries, setEntries] = useState<Entry[]>([]);
   const [pagination, setPagination] = useState<Pagination>({
     page: 1,
@@ -85,6 +93,7 @@ function ExpiryList() {
   const [loading, setLoading] = useState(() => Boolean(storeId));
   const [period, setPeriod] = useState<ExpiryPeriod>(DEFAULT_EXPIRY_PERIOD);
   const loadMoreRef = useRef<HTMLDivElement>(null);
+  const entriesCountRef = useRef(0);
   const clearFlash = useCallback(() => setFlashMessage(null), []);
   const loadingMoreRef = useRef(false);
   const fetchGenerationRef = useRef(0);
@@ -124,24 +133,11 @@ function ExpiryList() {
   ]);
 
   useEffect(() => {
-    setPeriod(getStoredExpiryPeriod());
-  }, []);
+    entriesCountRef.current = entries.length;
+  }, [entries.length]);
 
   useEffect(() => {
-    let cancelled = false;
-
-    async function loadUser() {
-      const response = await fetch("/api/auth/me");
-      const data = await response.json();
-      if (!cancelled) {
-        setHomeUser(Boolean(data.user?.homeUser));
-      }
-    }
-
-    void loadUser();
-    return () => {
-      cancelled = true;
-    };
+    setPeriod(getStoredExpiryPeriod());
   }, []);
 
   const loadFavourites = useCallback(async () => {
@@ -177,6 +173,12 @@ function ExpiryList() {
     setPage(1);
   }, [debouncedSearch, period, storeId]);
 
+  const clearSearchIfActive = useCallback(() => {
+    if (!search.trim() && !debouncedSearch) return;
+    setSearch("");
+    setDebouncedSearch("");
+  }, [search, debouncedSearch]);
+
   function onPeriodChange(next: ExpiryPeriod) {
     setPeriod(next);
     setStoredExpiryPeriod(next);
@@ -188,7 +190,9 @@ function ExpiryList() {
 
       const generation = ++fetchGenerationRef.current;
       loadingMoreRef.current = true;
-      setLoading(true);
+      if (!append && entriesCountRef.current === 0) {
+        setLoading(true);
+      }
       const params = new URLSearchParams({
         storeId,
         withinDays: expiryPeriodToApiParam(period),
@@ -274,6 +278,7 @@ function ExpiryList() {
       setConfirmId(null);
       setDetailEntry((current) => (current?.id === entryId ? null : current));
       setEntries((current) => current.filter((entry) => entry.id !== entryId));
+      clearSearchIfActive();
     } catch {
       setFlashTone("error");
       setFlashMessage(t("errors.networkError"));
@@ -367,6 +372,7 @@ function ExpiryList() {
       setMoveOrdersQty("1");
       setFlashTone("success");
       setFlashMessage(t("expiry.addedToOrders"));
+      clearSearchIfActive();
     } finally {
       setMoveOrdersSaving(false);
     }
@@ -396,6 +402,7 @@ function ExpiryList() {
     updated: ExpiryDetailEntry,
     meta?: { merged?: boolean; removedId?: string },
   ) {
+    clearSearchIfActive();
     setDetailEntry((current) => (current?.id === updated.id ? updated : current));
     setEntries((current) => {
       let next = current;
@@ -477,7 +484,7 @@ function ExpiryList() {
     <div className="mx-auto flex h-[calc(100dvh-var(--app-bottom-nav-height)-env(safe-area-inset-bottom,0px))] min-h-0 w-full max-w-lg flex-col overflow-x-visible pt-1">
       <div className={`${listPageChromeClassName} px-4`}>
         <MobilePageHeader
-          title={homeUser === false ? t("expiry.storeTitle") : t("expiry.title")}
+          title={homeUser === true ? t("expiry.title") : t("expiry.storeTitle")}
           className="mb-0"
         />
 
@@ -527,9 +534,13 @@ function ExpiryList() {
 
       <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto overscroll-y-contain px-1.5 pb-3.5 pt-3 [scrollbar-width:thin]">
         {loading && page === 1 && entries.length === 0 ? (
-          <p className="rounded-xl bg-transparent p-4 text-sm text-muted">
-            {isSearching ? t("expiry.searching") : t("expiry.loading")}
-          </p>
+          isSearching ? (
+            <p className="rounded-xl bg-transparent p-4 text-center text-sm text-muted">
+              {t("expiry.searching")}
+            </p>
+          ) : (
+            <LoadingSpinnerBlock wrapperClassName="flex justify-center rounded-xl bg-transparent p-4" />
+          )
         ) : null}
 
         {loading && isSearching && entries.length > 0 ? (
@@ -580,7 +591,10 @@ function ExpiryList() {
         ) : null}
 
         {loading && page > 1 ? (
-          <p className="py-2 text-center text-xs text-muted">{t("expiry.loading")}</p>
+          <LoadingSpinnerBlock
+            size="sm"
+            wrapperClassName="flex justify-center py-2"
+          />
         ) : null}
       </div>
 
@@ -636,28 +650,25 @@ function ExpiryList() {
                 />
               </div>
               {isEditingDiscount ? (
-                <button
-                  type="button"
-                  className="mt-3 w-full rounded-lg border border-danger-border px-3 py-2 text-sm text-error"
+                <DangerRemoveButton
+                  className="mt-3"
                   onClick={() => void clearDiscountEntry(priceReduceConfirmId)}
                 >
                   {t("expiry.removeDiscount")}
-                </button>
+                </DangerRemoveButton>
               ) : null}
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  className="rounded-lg border border-input-border bg-transparent px-3 py-2 text-sm text-foreground"
+              <div className={`mt-3 ${appFooterButtonGrid}`}>
+                <CancelButton
+                  fullWidth={false}
                   onClick={() => {
                     setPriceReduceConfirmId(null);
                     setDiscountPercent(DEFAULT_DISCOUNT_PERCENT);
                   }}
                 >
                   {t("expiry.confirmCancel")}
-                </button>
-                <button
-                  type="button"
-                  className="rounded-lg border border-primary bg-transparent px-3 py-2 text-sm font-medium text-primary"
+                </CancelButton>
+                <ConfirmButton
+                  fullWidth={false}
                   onClick={() =>
                     void reducePriceEntry(priceReduceConfirmId, discountPercent)
                   }
@@ -665,7 +676,7 @@ function ExpiryList() {
                   {isEditingDiscount
                     ? t("expiry.saveDiscount")
                     : t("expiry.reducePrice")}
-                </button>
+                </ConfirmButton>
               </div>
             </div>
           </div>
@@ -673,56 +684,21 @@ function ExpiryList() {
       ) : null}
 
       {moveToOrdersEntry ? (
-        <div
-          className="fixed inset-x-0 z-[60] flex items-end justify-center bg-black/40"
-          style={{ top: offsetTop, bottom: keyboardInset }}
-        >
-          <div className="max-h-full w-full max-w-lg overflow-y-auto px-3 pb-[calc(var(--app-bottom-nav-height)+env(safe-area-inset-bottom,0px)+0.5rem)]">
-            <div className="rounded-xl border border-card-border bg-background p-3">
-              <p className="text-sm font-semibold">
-                {t("expiry.moveToOrdersTitle")}
-              </p>
-              <p className="mt-1 text-xs text-muted">
-                {t("expiry.moveToOrdersMessage")}
-              </p>
-              <div className="mt-3">
-                <QuantityPicker
-                  value={moveOrdersQty}
-                  onChange={setMoveOrdersQty}
-                  startWithGridOpen
-                />
-              </div>
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  className="rounded-lg border border-input-border bg-transparent px-3 py-2 text-sm text-foreground"
-                  onClick={() => {
-                    setMoveToOrdersEntry(null);
-                    setMoveOrdersQty("1");
-                  }}
-                  disabled={moveOrdersSaving}
-                >
-                  {t("expiry.confirmCancel")}
-                </button>
-                <button
-                  type="button"
-                  className="rounded-lg border border-primary bg-transparent px-3 py-2 text-sm font-medium text-primary disabled:opacity-60"
-                  onClick={() => void confirmMoveToOrders()}
-                  disabled={
-                    moveOrdersSaving ||
-                    !moveOrdersQty ||
-                    !Number.isInteger(Number(moveOrdersQty)) ||
-                    Number(moveOrdersQty) < 1
-                  }
-                >
-                  {moveOrdersSaving
-                    ? t("expiry.saving")
-                    : t("expiry.moveToOrdersConfirm")}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <MoveToCartConfirmDialog
+          itemName={moveToOrdersEntry.product.name}
+          imagePath={resolveEntryImagePath(
+            moveToOrdersEntry.imagePath,
+            moveToOrdersEntry.product.imagePath,
+          )}
+          quantity={moveOrdersQty}
+          busy={moveOrdersSaving}
+          onQuantityChange={setMoveOrdersQty}
+          onCancel={() => {
+            setMoveToOrdersEntry(null);
+            setMoveOrdersQty("1");
+          }}
+          onConfirm={() => void confirmMoveToOrders()}
+        />
       ) : null}
     </div>
   );

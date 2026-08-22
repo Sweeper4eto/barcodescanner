@@ -13,6 +13,7 @@ import {
   adminPaginationClass,
 } from "@/components/admin/admin-ui";
 import { PrimaryButton } from "@/components/auth-forms";
+import { CancelButton } from "@/components/cancel-button";
 import { SearchField } from "@/components/search-field";
 import { useT } from "@/components/i18n-provider";
 
@@ -745,13 +746,12 @@ function StoreCard({
             >
               {saving ? t("admin.saving") : t("common.save")}
             </button>
-            <button
-              type="button"
-              className="w-full rounded-lg border border-input-border bg-transparent px-2 py-2 text-xs text-foreground"
+            <CancelButton
+              className="rounded-lg px-2 py-2 text-xs"
               onClick={cancelEdit}
             >
               {t("common.cancel")}
-            </button>
+            </CancelButton>
           </div>
         </div>
       ) : (

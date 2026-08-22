@@ -3,12 +3,12 @@ import assert from "node:assert/strict";
 import { t, monthName, apiT } from "../src/i18n";
 
 test("t resolves nested keys with interpolation", () => {
-  assert.equal(t("app.greeting", { username: "alice" }), "Hello, alice");
+  assert.equal(t("app.greeting", { username: "alice" }), "Hello,\nalice");
   assert.equal(t("admin.storesCount", { stores: 2, users: 3 }), "2 locations · 3 users");
 });
 
 test("t resolves Bulgarian strings", () => {
-  assert.equal(t("app.greeting", { username: "иван" }, "bg"), "Здравей, иван");
+  assert.equal(t("app.greeting", { username: "иван" }, "bg"), "Здравей,\nиван");
   assert.equal(t("auth.login", undefined, "bg"), "Вход");
 });
 

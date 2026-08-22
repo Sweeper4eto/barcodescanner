@@ -13,6 +13,64 @@ export type WhatsNewCatalogEntry = {
 
 export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
   {
+    key: "2026-08-cart-manual-add-modal",
+    titleEn: "Adding an item from cart search opens the same confirmation modal (name, photo, quantity).",
+    titleBg: "Добавянето от търсене в количката отваря същия модал за потвърждение (име, снимка, количество).",
+    href: "/app/buy-list",
+  },
+  {
+    key: "2026-08-expiry-add-to-cart-modal",
+    titleEn: "Add to cart from expiry uses a confirmation modal with photo, name, and quantity.",
+    titleBg: "Добавянето в количка от годност е с модал: снимка, име и количество.",
+    href: "/app/expiry",
+  },
+  {
+    key: "2026-08-expiry-favourite-on-image",
+    titleEn: "Favourite star on expiry cards sits on the product photo (household accounts).",
+    titleBg: "Звездата за любими на картите за годност е върху снимката на продукта (домакински акаунти).",
+    href: "/app/expiry",
+  },
+  {
+    key: "2026-08-document-import-done-redesign",
+    titleEn:
+      "Import complete screen matches the new design (logo, stat icons, outline buttons).",
+    titleBg:
+      "Екранът „Импортът приключи“ следва новия дизайн (лого, икони, контурни бутони).",
+    href: "/app/add-document",
+  },
+  {
+    key: "2026-08-document-detail-match-expiry",
+    titleEn:
+      "Document review item details use the same layout as expiry item details.",
+    titleBg:
+      "Детайлите при преглед на документ вече са със същия изглед като при годност.",
+    href: "/app/add-document",
+  },
+  {
+    key: "2026-08-document-cards-match-expiry",
+    titleEn:
+      "Document review item cards now match the expiry list layout (without price reduction).",
+    titleBg:
+      "Картите при преглед на документ вече са като списъка с годност (без намаляване на цена).",
+    href: "/app/add-document",
+  },
+  {
+    key: "2026-08-document-review-redesign",
+    titleEn:
+      "Document review: clearer item cards, count badge, and side-by-side Retake / Add buttons.",
+    titleBg:
+      "Преглед на документ: по-ясни карти на артикули, брояч и бутони Повтори / Добави един до друг.",
+    href: "/app/add-document",
+  },
+  {
+    key: "2026-08-expiry-date-focus",
+    titleEn:
+      "Editing expiry scrolls the calendar into view so dates stay visible on small phones.",
+    titleBg:
+      "При редакция на годност календарът се показва на екрана — датите остават видими и на малки телефони.",
+    href: "/app/expiry",
+  },
+  {
     key: "2026-08-document-capture-outline",
     titleEn: "Document scan: capture button uses a viewfinder icon in a green outline circle.",
     titleBg:

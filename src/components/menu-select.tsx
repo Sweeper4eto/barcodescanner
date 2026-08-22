@@ -39,11 +39,30 @@ export function MenuSelect<T extends string>({
   menuAlign = "start",
 }: MenuSelectProps<T>) {
   const [open, setOpen] = useState(false);
+  const [menuAbove, setMenuAbove] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const listId = useId();
   const selected = options.find((option) => option.value === value);
   const displayLabel = selected?.label ?? placeholder ?? "";
   const compact = size === "compact";
+
+  useEffect(() => {
+    if (!open) return;
+
+    function placeMenu() {
+      const root = rootRef.current;
+      if (!root) return;
+      const rect = root.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceAbove = rect.top;
+      // Prefer opening upward when the field is in the lower half of the screen.
+      setMenuAbove(spaceBelow < 220 && spaceAbove > spaceBelow);
+    }
+
+    placeMenu();
+    window.addEventListener("resize", placeMenu);
+    return () => window.removeEventListener("resize", placeMenu);
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -121,9 +140,9 @@ export function MenuSelect<T extends string>({
           id={listId}
           role="listbox"
           aria-label={label}
-          className={`absolute top-full z-[70] mt-1 max-h-60 min-w-full overflow-y-auto rounded-xl border border-input-border bg-background py-1 shadow-lg shadow-black/40 ${
-            menuAlign === "end" ? "right-0" : "left-0"
-          }`}
+          className={`absolute z-[70] max-h-60 min-w-full overflow-y-auto rounded-xl border border-input-border bg-background py-1 shadow-lg shadow-black/40 ${
+            menuAbove ? "bottom-full mb-1" : "top-full mt-1"
+          } ${menuAlign === "end" ? "right-0" : "left-0"}`}
         >
           {options.length === 0 ? (
             <li className="px-3 py-2.5 text-sm text-muted">{placeholder ?? label}</li>

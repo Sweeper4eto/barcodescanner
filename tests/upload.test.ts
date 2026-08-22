@@ -1,11 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdir, writeFile, access } from "node:fs/promises";
+import { mkdir, writeFile, access, readFile } from "node:fs/promises";
 import path from "node:path";
 import {
   deleteLocalUpload,
   isLocalUploadPath,
   resolveLocalUploadPath,
+  saveDataUrl,
+  UploadError,
 } from "../src/lib/upload";
 
 test("isLocalUploadPath only accepts /uploads filenames", () => {
@@ -28,4 +30,23 @@ test("deleteLocalUpload removes files under public/uploads", async () => {
 
   assert.equal(await deleteLocalUpload("https://images.example/a.jpg"), false);
   assert.equal(await deleteLocalUpload(`/uploads/${filename}`), false);
+});
+
+test("saveDataUrl accepts jpeg data URLs and rejects unknown formats", async () => {
+  const tinyJpeg = Buffer.from([0xff, 0xd8, 0xff, 0xd9]);
+  const dataUrl = `data:image/jpeg;base64,${tinyJpeg.toString("base64")}`;
+  const saved = await saveDataUrl(dataUrl);
+  assert.match(saved, /^\/uploads\/\d+-[a-z0-9]+\.jpg$/);
+
+  const absolute = resolveLocalUploadPath(saved);
+  assert.ok(absolute);
+  const bytes = await readFile(absolute!);
+  assert.deepEqual(bytes, tinyJpeg);
+  await deleteLocalUpload(saved);
+
+  await assert.rejects(
+    () => saveDataUrl("data:image/heic;base64,AAAA"),
+    (error: unknown) =>
+      error instanceof UploadError && error.errorKey === "errors.invalidImage",
+  );
 });

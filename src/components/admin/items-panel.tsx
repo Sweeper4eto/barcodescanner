@@ -20,6 +20,7 @@ import {
 } from "@/components/admin/admin-ui";
 import { PrimaryButton, SecondaryButton } from "@/components/auth-forms";
 import { CameraCapture } from "@/components/camera-capture";
+import { LoadingSpinner, LoadingSpinnerBlock } from "@/components/loading-spinner";
 import { SearchField } from "@/components/search-field";
 import { useT } from "@/components/i18n-provider";
 
@@ -254,14 +255,22 @@ export function ItemsPanel({ onRefresh }: Props) {
               disabled={loading}
               className="shrink-0 rounded-xl border border-primary bg-transparent px-4 py-2 text-sm font-medium text-primary disabled:opacity-60"
             >
-              {loading ? t("common.loading") : t("common.search")}
+              {loading ? (
+                <LoadingSpinner size="sm" className="mx-auto" />
+              ) : (
+                t("common.search")
+              )}
             </button>
           </form>
           <div className="space-y-2">
             {products.length === 0 ? (
               <AdminEmptyState
                 message={
-                  loading ? t("common.loading") : t("admin.noItemsFound")
+                  loading ? (
+                    <LoadingSpinner />
+                  ) : (
+                    t("admin.noItemsFound")
+                  )
                 }
               />
             ) : (
@@ -389,9 +398,7 @@ export function ItemsPanel({ onRefresh }: Props) {
                     onChange={(event) => void onImageChange(event)}
                   />
                   {uploading ? (
-                    <p className="text-center text-xs text-muted">
-                      {t("admin.uploadingImage")}
-                    </p>
+                    <LoadingSpinnerBlock wrapperClassName="flex justify-center py-1" size="sm" />
                   ) : null}
                 </>
               )}

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { PrimaryButton, SecondaryButton } from "@/components/auth-forms";
+import { BackArrowIcon } from "@/components/app-nav-icons";
 import { BrandName } from "@/components/brand-name";
 import { MobilePageHeader } from "@/components/mobile-page-header";
 import { MenuSelect } from "@/components/menu-select";
@@ -413,7 +414,10 @@ export default function ContactSupportPage() {
           <span>{t("support.secureNote")}</span>
         </p>
 
-        <SecondaryButton onClick={() => navigateApp("/app")}>
+        <SecondaryButton
+          onClick={() => navigateApp("/app")}
+          icon={<BackArrowIcon className="size-4 shrink-0" />}
+        >
           {t("common.back")}
         </SecondaryButton>
       </div>

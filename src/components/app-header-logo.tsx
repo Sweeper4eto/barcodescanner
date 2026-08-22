@@ -25,7 +25,8 @@ export function AppHeaderLogo({
         alt=""
         width={size}
         height={size}
-        decoding="async"
+        decoding="sync"
+        fetchPriority="high"
         className="box-border shrink-0 object-contain"
         style={{
           width: size,

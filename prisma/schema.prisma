@@ -235,9 +235,14 @@ model WhatsNewItem {
   titleBg   String
   href      String?
   active    Boolean  @default(false)
+  /**
+   * Admin deleted this row. Catalog sync must not recreate it from sourceKey.
+   */
+  suppressed Boolean @default(false)
   sortOrder Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([active, sortOrder])
+  @@index([suppressed])
 }

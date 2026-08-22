@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { LanguageSwitch } from "@/components/language-switch";
 import { MenuSelect } from "@/components/menu-select";
+import { useAppSession } from "@/components/app-session-provider";
 import { useT } from "@/components/i18n-provider";
 import { getStoredStoreId, setStoredStoreId } from "@/lib/store-selection";
-
-type Store = { id: string; name: string; active: boolean };
 
 function StoreIcon({ className = "size-3.5" }: { className?: string }) {
   return (
@@ -28,34 +27,18 @@ function StoreIcon({ className = "size-3.5" }: { className?: string }) {
 
 export function AppTopActions() {
   const { t } = useT();
-  const [stores, setStores] = useState<Store[]>([]);
+  const { user, ready } = useAppSession();
+  const stores = useMemo(() => user?.stores ?? [], [user?.stores]);
   const [storeId, setStoreId] = useState("");
 
   useEffect(() => {
-    let cancelled = false;
-
-    async function load() {
-      const response = await fetch("/api/auth/me");
-      const data = await response.json();
-      if (cancelled) return;
-      if (!data.user) return;
-
-      const list: Store[] = (data.user.stores ?? []).filter(
-        (store: Store) => store.active,
-      );
-      setStores(list);
-      const stored = getStoredStoreId();
-      const valid = list.find((store) => store.id === stored);
-      const nextId = valid?.id ?? list[0]?.id ?? "";
-      setStoreId(nextId);
-      if (nextId) setStoredStoreId(nextId);
-    }
-
-    void load();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    if (!ready || stores.length === 0) return;
+    const stored = getStoredStoreId();
+    const valid = stores.find((store) => store.id === stored);
+    const nextId = valid?.id ?? stores[0]?.id ?? "";
+    setStoreId(nextId);
+    if (nextId) setStoredStoreId(nextId);
+  }, [ready, stores]);
 
   function onStoreChange(nextId: string) {
     setStoreId(nextId);
@@ -70,6 +53,8 @@ export function AppTopActions() {
     }
     window.location.reload();
   }
+
+  const storePlaceholder = !ready && stores.length === 0;
 
   return (
     <div className="inline-flex min-w-0 max-w-full shrink items-center justify-end gap-1.5">
@@ -88,6 +73,11 @@ export function AppTopActions() {
           disabled={stores.length < 2}
           leadingIcon={<StoreIcon />}
           placeholder={t("app.selectStore")}
+        />
+      ) : storePlaceholder ? (
+        <span
+          aria-hidden
+          className="inline-block h-8 w-[7.5rem] shrink-0 rounded-lg border border-card-border/60 bg-card-border/20"
         />
       ) : null}
       <LanguageSwitch />

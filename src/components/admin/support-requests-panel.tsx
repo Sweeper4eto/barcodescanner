@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { PrimaryButton, SecondaryButton } from "@/components/auth-forms";
+import { LoadingSpinnerBlock } from "@/components/loading-spinner";
 import { useT } from "@/components/i18n-provider";
 
 type SupportStatus = "new" | "in_progress" | "done";
@@ -147,7 +148,9 @@ export function SupportRequestsPanel({
         </SecondaryButton>
       </div>
 
-      {loading ? <p className="text-sm text-muted">{t("common.loading")}</p> : null}
+      {loading ? (
+        <LoadingSpinnerBlock wrapperClassName="flex justify-center py-4" />
+      ) : null}
       {error ? <p className="text-sm text-error">{error}</p> : null}
 
       {!loading && rows.length === 0 ? (

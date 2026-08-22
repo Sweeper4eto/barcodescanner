@@ -9,7 +9,7 @@ import {
   getLoginLockRemainingMs,
   recordLoginFailure,
 } from "@/lib/login-rate-limit";
-import { setSessionCookie } from "@/lib/session";
+import { applySessionCookie } from "@/lib/session";
 import { apiT } from "@/i18n";
 
 const bodySchema = z.object({
@@ -60,7 +60,6 @@ export async function POST(request: Request) {
   }
 
   clearLoginFailures(ip, parsed.data.username);
-  await setSessionCookie(result.token);
   const clientName =
     result.user.clientId
       ? (
@@ -76,5 +75,7 @@ export async function POST(request: Request) {
     "login",
     auditAuthLogin(result.user.role, clientName),
   );
-  return NextResponse.json({ user: result.user });
+  const response = NextResponse.json({ user: result.user });
+  applySessionCookie(response, result.token, request);
+  return response;
 }

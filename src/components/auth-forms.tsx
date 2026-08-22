@@ -1,8 +1,14 @@
 "use client";
 
+import {
+  appButtonDangerFull,
+  appButtonNeutralFull,
+  appButtonPrimaryFull,
+} from "@/lib/app-ui";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FormEvent, useState, type ReactNode } from "react";
+import { LoadingSpinner } from "@/components/loading-spinner";
+import { FormEvent, memo, useEffect, useState, type ChangeEvent, type ReactNode } from "react";
 import { BrandName } from "@/components/brand-name";
 import { LanguageSwitch } from "@/components/language-switch";
 import { markPwaInstallOffered, shouldOfferPwaInstall } from "@/lib/pwa-install";
@@ -251,8 +257,10 @@ export function TextField({
 function AuthIconField({
   label,
   name,
+  inputId,
   type = "text",
   value,
+  defaultValue,
   onChange,
   autoComplete,
   icon,
@@ -265,9 +273,11 @@ function AuthIconField({
 }: {
   label: string;
   name?: string;
+  inputId?: string;
   type?: string;
-  value: string;
-  onChange: (value: string) => void;
+  value?: string;
+  defaultValue?: string;
+  onChange?: (value: string) => void;
   autoComplete?: string;
   icon: ReactNode;
   trailing?: ReactNode;
@@ -278,19 +288,28 @@ function AuthIconField({
   required?: boolean;
 }) {
   const describedBy = error ? `${name}-error` : hint ? `${name}-hint` : undefined;
+  const resolvedId = inputId ?? (name ? `auth-field-${name}` : undefined);
+  const controlled = value !== undefined;
 
   return (
     <div className={hint || error ? "space-y-1.5 pb-2" : ""}>
-      <label className="relative block">
-        <span className="sr-only">{label}</span>
+      <div className="relative">
+        {resolvedId ? (
+          <label htmlFor={resolvedId} className="sr-only">
+            {label}
+          </label>
+        ) : (
+          <span className="sr-only">{label}</span>
+        )}
         <span
-          className={`pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted ${
+          className={`pointer-events-none absolute left-3 top-1/2 z-[1] -translate-y-1/2 text-muted ${
             compact ? "[&_svg]:size-4" : ""
           }`}
         >
           {icon}
         </span>
         <input
+          id={resolvedId}
           className={`w-full rounded-xl border bg-transparent text-foreground outline-none transition-colors placeholder:text-muted focus:border-primary focus:ring-1 focus:ring-primary/40 ${
             compact ? "py-2 text-[0.95rem]" : "py-3 text-base"
           } ${trailing ? "pl-10 pr-11" : "px-10"} ${
@@ -298,20 +317,28 @@ function AuthIconField({
           }`}
           name={name}
           type={type}
-          value={value}
           placeholder={label}
           autoComplete={autoComplete}
           maxLength={maxLength}
           required={required}
           aria-invalid={error ? true : undefined}
           aria-describedby={describedBy}
-          onChange={(event) => onChange(event.target.value)}
-          onInput={(event) => onChange(event.currentTarget.value)}
+          {...(controlled
+            ? {
+                value,
+                onChange: (event: ChangeEvent<HTMLInputElement>) =>
+                  onChange?.(event.target.value),
+                onInput: (event: FormEvent<HTMLInputElement>) =>
+                  onChange?.(event.currentTarget.value),
+              }
+            : { defaultValue: defaultValue ?? "" })}
         />
         {trailing ? (
-          <span className="absolute right-1 top-1/2 -translate-y-1/2">{trailing}</span>
+          <div className="absolute right-1 top-1/2 z-[1] -translate-y-1/2">
+            {trailing}
+          </div>
         ) : null}
-      </label>
+      </div>
       {error ? (
         <p id={`${name}-error`} className="px-0.5 text-[0.75rem] leading-snug text-error">
           {error}
@@ -381,20 +408,26 @@ export function PrimaryButton({
   type = "button",
   onClick,
   className = "",
+  icon,
+  "aria-busy": ariaBusy,
 }: {
   children: React.ReactNode;
   disabled?: boolean;
   type?: "button" | "submit";
   onClick?: () => void;
   className?: string;
+  icon?: React.ReactNode;
+  "aria-busy"?: boolean;
 }) {
   return (
     <button
       type={type}
       disabled={disabled}
+      aria-busy={ariaBusy}
       onClick={onClick}
-      className={`w-full rounded-xl border border-primary bg-transparent px-3 py-2 text-base font-semibold text-primary disabled:opacity-50 ${className}`.trim()}
+      className={`${appButtonPrimaryFull} ${className}`.trim()}
     >
+      {icon}
       {children}
     </button>
   );
@@ -405,106 +438,164 @@ export function SecondaryButton({
   onClick,
   type = "button",
   disabled = false,
+  icon,
 }: {
   children: React.ReactNode;
   onClick?: () => void;
   type?: "button" | "submit";
   disabled?: boolean;
+  icon?: React.ReactNode;
 }) {
   return (
     <button
       type={type}
       onClick={onClick}
       disabled={disabled}
-      className="w-full rounded-xl border border-input-border bg-transparent px-3 py-[0.45rem] text-base font-medium text-foreground disabled:opacity-40"
+      className={appButtonNeutralFull}
     >
+      {icon}
       {children}
     </button>
   );
 }
 
-export function LoginForm() {
-  const router = useRouter();
-  const { t } = useT();
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  async function onSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setLoading(true);
-    setError("");
-
-    // Read from the DOM so browser autofill works even when React state
-    // did not receive change events for the filled fields.
-    const formData = new FormData(event.currentTarget);
-    const nextUsername = String(formData.get("username") ?? username).trim();
-    const nextPassword = String(formData.get("password") ?? password);
-    setUsername(nextUsername);
-    setPassword(nextPassword);
-
-    if (!nextUsername || !nextPassword) {
-      setError(t("auth.invalidCredentials"));
-      setLoading(false);
-      return;
-    }
-
-    const response = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username: nextUsername, password: nextPassword }),
-    });
-    const data = await response.json();
-    setLoading(false);
-
-    if (!response.ok) {
-      setError(data.error ?? t("auth.loginError"));
-      return;
-    }
-
-    if (shouldOfferPwaInstall()) markPwaInstallOffered();
-    if (data.user.mustChangePassword) {
-      router.push("/change-password");
-    } else {
-      router.push(data.user.role === "ADMIN" ? "/admin" : "/app");
-    }
-    router.refresh();
-  }
-
+/** Isolated so parent re-renders (errors/loading) do not reset script-toggled type/icons. */
+const LoginPasswordField = memo(function LoginPasswordField({
+  label,
+  showLabel,
+  hideLabel,
+  readOnly = false,
+}: {
+  label: string;
+  showLabel: string;
+  hideLabel: string;
+  readOnly?: boolean;
+}) {
   return (
-    <form className="space-y-3" onSubmit={onSubmit}>
-      <AuthIconField
-        label={t("auth.username")}
-        name="username"
-        value={username}
-        autoComplete="username"
-        onChange={setUsername}
-        icon={<UserFieldIcon className="size-5" />}
-      />
-      <AuthIconField
-        label={t("auth.password")}
+    <div className="relative">
+      <label htmlFor="login-password" className="sr-only">
+        {label}
+      </label>
+      <span className="pointer-events-none absolute left-3 top-1/2 z-[1] -translate-y-1/2 text-muted">
+        <LockFieldIcon className="size-5" />
+      </span>
+      <input
+        id="login-password"
         name="password"
-        type={showPassword ? "text" : "password"}
-        value={password}
-        autoComplete="current-password"
-        onChange={setPassword}
-        icon={<LockFieldIcon className="size-5" />}
-        trailing={
-          <button
-            type="button"
-            className="rounded-lg p-2 text-muted hover:text-foreground"
-            aria-label={showPassword ? t("auth.hidePassword") : t("auth.showPassword")}
-            onClick={() => setShowPassword((current) => !current)}
-          >
-            {showPassword ? <EyeIcon className="size-5" /> : <EyeOffIcon className="size-5" />}
-          </button>
-        }
+        type="password"
+        placeholder={label}
+        autoComplete="off"
+        autoCapitalize="off"
+        autoCorrect="off"
+        spellCheck={false}
+        required
+        readOnly={readOnly}
+        className="w-full rounded-xl border border-white/15 bg-transparent py-3 pl-10 pr-11 text-base text-foreground outline-none transition-colors placeholder:text-muted focus:border-primary focus:ring-1 focus:ring-primary/40"
       />
-      {error ? <p className="text-sm text-error">{error}</p> : null}
-      <PrimaryButton type="submit" disabled={loading}>
-        {loading ? t("auth.loggingIn") : t("auth.login")}
+      <div className="absolute right-1 top-1/2 z-[1] -translate-y-1/2">
+        <button
+          type="button"
+          data-toggle-password="#login-password"
+          data-label-show={showLabel}
+          data-label-hide={hideLabel}
+          disabled={readOnly}
+          className="rounded-lg p-2 text-muted hover:text-foreground disabled:opacity-50"
+          aria-label={showLabel}
+          aria-pressed="false"
+        >
+          <span data-eye-hidden>
+            <EyeOffIcon className="size-5" />
+          </span>
+          <span data-eye-shown hidden>
+            <EyeIcon className="size-5" />
+          </span>
+        </button>
+      </div>
+    </div>
+  );
+});
+
+export function LoginForm({
+  initialError = "",
+}: {
+  initialError?: string;
+}) {
+  const { t } = useT();
+  const [error, setError] = useState(initialError);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (initialError) {
+      setError(initialError);
+      setBusy(false);
+    }
+  }, [initialError]);
+
+  // Native form POST only — no client preventDefault / JSON login here.
+
+  const displayError = error || initialError;
+
+  // Plain HTML inputs (no React value/defaultValue) so mobile autofill is not
+  // wiped on hydration — a common cause of "wrong password" on phones.
+  return (
+    <form
+      className="space-y-3"
+      method="post"
+      action="/api/auth/login-form"
+      autoComplete="off"
+      data-login-form
+      onSubmit={() => {
+        setBusy(true);
+        setError("");
+      }}
+    >
+      <div className="relative">
+        <label htmlFor="login-username" className="sr-only">
+          {t("auth.username")}
+        </label>
+        <span className="pointer-events-none absolute left-3 top-1/2 z-[1] -translate-y-1/2 text-muted">
+          <UserFieldIcon className="size-5" />
+        </span>
+        <input
+          id="login-username"
+          name="username"
+          type="text"
+          inputMode="text"
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
+          placeholder={t("auth.username")}
+          autoComplete="off"
+          required
+          readOnly={busy}
+          className="w-full rounded-xl border border-white/15 bg-transparent py-3 pl-10 pr-4 text-base text-foreground outline-none transition-colors placeholder:text-muted focus:border-primary focus:ring-1 focus:ring-primary/40"
+        />
+      </div>
+      <LoginPasswordField
+        label={t("auth.password")}
+        showLabel={t("auth.showPassword")}
+        hideLabel={t("auth.hidePassword")}
+        readOnly={busy}
+      />
+      {displayError ? (
+        <p
+          role="alert"
+          className="rounded-xl border border-danger-border bg-danger/10 px-3 py-2 text-sm font-medium text-error"
+        >
+          {displayError}
+        </p>
+      ) : null}
+      <PrimaryButton
+        type="submit"
+        disabled={busy}
+        aria-busy={busy}
+        className="min-h-[2.75rem]"
+      >
+        {busy ? (
+          <LoadingSpinner size="sm" label={t("auth.loggingIn")} />
+        ) : (
+          t("auth.login")
+        )}
       </PrimaryButton>
       <p className="text-center text-sm text-muted">
         {t("auth.noAccount")}{" "}
@@ -696,7 +787,13 @@ export function RegisterForm() {
             type="button"
             className="rounded-lg p-1.5 text-muted hover:text-foreground"
             aria-label={showPassword ? t("auth.hidePassword") : t("auth.showPassword")}
-            onClick={() => setShowPassword((current) => !current)}
+            aria-pressed={showPassword}
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              setShowPassword((current) => !current);
+            }}
           >
             {showPassword ? <EyeIcon className="size-[1.125rem]" /> : <EyeOffIcon className="size-[1.125rem]" />}
           </button>
@@ -722,7 +819,13 @@ export function RegisterForm() {
             aria-label={
               showConfirmPassword ? t("auth.hidePassword") : t("auth.showPassword")
             }
-            onClick={() => setShowConfirmPassword((current) => !current)}
+            aria-pressed={showConfirmPassword}
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              setShowConfirmPassword((current) => !current);
+            }}
           >
             {showConfirmPassword ? (
               <EyeIcon className="size-[1.125rem]" />

@@ -4,6 +4,7 @@ import { WHATS_NEW_CATALOG } from "@/lib/whats-new-catalog";
 /**
  * Upsert catalog entries as Draft rows (or refresh copy on unpublished rows).
  * Does not change `active` — admin still decides what to Push.
+ * Skips keys the admin has deleted (suppressed) so they do not reappear on Refresh.
  */
 export async function syncWhatsNewCatalog(): Promise<{ created: number; updated: number }> {
   let created = 0;
@@ -18,6 +19,10 @@ export async function syncWhatsNewCatalog(): Promise<{ created: number; updated:
       where: { sourceKey: entry.key },
     });
 
+    if (existing?.suppressed) {
+      continue;
+    }
+
     if (!existing) {
       await db.whatsNewItem.create({
         data: {
@@ -26,6 +31,7 @@ export async function syncWhatsNewCatalog(): Promise<{ created: number; updated:
           titleBg: entry.titleBg,
           href,
           active: false,
+          suppressed: false,
           sortOrder: nextSort,
         },
       });

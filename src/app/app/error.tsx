@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useT } from "@/components/i18n-provider";
 import { navigateApp } from "@/lib/app-navigation";
+import { appButtonNeutralFull, appButtonPrimaryFull } from "@/lib/app-ui";
 
 export default function AppError({
   error,
@@ -24,14 +25,14 @@ export default function AppError({
       <div className="flex w-full flex-col gap-2 sm:flex-row sm:justify-center">
         <button
           type="button"
-          className="rounded-xl border border-primary bg-transparent px-4 py-2 font-medium text-primary"
+          className={appButtonPrimaryFull}
           onClick={() => reset()}
         >
           {t("errors.reload")}
         </button>
         <button
           type="button"
-          className="rounded-xl border border-input-border bg-transparent px-4 py-3 text-foreground"
+          className={appButtonNeutralFull}
           onClick={() => navigateApp("/app")}
         >
           {t("errors.goHome")}

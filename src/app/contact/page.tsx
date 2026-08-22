@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { PrimaryButton, SecondaryButton } from "@/components/auth-forms";
+import { BackArrowIcon } from "@/components/app-nav-icons";
 import { BrandName } from "@/components/brand-name";
 import { LanguageSwitch } from "@/components/language-switch";
 import { useT } from "@/components/i18n-provider";
@@ -147,7 +148,12 @@ function ContactPageContent() {
             {sending ? t("support.sending") : t("support.send")}
           </PrimaryButton>
           <Link href="/">
-            <SecondaryButton type="button">{t("common.back")}</SecondaryButton>
+            <SecondaryButton
+              type="button"
+              icon={<BackArrowIcon className="size-4 shrink-0" />}
+            >
+              {t("common.back")}
+            </SecondaryButton>
           </Link>
         </div>
       </form>

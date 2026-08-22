@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { SecondaryButton } from "@/components/auth-forms";
+import { LoadingSpinnerBlock } from "@/components/loading-spinner";
 import { useT } from "@/components/i18n-provider";
 
 type WhatsNewAdminItem = {
@@ -153,7 +154,7 @@ export function WhatsNewPanel() {
         ) : null}
 
         {loading ? (
-          <p className="text-sm text-muted">{t("expiry.loading")}</p>
+          <LoadingSpinnerBlock wrapperClassName="flex justify-center py-6" />
         ) : items.length === 0 ? (
           <p className="text-sm text-muted">{t("admin.whatsNewEmpty")}</p>
         ) : (

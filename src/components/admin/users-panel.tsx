@@ -379,27 +379,6 @@ export function UsersPanel({ clients, onRefresh }: Props) {
                 onChange={(next) => void onClientChange(next)}
               />
             </div>
-            <div>
-              <p className="text-sm font-medium">{t("admin.storesLabel")}</p>
-              <div className="mt-2 space-y-1">
-                {clientStores.map((store) => (
-                  <label key={store.id} className="flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={storeIds.includes(store.id)}
-                      onChange={(event) => {
-                        setStoreIds((current) =>
-                          event.target.checked
-                            ? [...current, store.id]
-                            : current.filter((id) => id !== store.id),
-                        );
-                      }}
-                    />
-                    {store.name}
-                  </label>
-                ))}
-              </div>
-            </div>
             <label className="flex items-center gap-2 text-sm">
               <input
                 type="checkbox"
@@ -426,6 +405,31 @@ export function UsersPanel({ clients, onRefresh }: Props) {
                 </span>
               </label>
             ) : null}
+            <div>
+              <p className="text-sm font-medium">{t("admin.storesLabel")}</p>
+              <div className="mt-2 space-y-1">
+                {clientStores.length === 0 ? (
+                  <p className="text-xs text-muted">{t("admin.noStoresYet")}</p>
+                ) : (
+                  clientStores.map((store) => (
+                    <label key={store.id} className="flex items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={storeIds.includes(store.id)}
+                        onChange={(event) => {
+                          setStoreIds((current) =>
+                            event.target.checked
+                              ? [...current, store.id]
+                              : current.filter((id) => id !== store.id),
+                          );
+                        }}
+                      />
+                      {store.name}
+                    </label>
+                  ))
+                )}
+              </div>
+            </div>
             {saveMessage ? (
               <p
                 className={`text-sm ${

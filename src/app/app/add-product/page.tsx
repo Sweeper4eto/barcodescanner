@@ -2,9 +2,13 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState } from "react";
-import { PrimaryButton, SecondaryButton } from "@/components/auth-forms";
+import { SecondaryButton } from "@/components/auth-forms";
+import { CancelButton } from "@/components/cancel-button";
+import { ConfirmButton } from "@/components/confirm-button";
+import { ForwardButton } from "@/components/forward-button";
 import { BarcodeScanner } from "@/components/barcode-scanner";
 import { CameraCapture, uploadImage } from "@/components/camera-capture";
+import { LoadingSpinnerBlock } from "@/components/loading-spinner";
 import { MobilePageHeader } from "@/components/mobile-page-header";
 import { useT } from "@/components/i18n-provider";
 import { normalizeBarcode } from "@/lib/barcode";
@@ -175,10 +179,10 @@ function AddProductFlow() {
             value={name}
             onChange={(event) => setName(event.target.value)}
           />
-          <PrimaryButton onClick={() => goToStep("photo")} disabled={!name.trim()}>
+          <ForwardButton onClick={() => goToStep("photo")} disabled={!name.trim()}>
             {t("common.next")}
-          </PrimaryButton>
-          <SecondaryButton
+          </ForwardButton>
+          <CancelButton
             onClick={() => {
               if (initialBarcode) {
                 router.back();
@@ -188,14 +192,16 @@ function AddProductFlow() {
             }}
           >
             {t("common.cancel")}
-          </SecondaryButton>
+          </CancelButton>
         </div>
       ) : null}
 
       {step === "photo" ? (
         <div className="space-y-4 rounded-2xl border border-card-border p-4">
           <p className="text-sm text-muted">{t("addProduct.takePhoto")}</p>
-          {uploading ? <p className="text-sm text-muted">{t("addProduct.uploading")}</p> : null}
+          {uploading ? (
+            <LoadingSpinnerBlock wrapperClassName="flex justify-center py-2" size="sm" />
+          ) : null}
           <CameraCapture
             onCapture={(dataUrl) => void onPhotoCapture(dataUrl)}
             onCancel={goBack}
@@ -218,20 +224,21 @@ function AddProductFlow() {
             <p className="text-sm text-muted">{t("addProduct.noPhoto")}</p>
           )}
           {uploading ? (
-            <p className="text-sm text-muted">{t("addProduct.uploading")}</p>
+            <LoadingSpinnerBlock wrapperClassName="flex justify-center py-2" size="sm" />
           ) : null}
           <p className="text-lg font-medium">{name}</p>
           <p className="text-sm text-muted">
             {t("common.barcode")}: {barcode}
           </p>
           {error ? <p className="text-sm text-error">{error}</p> : null}
-          <PrimaryButton
+          <ConfirmButton
             onClick={() => void saveProduct()}
-            disabled={uploading || !name.trim()}
+            disabled={!name.trim()}
+            busy={uploading}
           >
             {t("scan.enter")}
-          </PrimaryButton>
-          <SecondaryButton onClick={goBack}>{t("common.cancel")}</SecondaryButton>
+          </ConfirmButton>
+          <CancelButton onClick={goBack}>{t("common.cancel")}</CancelButton>
         </div>
       ) : null}
     </div>

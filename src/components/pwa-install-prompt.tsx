@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { PrimaryButton, SecondaryButton } from "@/components/auth-forms";
+import { appFooterButtonGrid } from "@/lib/app-ui";
 import { useT } from "@/components/i18n-provider";
 import {
   clearDeferredInstallPrompt,
@@ -82,7 +83,7 @@ export function PwaInstallPrompt() {
             {isIosDevice() ? t("pwa.iosHint") : t("pwa.browserHint")}
           </p>
         ) : null}
-        <div className="mt-4 grid grid-cols-2 gap-2">
+        <div className={`mt-4 ${appFooterButtonGrid}`}>
           <SecondaryButton onClick={() => close(true)} disabled={busy}>
             {t("pwa.installNo")}
           </SecondaryButton>

@@ -15,7 +15,7 @@ export async function GET(request: Request) {
 
   const locale = getLocaleFromRequest(request);
   const rows = await db.whatsNewItem.findMany({
-    where: { active: true },
+    where: { active: true, suppressed: false },
     orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
   });
 

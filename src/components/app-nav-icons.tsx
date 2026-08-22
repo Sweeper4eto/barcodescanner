@@ -270,6 +270,65 @@ export function TrashIcon({ className = "h-4 w-4" }: { className?: string }) {
   );
 }
 
+export function CloseIcon({ className = "h-3.5 w-3.5" }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.25"
+      strokeLinecap="round"
+      className={className}
+    >
+      <path d="M18 6 6 18" />
+      <path d="m6 6 12 12" />
+    </svg>
+  );
+}
+
+/** Smooth arc forward arrow for Next / Skip actions. */
+export function ForwardArrowIcon({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <path d="M5 17a8 8 0 0 1 8-8" />
+      <path d="M13 9h6" />
+      <path d="M16 6l3 3-3 3" />
+    </svg>
+  );
+}
+
+/** Mirror of ForwardArrowIcon for Back actions. */
+export function BackArrowIcon({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <g transform="scale(-1 1) translate(-24 0)">
+        <path d="M5 17a8 8 0 0 1 8-8" />
+        <path d="M13 9h6" />
+        <path d="M16 6l3 3-3 3" />
+      </g>
+    </svg>
+  );
+}
+
 export function FlashlightIcon({ className = "h-4 w-4" }: { className?: string }) {
   return (
     <svg
@@ -303,6 +362,59 @@ export function CalendarIcon({ className = "h-4 w-4" }: { className?: string }) 
     >
       <rect x="3.5" y="5" width="17" height="15.5" rx="2" />
       <path d="M8 3.5v3.5M16 3.5v3.5M3.5 10h17" />
+    </svg>
+  );
+}
+
+export function ChevronRightIcon({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <path d="m9 6 6 6-6 6" />
+    </svg>
+  );
+}
+
+export function NewItemsStatIcon({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <path d="M4 7.5 12 3l8 4.5v9L12 21l-8-4.5v-9Z" />
+      <path d="M12 12v9M4 7.5 12 12l8-4.5" />
+    </svg>
+  );
+}
+
+export function MergedItemsStatIcon({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
     </svg>
   );
 }

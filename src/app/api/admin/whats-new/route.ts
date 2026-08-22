@@ -47,6 +47,7 @@ export async function GET(request: Request) {
   const sync = await syncWhatsNewCatalog();
 
   const items = await db.whatsNewItem.findMany({
+    where: { suppressed: false },
     orderBy: [{ active: "desc" }, { sortOrder: "asc" }, { createdAt: "desc" }],
   });
 
@@ -119,8 +120,12 @@ export async function PATCH(request: Request) {
   const { ids, action } = parsed.data;
 
   if (action === "delete") {
-    await db.whatsNewItem.deleteMany({ where: { id: { in: ids } } });
-    return NextResponse.json({ ok: true, action, count: ids.length });
+    // Soft-delete so catalog sync does not recreate the same sourceKey on Refresh.
+    const result = await db.whatsNewItem.updateMany({
+      where: { id: { in: ids } },
+      data: { suppressed: true, active: false },
+    });
+    return NextResponse.json({ ok: true, action, count: result.count });
   }
 
   const active = action === "push";

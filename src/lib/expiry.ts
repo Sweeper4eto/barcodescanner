@@ -146,6 +146,16 @@ export function formatLocaleDay(
   });
 }
 
+/** Local time (HH:MM) for list cards — e.g. when an item was added to the cart. */
+export function formatLocaleTime(input: Date | string, locale: string): string {
+  const date = typeof input === "string" ? new Date(input) : input;
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleTimeString(locale, {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 export function paymentAmount(
   activeStoreCount: number,
   feePerStore: number,

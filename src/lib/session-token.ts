@@ -3,6 +3,8 @@ import { jwtVerify } from "jose/jwt/verify";
 import type { Role } from "@/generated/prisma/client";
 
 export const COOKIE_NAME = "magazin_session";
+/** Non-HttpOnly fallback for phones that drop Set-Cookie on HTTP LAN IPs. */
+export const CLIENT_COOKIE_NAME = "magazin_session_client";
 export const MAX_AGE_SECONDS = 60 * 60 * 24 * 14;
 
 export type SessionPayload = {

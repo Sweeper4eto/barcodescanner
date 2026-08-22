@@ -104,10 +104,14 @@ export const adminDangerButtonClass =
 export const adminPaginationClass =
   "flex flex-wrap items-center justify-between gap-3 border-t border-card-border pt-4";
 
-export function AdminEmptyState({ message }: { message: string }) {
+export function AdminEmptyState({ message }: { message: ReactNode }) {
   return (
     <div className="flex min-h-[10rem] items-center justify-center rounded-xl border border-dashed border-input-border bg-background px-6 py-8 text-center">
-      <p className="max-w-sm text-sm text-muted">{message}</p>
+      {typeof message === "string" ? (
+        <p className="max-w-sm text-sm text-muted">{message}</p>
+      ) : (
+        message
+      )}
     </div>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { LoadingSpinner } from "@/components/loading-spinner";
 import { BrandName } from "@/components/brand-name";
 import { useT } from "@/components/i18n-provider";
 
@@ -95,7 +96,7 @@ export function DocumentProcessingPanel({
           </div>
           <p className="text-sm text-foreground/90">{status}</p>
           <div className="flex justify-center pt-1" aria-hidden>
-            <span className="document-processing-spinner" />
+            <LoadingSpinner />
           </div>
 
           {failedFiles.length > 0 ? (

@@ -1,66 +1,121 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { verifySessionToken, COOKIE_NAME } from "@/lib/session-token";
-import { publicUrl } from "@/lib/request-origin";
+import { sessionCookieOptions } from "@/lib/session";
+import {
+  verifySessionToken,
+  COOKIE_NAME,
+  CLIENT_COOKIE_NAME,
+} from "@/lib/session-token";
 
 const publicPaths = ["/", "/login", "/register", "/contact", "/terms", "/privacy"];
 const passwordChangePath = "/change-password";
+const SESSION_QUERY = "__session";
+
+function publicOrigin(request: NextRequest): string {
+  const host =
+    request.headers.get("x-forwarded-host") ?? request.headers.get("host");
+  const proto = (
+    request.headers.get("x-forwarded-proto") ??
+    request.nextUrl.protocol.replace(":", "")
+  ).replace(/:$/, "");
+  if (host) return `${proto}://${host}`;
+  return request.nextUrl.origin;
+}
+
+function redirectPath(request: NextRequest, path: string) {
+  return NextResponse.redirect(new URL(path, publicOrigin(request)));
+}
+
+function applySessionCookie(
+  response: NextResponse,
+  token: string,
+  request: NextRequest,
+) {
+  const opts = sessionCookieOptions(request);
+  response.cookies.set(COOKIE_NAME, token, opts);
+  response.cookies.set(CLIENT_COOKIE_NAME, token, {
+    ...opts,
+    httpOnly: false,
+  });
+}
 
 export async function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
+  const { pathname, searchParams } = request.nextUrl;
 
   if (
     pathname.startsWith("/api/") ||
     pathname.startsWith("/_next") ||
     pathname.startsWith("/favicon") ||
-    pathname.startsWith("/uploads")
+    pathname.startsWith("/uploads") ||
+    pathname.startsWith("/auth/")
   ) {
     return NextResponse.next();
   }
 
-  const token = request.cookies.get(COOKIE_NAME)?.value;
+  // Phone/Safari often drops Set-Cookie on redirects. Bootstrap from ?__session=
+  // on this document response (200), not on a 302 — cookies stick that way.
+  const bootstrapToken = searchParams.get(SESSION_QUERY)?.trim() ?? "";
+  if (bootstrapToken) {
+    const bootSession = await verifySessionToken(bootstrapToken);
+    if (bootSession) {
+      const response = NextResponse.next();
+      applySessionCookie(response, bootstrapToken, request);
+      console.info("[middleware] session bootstrap ok →", pathname);
+      return response;
+    }
+    console.warn("[middleware] session bootstrap failed");
+    return redirectPath(request, "/login?error=credentials");
+  }
+
+  const token =
+    request.cookies.get(COOKIE_NAME)?.value ??
+    request.cookies.get(CLIENT_COOKIE_NAME)?.value;
   const session = token ? await verifySessionToken(token) : null;
+
+  if (pathname.startsWith("/app") && !session) {
+    console.warn("[middleware] /app blocked — no session cookie");
+  }
 
   if (session?.mustChangePassword) {
     if (pathname === passwordChangePath || pathname === "/login") {
       return NextResponse.next();
     }
-    return NextResponse.redirect(publicUrl(request, passwordChangePath));
+    return redirectPath(request, passwordChangePath);
   }
 
   if (pathname === passwordChangePath) {
     if (!session) {
-      return NextResponse.redirect(publicUrl(request, "/login"));
+      return redirectPath(request, "/login");
     }
     return NextResponse.next();
   }
 
   if (pathname.startsWith("/admin")) {
     if (!session) {
-      return NextResponse.redirect(publicUrl(request, "/login"));
+      return redirectPath(request, "/login");
     }
     if (session.role !== "ADMIN") {
-      return NextResponse.redirect(publicUrl(request, "/app"));
+      return redirectPath(request, "/app");
     }
     return NextResponse.next();
   }
 
   if (pathname.startsWith("/app")) {
     if (!session) {
-      return NextResponse.redirect(publicUrl(request, "/login"));
+      return redirectPath(request, "/login");
     }
     if (session.role === "ADMIN") {
-      return NextResponse.redirect(publicUrl(request, "/admin"));
+      return redirectPath(request, "/admin");
     }
     return NextResponse.next();
   }
 
   if (publicPaths.includes(pathname)) {
     if (session?.role === "ADMIN") {
-      return NextResponse.redirect(publicUrl(request, "/admin"));
+      return redirectPath(request, "/admin");
     }
     if (session?.role === "USER" && session.clientId) {
-      return NextResponse.redirect(publicUrl(request, "/app"));
+      return redirectPath(request, "/app");
     }
   }
 

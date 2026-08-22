@@ -2,25 +2,43 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState } from "react";
-import { PrimaryButton, SecondaryButton } from "@/components/auth-forms";
+import {
+  DocumentNavIcon,
+  ExpiryNavIcon,
+  MergedItemsStatIcon,
+  NewItemsStatIcon,
+} from "@/components/app-nav-icons";
 import { CameraCapture, prepareDocumentImage } from "@/components/camera-capture";
 import { assessDocumentPhotoQuality } from "@/lib/document-image";
 import { DocumentDraftDetailSheet } from "@/components/document-draft-detail-sheet";
 import { DocumentDraftListCard } from "@/components/document-draft-list-card";
 import { DocumentProcessingPanel } from "@/components/document-processing-panel";
-import { MobilePageHeader } from "@/components/mobile-page-header";
+import { LoadingSpinnerBlock } from "@/components/loading-spinner";
+import { MobilePageHeader, listPageChromeClassName } from "@/components/mobile-page-header";
+import { RemoveConfirmDialog } from "@/components/remove-confirm-dialog";
 import { SearchField } from "@/components/search-field";
 import { useT } from "@/components/i18n-provider";
+import { useAppSession } from "@/components/app-session-provider";
 import { navigateApp } from "@/lib/app-navigation";
+import {
+  appButtonPrimaryFull,
+  appButtonNeutralFull,
+  appFooterButtonGrid,
+  appListInset,
+  appSearchInput,
+  appStatIconWrap,
+} from "@/lib/app-ui";
 import { useBrowserBackStack } from "@/lib/browser-back";
-import { useViewportInsets } from "@/hooks/use-viewport-insets";
 import {
   type DocumentDraftItem,
-  computeRowShiftWarningKeys,
   draftItemValid,
   draftMatchesSearch,
   draftMissingExpiry,
 } from "@/lib/document-draft";
+
+/** Full-height review shell — no horizontal pad (content uses appListInset). */
+const reviewPageShellClassName =
+  "mx-auto flex h-[calc(100dvh-var(--app-bottom-nav-height)-env(safe-area-inset-bottom,0px))] min-h-0 w-full max-w-lg flex-col overflow-x-visible pt-1";
 
 type Step = "camera" | "processing" | "review" | "done";
 
@@ -33,8 +51,8 @@ function newKey() {
 
 function AddDocumentContent() {
   const { t } = useT();
-  const { offsetTop, keyboardInset } = useViewportInsets();
   const router = useRouter();
+  const { ready, user } = useAppSession();
   const searchParams = useSearchParams();
   const storeId = searchParams.get("storeId") ?? "";
   const [checking, setChecking] = useState(true);
@@ -64,6 +82,11 @@ function AddDocumentContent() {
     [detailKey, items],
   );
 
+  const confirmRemoveItem = useMemo(
+    () => items.find((item) => item.key === removeKey) ?? null,
+    [removeKey, items],
+  );
+
   useBrowserBackStack([
     {
       id: "draft-detail",
@@ -75,36 +98,29 @@ function AddDocumentContent() {
       open: removeKey !== null,
       close: () => setRemoveKey(null),
     },
+    {
+      id: "draft-remove-no-expiry",
+      open: confirmRemoveNoExpiry,
+      close: () => setConfirmRemoveNoExpiry(false),
+    },
   ]);
 
   useEffect(() => {
-    let cancelled = false;
-    async function guard() {
-      try {
-        const response = await fetch("/api/auth/me");
-        const data = await response.json();
-        if (cancelled) return;
-        if (!data.user) {
-          router.replace("/login");
-          return;
-        }
-        if (data.user.homeUser) {
-          router.replace(
-            storeId
-              ? `/app/expiry?storeId=${encodeURIComponent(storeId)}`
-              : "/app",
-          );
-          return;
-        }
-      } finally {
-        if (!cancelled) setChecking(false);
-      }
+    if (!ready) return;
+    if (!user) {
+      router.replace("/login");
+      return;
     }
-    void guard();
-    return () => {
-      cancelled = true;
-    };
-  }, [router, storeId]);
+    if (user.homeUser) {
+      router.replace(
+        storeId
+          ? `/app/expiry?storeId=${encodeURIComponent(storeId)}`
+          : "/app",
+      );
+      return;
+    }
+    setChecking(false);
+  }, [ready, user, router, storeId]);
 
   type ParsedItem = {
     name?: string;
@@ -158,18 +174,21 @@ function AddDocumentContent() {
    */
   async function processDocumentImage(dataUrl: string): Promise<ProcessResult> {
     try {
-      const quality = await assessDocumentPhotoQuality(dataUrl);
-      if (!quality.ok) {
-        const key =
-          quality.reason === "blurry"
-            ? "errors.documentPhotoBlurry"
-            : quality.reason === "glare"
-              ? "errors.documentPhotoGlare"
-              : quality.reason === "tooDark"
-                ? "errors.documentPhotoTooDark"
-                : "errors.documentPhotoTooSmall";
-        // Deterministic result of the same image — retrying won't help.
-        return { ok: false, error: t(key), retryable: false };
+      // Local design/testing uses OCR mocks — don't block on photo quality.
+      if (process.env.NODE_ENV === "production") {
+        const quality = await assessDocumentPhotoQuality(dataUrl);
+        if (!quality.ok) {
+          const key =
+            quality.reason === "blurry"
+              ? "errors.documentPhotoBlurry"
+              : quality.reason === "glare"
+                ? "errors.documentPhotoGlare"
+                : quality.reason === "tooDark"
+                  ? "errors.documentPhotoTooDark"
+                  : "errors.documentPhotoTooSmall";
+          // Deterministic result of the same image — retrying won't help.
+          return { ok: false, error: t(key), retryable: false };
+        }
       }
 
       const prepared = await prepareDocumentImage(dataUrl);
@@ -313,11 +332,6 @@ function AddDocumentContent() {
     [items],
   );
 
-  const rowShiftWarningKeys = useMemo(
-    () => computeRowShiftWarningKeys(items),
-    [items],
-  );
-
   const canImport =
     items.length > 0 && items.every((item) => draftItemValid(item));
 
@@ -365,21 +379,36 @@ function AddDocumentContent() {
     }
   }
 
+  const isReviewStep = step === "review";
+
   if (checking) {
     return (
       <div className="mx-auto min-w-0 max-w-lg overflow-x-visible px-4 pb-6 pt-1">
         <MobilePageHeader title={t("addDocument.title")} sticky />
-        <p className="text-sm text-muted">{t("expiry.loading")}</p>
+        <LoadingSpinnerBlock wrapperClassName="flex justify-center py-6" />
       </div>
     );
   }
 
   return (
-    <div className="mx-auto min-w-0 max-w-lg overflow-x-visible px-4 pb-3 pt-1">
-      <MobilePageHeader
-        title={step === "processing" ? undefined : t("addDocument.title")}
-        sticky
-      />
+    <>
+      <div
+        className={
+          isReviewStep
+            ? reviewPageShellClassName
+            : "mx-auto min-w-0 max-w-lg overflow-x-visible px-4 pb-3 pt-1"
+        }
+      >
+        {!isReviewStep ? (
+          <MobilePageHeader
+            title={
+              step === "processing" || step === "done"
+                ? undefined
+                : t("addDocument.title")
+            }
+            sticky
+          />
+        ) : null}
 
       {step === "camera" ? (
         <div className="space-y-3">
@@ -412,68 +441,79 @@ function AddDocumentContent() {
       ) : null}
 
       {step === "review" ? (
-        <div className="space-y-3">
-          <div>
-            <h2 className="text-base font-semibold text-foreground">
-              {t("addDocument.reviewTitle")}
-            </h2>
-            <p className="mt-1 text-sm text-muted">
-              {t("addDocument.reviewCount", { count: items.length })}
-            </p>
-            <p className="mt-1 text-sm text-muted">{t("addDocument.reviewHint")}</p>
+        <>
+          <div className={`${listPageChromeClassName} ${appListInset}`}>
+            <MobilePageHeader className="mb-0 border-0 pb-0" />
           </div>
-          {error ? <p className="text-sm text-error">{error}</p> : null}
 
-          <div className="flex items-center gap-1.5">
-            <SearchField
-              value={search}
-              onChange={setSearch}
-              placeholder={t("addDocument.searchPlaceholder")}
-              aria-label={t("addDocument.searchPlaceholder")}
-              inputClassName="h-10 rounded-xl border border-input-border bg-input px-3 text-base text-foreground"
-            />
+          <div className={`min-h-0 flex-1 overflow-y-auto overscroll-y-contain ${appListInset} pb-3 pt-3 [scrollbar-width:thin]`}>
+            <div className="space-y-3">
+              <div className="flex items-start gap-2">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-2xl font-semibold text-foreground">
+                      {t("addDocument.reviewTitle")}
+                    </h2>
+                    <span className="inline-flex min-w-7 items-center justify-center rounded-full bg-primary px-2 py-0.5 text-sm font-bold tabular-nums text-primary-fg">
+                      {items.length}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-sm text-muted">
+                    {t("addDocument.reviewHint")}
+                  </p>
+                </div>
+              </div>
+              {error ? <p className="text-sm text-error">{error}</p> : null}
+
+              <div className="flex items-center gap-1.5">
+                <SearchField
+                  value={search}
+                  onChange={setSearch}
+                  placeholder={t("addDocument.searchPlaceholder")}
+                  aria-label={t("addDocument.searchPlaceholder")}
+                  inputClassName={appSearchInput}
+                />
+                <button
+                  type="button"
+                  disabled={noExpiryCount === 0}
+                  onClick={() => setConfirmRemoveNoExpiry(true)}
+                  title={t("addDocument.removeNoExpiryHint", { count: noExpiryCount })}
+                  aria-label={t("addDocument.removeNoExpiryHint", { count: noExpiryCount })}
+                  className="flex h-9 shrink-0 items-center justify-center gap-1 rounded-lg border border-primary/50 bg-transparent px-2 text-[10px] font-medium leading-none text-primary disabled:opacity-40"
+                >
+                  {t("addDocument.removeNoExpiry")}
+                  {noExpiryCount > 0 ? (
+                    <span className="tabular-nums">({noExpiryCount})</span>
+                  ) : null}
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-1.5 pt-3">
+              {filteredItems.length === 0 ? (
+                <p className="rounded-xl bg-transparent p-4 text-sm text-muted">
+                  {items.length === 0
+                    ? t("addDocument.emptyReview")
+                    : t("addDocument.noResults")}
+                </p>
+              ) : null}
+              {filteredItems.map((item) => (
+                <DocumentDraftListCard
+                  key={item.key}
+                  item={item}
+                  onOpen={() => setDetailKey(item.key)}
+                  onRemove={() => setRemoveKey(item.key)}
+                />
+              ))}
+            </div>
+          </div>
+
+          <div
+            className={`shrink-0 ${appListInset} border-t border-card-border bg-background pt-3 pb-2 ${appFooterButtonGrid}`}
+          >
             <button
               type="button"
-              disabled={noExpiryCount === 0}
-              onClick={() => setConfirmRemoveNoExpiry(true)}
-              title={t("addDocument.removeNoExpiryHint", { count: noExpiryCount })}
-              aria-label={t("addDocument.removeNoExpiryHint", { count: noExpiryCount })}
-              className="flex h-10 shrink-0 items-center justify-center rounded-xl border border-input-border bg-transparent px-2.5 text-[11px] font-medium leading-tight text-foreground disabled:opacity-40"
-            >
-              {t("addDocument.removeNoExpiry")}
-              {noExpiryCount > 0 ? (
-                <span className="ml-1 tabular-nums text-muted">({noExpiryCount})</span>
-              ) : null}
-            </button>
-          </div>
-
-          <div className="space-y-1 pt-1">
-            {filteredItems.length === 0 ? (
-              <p className="rounded-xl bg-transparent p-4 text-sm text-muted">
-                {items.length === 0
-                  ? t("addDocument.emptyReview")
-                  : t("addDocument.noResults")}
-              </p>
-            ) : null}
-            {filteredItems.map((item) => (
-              <DocumentDraftListCard
-                key={item.key}
-                item={item}
-                possibleRowShift={rowShiftWarningKeys.has(item.key)}
-                onOpen={() => setDetailKey(item.key)}
-                onRemove={() => setRemoveKey(item.key)}
-              />
-            ))}
-          </div>
-
-          <div className="sticky bottom-[calc(var(--app-bottom-nav-height)+env(safe-area-inset-bottom,0px))] z-10 space-y-2 border-t border-card-border bg-background pt-3 pb-2">
-            <PrimaryButton
-              onClick={() => void confirmImport()}
-              disabled={!canImport || importing}
-            >
-              {importing ? t("addDocument.importing") : t("addDocument.confirmImport")}
-            </PrimaryButton>
-            <SecondaryButton
+              className={appButtonPrimaryFull}
               onClick={() => {
                 setItems([]);
                 setSearch("");
@@ -483,30 +523,71 @@ function AddDocumentContent() {
               }}
             >
               {t("addDocument.retake")}
-            </SecondaryButton>
+            </button>
+            <button
+              type="button"
+              disabled={!canImport || importing}
+              className={`${appButtonPrimaryFull} disabled:opacity-50`}
+              onClick={() => void confirmImport()}
+            >
+              {importing ? t("addDocument.importing") : t("addDocument.confirmImport")}
+            </button>
           </div>
-        </div>
+        </>
       ) : null}
 
       {step === "done" ? (
-        <div className="space-y-4">
-          <div className="rounded-2xl border border-card-border p-4 text-center">
-            <p className="text-base font-semibold text-foreground">
+        <div className="space-y-4 pb-2 pt-1">
+          <div className="text-center">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/landing/brand-mark.png?v=3"
+              alt=""
+              width={96}
+              height={96}
+              decoding="async"
+              className="mx-auto size-24 object-contain"
+            />
+            <h2 className="mt-4 text-2xl font-semibold text-foreground">
               {t("addDocument.doneTitle")}
+            </h2>
+            <p className="mx-auto mt-1.5 max-w-xs text-sm leading-snug text-muted">
+              {t("addDocument.doneHint")}
             </p>
-            <div className="mt-3 grid grid-cols-2 gap-2 text-left">
-              <div className="rounded-xl bg-transparent p-3">
-                <p className="text-2xl font-bold tabular-nums text-foreground">
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div className="rounded-2xl border border-card-border p-2.5">
+              <div className="flex items-center gap-2">
+                <div className={appStatIconWrap}>
+                  <NewItemsStatIcon className="size-3.5" />
+                </div>
+                <p className="text-3xl font-bold leading-none tabular-nums text-primary">
                   {lastResult?.created ?? 0}
                 </p>
-                <p className="mt-0.5 text-xs text-muted">{t("addDocument.newLabel")}</p>
               </div>
-              <div className="rounded-xl bg-transparent p-3">
-                <p className="text-2xl font-bold tabular-nums text-foreground">
+              <p className="mt-2 text-sm font-semibold leading-tight text-foreground">
+                {t("addDocument.newLabel")}
+              </p>
+              <p className="mt-0.5 text-[11px] leading-snug text-muted">
+                {t("addDocument.newHint")}
+              </p>
+            </div>
+            <div className="rounded-2xl border border-card-border p-2.5">
+              <div className="flex items-center gap-2">
+                <div className={appStatIconWrap}>
+                  <MergedItemsStatIcon className="size-3.5" />
+                </div>
+                <p className="text-3xl font-bold leading-none tabular-nums text-primary">
                   {lastResult?.merged ?? 0}
                 </p>
-                <p className="mt-0.5 text-xs text-muted">{t("addDocument.mergedLabel")}</p>
               </div>
+              <p className="mt-2 text-sm font-semibold leading-tight text-foreground">
+                {t("addDocument.mergedLabel")}
+              </p>
+              <p className="mt-0.5 text-[11px] leading-snug text-muted">
+                {t("addDocument.mergedHint")}
+              </p>
             </div>
           </div>
 
@@ -525,19 +606,31 @@ function AddDocumentContent() {
           ) : null}
 
           <div className="space-y-2">
-            <PrimaryButton onClick={() => setStep("camera")}>
+            <button
+              type="button"
+              className={appButtonPrimaryFull}
+              onClick={() => {
+                setStep("camera");
+                setCameraSession((n) => n + 1);
+              }}
+            >
+              <DocumentNavIcon className="size-4" />
               {t("addDocument.scanAnother")}
-            </PrimaryButton>
-            <SecondaryButton
+            </button>
+            <button
+              type="button"
+              className={appButtonNeutralFull}
               onClick={() =>
-                navigateApp(`/app/expiry?storeId=${encodeURIComponent(storeId)}`)
+                router.push(`/app/expiry?storeId=${encodeURIComponent(storeId)}`)
               }
             >
+              <ExpiryNavIcon className="size-4 text-primary" />
               {t("addDocument.goToExpiry")}
-            </SecondaryButton>
+            </button>
           </div>
         </div>
       ) : null}
+      </div>
 
       {detailItem ? (
         <DocumentDraftDetailSheet
@@ -547,79 +640,35 @@ function AddDocumentContent() {
         />
       ) : null}
 
-      {removeKey ? (
-        <div
-          className="fixed inset-x-0 z-[60] flex items-end justify-center bg-black/40"
-          style={{ top: offsetTop, bottom: keyboardInset }}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="doc-remove-title"
-        >
-          <div className="w-full max-w-lg px-3 pb-[calc(var(--app-bottom-nav-height)+env(safe-area-inset-bottom,0px)+0.5rem)]">
-            <div className="rounded-xl border border-card-border bg-background p-3">
-              <p id="doc-remove-title" className="text-sm font-semibold">
-                {t("expiry.confirmTitle")}
-              </p>
-              <p className="mt-1 text-xs text-muted">
-                {t("addDocument.removeConfirmMessage")}
-              </p>
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  className="rounded-lg border border-input-border bg-transparent px-3 py-2 text-sm text-foreground"
-                  onClick={() => setRemoveKey(null)}
-                >
-                  {t("expiry.confirmCancel")}
-                </button>
-                <button
-                  type="button"
-                  className="rounded-lg border border-danger bg-transparent px-3 py-2 text-sm text-danger"
-                  onClick={() => removeItem(removeKey)}
-                >
-                  {t("expiry.remove")}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+      {removeKey && confirmRemoveItem ? (
+        <RemoveConfirmDialog
+          title={t("addDocument.confirmTitle")}
+          message={t("addDocument.confirmMessage")}
+          itemLabel={`${confirmRemoveItem.name.trim() || t("common.noName")} (${confirmRemoveItem.quantity} ${t("expiry.pieces")})`}
+          cancelLabel={t("expiry.confirmCancel")}
+          removeLabel={t("expiry.remove")}
+          onCancel={() => setRemoveKey(null)}
+          onConfirm={() => removeItem(removeKey)}
+        />
       ) : null}
       {confirmRemoveNoExpiry ? (
-        <div
-          className="fixed inset-x-0 z-[60] flex items-end justify-center bg-black/40"
-          style={{ top: offsetTop, bottom: keyboardInset }}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="doc-remove-no-expiry-title"
-        >
-          <div className="w-full max-w-lg px-3 pb-[calc(var(--app-bottom-nav-height)+env(safe-area-inset-bottom,0px)+0.5rem)]">
-            <div className="rounded-xl border border-card-border bg-background p-3">
-              <p id="doc-remove-no-expiry-title" className="text-sm font-semibold">
-                {t("expiry.confirmTitle")}
-              </p>
-              <p className="mt-1 text-xs text-muted">
-                {t("addDocument.removeNoExpiryConfirm", { count: noExpiryCount })}
-              </p>
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  className="rounded-lg border border-input-border bg-transparent px-3 py-2 text-sm text-foreground"
-                  onClick={() => setConfirmRemoveNoExpiry(false)}
-                >
-                  {t("expiry.confirmCancel")}
-                </button>
-                <button
-                  type="button"
-                  className="rounded-lg border border-danger bg-transparent px-3 py-2 text-sm text-danger"
-                  onClick={removeItemsWithoutExpiry}
-                >
-                  {t("expiry.remove")}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <RemoveConfirmDialog
+          title={t("addDocument.removeNoExpiryTitle")}
+          message={t("addDocument.removeNoExpiryMessage")}
+          itemLabel={
+            noExpiryCount === 1
+              ? t("addDocument.removeNoExpiryItemLabelOne")
+              : t("addDocument.removeNoExpiryItemLabel", {
+                  count: noExpiryCount,
+                })
+          }
+          cancelLabel={t("expiry.confirmCancel")}
+          removeLabel={t("expiry.remove")}
+          onCancel={() => setConfirmRemoveNoExpiry(false)}
+          onConfirm={removeItemsWithoutExpiry}
+        />
       ) : null}
-    </div>
+    </>
   );
 }
 

@@ -3,7 +3,6 @@
 import { useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActionFlash } from "@/components/action-flash";
-import { SecondaryButton } from "@/components/auth-forms";
 import { CameraCapture, uploadImage } from "@/components/camera-capture";
 import { BarcodeScanner } from "@/components/barcode-scanner";
 import { ScanNavIcon, StarFavouriteIcon } from "@/components/app-nav-icons";
@@ -13,15 +12,23 @@ import {
   type BuyListDetailEntry,
 } from "@/components/buy-list-entry-detail-sheet";
 import { ExpiryDatePicker } from "@/components/expiry-date-picker";
-import { MobilePageHeader, listPageChromeClassName, listPageScrollClassName, listPageShellClassName } from "@/components/mobile-page-header";
+import { LoadingSpinnerBlock } from "@/components/loading-spinner";
+import { ManualAddToCartDialog } from "@/components/manual-add-to-cart-dialog";
+import { MobilePageHeader, listPageChromeClassName } from "@/components/mobile-page-header";
 import { ProductImage } from "@/components/product-image";
-import { QuantityPicker } from "@/components/quantity-picker";
 import { RemoveConfirmDialog } from "@/components/remove-confirm-dialog";
 import { SearchField } from "@/components/search-field";
 import { useT } from "@/components/i18n-provider";
 import { useBrowserBackStack } from "@/lib/browser-back";
 import { useViewportInsets } from "@/hooks/use-viewport-insets";
 import { expiryYmdToIso } from "@/lib/inventory";
+import { CancelButton } from "@/components/cancel-button";
+import { ConfirmButton } from "@/components/confirm-button";
+import {
+  appFooterButtonGrid,
+  appListInset,
+  appSearchInput,
+} from "@/lib/app-ui";
 
 const PAGE_SIZE = 20;
 
@@ -47,6 +54,11 @@ type Pagination = {
   total: number;
   totalPages: number;
 };
+
+const buyListShellClassName =
+  "mx-auto flex h-[calc(100dvh-var(--app-bottom-nav-height)-env(safe-area-inset-bottom,0px))] min-h-0 w-full max-w-lg flex-col overflow-x-visible pt-1";
+
+const buyListScrollClassName = `min-h-0 flex-1 space-y-1.5 overflow-y-auto overscroll-y-contain pb-3.5 pt-3 [scrollbar-width:thin] ${appListInset}`;
 
 function BuyListContent() {
   const { t } = useT();
@@ -188,6 +200,12 @@ function BuyListContent() {
     setPage(1);
   }, [debouncedSearch, storeId]);
 
+  const clearSearchIfActive = useCallback(() => {
+    if (!search.trim() && !debouncedSearch) return;
+    setSearch("");
+    setDebouncedSearch("");
+  }, [search, debouncedSearch]);
+
   const loadEntries = useCallback(
     async (targetPage: number, append: boolean) => {
       if (!storeId || homeUser !== true) return;
@@ -286,6 +304,7 @@ function BuyListContent() {
       setConfirmId(null);
       setDetailEntry((current) => (current?.id === entryId ? null : current));
       setEntries((current) => current.filter((entry) => entry.id !== entryId));
+      clearSearchIfActive();
     } catch {
       setFlashTone("error");
       setFlashMessage(t("errors.networkError"));
@@ -320,6 +339,7 @@ function BuyListContent() {
       await reloadList();
       setFlashTone("success");
       setFlashMessage(t("buyList.movedToExpiry"));
+      clearSearchIfActive();
     } finally {
       setMoveSaving(false);
     }
@@ -349,6 +369,8 @@ function BuyListContent() {
         );
         setFlashTone("error");
         setFlashMessage(t("errors.networkError"));
+      } else {
+        clearSearchIfActive();
       }
     } catch {
       setEntries((current) =>
@@ -377,6 +399,7 @@ function BuyListContent() {
         return;
       }
       await loadFavourites();
+      clearSearchIfActive();
     } catch {
       setFlashTone("error");
       setFlashMessage(t("errors.networkError"));
@@ -405,12 +428,14 @@ function BuyListContent() {
       await reloadList();
       setFlashTone("success");
       setFlashMessage(t("buyList.addedFromFavourite"));
+      clearSearchIfActive();
     } finally {
       setAddingFavouriteId(null);
     }
   }
 
   function handleEntryUpdated(updated: BuyListDetailEntry) {
+    clearSearchIfActive();
     setDetailEntry((current) => (current?.id === updated.id ? updated : current));
     setEntries((current) =>
       current.map((entry) =>
@@ -473,7 +498,7 @@ function BuyListContent() {
         return;
       }
       resetManualAdd();
-      setSearch("");
+      clearSearchIfActive();
       await reloadList();
       setFlashTone("success");
       setFlashMessage(t("buyList.addedManual"));
@@ -499,14 +524,12 @@ function BuyListContent() {
 
   if (homeUser === null) {
     return (
-      <div className={listPageShellClassName}>
-        <div className={listPageChromeClassName}>
+      <div className={buyListShellClassName}>
+        <div className={`${listPageChromeClassName} px-4`}>
           <MobilePageHeader title={t("buyList.title")} className="mb-0" />
         </div>
-        <div className={listPageScrollClassName}>
-          <p className="rounded-xl bg-transparent p-4 text-sm text-muted">
-            {t("buyList.loading")}
-          </p>
+        <div className={buyListScrollClassName}>
+          <LoadingSpinnerBlock wrapperClassName="flex justify-center rounded-xl bg-transparent p-4" />
         </div>
       </div>
     );
@@ -514,11 +537,11 @@ function BuyListContent() {
 
   if (!homeUser) {
     return (
-      <div className={listPageShellClassName}>
-        <div className={listPageChromeClassName}>
+      <div className={buyListShellClassName}>
+        <div className={`${listPageChromeClassName} px-4`}>
           <MobilePageHeader title={t("buyList.title")} className="mb-0" />
         </div>
-        <div className={listPageScrollClassName}>
+        <div className={buyListScrollClassName}>
           <p className="rounded-xl bg-transparent p-4 text-sm text-muted">
             {t("buyList.unavailable")}
           </p>
@@ -528,8 +551,8 @@ function BuyListContent() {
   }
 
   return (
-    <div className={listPageShellClassName}>
-      <div className={listPageChromeClassName}>
+    <div className={buyListShellClassName}>
+      <div className={`${listPageChromeClassName} px-4`}>
         <MobilePageHeader title={t("buyList.title")} className="mb-0" />
 
         <ActionFlash
@@ -544,7 +567,7 @@ function BuyListContent() {
             onChange={setSearch}
             placeholder={t("buyList.searchPlaceholder")}
             aria-label={t("buyList.searchPlaceholder")}
-            inputClassName="h-9 rounded-lg border border-input-border bg-input pl-2.5 text-base text-foreground"
+            inputClassName={appSearchInput}
             onClear={() => setShowScanner(false)}
             trailingAction={
               <button
@@ -555,6 +578,8 @@ function BuyListContent() {
                 onClick={() => {
                   setShowScanner(false);
                   setManualName(search);
+                  setManualQty("1");
+                  setManualImagePath(null);
                   setShowManualAdd(true);
                 }}
               >
@@ -577,7 +602,7 @@ function BuyListContent() {
         </div>
 
         {showScanner ? (
-          <div className="rounded-xl border border-card-border p-2">
+          <div className="rounded-2xl border border-card-border p-3">
             <BarcodeScanner
               autoStart
               continuousFill
@@ -605,36 +630,43 @@ function BuyListContent() {
               {filteredFavourites.map((product) => (
                 <div
                   key={product.id}
-                  className="relative flex w-[4.5rem] shrink-0 flex-col"
+                  className="flex w-[4.5rem] shrink-0 flex-col items-center gap-1 rounded-lg border border-card-border bg-transparent p-1.5"
                 >
-                  <button
-                    type="button"
-                    aria-label={t("favourites.remove")}
-                    title={t("favourites.remove")}
-                    className="absolute -top-1 left-1/2 z-10 flex h-5 w-5 -translate-x-1/2 items-center justify-center rounded-full border border-card-border bg-transparent text-amber-400"
-                    onClick={() => void toggleFavourite(product.id)}
-                  >
-                    <StarFavouriteIcon className="h-3 w-3" filled />
-                  </button>
+                  <div className="relative size-11 shrink-0">
+                    <button
+                      type="button"
+                      disabled={addingFavouriteId === product.id}
+                      onClick={() => void addFavouriteToOrders(product)}
+                      title={t("buyList.addFavouriteToOrders")}
+                      aria-label={`${t("buyList.addFavouriteToOrders")}: ${product.name}`}
+                      className="block size-11 overflow-hidden rounded-md disabled:opacity-60"
+                    >
+                      <ProductImage
+                        src={product.imagePath}
+                        alt=""
+                        className="size-11 rounded-md object-cover"
+                        placeholderClassName="size-11 rounded-md text-[8px]"
+                      />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={t("favourites.remove")}
+                      title={t("favourites.remove")}
+                      className="absolute -right-0.5 -top-0.5 z-10 flex size-5 items-center justify-center rounded-md border border-card-border bg-background/95 text-amber-400"
+                      onClick={() => void toggleFavourite(product.id)}
+                    >
+                      <StarFavouriteIcon className="size-3" filled />
+                    </button>
+                  </div>
                   <button
                     type="button"
                     disabled={addingFavouriteId === product.id}
                     onClick={() => void addFavouriteToOrders(product)}
-                    title={t("buyList.addFavouriteToOrders")}
-                    aria-label={`${t("buyList.addFavouriteToOrders")}: ${product.name}`}
-                    className="flex w-full flex-col items-center gap-1 rounded-lg border border-card-border bg-transparent p-1.5 pt-2.5 text-center disabled:opacity-60"
+                    className="line-clamp-2 w-full text-center text-[10px] font-medium leading-tight text-foreground disabled:opacity-60"
                   >
-                    <ProductImage
-                      src={product.imagePath}
-                      alt=""
-                      className="h-11 w-11 rounded-md object-cover"
-                      placeholderClassName="h-11 w-11 rounded-md text-[8px]"
-                    />
-                    <span className="line-clamp-2 w-full text-[10px] font-medium leading-tight text-foreground">
-                      {addingFavouriteId === product.id
-                        ? t("buyList.adding")
-                        : product.name}
-                    </span>
+                    {addingFavouriteId === product.id
+                      ? t("buyList.adding")
+                      : product.name}
                   </button>
                 </div>
               ))}
@@ -643,11 +675,15 @@ function BuyListContent() {
         ) : null}
       </div>
 
-      <div className={`${listPageScrollClassName} space-y-1`}>
+      <div className={buyListScrollClassName}>
         {loading && page === 1 && entries.length === 0 ? (
-          <p className="rounded-xl bg-transparent p-4 text-sm text-muted">
-            {isSearching ? t("buyList.searching") : t("buyList.loading")}
-          </p>
+          isSearching ? (
+            <p className="rounded-xl bg-transparent p-4 text-center text-sm text-muted">
+              {t("buyList.searching")}
+            </p>
+          ) : (
+            <LoadingSpinnerBlock wrapperClassName="flex justify-center rounded-xl bg-transparent p-4" />
+          )
         ) : null}
 
         {loading && isSearching && entries.length > 0 ? (
@@ -663,7 +699,7 @@ function BuyListContent() {
         {entries.map((entry) => (
           <BuyListCard
             key={entry.id}
-            name={entry.product.name}
+            name={entry.product.name.trim() || t("common.noName")}
             imagePath={entry.product.imagePath}
             enteredAt={entry.enteredAt}
             quantity={entry.quantity}
@@ -685,7 +721,10 @@ function BuyListContent() {
         ) : null}
 
         {loading && page > 1 ? (
-          <p className="py-2 text-center text-xs text-muted">{t("buyList.loading")}</p>
+          <LoadingSpinnerBlock
+            size="sm"
+            wrapperClassName="flex justify-center py-2"
+          />
         ) : null}
       </div>
 
@@ -731,121 +770,70 @@ function BuyListContent() {
                   onChange={setMoveExpiryYmd}
                 />
               </div>
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  className="rounded-lg border border-input-border bg-transparent px-3 py-2 text-sm text-foreground"
+              <div className={`mt-3 ${appFooterButtonGrid}`}>
+                <CancelButton
+                  fullWidth={false}
+                  disabled={moveSaving}
                   onClick={() => {
                     setMoveToExpiryId(null);
                     setMoveExpiryYmd("");
                   }}
-                  disabled={moveSaving}
                 >
                   {t("buyList.confirmCancel")}
-                </button>
-                <button
-                  type="button"
-                  className="rounded-lg border border-primary bg-transparent px-3 py-2 text-sm font-medium text-primary disabled:opacity-60"
+                </CancelButton>
+                <ConfirmButton
+                  fullWidth={false}
+                  busy={moveSaving}
+                  disabled={!moveExpiryYmd}
                   onClick={() => void confirmMoveToExpiry()}
-                  disabled={!moveExpiryYmd || moveSaving}
                 >
-                  {moveSaving
-                    ? t("buyList.saving")
-                    : t("buyList.moveToExpiryConfirm")}
-                </button>
+                  {t("buyList.moveToExpiryConfirm")}
+                </ConfirmButton>
               </div>
             </div>
           </div>
         </div>
       ) : null}
-      {showManualAdd ? (
-        <div
-          className="fixed inset-x-0 z-[60] flex items-end justify-center bg-black/40"
-          style={{ top: offsetTop, bottom: keyboardInset }}
-        >
-          <div className="max-h-full w-full max-w-lg overflow-y-auto px-3 pb-[calc(var(--app-bottom-nav-height)+env(safe-area-inset-bottom,0px)+0.5rem)]">
-            <div className="space-y-3 rounded-xl border border-card-border bg-background p-3">
-              <p className="text-sm font-semibold">{t("buyList.addManualTitle")}</p>
-              <p className="text-xs text-muted">{t("buyList.addManualHint")}</p>
+      {showManualAdd && !manualCapturing ? (
+        <ManualAddToCartDialog
+          name={manualName}
+          imagePath={manualImagePath}
+          quantity={manualQty}
+          busy={manualSaving}
+          canConfirm={Boolean(manualName.trim() || manualImagePath)}
+          onNameChange={setManualName}
+          onQuantityChange={setManualQty}
+          onAddPhoto={() => setManualCapturing(true)}
+          onCancel={resetManualAdd}
+          onConfirm={() => void confirmManualAdd()}
+        />
+      ) : null}
 
-              {manualCapturing ? (
-                <CameraCapture
-                  allowFileUpload
-                  onCapture={(dataUrl) => {
-                    void (async () => {
-                      try {
-                        const path = await uploadImage(dataUrl);
-                        setManualImagePath(path);
-                        setManualCapturing(false);
-                      } catch {
-                        setFlashTone("error");
-                        setFlashMessage(t("errors.uploadFailed"));
-                      }
-                    })();
-                  }}
-                  onCancel={() => setManualCapturing(false)}
-                />
-              ) : (
-                <>
-                  <ProductImage
-                    src={manualImagePath}
-                    alt=""
-                    className="mx-auto h-28 w-28 rounded-xl object-cover"
-                    placeholderClassName="mx-auto h-28 w-28 rounded-xl"
-                  />
-                  <SecondaryButton onClick={() => setManualCapturing(true)}>
-                    {manualImagePath
-                      ? t("camera.newPhoto")
-                      : t("buyList.addManualPhoto")}
-                  </SecondaryButton>
-                </>
-              )}
-
-              <label className="block text-sm font-medium text-foreground">
-                {t("buyList.addManualName")}
-                <input
-                  className="mt-1 w-full rounded-xl border border-input-border bg-input px-3 py-2 text-base text-foreground"
-                  value={manualName}
-                  onChange={(event) => setManualName(event.target.value)}
-                  placeholder={t("common.noName")}
-                  disabled={manualSaving || manualCapturing}
-                />
-              </label>
-
-              <QuantityPicker
-                value={manualQty}
-                onChange={setManualQty}
-                startWithGridOpen={false}
-              />
-
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  className="rounded-lg border border-input-border bg-transparent px-3 py-2 text-sm text-foreground"
-                  onClick={resetManualAdd}
-                  disabled={manualSaving}
-                >
-                  {t("buyList.confirmCancel")}
-                </button>
-                <button
-                  type="button"
-                  className="rounded-lg border border-primary bg-transparent px-3 py-2 text-sm font-medium text-primary disabled:opacity-60"
-                  disabled={
-                    manualSaving ||
-                    manualCapturing ||
-                    (!manualName.trim() && !manualImagePath) ||
-                    !manualQty ||
-                    !Number.isInteger(Number(manualQty)) ||
-                    Number(manualQty) < 1
+      {showManualAdd && manualCapturing ? (
+        <div className="fixed inset-0 z-[80] flex select-none flex-col overflow-y-auto bg-background px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(0.75rem,env(safe-area-inset-top))]">
+          <div className="mx-auto flex w-full max-w-md flex-col gap-3">
+            <p className="text-center text-sm font-medium text-foreground select-none">
+              {t("buyList.addManualPhoto")}
+            </p>
+            <CameraCapture
+              autoStart
+              forceInAppCamera
+              allowFileUpload
+              confirmMode="save"
+              onCapture={(dataUrl) => {
+                void (async () => {
+                  try {
+                    const path = await uploadImage(dataUrl);
+                    setManualImagePath(path);
+                    setManualCapturing(false);
+                  } catch {
+                    setFlashTone("error");
+                    setFlashMessage(t("errors.uploadFailed"));
                   }
-                  onClick={() => void confirmManualAdd()}
-                >
-                  {manualSaving
-                    ? t("buyList.adding")
-                    : t("buyList.addManualConfirm")}
-                </button>
-              </div>
-            </div>
+                })();
+              }}
+              onCancel={() => setManualCapturing(false)}
+            />
           </div>
         </div>
       ) : null}

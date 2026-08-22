@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { ExpiryListCard } from "@/components/expiry-list-card";
 import { ExpiryPeriodFilter } from "@/components/expiry-period-filter";
+import { LoadingSpinnerBlock } from "@/components/loading-spinner";
 import { SearchField } from "@/components/search-field";
 import { useT } from "@/components/i18n-provider";
 import {
@@ -195,9 +196,13 @@ function AdminExpiryContent() {
 
           <div className="space-y-1">
             {loading && page === 1 && entries.length === 0 ? (
-              <p className="rounded-xl bg-transparent p-4 text-sm text-muted">
-                {isSearching ? t("expiry.searching") : t("expiry.loading")}
-              </p>
+              isSearching ? (
+                <p className="rounded-xl bg-transparent p-4 text-center text-sm text-muted">
+                  {t("expiry.searching")}
+                </p>
+              ) : (
+                <LoadingSpinnerBlock wrapperClassName="flex justify-center rounded-xl bg-transparent p-4" />
+              )
             ) : null}
             {!loading && entries.length === 0 ? (
               <p className="rounded-xl bg-transparent p-4 text-sm text-muted">

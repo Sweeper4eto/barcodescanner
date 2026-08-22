@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ComponentType } from "react";
 import { useEffect, useState } from "react";
@@ -10,6 +11,7 @@ import {
   OrdersNavIcon,
 } from "@/components/app-nav-icons";
 import { useT } from "@/components/i18n-provider";
+import { useAppSession } from "@/components/app-session-provider";
 import { getStoredStoreId } from "@/lib/store-selection";
 
 type Tab = {
@@ -24,8 +26,10 @@ type Tab = {
 export function AppBottomNav() {
   const pathname = usePathname();
   const { t } = useT();
-  const [storeId, setStoreId] = useState("");
-  const [homeUser, setHomeUser] = useState<boolean | null>(null);
+  const { homeUser } = useAppSession();
+  const [storeId, setStoreId] = useState(() =>
+    typeof window !== "undefined" ? (getStoredStoreId() ?? "") : "",
+  );
   const [cartCount, setCartCount] = useState(0);
 
   useEffect(() => {
@@ -38,24 +42,6 @@ export function AppBottomNav() {
   }, [pathname]);
 
   useEffect(() => {
-    let cancelled = false;
-    async function loadHomeUser() {
-      try {
-        const response = await fetch("/api/auth/me");
-        const data = await response.json();
-        if (cancelled) return;
-        setHomeUser(Boolean(data.user?.homeUser));
-      } catch {
-        if (!cancelled) setHomeUser(false);
-      }
-    }
-    void loadHomeUser();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  useEffect(() => {
     if (homeUser !== true || !storeId) {
       setCartCount(0);
       return;
@@ -66,6 +52,7 @@ export function AppBottomNav() {
       try {
         const response = await fetch(
           `/api/buy-list?storeId=${encodeURIComponent(storeId)}&limit=1`,
+          { credentials: "same-origin", cache: "no-store" },
         );
         if (!response.ok) return;
         const data = (await response.json()) as { total?: number };
@@ -111,7 +98,7 @@ export function AppBottomNav() {
         path.startsWith("/app/orders") || path.startsWith("/app/buy-list"),
       badge: cartCount > 0 ? cartCount : undefined,
     });
-  } else if (homeUser === false) {
+  } else {
     tabs.push({
       id: "document",
       href: `/app/add-document${query}`,
@@ -121,16 +108,12 @@ export function AppBottomNav() {
     });
   }
 
-  const gridCols = homeUser === null ? "grid-cols-2" : "grid-cols-3";
-
   return (
     <nav
       aria-label={t("app.bottomNav")}
       className="fixed inset-x-0 bottom-0 z-40 border-t border-card-border bg-background/95 backdrop-blur-sm supports-[backdrop-filter]:bg-background/90"
     >
-      <div
-        className={`mx-auto grid min-h-[var(--app-bottom-nav-height)] min-w-0 max-w-lg ${gridCols} px-2 pb-[calc(env(safe-area-inset-bottom,0px)+0.35rem)] pt-1`}
-      >
+      <div className="mx-auto grid min-h-[var(--app-bottom-nav-height)] min-w-0 max-w-lg grid-cols-3 px-2 pb-[calc(env(safe-area-inset-bottom,0px)+0.35rem)] pt-1">
         {tabs.map((tab) => {
           const active = tab.match(pathname);
           const className = `relative flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-1 py-1 text-[11px] font-medium leading-none transition-colors ${
@@ -164,14 +147,15 @@ export function AppBottomNav() {
           }
 
           return (
-            <a
+            <Link
               key={tab.id}
               href={tab.href}
               className={className}
               aria-current={active ? "page" : undefined}
+              prefetch
             >
               {content}
-            </a>
+            </Link>
           );
         })}
       </div>

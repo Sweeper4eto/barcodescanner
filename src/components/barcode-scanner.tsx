@@ -7,7 +7,11 @@ import {
   type Html5QrcodeCameraScanConfig,
 } from "html5-qrcode";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
-import { PrimaryButton, SecondaryButton } from "@/components/auth-forms";
+import { PrimaryButton } from "@/components/auth-forms";
+import { CancelButton } from "@/components/cancel-button";
+import { ConfirmButton } from "@/components/confirm-button";
+import { CameraIcon } from "@/components/app-nav-icons";
+import { appFooterButtonGrid } from "@/lib/app-ui";
 import { FlashlightIcon } from "@/components/app-nav-icons";
 import { useT } from "@/components/i18n-provider";
 import { ScannerViewfinderOverlay } from "@/components/scanner-viewfinder-overlay";
@@ -594,7 +598,11 @@ export function BarcodeScanner({
         </div>
       ) : null}
       {!scanning ? (
-        <PrimaryButton onClick={() => void startCamera()} disabled={starting}>
+        <PrimaryButton
+          onClick={() => void startCamera()}
+          disabled={starting}
+          icon={<CameraIcon className="size-4 shrink-0" />}
+        >
           {starting ? t("scanner.starting") : t("scanner.startCamera")}
         </PrimaryButton>
       ) : !continuousFill && torchAvailable ? (
@@ -605,24 +613,19 @@ export function BarcodeScanner({
       {error ? <p className="text-sm text-warning-fg">{error}</p> : null}
 
       {continuousFill ? (
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            type="button"
+        <div className={appFooterButtonGrid}>
+          <ConfirmButton
+            fullWidth={false}
             data-testid="scanner-confirm-barcode"
-            className="rounded-xl border border-primary bg-transparent px-3 py-2.5 text-sm font-semibold text-primary disabled:opacity-50"
             disabled={!hasBarcode}
             onClick={() => void confirmManual()}
           >
             {t("scanner.confirm")}
-          </button>
+          </ConfirmButton>
           {onCancel ? (
-            <button
-              type="button"
-              className="rounded-xl border border-card-border bg-transparent px-3 py-2.5 text-sm font-semibold text-foreground"
-              onClick={onCancel}
-            >
+            <CancelButton fullWidth={false} onClick={onCancel}>
               {t("common.cancel")}
-            </button>
+            </CancelButton>
           ) : null}
         </div>
       ) : (
@@ -637,17 +640,15 @@ export function BarcodeScanner({
               onChange={(event) => setManual(event.target.value)}
             />
           </label>
-          <button
-            type="button"
+          <ConfirmButton
             data-testid="scanner-confirm-barcode"
-            className="w-full rounded-xl border border-primary bg-transparent px-4 py-2 font-medium text-primary disabled:opacity-50"
             disabled={!hasBarcode}
             onClick={() => void confirmManual()}
           >
             {t("scanner.confirmBarcode")}
-          </button>
+          </ConfirmButton>
           {onCancel ? (
-            <SecondaryButton onClick={onCancel}>{t("common.cancel")}</SecondaryButton>
+            <CancelButton onClick={onCancel}>{t("common.cancel")}</CancelButton>
           ) : null}
         </>
       )}

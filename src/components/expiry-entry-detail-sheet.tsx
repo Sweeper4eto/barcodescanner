@@ -13,7 +13,6 @@ import {
 import {
   CalendarIcon,
   CameraIcon,
-  CheckIcon,
   CopyIcon,
   StarFavouriteIcon,
 } from "@/components/app-nav-icons";
@@ -22,6 +21,9 @@ import { ProductImage } from "@/components/product-image";
 import { MobilePageHeader } from "@/components/mobile-page-header";
 import { useT } from "@/components/i18n-provider";
 import { useViewportInsets } from "@/hooks/use-viewport-insets";
+import { CancelButton } from "@/components/cancel-button";
+import { ConfirmButton } from "@/components/confirm-button";
+import { appFooterButtonGrid } from "@/lib/app-ui";
 import { daysUntilExpiry, formatLocaleDay } from "@/lib/expiry";
 import {
   isAdhocBarcode,
@@ -126,6 +128,8 @@ export function ExpiryEntryDetailSheet({
   const { t, dateLocale } = useT();
   const { offsetTop, keyboardInset } = useViewportInsets();
   const datePickerRef = useRef<ExpiryDatePickerHandle>(null);
+  const sheetScrollRef = useRef<HTMLDivElement>(null);
+  const expirySectionRef = useRef<HTMLDivElement>(null);
   const [quantity, setQuantity] = useState(String(entry.quantity));
   const [expiryYmd, setExpiryYmd] = useState(() =>
     expiryIsoToYmd(entry.expiryDate),
@@ -215,6 +219,31 @@ export function ExpiryEntryDetailSheet({
     };
   }, [onClose, saving]);
 
+  // Bring the calendar into the visible sheet area on small screens so it is
+  // not hidden under Save/Cancel when opened from the lower half of the form.
+  useEffect(() => {
+    if (!editingExpiry) return;
+    const section = expirySectionRef.current;
+    const scroller = sheetScrollRef.current;
+    if (!section || !scroller) return;
+
+    let cancelled = false;
+    const frame = requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (cancelled) return;
+        const sectionRect = section.getBoundingClientRect();
+        const scrollerRect = scroller.getBoundingClientRect();
+        const nextTop =
+          scroller.scrollTop + (sectionRect.top - scrollerRect.top) - 8;
+        scroller.scrollTo({ top: Math.max(0, nextTop), behavior: "smooth" });
+      });
+    });
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(frame);
+    };
+  }, [editingExpiry]);
+
   async function confirmChanges() {
     const flushed = editingExpiry ? datePickerRef.current?.flush() : null;
     const effectiveExpiry = flushed ?? expiryYmd;
@@ -282,7 +311,7 @@ export function ExpiryEntryDetailSheet({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      const data = (await response.json()) as {
+      const data = ((await response.json().catch(() => null)) ?? {}) as {
         entry?: ExpiryDetailEntry;
         merged?: boolean;
         removedId?: string;
@@ -300,8 +329,12 @@ export function ExpiryEntryDetailSheet({
       });
       setEditingExpiry(false);
       onClose();
-    } catch {
-      setError(t("expiry.saveFailed"));
+    } catch (err) {
+      setError(
+        err instanceof Error && err.message
+          ? err.message
+          : t("expiry.saveFailed"),
+      );
     } finally {
       setSaving(false);
     }
@@ -332,7 +365,12 @@ export function ExpiryEntryDetailSheet({
         <MobilePageHeader className="mb-2" />
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-4 pb-3">
+      <div
+        ref={sheetScrollRef}
+        className={`min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-4 ${
+          editingExpiry ? "pb-28" : "pb-3"
+        }`}
+      >
         <div className="overflow-hidden rounded-2xl border border-card-border p-3">
           <div className="flex items-stretch gap-3">
             <div className="flex w-[42%] shrink-0 flex-col justify-between gap-2">
@@ -490,59 +528,61 @@ export function ExpiryEntryDetailSheet({
           </div>
         ) : null}
 
-        <div className="mt-3 grid grid-cols-2 gap-2">
-          <div className="rounded-2xl border border-card-border p-2.5">
-            <p className="text-[10px] font-medium text-muted">
-              {t("common.quantity")}
-            </p>
-            <div className="mt-2 flex justify-center">
-              <QuantityStepper value={quantity} onChange={setQuantity} />
+        <div ref={expirySectionRef} className="mt-3 scroll-mt-2">
+          <div className="grid grid-cols-2 gap-2">
+            <div className="rounded-2xl border border-card-border p-2.5">
+              <p className="text-[10px] font-medium text-muted">
+                {t("common.quantity")}
+              </p>
+              <div className="mt-2 flex justify-center">
+                <QuantityStepper value={quantity} onChange={setQuantity} />
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-card-border p-2.5">
+              <p className="text-[10px] font-medium text-muted">
+                {t("expiry.expiryDateLabel")}
+              </p>
+              <button
+                type="button"
+                className={`mt-2 flex w-full items-center gap-1.5 rounded-lg border px-2 py-1.5 text-left ${
+                  editingExpiry
+                    ? "border-primary bg-selected"
+                    : "border-card-border bg-transparent"
+                }`}
+                onClick={() => setEditingExpiry((open) => !open)}
+                disabled={saving}
+                aria-expanded={editingExpiry}
+              >
+                <CalendarIcon className="size-3.5 shrink-0 text-muted" />
+                <span className="min-w-0 truncate text-xs font-semibold text-foreground">
+                  {expiryDisplay}
+                </span>
+              </button>
+              <p
+                className={`mt-1.5 text-[11px] font-medium ${
+                  daysLeft < 0 ? "text-error" : "text-primary"
+                }`}
+              >
+                {daysRemainingLabel(daysLeft, t)}
+              </p>
             </div>
           </div>
 
-          <div className="rounded-2xl border border-card-border p-2.5">
-            <p className="text-[10px] font-medium text-muted">
-              {t("expiry.expiryDateLabel")}
-            </p>
-            <button
-              type="button"
-              className={`mt-2 flex w-full items-center gap-1.5 rounded-lg border px-2 py-1.5 text-left ${
-                editingExpiry
-                  ? "border-primary bg-selected"
-                  : "border-card-border bg-transparent"
-              }`}
-              onClick={() => setEditingExpiry((open) => !open)}
-              disabled={saving}
-              aria-expanded={editingExpiry}
-            >
-              <CalendarIcon className="size-3.5 shrink-0 text-muted" />
-              <span className="min-w-0 truncate text-xs font-semibold text-foreground">
-                {expiryDisplay}
-              </span>
-            </button>
-            <p
-              className={`mt-1.5 text-[11px] font-medium ${
-                daysLeft < 0 ? "text-error" : "text-primary"
-              }`}
-            >
-              {daysRemainingLabel(daysLeft, t)}
-            </p>
-          </div>
+          {editingExpiry ? (
+            <div className="mt-3 rounded-2xl border border-primary/40 bg-selected/30 p-2">
+              <ExpiryDatePicker
+                ref={datePickerRef}
+                value={expiryYmd}
+                onChange={(next) => {
+                  setExpiryYmd(next);
+                  setError(null);
+                }}
+                allowPast
+              />
+            </div>
+          ) : null}
         </div>
-
-        {editingExpiry ? (
-          <div className="mt-3 rounded-2xl border border-card-border p-2">
-            <ExpiryDatePicker
-              ref={datePickerRef}
-              value={expiryYmd}
-              onChange={(next) => {
-                setExpiryYmd(next);
-                setError(null);
-              }}
-              allowPast
-            />
-          </div>
-        ) : null}
 
         {error ? (
           <p className="mt-2 text-sm text-danger" role="alert">
@@ -552,35 +592,27 @@ export function ExpiryEntryDetailSheet({
       </div>
 
       <div className="shrink-0 border-t border-card-border px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]">
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            type="button"
-            className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-primary bg-transparent px-3 py-2.5 text-sm font-semibold text-primary disabled:opacity-50"
+        <div className={appFooterButtonGrid}>
+          <ConfirmButton
+            busy={saving}
+            disabled={!canConfirm}
             onClick={() => void confirmChanges()}
-            disabled={saving || !canConfirm}
           >
-            <CheckIcon className="size-4" />
-            {saving ? t("expiry.saving") : t("expiry.saveChangesButton")}
-          </button>
-          <button
-            type="button"
-            className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-card-border px-3 py-2.5 text-sm font-semibold text-foreground disabled:opacity-50"
-            onClick={onClose}
-            disabled={saving}
-          >
+            {t("expiry.saveChangesButton")}
+          </ConfirmButton>
+          <CancelButton onClick={onClose} disabled={saving}>
             {t("expiry.confirmCancel")}
-          </button>
+          </CancelButton>
         </div>
       </div>
 
       {changingPicture ? (
-        <div className="fixed inset-0 z-[70] flex select-none flex-col overflow-y-auto bg-background p-4">
-          <div className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center gap-3">
+        <div className="fixed inset-0 z-[70] flex select-none flex-col overflow-y-auto bg-background px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(0.75rem,env(safe-area-inset-top))]">
+          <div className="mx-auto flex w-full max-w-md flex-col gap-3">
             <p className="text-center text-sm font-medium text-foreground select-none">
               {t("camera.changePhotoTitle")}
             </p>
             <CameraCapture
-              compact
               autoStart
               forceInAppCamera
               captureOnPreviewTap

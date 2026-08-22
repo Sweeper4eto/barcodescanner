@@ -1,7 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { PrimaryButton, SecondaryButton } from "@/components/auth-forms";
+import { PrimaryButton } from "@/components/auth-forms";
+import { CancelButton } from "@/components/cancel-button";
+import { LoadingSpinner, LoadingSpinnerBlock } from "@/components/loading-spinner";
+import { appButtonDangerFull, appButtonPrimaryFull } from "@/lib/app-ui";
 import { MobilePageHeader } from "@/components/mobile-page-header";
 import { MenuSelect } from "@/components/menu-select";
 import { useT } from "@/components/i18n-provider";
@@ -323,7 +326,9 @@ export default function TeamPage() {
         <p className="mt-1 text-sm leading-snug text-muted">{t("team.subtitle")}</p>
       </div>
 
-      {loading ? <p className="mb-3 text-sm text-muted">{t("team.loading")}</p> : null}
+      {loading ? (
+        <LoadingSpinnerBlock wrapperClassName="mb-3 flex justify-center py-2" />
+      ) : null}
       {error ? <p className="mb-3 text-sm text-error">{error}</p> : null}
       {message ? <p className="mb-3 text-sm text-success-fg">{message}</p> : null}
 
@@ -498,17 +503,21 @@ export default function TeamPage() {
                           editUsername.trim().length < 3 ||
                           editStoreIds.length === 0
                         }
-                        className="min-w-0 flex-1 rounded-xl border border-primary bg-transparent px-3 py-1.5 text-sm font-semibold text-primary disabled:opacity-50"
+                        className={`min-w-0 flex-1 ${appButtonPrimaryFull}`}
                       >
-                        {editSaving ? t("common.loading") : t("team.saveChanges")}
+                        {editSaving ? (
+                          <LoadingSpinner size="sm" className="mx-auto" />
+                        ) : (
+                          t("team.saveChanges")
+                        )}
                       </button>
-                      <button
-                        type="button"
+                      <CancelButton
+                        fullWidth={false}
+                        className="min-w-0 flex-1 px-3 py-1.5"
                         onClick={closeEdit}
-                        className="min-w-0 flex-1 rounded-xl border border-input-border px-3 py-1.5 text-sm font-medium text-foreground"
                       >
                         {t("team.cancelEdit")}
-                      </button>
+                      </CancelButton>
                     </div>
                   </div>
                 ) : null}
@@ -656,7 +665,11 @@ export default function TeamPage() {
               storeIds.length === 0
             }
           >
-            {saving ? t("team.loading") : t("team.create")}
+            {saving ? (
+              <LoadingSpinner size="sm" className="mx-auto" />
+            ) : (
+              t("team.create")
+            )}
           </PrimaryButton>
         </div>
       </section>
@@ -690,16 +703,17 @@ export default function TeamPage() {
                 type="button"
                 disabled={deleting}
                 onClick={() => void confirmDelete()}
-                className="w-full rounded-xl border border-danger bg-transparent px-3 py-2 text-base font-semibold text-danger disabled:opacity-50"
+                className={appButtonDangerFull}
               >
-                {deleting ? t("common.loading") : t("team.confirmDelete")}
+                {deleting ? (
+                  <LoadingSpinner size="sm" className="mx-auto" />
+                ) : (
+                  t("team.confirmDelete")
+                )}
               </button>
-              <SecondaryButton
-                disabled={deleting}
-                onClick={() => setDeleteTarget(null)}
-              >
+              <CancelButton disabled={deleting} onClick={() => setDeleteTarget(null)}>
                 {t("common.cancel")}
-              </SecondaryButton>
+              </CancelButton>
             </div>
           </div>
         </div>
