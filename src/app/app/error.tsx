@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { useT } from "@/components/i18n-provider";
+import { HomeIcon, RefreshIcon } from "@/components/app-nav-icons";
 import { navigateApp } from "@/lib/app-navigation";
 import { appButtonNeutralFull, appButtonPrimaryFull } from "@/lib/app-ui";
 
@@ -28,6 +29,7 @@ export default function AppError({
           className={appButtonPrimaryFull}
           onClick={() => reset()}
         >
+          <RefreshIcon className="size-4 shrink-0" />
           {t("errors.reload")}
         </button>
         <button
@@ -35,6 +37,7 @@ export default function AppError({
           className={appButtonNeutralFull}
           onClick={() => navigateApp("/app")}
         >
+          <HomeIcon className="size-4 shrink-0" />
           {t("errors.goHome")}
         </button>
       </div>

@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { SecondaryButton } from "@/components/auth-forms";
+import { CameraOffIcon } from "@/components/app-nav-icons";
 import { CancelButton } from "@/components/cancel-button";
 import { ConfirmButton } from "@/components/confirm-button";
 import { ForwardButton } from "@/components/forward-button";
@@ -12,6 +13,7 @@ import { LoadingSpinnerBlock } from "@/components/loading-spinner";
 import { MobilePageHeader } from "@/components/mobile-page-header";
 import { useT } from "@/components/i18n-provider";
 import { normalizeBarcode } from "@/lib/barcode";
+import { replaceApp } from "@/lib/app-navigation";
 import { useWizardStep } from "@/lib/wizard-history";
 import {
   getPreviousAddProductStep,
@@ -137,7 +139,7 @@ function AddProductFlow() {
         setError(data.error ?? t("errors.saveFailed"));
         return;
       }
-      window.location.replace(
+      replaceApp(
         `/app/scan?storeId=${encodeURIComponent(storeId)}&barcode=${encodeURIComponent(data.product.barcode)}`,
       );
     } catch {
@@ -203,10 +205,18 @@ function AddProductFlow() {
             <LoadingSpinnerBlock wrapperClassName="flex justify-center py-2" size="sm" />
           ) : null}
           <CameraCapture
+            autoStart
+            forceInAppCamera
+            confirmMode="instant"
             onCapture={(dataUrl) => void onPhotoCapture(dataUrl)}
             onCancel={goBack}
           />
-          <SecondaryButton onClick={skipPhoto}>{t("addProduct.skipPhoto")}</SecondaryButton>
+          <SecondaryButton
+            onClick={skipPhoto}
+            icon={<CameraOffIcon className="size-4 shrink-0" />}
+          >
+            {t("addProduct.skipPhoto")}
+          </SecondaryButton>
           {error ? <p className="text-sm text-error">{error}</p> : null}
         </div>
       ) : null}

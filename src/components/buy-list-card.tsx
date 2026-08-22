@@ -160,11 +160,10 @@ export function BuyListCard({
                     )}
                   </span>
                   <p
-                    className={`flex max-w-full items-center justify-center gap-0.5 truncate text-[10px] font-semibold leading-none ${
+                    className={`truncate text-[10px] font-semibold leading-none ${
                       checked ? "text-primary" : "text-muted"
                     }`}
                   >
-                    <CheckIcon className="size-3 shrink-0" />
                     {t("buyList.done")}
                   </p>
                 </button>

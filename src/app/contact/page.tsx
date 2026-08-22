@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { PrimaryButton, SecondaryButton } from "@/components/auth-forms";
-import { BackArrowIcon } from "@/components/app-nav-icons";
+import { BackArrowIcon, SendIcon } from "@/components/app-nav-icons";
 import { BrandName } from "@/components/brand-name";
 import { LanguageSwitch } from "@/components/language-switch";
 import { useT } from "@/components/i18n-provider";
@@ -144,6 +144,7 @@ function ContactPageContent() {
               !message.trim() ||
               Boolean(validateSupportEmail(contact))
             }
+            icon={<SendIcon className="size-4 shrink-0" />}
           >
             {sending ? t("support.sending") : t("support.send")}
           </PrimaryButton>

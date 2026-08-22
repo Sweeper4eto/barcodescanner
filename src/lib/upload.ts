@@ -2,6 +2,9 @@ import { mkdir, unlink, writeFile } from "fs/promises";
 import path from "path";
 import type { MessageKey } from "@/i18n";
 
+/** Max size for user uploads (multipart file or data URL). Keep in sync with camera-capture picker check. */
+export const MAX_UPLOAD_FILE_BYTES = 12 * 1024 * 1024;
+
 const UPLOAD_DIR =
   process.env.MAGAZIN_UPLOAD_DIR?.trim() ||
   path.join(process.cwd(), "public", "uploads");
@@ -57,7 +60,7 @@ export async function saveUpload(file: File): Promise<string> {
     throw new UploadError("errors.invalidFileFormat");
   }
 
-  if (buffer.length > 10 * 1024 * 1024) {
+  if (buffer.length > MAX_UPLOAD_FILE_BYTES) {
     throw new UploadError("errors.fileTooLarge");
   }
 
@@ -89,7 +92,7 @@ export async function saveDataUrl(dataUrl: string): Promise<string> {
   }
   const buffer = Buffer.from(match[2], "base64");
 
-  if (buffer.length > 10 * 1024 * 1024) {
+  if (buffer.length > MAX_UPLOAD_FILE_BYTES) {
     throw new UploadError("errors.fileTooLarge");
   }
 

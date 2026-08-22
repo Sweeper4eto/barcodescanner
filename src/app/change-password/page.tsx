@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
+import { KeyIcon } from "@/components/app-nav-icons";
 import {
   AuthShell,
   PrimaryButton,
@@ -109,7 +110,13 @@ function ChangePasswordContent() {
             error={confirmError}
           />
           {error ? <p className="text-sm text-error">{error}</p> : null}
-          <PrimaryButton type="submit" disabled={loading}>
+          <PrimaryButton
+            type="submit"
+            disabled={loading}
+            icon={
+              loading ? undefined : <KeyIcon className="size-4 shrink-0" />
+            }
+          >
             {loading ? t("auth.changingPassword") : t("auth.changePassword")}
           </PrimaryButton>
         </form>

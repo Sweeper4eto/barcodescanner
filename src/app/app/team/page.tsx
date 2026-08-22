@@ -3,11 +3,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PrimaryButton } from "@/components/auth-forms";
 import { CancelButton } from "@/components/cancel-button";
+import { ConfirmButton } from "@/components/confirm-button";
+import { BackArrowIcon, RegisterIcon, TrashIcon } from "@/components/app-nav-icons";
 import { LoadingSpinner, LoadingSpinnerBlock } from "@/components/loading-spinner";
-import { appButtonDangerFull, appButtonPrimaryFull } from "@/lib/app-ui";
+import { appButtonCancelFull, appButtonDangerFull } from "@/lib/app-ui";
 import { MobilePageHeader } from "@/components/mobile-page-header";
 import { MenuSelect } from "@/components/menu-select";
 import { useT } from "@/components/i18n-provider";
+import { navigateApp } from "@/lib/app-navigation";
+import { passwordsMatch } from "@/lib/register-validation";
 
 type Store = { id: string; name: string; active: boolean };
 type TeamUser = {
@@ -51,17 +55,6 @@ function PencilIcon({ className = "size-4" }: { className?: string }) {
     <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden>
       <path d="M12 20h9" strokeLinecap="round" />
       <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function TrashIcon({ className = "size-4" }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden>
-      <path d="M4 7h16" strokeLinecap="round" />
-      <path d="M10 11v6M14 11v6" strokeLinecap="round" />
-      <path d="M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13" strokeLinejoin="round" />
-      <path d="M9 7V4h6v3" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -129,6 +122,32 @@ export default function TeamPage() {
     if (!q) return activeStores;
     return activeStores.filter((store) => store.name.toLowerCase().includes(q));
   }, [activeStores, storeSearch]);
+
+  const addPasswordError = useMemo(() => {
+    if (!password) return "";
+    if (password.length < 6) return t("auth.passwordTooShort");
+    return "";
+  }, [password, t]);
+
+  const addConfirmPasswordError = useMemo(() => {
+    if (!confirmPassword) return "";
+    if (!passwordsMatch(password, confirmPassword)) return t("auth.passwordMismatch");
+    return "";
+  }, [password, confirmPassword, t]);
+
+  const editPasswordError = useMemo(() => {
+    if (!editPassword) return "";
+    if (editPassword.length < 6) return t("auth.passwordTooShort");
+    return "";
+  }, [editPassword, t]);
+
+  const editConfirmPasswordError = useMemo(() => {
+    if (!editPassword && !editConfirmPassword) return "";
+    if (!passwordsMatch(editPassword, editConfirmPassword)) {
+      return t("auth.passwordMismatch");
+    }
+    return "";
+  }, [editPassword, editConfirmPassword, t]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -430,11 +449,19 @@ export default function TeamPage() {
                       <span className="relative mt-1 block">
                         <input
                           type={showEditPassword ? "text" : "password"}
-                          className="w-full rounded-xl border border-input-border bg-transparent py-2 pl-3 pr-11 text-base text-foreground outline-none placeholder:text-muted focus:border-primary focus:ring-1 focus:ring-primary/40"
+                          className={`w-full rounded-xl border bg-transparent py-2 pl-3 pr-11 text-base text-foreground outline-none placeholder:text-muted focus:ring-1 ${
+                            editPasswordError
+                              ? "border-error focus:border-error focus:ring-error/40"
+                              : "border-input-border focus:border-primary focus:ring-primary/40"
+                          }`}
                           value={editPassword}
                           placeholder={t("team.newPasswordPlaceholder")}
                           onChange={(event) => setEditPassword(event.target.value)}
                           autoComplete="new-password"
+                          aria-invalid={editPasswordError ? true : undefined}
+                          aria-describedby={
+                            editPasswordError ? "edit-password-error" : undefined
+                          }
                         />
                         <button
                           type="button"
@@ -447,6 +474,11 @@ export default function TeamPage() {
                           {showEditPassword ? <EyeIcon /> : <EyeOffIcon />}
                         </button>
                       </span>
+                      {editPasswordError ? (
+                        <p id="edit-password-error" className="mt-1 text-xs text-error">
+                          {editPasswordError}
+                        </p>
+                      ) : null}
                     </label>
 
                     <label className="block text-sm font-medium text-foreground">
@@ -454,11 +486,19 @@ export default function TeamPage() {
                       <span className="relative mt-1 block">
                         <input
                           type={showEditConfirmPassword ? "text" : "password"}
-                          className="w-full rounded-xl border border-input-border bg-transparent py-2 pl-3 pr-11 text-base text-foreground outline-none placeholder:text-muted focus:border-primary focus:ring-1 focus:ring-primary/40"
+                          className={`w-full rounded-xl border bg-transparent py-2 pl-3 pr-11 text-base text-foreground outline-none placeholder:text-muted focus:ring-1 ${
+                            editConfirmPasswordError
+                              ? "border-error focus:border-error focus:ring-error/40"
+                              : "border-input-border focus:border-primary focus:ring-primary/40"
+                          }`}
                           value={editConfirmPassword}
                           placeholder={t("team.confirmPasswordPlaceholder")}
                           onChange={(event) => setEditConfirmPassword(event.target.value)}
                           autoComplete="new-password"
+                          aria-invalid={editConfirmPasswordError ? true : undefined}
+                          aria-describedby={
+                            editConfirmPasswordError ? "edit-confirm-password-error" : undefined
+                          }
                         />
                         <button
                           type="button"
@@ -473,6 +513,11 @@ export default function TeamPage() {
                           {showEditConfirmPassword ? <EyeIcon /> : <EyeOffIcon />}
                         </button>
                       </span>
+                      {editConfirmPasswordError ? (
+                        <p id="edit-confirm-password-error" className="mt-1 text-xs text-error">
+                          {editConfirmPasswordError}
+                        </p>
+                      ) : null}
                     </label>
 
                     <div>
@@ -495,22 +540,20 @@ export default function TeamPage() {
                     </div>
 
                     <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => void saveEdit()}
+                      <ConfirmButton
+                        fullWidth={false}
+                        className="min-w-0 flex-1 px-3 py-1.5"
+                        busy={editSaving}
                         disabled={
                           editSaving ||
                           editUsername.trim().length < 3 ||
-                          editStoreIds.length === 0
+                          editStoreIds.length === 0 ||
+                          Boolean(editPasswordError || editConfirmPasswordError)
                         }
-                        className={`min-w-0 flex-1 ${appButtonPrimaryFull}`}
+                        onClick={() => void saveEdit()}
                       >
-                        {editSaving ? (
-                          <LoadingSpinner size="sm" className="mx-auto" />
-                        ) : (
-                          t("team.saveChanges")
-                        )}
-                      </button>
+                        {t("team.saveChanges")}
+                      </ConfirmButton>
                       <CancelButton
                         fullWidth={false}
                         className="min-w-0 flex-1 px-3 py-1.5"
@@ -551,11 +594,17 @@ export default function TeamPage() {
             <span className="relative mt-1 block">
               <input
                 type={showPassword ? "text" : "password"}
-                className="w-full rounded-xl border border-input-border bg-transparent py-2 pl-3 pr-11 text-base text-foreground outline-none placeholder:text-muted focus:border-primary focus:ring-1 focus:ring-primary/40"
+                className={`w-full rounded-xl border bg-transparent py-2 pl-3 pr-11 text-base text-foreground outline-none placeholder:text-muted focus:ring-1 ${
+                  addPasswordError
+                    ? "border-error focus:border-error focus:ring-error/40"
+                    : "border-input-border focus:border-primary focus:ring-primary/40"
+                }`}
                 value={password}
                 placeholder={t("team.passwordPlaceholder")}
                 onChange={(event) => setPassword(event.target.value)}
                 autoComplete="new-password"
+                aria-invalid={addPasswordError ? true : undefined}
+                aria-describedby={addPasswordError ? "add-password-error" : undefined}
               />
               <button
                 type="button"
@@ -566,6 +615,11 @@ export default function TeamPage() {
                 {showPassword ? <EyeIcon /> : <EyeOffIcon />}
               </button>
             </span>
+            {addPasswordError ? (
+              <p id="add-password-error" className="mt-1 text-xs text-error">
+                {addPasswordError}
+              </p>
+            ) : null}
           </label>
         </div>
 
@@ -574,11 +628,19 @@ export default function TeamPage() {
           <span className="relative mt-1 block">
             <input
               type={showConfirmPassword ? "text" : "password"}
-              className="w-full rounded-xl border border-input-border bg-transparent py-2 pl-3 pr-11 text-base text-foreground outline-none placeholder:text-muted focus:border-primary focus:ring-1 focus:ring-primary/40"
+              className={`w-full rounded-xl border bg-transparent py-2 pl-3 pr-11 text-base text-foreground outline-none placeholder:text-muted focus:ring-1 ${
+                addConfirmPasswordError
+                  ? "border-error focus:border-error focus:ring-error/40"
+                  : "border-input-border focus:border-primary focus:ring-primary/40"
+              }`}
               value={confirmPassword}
               placeholder={t("team.confirmPasswordPlaceholder")}
               onChange={(event) => setConfirmPassword(event.target.value)}
               autoComplete="new-password"
+              aria-invalid={addConfirmPasswordError ? true : undefined}
+              aria-describedby={
+                addConfirmPasswordError ? "add-confirm-password-error" : undefined
+              }
             />
             <button
               type="button"
@@ -591,6 +653,11 @@ export default function TeamPage() {
               {showConfirmPassword ? <EyeIcon /> : <EyeOffIcon />}
             </button>
           </span>
+          {addConfirmPasswordError ? (
+            <p id="add-confirm-password-error" className="mt-1 text-xs text-error">
+              {addConfirmPasswordError}
+            </p>
+          ) : null}
         </label>
 
         <div className="grid gap-2.5 sm:grid-cols-2">
@@ -654,7 +721,7 @@ export default function TeamPage() {
           </div>
         ) : null}
 
-        <div className="pt-1">
+        <div className="space-y-2 pt-1">
           <PrimaryButton
             onClick={() => void createUser()}
             disabled={
@@ -664,6 +731,11 @@ export default function TeamPage() {
               password !== confirmPassword ||
               storeIds.length === 0
             }
+            icon={
+              saving ? undefined : (
+                <RegisterIcon className="size-4 shrink-0" />
+              )
+            }
           >
             {saving ? (
               <LoadingSpinner size="sm" className="mx-auto" />
@@ -671,6 +743,15 @@ export default function TeamPage() {
               t("team.create")
             )}
           </PrimaryButton>
+
+          <button
+            type="button"
+            onClick={() => navigateApp("/app")}
+            className={appButtonCancelFull}
+          >
+            <BackArrowIcon className="size-4 shrink-0" />
+            {t("common.back")}
+          </button>
         </div>
       </section>
 
@@ -703,12 +784,15 @@ export default function TeamPage() {
                 type="button"
                 disabled={deleting}
                 onClick={() => void confirmDelete()}
-                className={appButtonDangerFull}
+                className={`${appButtonDangerFull} gap-1.5`}
               >
                 {deleting ? (
                   <LoadingSpinner size="sm" className="mx-auto" />
                 ) : (
-                  t("team.confirmDelete")
+                  <>
+                    <TrashIcon className="size-4 shrink-0" />
+                    {t("team.confirmDelete")}
+                  </>
                 )}
               </button>
               <CancelButton disabled={deleting} onClick={() => setDeleteTarget(null)}>

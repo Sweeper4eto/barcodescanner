@@ -102,7 +102,10 @@ function ExpiryList() {
     {
       id: "scanner",
       open: showScanner,
-      close: () => setShowScanner(false),
+      close: () => {
+        setShowScanner(false);
+        setSearch("");
+      },
     },
     {
       id: "detail",
@@ -526,7 +529,10 @@ function ExpiryList() {
               continuousFill
               onDetect={onBarcodeScanned}
               onScan={async (barcode) => confirmBarcodeSearch(barcode)}
-              onCancel={() => setShowScanner(false)}
+              onCancel={() => {
+                setShowScanner(false);
+                setSearch("");
+              }}
             />
           </div>
         ) : null}

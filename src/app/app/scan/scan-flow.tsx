@@ -10,11 +10,12 @@ import { CameraIcon, ForwardArrowIcon } from "@/components/app-nav-icons";
 import { BarcodeScanner } from "@/components/barcode-scanner";
 import { CameraCapture, uploadImage } from "@/components/camera-capture";
 import { ExpiryDatePicker } from "@/components/expiry-date-picker";
-import { MobilePageHeader } from "@/components/mobile-page-header";
+import { MobilePageHeader, listPageShellClassName } from "@/components/mobile-page-header";
 import { ProductImage } from "@/components/product-image";
 import { QuantityStepper } from "@/components/quantity-picker";
 import { useT } from "@/components/i18n-provider";
 import { goBackOrApp, navigateApp } from "@/lib/app-navigation";
+import { appButtonCancelFull } from "@/lib/app-ui";
 import { normalizeBarcode } from "@/lib/barcode";
 import { isAdhocBarcode } from "@/lib/inventory-entry-display";
 import { lookupProductByBarcode } from "@/lib/scan-barcode-lookup";
@@ -42,6 +43,10 @@ export function ScanFlow() {
   });
   const [name, setName] = useState("");
   const [entryImagePath, setEntryImagePath] = useState<string | null>(null);
+  /** Snapshot before the latest “new picture” — restore with Keep old picture. */
+  const [imageBeforeReplace, setImageBeforeReplace] = useState<
+    string | null | undefined
+  >(undefined);
   const [capturingPhoto, setCapturingPhoto] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [quantity, setQuantity] = useState("1");
@@ -229,11 +234,22 @@ export function ScanFlow() {
   }
 
   return (
-    <div className="mx-auto min-w-0 max-w-lg overflow-x-visible px-4 pb-6 pt-1">
+    <div
+      className={
+        step === "date"
+          ? listPageShellClassName
+          : "mx-auto min-w-0 max-w-lg overflow-x-visible px-4 pb-6 pt-1"
+      }
+    >
       {mounted ? (
         <span data-testid="scan-flow-ready" className="sr-only" aria-hidden />
       ) : null}
-      <MobilePageHeader title={headerTitle} />
+      <div className="shrink-0">
+        <MobilePageHeader
+          title={headerTitle}
+          className={step === "date" ? "mb-2" : undefined}
+        />
+      </div>
 
       {step === "scan" ? (
         <div className="rounded-2xl border border-card-border p-4">
@@ -303,6 +319,10 @@ export function ScanFlow() {
         <div className="space-y-4 rounded-2xl border border-card-border p-4">
           {capturingPhoto ? (
             <CameraCapture
+              autoStart
+              forceInAppCamera
+              confirmMode="instant"
+              keepOldPicture={imageBeforeReplace !== undefined}
               onCapture={(dataUrl) => {
                 void (async () => {
                   setUploadingPhoto(true);
@@ -318,7 +338,10 @@ export function ScanFlow() {
                   }
                 })();
               }}
-              onCancel={() => setCapturingPhoto(false)}
+              onCancel={() => {
+                setCapturingPhoto(false);
+                setImageBeforeReplace(undefined);
+              }}
             />
           ) : (
             <>
@@ -329,7 +352,10 @@ export function ScanFlow() {
                 placeholderClassName="mx-auto h-32 w-32 rounded-xl"
               />
               <PrimaryButton
-                onClick={() => setCapturingPhoto(true)}
+                onClick={() => {
+                  setImageBeforeReplace(entryImagePath);
+                  setCapturingPhoto(true);
+                }}
                 disabled={uploadingPhoto}
                 icon={<CameraIcon className="size-4 shrink-0" />}
               >
@@ -337,6 +363,20 @@ export function ScanFlow() {
                   ? t("camera.newPhoto")
                   : t("scan.takePhotoOptional")}
               </PrimaryButton>
+              {imageBeforeReplace !== undefined &&
+              entryImagePath !== imageBeforeReplace ? (
+                <button
+                  type="button"
+                  disabled={uploadingPhoto}
+                  className={appButtonCancelFull}
+                  onClick={() => {
+                    setEntryImagePath(imageBeforeReplace);
+                    setImageBeforeReplace(undefined);
+                  }}
+                >
+                  {t("camera.keepOldPicture")}
+                </button>
+              ) : null}
             </>
           )}
           {uploadingPhoto ? (
@@ -367,6 +407,7 @@ export function ScanFlow() {
             onClick={() => {
               setQuantity("1");
               setExpiryDate("");
+              setImageBeforeReplace(undefined);
               goToStep("date");
             }}
             disabled={capturingPhoto || uploadingPhoto}
@@ -378,30 +419,30 @@ export function ScanFlow() {
       ) : null}
 
       {step === "date" ? (
-        <div className="space-y-3">
-          <div className="flex items-center gap-3 rounded-2xl border border-card-border p-3">
-            <ProductImage
-              src={previewImage}
-              alt={displayName}
-              className="size-16 shrink-0 rounded-xl object-cover"
-              placeholderClassName="size-16 shrink-0 rounded-xl"
-            />
-            <div className="flex min-w-0 flex-1 items-center gap-2">
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-base font-semibold text-foreground">
-                  {displayName}
-                </p>
-                {showBarcode ? (
-                  <p className="mt-0.5 truncate font-mono text-xs text-muted">
-                    {displayBarcode}
+        <div className="flex min-h-0 flex-1 flex-col">
+          <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-y-contain pb-2 [scrollbar-width:thin]">
+            <div className="flex items-center gap-3 rounded-2xl border border-card-border p-2.5">
+              <ProductImage
+                src={previewImage}
+                alt={displayName}
+                className="size-14 shrink-0 rounded-xl object-cover"
+                placeholderClassName="size-14 shrink-0 rounded-xl"
+              />
+              <div className="flex min-w-0 flex-1 items-center gap-2">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-base font-semibold text-foreground">
+                    {displayName}
                   </p>
-                ) : null}
+                  {showBarcode ? (
+                    <p className="mt-0.5 truncate font-mono text-xs text-muted">
+                      {displayBarcode}
+                    </p>
+                  ) : null}
+                </div>
+                <QuantityStepper value={quantity} onChange={setQuantity} />
               </div>
-              <QuantityStepper value={quantity} onChange={setQuantity} />
             </div>
-          </div>
 
-          <div className="space-y-3">
             <ExpiryDatePicker
               value={expiryDate}
               onChange={setExpiryDate}
@@ -410,15 +451,17 @@ export function ScanFlow() {
             />
           </div>
 
-          {message ? <p className="text-sm text-error">{message}</p> : null}
-          <ConfirmButton
-            onClick={() => void submitInventory()}
-            disabled={!expiryDate || Number(quantity) < 1 || saving}
-            busy={saving}
-          >
-            {t("scan.saveToExpiry")}
-          </ConfirmButton>
-          <CancelButton onClick={goBack}>{t("common.cancel")}</CancelButton>
+          <div className="shrink-0 space-y-2 border-t border-card-border bg-background pt-2 pb-1">
+            {message ? <p className="text-sm text-error">{message}</p> : null}
+            <CancelButton onClick={goBack}>{t("common.cancel")}</CancelButton>
+            <ConfirmButton
+              onClick={() => void submitInventory()}
+              disabled={!expiryDate || Number(quantity) < 1 || saving}
+              busy={saving}
+            >
+              {t("scan.saveToExpiry")}
+            </ConfirmButton>
+          </div>
         </div>
       ) : null}
     </div>

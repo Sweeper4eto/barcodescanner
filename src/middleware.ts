@@ -8,6 +8,8 @@ import {
 } from "@/lib/session-token";
 
 const publicPaths = ["/", "/login", "/register", "/contact", "/terms", "/privacy"];
+/** Public pages that logged-in users may still open (legal / reading). */
+const publicReadablePaths = ["/terms", "/privacy"];
 const passwordChangePath = "/change-password";
 const SESSION_QUERY = "__session";
 
@@ -111,6 +113,9 @@ export async function middleware(request: NextRequest) {
   }
 
   if (publicPaths.includes(pathname)) {
+    if (publicReadablePaths.includes(pathname)) {
+      return NextResponse.next();
+    }
     if (session?.role === "ADMIN") {
       return redirectPath(request, "/admin");
     }

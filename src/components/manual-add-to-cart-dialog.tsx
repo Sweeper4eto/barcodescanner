@@ -8,6 +8,7 @@ import { useViewportInsets } from "@/hooks/use-viewport-insets";
 import { CancelButton } from "@/components/cancel-button";
 import { ConfirmButton } from "@/components/confirm-button";
 import {
+  appButtonCancelFull,
   appButtonNeutralFull,
   appFooterButtonGrid,
 } from "@/lib/app-ui";
@@ -18,9 +19,11 @@ type Props = {
   quantity: string;
   busy?: boolean;
   canConfirm?: boolean;
+  canKeepOldPicture?: boolean;
   onNameChange: (value: string) => void;
   onQuantityChange: (value: string) => void;
   onAddPhoto: () => void;
+  onKeepOldPicture?: () => void;
   onCancel: () => void;
   onConfirm: () => void;
 };
@@ -31,9 +34,11 @@ export function ManualAddToCartDialog({
   quantity,
   busy = false,
   canConfirm = true,
+  canKeepOldPicture = false,
   onNameChange,
   onQuantityChange,
   onAddPhoto,
+  onKeepOldPicture,
   onCancel,
   onConfirm,
 }: Props) {
@@ -106,6 +111,16 @@ export function ManualAddToCartDialog({
             <CameraIcon className="size-4 shrink-0 text-primary" />
             {imagePath ? t("camera.newPhoto") : t("buyList.addManualPhoto")}
           </button>
+          {canKeepOldPicture && onKeepOldPicture ? (
+            <button
+              type="button"
+              disabled={busy}
+              className={`${appButtonCancelFull} mt-2`}
+              onClick={onKeepOldPicture}
+            >
+              {t("camera.keepOldPicture")}
+            </button>
+          ) : null}
 
           <div className="mt-3 flex justify-center">
             <QuantityStepper

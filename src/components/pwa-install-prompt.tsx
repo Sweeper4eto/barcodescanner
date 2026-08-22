@@ -2,6 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { PrimaryButton, SecondaryButton } from "@/components/auth-forms";
+import {
+  CheckIcon,
+  CloseIcon,
+  InstallIcon,
+} from "@/components/app-nav-icons";
 import { appFooterButtonGrid } from "@/lib/app-ui";
 import { useT } from "@/components/i18n-provider";
 import {
@@ -84,13 +89,26 @@ export function PwaInstallPrompt() {
           </p>
         ) : null}
         <div className={`mt-4 ${appFooterButtonGrid}`}>
-          <SecondaryButton onClick={() => close(true)} disabled={busy}>
+          <SecondaryButton
+            onClick={() => close(true)}
+            disabled={busy}
+            icon={<CloseIcon className="size-4 shrink-0" />}
+          >
             {t("pwa.installNo")}
           </SecondaryButton>
           {manualHint ? (
-            <PrimaryButton onClick={() => close(true)}>{t("pwa.gotIt")}</PrimaryButton>
+            <PrimaryButton
+              onClick={() => close(true)}
+              icon={<CheckIcon className="size-4 shrink-0" />}
+            >
+              {t("pwa.gotIt")}
+            </PrimaryButton>
           ) : (
-            <PrimaryButton onClick={() => void onInstall()} disabled={busy}>
+            <PrimaryButton
+              onClick={() => void onInstall()}
+              disabled={busy}
+              icon={<InstallIcon className="size-4 shrink-0" />}
+            >
               {t("pwa.installYes")}
             </PrimaryButton>
           )}

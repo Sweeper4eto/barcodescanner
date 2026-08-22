@@ -391,6 +391,9 @@ export function DocumentDraftDetailSheet({ item, onClose, onSave }: Props) {
 
       <div className="shrink-0 border-t border-card-border px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]">
         <div className={appFooterButtonGrid}>
+          <CancelButton onClick={onClose} disabled={saving}>
+            {t("expiry.confirmCancel")}
+          </CancelButton>
           <ConfirmButton
             busy={saving}
             disabled={!canConfirm}
@@ -398,9 +401,6 @@ export function DocumentDraftDetailSheet({ item, onClose, onSave }: Props) {
           >
             {t("expiry.saveChangesButton")}
           </ConfirmButton>
-          <CancelButton onClick={onClose} disabled={saving}>
-            {t("expiry.confirmCancel")}
-          </CancelButton>
         </div>
       </div>
     </div>

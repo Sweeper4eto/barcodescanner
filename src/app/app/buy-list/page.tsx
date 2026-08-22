@@ -93,6 +93,9 @@ function BuyListContent() {
   const [manualName, setManualName] = useState("");
   const [manualQty, setManualQty] = useState("1");
   const [manualImagePath, setManualImagePath] = useState<string | null>(null);
+  const [manualImageBeforeReplace, setManualImageBeforeReplace] = useState<
+    string | null | undefined
+  >(undefined);
   const [manualCapturing, setManualCapturing] = useState(false);
   const [manualSaving, setManualSaving] = useState(false);
   const [loading, setLoading] = useState(() => Boolean(storeId));
@@ -105,7 +108,10 @@ function BuyListContent() {
     {
       id: "scanner",
       open: showScanner,
-      close: () => setShowScanner(false),
+      close: () => {
+        setShowScanner(false);
+        setSearch("");
+      },
     },
     {
       id: "detail",
@@ -385,11 +391,12 @@ function BuyListContent() {
     }
   }
 
-  async function toggleFavourite(productId: string) {
+  async function setFavourite(productId: string, nextFavourite: boolean) {
     const isFavourite = Boolean(favouriteProductIds[productId]);
+    if (isFavourite === nextFavourite) return;
     try {
       const response = await fetch("/api/favourites", {
-        method: isFavourite ? "DELETE" : "POST",
+        method: nextFavourite ? "POST" : "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ storeId, productId }),
       });
@@ -404,6 +411,10 @@ function BuyListContent() {
       setFlashTone("error");
       setFlashMessage(t("errors.networkError"));
     }
+  }
+
+  async function toggleFavourite(productId: string) {
+    await setFavourite(productId, !Boolean(favouriteProductIds[productId]));
   }
 
   async function addFavouriteToOrders(product: FavouriteProduct) {
@@ -466,6 +477,7 @@ function BuyListContent() {
     setManualName("");
     setManualQty("1");
     setManualImagePath(null);
+    setManualImageBeforeReplace(undefined);
     setManualCapturing(false);
     setManualSaving(false);
   }
@@ -608,7 +620,10 @@ function BuyListContent() {
               continuousFill
               onDetect={onBarcodeScanned}
               onScan={async (barcode) => confirmBarcodeSearch(barcode)}
-              onCancel={() => setShowScanner(false)}
+              onCancel={() => {
+                setShowScanner(false);
+                setSearch("");
+              }}
             />
           </div>
         ) : null}
@@ -733,7 +748,9 @@ function BuyListContent() {
           entry={detailEntry}
           storeId={storeId}
           favourite={Boolean(favouriteProductIds[detailEntry.product.id])}
-          onToggleFavourite={() => void toggleFavourite(detailEntry.product.id)}
+          onCommitFavourite={(nextFavourite) =>
+            setFavourite(detailEntry.product.id, nextFavourite)
+          }
           onClose={() => setDetailEntry(null)}
           onUpdated={handleEntryUpdated}
         />
@@ -801,9 +818,20 @@ function BuyListContent() {
           quantity={manualQty}
           busy={manualSaving}
           canConfirm={Boolean(manualName.trim() || manualImagePath)}
+          canKeepOldPicture={
+            manualImageBeforeReplace !== undefined &&
+            manualImagePath !== manualImageBeforeReplace
+          }
           onNameChange={setManualName}
           onQuantityChange={setManualQty}
-          onAddPhoto={() => setManualCapturing(true)}
+          onAddPhoto={() => {
+            setManualImageBeforeReplace(manualImagePath);
+            setManualCapturing(true);
+          }}
+          onKeepOldPicture={() => {
+            setManualImagePath(manualImageBeforeReplace ?? null);
+            setManualImageBeforeReplace(undefined);
+          }}
           onCancel={resetManualAdd}
           onConfirm={() => void confirmManualAdd()}
         />
@@ -819,7 +847,8 @@ function BuyListContent() {
               autoStart
               forceInAppCamera
               allowFileUpload
-              confirmMode="save"
+              confirmMode="instant"
+              keepOldPicture={manualImageBeforeReplace !== undefined}
               onCapture={(dataUrl) => {
                 void (async () => {
                   try {
@@ -832,7 +861,10 @@ function BuyListContent() {
                   }
                 })();
               }}
-              onCancel={() => setManualCapturing(false)}
+              onCancel={() => {
+                setManualCapturing(false);
+                setManualImageBeforeReplace(undefined);
+              }}
             />
           </div>
         </div>

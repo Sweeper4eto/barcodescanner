@@ -1,12 +1,14 @@
-﻿# expire365 UI mockups — final (dark + mint)
+# expire365 UI mockups � final (dark + mint)
 
-Style locked from `cart-AGREED-LOCKED.png` (Cart). Mockups only — not implemented in app code.
+Style locked from `cart-AGREED-LOCKED.png` (Cart). Mockups only � not implemented in app code.
 
 ## Auth
 - 00-landing.png
 - 01-login.png
 - 02-register.png
 - 03-change-password.png
+- 04-privacy-policy.png
+- 05-terms-of-service.png
 
 ## Household
 - 10-household-home.png
@@ -46,3 +48,4 @@ Style locked from `cart-AGREED-LOCKED.png` (Cart). Mockups only — not implemen
 - 42-document-review.png
 - 43-document-edit-row.png
 - 44-document-done.png
+

@@ -389,6 +389,16 @@ export function ExpiryEntryDetailSheet({
                 <CameraIcon className="size-3.5" />
                 {t("expiry.changePhotoButton")}
               </button>
+              {imageDraft ? (
+                <button
+                  type="button"
+                  className="inline-flex h-8 items-center justify-center rounded-md border border-white px-1.5 text-xs font-medium text-white"
+                  onClick={() => setImageDraft(null)}
+                  disabled={saving}
+                >
+                  {t("camera.keepOldPicture")}
+                </button>
+              ) : null}
             </div>
 
             <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
@@ -593,6 +603,9 @@ export function ExpiryEntryDetailSheet({
 
       <div className="shrink-0 border-t border-card-border px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]">
         <div className={appFooterButtonGrid}>
+          <CancelButton onClick={onClose} disabled={saving}>
+            {t("expiry.confirmCancel")}
+          </CancelButton>
           <ConfirmButton
             busy={saving}
             disabled={!canConfirm}
@@ -600,9 +613,6 @@ export function ExpiryEntryDetailSheet({
           >
             {t("expiry.saveChangesButton")}
           </ConfirmButton>
-          <CancelButton onClick={onClose} disabled={saving}>
-            {t("expiry.confirmCancel")}
-          </CancelButton>
         </div>
       </div>
 
@@ -616,7 +626,8 @@ export function ExpiryEntryDetailSheet({
               autoStart
               forceInAppCamera
               captureOnPreviewTap
-              confirmMode="save"
+              confirmMode="instant"
+              keepOldPicture
               onCapture={(dataUrl) => {
                 setImageDraft(dataUrl);
                 setChangingPicture(false);

@@ -13,6 +13,14 @@ export type WhatsNewCatalogEntry = {
 
 export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
   {
+    key: "2026-08-legal-pages-redesign",
+    titleEn:
+      "Privacy and Terms pages match the app look, with a clear Back control.",
+    titleBg:
+      "Страниците Поверителност и Условия са в стила на приложението, с ясен бутон Назад.",
+    href: "/privacy",
+  },
+  {
     key: "2026-08-cart-manual-add-modal",
     titleEn: "Adding an item from cart search opens the same confirmation modal (name, photo, quantity).",
     titleBg: "Добавянето от търсене в количката отваря същия модал за потвърждение (име, снимка, количество).",
@@ -76,6 +84,13 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
     titleBg:
       "Сканиране на документ: бутонът „Снимай“ е с икона за рамка и зелен контур.",
     href: "/app/add-document",
+  },
+  {
+    key: "2026-08-instant-new-picture",
+    titleEn:
+      "New picture applies right away — Keep old picture if you change your mind.",
+    titleBg:
+      "Нова снимка се прилага веднага — „Запази старата снимка“, ако размислите.",
   },
   {
     key: "2026-08-document-preview-toolbar",

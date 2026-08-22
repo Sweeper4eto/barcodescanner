@@ -1,13 +1,12 @@
 import { mkdir, writeFile } from "fs/promises";
 import path from "path";
-import { isLocalUploadPath } from "@/lib/upload";
+import { isLocalUploadPath, MAX_UPLOAD_FILE_BYTES } from "@/lib/upload";
 
 export { isLocalUploadPath };
 
 const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads");
 const OFF_USER_AGENT =
   "Magazin/1.0 (https://github.com/Sweeper4eto/barcodescanner; product image fetch)";
-const MAX_BYTES = 5 * 1024 * 1024;
 
 const EXT_BY_TYPE: Record<string, string> = {
   "image/jpeg": "jpg",
@@ -61,7 +60,7 @@ export async function saveRemoteProductImage(
     if (!["jpg", "png", "webp", "gif"].includes(ext)) return null;
 
     const buffer = Buffer.from(await response.arrayBuffer());
-    if (!buffer.length || buffer.length > MAX_BYTES) return null;
+    if (!buffer.length || buffer.length > MAX_UPLOAD_FILE_BYTES) return null;
 
     await mkdir(UPLOAD_DIR, { recursive: true });
     const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;

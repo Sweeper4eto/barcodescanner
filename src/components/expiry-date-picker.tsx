@@ -309,14 +309,26 @@ export const ExpiryDatePicker = forwardRef<ExpiryDatePickerHandle, Props>(
       </div>
     );
 
+    const selectButtonClass = compact
+      ? "mt-0.5 flex w-full min-w-0 items-center justify-between gap-1.5 rounded-lg border border-input-border bg-transparent px-2 py-1 text-left text-sm text-foreground"
+      : "mt-0.5 flex w-full min-w-0 items-center justify-between gap-2 rounded-lg border border-input-border bg-transparent px-2 py-1.5 text-left text-sm text-foreground";
+
     return (
-      <div className={compact ? "space-y-1.5" : "space-y-2"}>
-        <p className="text-sm font-medium text-foreground">
+      <div className={compact ? "space-y-1" : "space-y-2"}>
+        <p
+          className={
+            compact
+              ? "text-xs font-medium text-foreground"
+              : "text-sm font-medium text-foreground"
+          }
+        >
           {t("expiry.dateLabel")}
         </p>
 
         <div className="rounded-xl border border-input-border bg-transparent p-2">
-          <div className={`grid grid-cols-2 gap-2 ${compact ? "mb-1.5" : "mb-2"}`}>
+          <div
+            className={`grid grid-cols-2 ${compact ? "mb-1 gap-1.5" : "mb-2 gap-2"}`}
+          >
             <label className="block text-xs text-muted">
               {t("expiry.monthLabel")}
               <MenuSelect
@@ -328,7 +340,7 @@ export const ExpiryDatePicker = forwardRef<ExpiryDatePickerHandle, Props>(
                   disabled: !monthIsSelectable(viewYear, month),
                 }))}
                 onChange={(next) => onMonthChange(Number(next))}
-                buttonClassName="mt-0.5 flex w-full min-w-0 items-center justify-between gap-2 rounded-lg border border-input-border bg-transparent px-2 py-1.5 text-left text-sm text-foreground"
+                buttonClassName={selectButtonClass}
               />
             </label>
             <label className="block text-xs text-muted">
@@ -341,7 +353,7 @@ export const ExpiryDatePicker = forwardRef<ExpiryDatePickerHandle, Props>(
                   label: String(year),
                 }))}
                 onChange={(next) => onYearChange(Number(next))}
-                buttonClassName="mt-0.5 flex w-full min-w-0 items-center justify-between gap-2 rounded-lg border border-input-border bg-transparent px-2 py-1.5 text-left text-sm text-foreground"
+                buttonClassName={selectButtonClass}
               />
             </label>
           </div>
@@ -352,7 +364,9 @@ export const ExpiryDatePicker = forwardRef<ExpiryDatePickerHandle, Props>(
             ))}
           </div>
 
-          <div className={`grid grid-cols-7 ${compact ? "gap-1" : "gap-0.5"}`}>
+          <div
+            className={`grid grid-cols-7 ${compact ? "gap-x-0.5 gap-y-0.5" : "gap-0.5"}`}
+          >
             {dayCells.map((day, index) =>
               day === null ? (
                 <span key={`blank-${index}`} aria-hidden />
@@ -361,7 +375,9 @@ export const ExpiryDatePicker = forwardRef<ExpiryDatePickerHandle, Props>(
                   key={`${viewYear}-${viewMonth}-${day}`}
                   type="button"
                   disabled={isDayDisabled(viewYear, viewMonth, day)}
-                  className={`rounded-md py-1 text-xs font-medium tabular-nums disabled:opacity-30 ${
+                  className={`rounded-md text-xs font-medium tabular-nums disabled:opacity-30 ${
+                    compact ? "py-0.5" : "py-1"
+                  } ${
                     selected &&
                     selected.getFullYear() === viewYear &&
                     selected.getMonth() === viewMonth &&

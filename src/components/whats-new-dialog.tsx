@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { appButtonNeutralFull } from "@/lib/app-ui";
+import { CheckIcon } from "@/components/app-nav-icons";
 import { useT } from "@/components/i18n-provider";
 import { useViewportInsets } from "@/hooks/use-viewport-insets";
 import { markPwaInstallOffered, shouldOfferPwaInstall } from "@/lib/pwa-install";
@@ -173,8 +174,9 @@ export function WhatsNewDialog({ ready = true }: Props) {
           <button
             type="button"
             onClick={dismiss}
-            className={appButtonNeutralFull}
+            className={`${appButtonNeutralFull} gap-1.5`}
           >
+            <CheckIcon className="size-4 shrink-0" />
             {t("whatsNew.gotIt")}
           </button>
         </div>

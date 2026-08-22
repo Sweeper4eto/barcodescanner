@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { PrimaryButton, SecondaryButton } from "@/components/auth-forms";
-import { BackArrowIcon } from "@/components/app-nav-icons";
+import { BackArrowIcon, SendIcon } from "@/components/app-nav-icons";
 import { BrandName } from "@/components/brand-name";
 import { MobilePageHeader } from "@/components/mobile-page-header";
 import { MenuSelect } from "@/components/menu-select";
@@ -79,15 +79,6 @@ function ChatIcon({ className = "size-4" }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden>
       <path d="M5 16.5 4 21l4.5-1.5A8.5 8.5 0 1 0 5 16.5Z" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function SendIcon({ className = "size-4" }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.85" aria-hidden>
-      <path d="M4 11.5 20 4l-4.5 16-3.2-6.3L4 11.5Z" strokeLinejoin="round" />
-      <path d="M12.3 13.7 20 4" strokeLinecap="round" />
     </svg>
   );
 }
@@ -402,11 +393,9 @@ export default function ContactSupportPage() {
             message.trim().length < MESSAGE_MIN ||
             Boolean(validateSupportEmail(contact))
           }
+          icon={<SendIcon className="size-4 shrink-0" />}
         >
-          <span className="inline-flex items-center justify-center gap-2">
-            <SendIcon className="size-4" />
-            {sending ? t("support.sending") : t("support.send")}
-          </span>
+          {sending ? t("support.sending") : t("support.send")}
         </PrimaryButton>
 
         <p className="flex items-start justify-center gap-1.5 text-center text-[0.7rem] leading-snug text-muted">

@@ -214,7 +214,9 @@ export default function AppHomePage() {
   const [greetingBefore, greetingAfter = ""] = greetingTemplate.split("\u0000");
 
   return (
-    <div className={appPageClassName}>
+    <div
+      className={`${appPageClassName} flex min-h-[calc(100dvh-var(--app-bottom-nav-height)-env(safe-area-inset-bottom,0px))] flex-col`}
+    >
       <MobilePageHeader className="mb-1" />
 
       <div className="mb-6 flex items-start justify-between gap-3">
@@ -239,41 +241,58 @@ export default function AppHomePage() {
         </button>
       </div>
 
-      {!bootstrapped ? (
-        <LoadingSpinnerBlock wrapperClassName="flex justify-center py-6" />
-      ) : sessionMissing ? (
-        <p className="mb-3 rounded-2xl border border-danger-border bg-danger/10 p-4 text-sm text-error">
-          Session not found.{" "}
-          <Link className="font-medium underline" href="/login">
-            {t("auth.login")}
-          </Link>
-        </p>
-      ) : stores.length === 0 ? (
-        <p className="mb-3 rounded-2xl bg-warning-bg p-4 text-sm text-warning-fg">
-          {t("app.noStores")}
-        </p>
-      ) : null}
+      <div className="min-h-0 flex-1">
+        {!bootstrapped ? (
+          <LoadingSpinnerBlock wrapperClassName="flex justify-center py-6" />
+        ) : sessionMissing ? (
+          <p className="mb-3 rounded-2xl border border-danger-border bg-danger/10 p-4 text-sm text-error">
+            Session not found.{" "}
+            <Link className="font-medium underline" href="/login">
+              {t("auth.login")}
+            </Link>
+          </p>
+        ) : stores.length === 0 ? (
+          <p className="mb-3 rounded-2xl bg-warning-bg p-4 text-sm text-warning-fg">
+            {t("app.noStores")}
+          </p>
+        ) : null}
 
-      {isOwner && !sessionMissing ? (
-        <HomeLinkCard
-          href="/app/team"
-          title={t("app.team")}
-          hint={t("app.teamHint")}
-          icon={<TeamIcon />}
-        />
-      ) : null}
+        {isOwner && !sessionMissing ? (
+          <HomeLinkCard
+            href="/app/team"
+            title={t("app.team")}
+            hint={t("app.teamHint")}
+            icon={<TeamIcon />}
+          />
+        ) : null}
 
-      {!sessionMissing ? (
-        <HomeLinkCard
-          href="/app/contact"
-          title={t("app.contact")}
-          hint={t("app.contactHint")}
-          icon={<HeadsetIcon />}
-        />
-      ) : null}
+        {!sessionMissing ? (
+          <HomeLinkCard
+            href="/app/contact"
+            title={t("app.contact")}
+            hint={t("app.contactHint")}
+            icon={<HeadsetIcon />}
+          />
+        ) : null}
 
-      <PushNotifications />
-      <WhatsNewDialog ready={bootstrapped && !sessionMissing} />
+        <PushNotifications />
+        <WhatsNewDialog ready={bootstrapped && !sessionMissing} />
+      </div>
+
+      <footer className="mt-6 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 border-t border-card-border pt-4 text-sm">
+        <Link
+          href="/terms"
+          className="font-medium text-primary underline-offset-4 hover:underline"
+        >
+          {t("home.termsLink")}
+        </Link>
+        <Link
+          href="/privacy"
+          className="font-medium text-primary underline-offset-4 hover:underline"
+        >
+          {t("home.privacyLink")}
+        </Link>
+      </footer>
     </div>
   );
 }

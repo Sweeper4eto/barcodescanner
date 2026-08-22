@@ -6,6 +6,7 @@ import { MenuSelect } from "@/components/menu-select";
 import { useAppSession } from "@/components/app-session-provider";
 import { useT } from "@/components/i18n-provider";
 import { getStoredStoreId, setStoredStoreId } from "@/lib/store-selection";
+import { navigateApp } from "@/lib/app-navigation";
 
 function StoreIcon({ className = "size-3.5" }: { className?: string }) {
   return (
@@ -48,9 +49,10 @@ export function AppTopActions() {
     const url = new URL(window.location.href);
     if (url.pathname.startsWith("/app")) {
       url.searchParams.set("storeId", nextId);
-      window.location.assign(`${url.pathname}?${url.searchParams.toString()}`);
+      navigateApp(`${url.pathname}?${url.searchParams.toString()}`);
       return;
     }
+    // Outside /app there is no soft navigator — hard reload is intentional.
     window.location.reload();
   }
 

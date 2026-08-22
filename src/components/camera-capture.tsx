@@ -6,12 +6,13 @@ import { CancelButton } from "@/components/cancel-button";
 import { ConfirmButton } from "@/components/confirm-button";
 import { ForwardButton } from "@/components/forward-button";
 import {
+  BackArrowIcon,
   CameraIcon,
   CheckIcon,
-  CloseIcon,
 } from "@/components/app-nav-icons";
 import { useT } from "@/components/i18n-provider";
 import { ScannerViewfinderOverlay } from "@/components/scanner-viewfinder-overlay";
+import { appButtonPrimaryFull } from "@/lib/app-ui";
 
 type Props = {
   onCapture: (dataUrl: string) => void;
@@ -35,8 +36,9 @@ type Props = {
    */
   compact?: boolean;
   /**
-   * Document scan layout: large viewfinder, icon row Upload | Capture | Cancel,
-   * multi-select Upload tip. Implies viewfinder corners when live.
+   * Document scan layout: large viewfinder, Cancel + Upload as normal
+   * outline buttons with circular Capture in the center, multi-select Upload tip.
+   * Implies viewfinder corners when live.
    */
   variant?: "default" | "document";
   /** L-shaped corner guides over the live camera preview (document scanning). */
@@ -52,8 +54,13 @@ type Props = {
    * Preview confirm button:
    * - `next` — document/scan flows (Continue)
    * - `save` — product photo flows (Save photo + Retake + Cancel)
+   * - `instant` — apply photo immediately after capture (no Next / Save step)
    */
-  confirmMode?: "next" | "save";
+  confirmMode?: "next" | "save" | "instant";
+  /**
+   * When true, Cancel is labeled “Keep old picture” (discard the new shot).
+   */
+  keepOldPicture?: boolean;
 };
 
 function UploadIcon({ className = "" }: { className?: string }) {
@@ -95,24 +102,6 @@ function CaptureIcon({ className = "" }: { className?: string }) {
   );
 }
 
-function BackIcon({ className = "" }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className={className}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.75"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="M19 12H5" />
-      <path d="m12 19-7-7 7-7" />
-    </svg>
-  );
-}
-
 function FrameCameraIcon({ className = "" }: { className?: string }) {
   return (
     <svg
@@ -131,7 +120,7 @@ function FrameCameraIcon({ className = "" }: { className?: string }) {
   );
 }
 
-const MAX_UPLOAD_BYTES = 12 * 1024 * 1024;
+const MAX_UPLOAD_BYTES = 12 * 1024 * 1024; // keep in sync with MAX_UPLOAD_FILE_BYTES in upload.ts
 const ACCEPTED_TYPES = new Set([
   "image/jpeg",
   "image/jpg",
@@ -488,6 +477,7 @@ export function CameraCapture({
   forceInAppCamera = false,
   captureOnPreviewTap = false,
   confirmMode = "next",
+  keepOldPicture = false,
 }: Props) {
   const { t } = useT();
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -579,8 +569,12 @@ export function CameraCapture({
     setError("");
     try {
       const dataUrl = await captureHighQualityStill(stream, video, canvas);
-      setPreview(dataUrl);
       stopCamera();
+      if (confirmMode === "instant") {
+        onCapture(dataUrl);
+        return;
+      }
+      setPreview(dataUrl);
     } catch {
       setError(t("camera.unavailable"));
     } finally {
@@ -619,6 +613,10 @@ export function CameraCapture({
       }
       const dataUrl = await readFileAsDataUrl(files[0]);
       stopCamera();
+      if (confirmMode === "instant") {
+        onCapture(dataUrl);
+        return;
+      }
       setPreview(dataUrl);
     } catch {
       setError(t("errors.uploadFailed"));
@@ -653,6 +651,9 @@ export function CameraCapture({
 
   const showNativePath = useNativeCapture && !forceInAppCamera;
   const productSaveFlow = confirmMode === "save";
+  const cancelLabel = keepOldPicture
+    ? t("camera.keepOldPicture")
+    : t("common.cancel");
 
   function openUploadPicker() {
     galleryInputRef.current?.click();
@@ -692,29 +693,20 @@ export function CameraCapture({
   );
 
   const documentToolbar = documentLayout && !preview && (
-    <div className="flex items-end justify-center gap-5 pt-1">
-      {allowFileUpload || showNativePath ? (
-        <button
-          type="button"
-          onClick={openUploadPicker}
-          disabled={starting || capturing}
-          className="flex h-14 w-14 flex-col items-center justify-center rounded-2xl border border-primary/50 bg-transparent text-primary disabled:opacity-50"
-          aria-label={t("camera.upload")}
-        >
-          <UploadIcon className="h-6 w-6" />
-          <span className="mt-0.5 text-[10px] font-medium leading-none">
-            {t("camera.upload")}
-          </span>
-        </button>
-      ) : (
-        <span className="h-14 w-14" aria-hidden />
-      )}
+    <div className="flex items-center gap-2 pt-1">
+      <div className="min-w-0 flex-1">
+        {onCancel ? (
+          <CancelButton disabled={capturing} onClick={onCancel}>
+            {t("common.cancel")}
+          </CancelButton>
+        ) : null}
+      </div>
 
       <button
         type="button"
         onClick={triggerCapture}
         disabled={starting || capturing}
-        className="flex h-[4.4rem] w-[4.4rem] flex-col items-center rounded-full border-2 border-primary bg-background text-primary disabled:opacity-50"
+        className="flex h-[4.4rem] w-[4.4rem] shrink-0 flex-col items-center rounded-full border-2 border-primary bg-background text-primary disabled:opacity-50"
         aria-label={
           capturing
             ? t("scanner.starting")
@@ -723,30 +715,28 @@ export function CameraCapture({
               : t("camera.start")
         }
       >
-        <span className="flex h-full w-full flex-col items-center justify-between px-1.5 pt-1.5 pb-1">
+        <span className="flex h-full w-full flex-col items-center justify-center gap-0 px-1.5 pt-1 pb-2">
           <CaptureIcon className="h-10 w-10 shrink-0" />
-          <span className="text-[9px] font-medium leading-none">
+          <span className="-mt-0.5 text-[9px] font-medium leading-none">
             {t("camera.captureShort")}
           </span>
         </span>
       </button>
 
-      {onCancel ? (
-        <button
-          type="button"
-          onClick={onCancel}
-          disabled={capturing}
-          className="flex h-14 w-14 flex-col items-center justify-center rounded-2xl border border-white bg-transparent text-white disabled:opacity-50"
-          aria-label={t("common.cancel")}
-        >
-          <CloseIcon className="h-4 w-4 shrink-0" />
-          <span className="mt-0.5 inline-flex items-center gap-0.5 text-[10px] font-medium leading-none">
-            {t("common.cancel")}
-          </span>
-        </button>
-      ) : (
-        <span className="h-14 w-14" aria-hidden />
-      )}
+      <div className="min-w-0 flex-1">
+        {allowFileUpload || showNativePath ? (
+          <button
+            type="button"
+            onClick={openUploadPicker}
+            disabled={starting || capturing}
+            className={appButtonPrimaryFull}
+            aria-label={t("camera.upload")}
+          >
+            <UploadIcon className="size-4 shrink-0" />
+            {t("camera.upload")}
+          </button>
+        ) : null}
+      </div>
     </div>
   );
 
@@ -759,48 +749,38 @@ export function CameraCapture({
   }
 
   const documentPreviewToolbar = documentLayout && preview ? (
-    <div className="flex items-end justify-center gap-5 pt-1">
-      <button
-        type="button"
-        onClick={handleNewDocument}
-        className="flex h-14 w-14 flex-col items-center justify-center rounded-2xl border border-primary/50 bg-transparent text-primary"
-        aria-label={t("common.back")}
-      >
-        <BackIcon className="h-6 w-6" />
-        <span className="mt-0.5 max-w-[3.75rem] truncate text-center text-[10px] font-medium leading-none">
-          {t("common.back")}
-        </span>
-      </button>
+    <div className="flex items-center gap-2 pt-1">
+      <div className="min-w-0 flex-1">
+        {onCancel ? (
+          <CancelButton onClick={onCancel}>{t("common.cancel")}</CancelButton>
+        ) : null}
+      </div>
 
       <button
         type="button"
         onClick={() => void uploadAndContinue()}
-        className="flex h-[4.4rem] w-[4.4rem] flex-col items-center rounded-full border-2 border-primary bg-background text-primary"
+        className="flex h-[4.4rem] w-[4.4rem] shrink-0 flex-col items-center rounded-full border-2 border-primary bg-background text-primary"
         aria-label={t("common.next")}
       >
-        <span className="flex h-full w-full flex-col items-center justify-between px-1.5 pt-1.5 pb-1">
+        <span className="flex h-full w-full flex-col items-center justify-center gap-0 px-1.5 pt-1 pb-2">
           <CheckIcon className="size-10 shrink-0" />
-          <span className="text-[9px] font-medium leading-none">
+          <span className="-mt-0.5 text-[9px] font-medium leading-none">
             {t("common.next")}
           </span>
         </span>
       </button>
 
-      {onCancel ? (
+      <div className="min-w-0 flex-1">
         <button
           type="button"
-          onClick={onCancel}
-          className="flex h-14 w-14 flex-col items-center justify-center rounded-2xl border border-white bg-transparent text-white"
-          aria-label={t("common.cancel")}
+          onClick={handleNewDocument}
+          className={appButtonPrimaryFull}
+          aria-label={t("common.back")}
         >
-          <CloseIcon className="h-4 w-4 shrink-0" />
-          <span className="mt-0.5 inline-flex items-center gap-0.5 text-[10px] font-medium leading-none">
-            {t("common.cancel")}
-          </span>
+          <BackArrowIcon className="size-4 shrink-0" />
+          {t("common.back")}
         </button>
-      ) : (
-        <span className="h-14 w-14" aria-hidden />
-      )}
+      </div>
     </div>
   ) : null;
 
@@ -959,7 +939,7 @@ export function CameraCapture({
                   >
                     {t("camera.upload")}
                   </SecondaryButton>
-                  {showNativePath && !active ? (
+                  {showNativePath && !active && !forceInAppCamera ? (
                     <SecondaryButton
                       onClick={() => void startCamera()}
                       disabled={starting}
@@ -971,7 +951,7 @@ export function CameraCapture({
                 </>
               ) : null}
               {onCancel ? (
-                <CancelButton onClick={onCancel}>{t("common.cancel")}</CancelButton>
+                <CancelButton onClick={onCancel}>{cancelLabel}</CancelButton>
               ) : null}
             </div>
           )}
@@ -1017,7 +997,7 @@ export function CameraCapture({
               {productSaveFlow ? t("camera.retakePhoto") : t("camera.newPhoto")}
             </SecondaryButton>
             {productSaveFlow && onCancel ? (
-              <CancelButton onClick={onCancel}>{t("common.cancel")}</CancelButton>
+              <CancelButton onClick={onCancel}>{cancelLabel}</CancelButton>
             ) : null}
             {!productSaveFlow && (allowFileUpload || showNativePath) ? (
               <>
@@ -1033,7 +1013,7 @@ export function CameraCapture({
               </>
             ) : null}
             {!productSaveFlow && onCancel ? (
-              <CancelButton onClick={onCancel}>{t("common.cancel")}</CancelButton>
+              <CancelButton onClick={onCancel}>{cancelLabel}</CancelButton>
             ) : null}
           </div>
         </>

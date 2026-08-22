@@ -7,7 +7,7 @@ import {
   type Html5QrcodeCameraScanConfig,
 } from "html5-qrcode";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
-import { PrimaryButton } from "@/components/auth-forms";
+import { PrimaryButton, SecondaryButton } from "@/components/auth-forms";
 import { CancelButton } from "@/components/cancel-button";
 import { ConfirmButton } from "@/components/confirm-button";
 import { CameraIcon } from "@/components/app-nav-icons";
@@ -172,12 +172,11 @@ async function startScanner(
     void (async () => {
       const continuous = isContinuous();
       if (!continuous) {
+        // Stop secondary decoders while we handle this code, but keep the
+        // live camera running. `pause(true)` freezes the preview with a
+        // "Scanner paused" overlay and we must not leave users stuck there
+        // after a soft lookup failure (network / not found stays on page).
         stopEnhanced();
-        try {
-          scanner.pause(true);
-        } catch {
-          // Scanner may not be running yet while the camera is still starting.
-        }
       }
       try {
         await onDecoded(accepted);
@@ -186,12 +185,13 @@ async function startScanner(
           consensus.reset();
           return;
         }
+        consensus.reset();
         try {
           if (scanner.isScanning) {
             restartEnhancedScan();
           }
         } catch {
-          // ignore resume/enhanced restart failures
+          // ignore enhanced restart failures
         }
       } catch {
         consensus.reset();
@@ -428,7 +428,12 @@ export function BarcodeScanner({
     if (handledRef.current) return;
     handledRef.current = true;
     setManual(barcode);
-    await onScanRef.current(barcode);
+    try {
+      await onScanRef.current(barcode);
+    } finally {
+      // Allow another scan if we stayed on this screen (e.g. lookup error).
+      handledRef.current = false;
+    }
   }, []);
 
   const startCamera = useCallback(async () => {
@@ -606,7 +611,10 @@ export function BarcodeScanner({
           {starting ? t("scanner.starting") : t("scanner.startCamera")}
         </PrimaryButton>
       ) : !continuousFill && torchAvailable ? (
-        <SecondaryButton onClick={() => void onTorchToggle()}>
+        <SecondaryButton
+          onClick={() => void onTorchToggle()}
+          icon={<FlashlightIcon className="size-4 shrink-0" />}
+        >
           {torchOn ? t("scanner.torchOff") : t("scanner.torchOn")}
         </SecondaryButton>
       ) : null}
@@ -614,6 +622,11 @@ export function BarcodeScanner({
 
       {continuousFill ? (
         <div className={appFooterButtonGrid}>
+          {onCancel ? (
+            <CancelButton fullWidth={false} onClick={onCancel}>
+              {t("common.cancel")}
+            </CancelButton>
+          ) : null}
           <ConfirmButton
             fullWidth={false}
             data-testid="scanner-confirm-barcode"
@@ -622,11 +635,6 @@ export function BarcodeScanner({
           >
             {t("scanner.confirm")}
           </ConfirmButton>
-          {onCancel ? (
-            <CancelButton fullWidth={false} onClick={onCancel}>
-              {t("common.cancel")}
-            </CancelButton>
-          ) : null}
         </div>
       ) : (
         <>
@@ -640,6 +648,9 @@ export function BarcodeScanner({
               onChange={(event) => setManual(event.target.value)}
             />
           </label>
+          {onCancel ? (
+            <CancelButton onClick={onCancel}>{t("common.cancel")}</CancelButton>
+          ) : null}
           <ConfirmButton
             data-testid="scanner-confirm-barcode"
             disabled={!hasBarcode}
@@ -647,9 +658,6 @@ export function BarcodeScanner({
           >
             {t("scanner.confirmBarcode")}
           </ConfirmButton>
-          {onCancel ? (
-            <CancelButton onClick={onCancel}>{t("common.cancel")}</CancelButton>
-          ) : null}
         </>
       )}
     </div>

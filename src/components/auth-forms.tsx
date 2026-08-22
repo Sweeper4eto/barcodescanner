@@ -8,6 +8,7 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { LoadingSpinner } from "@/components/loading-spinner";
+import { LoginIcon } from "@/components/app-nav-icons";
 import { FormEvent, memo, useEffect, useState, type ChangeEvent, type ReactNode } from "react";
 import { BrandName } from "@/components/brand-name";
 import { LanguageSwitch } from "@/components/language-switch";
@@ -590,6 +591,7 @@ export function LoginForm({
         disabled={busy}
         aria-busy={busy}
         className="min-h-[2.75rem]"
+        icon={busy ? undefined : <LoginIcon className="size-4 shrink-0" />}
       >
         {busy ? (
           <LoadingSpinner size="sm" label={t("auth.loggingIn")} />

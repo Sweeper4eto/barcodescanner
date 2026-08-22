@@ -17,7 +17,7 @@ export default defineConfig({
     trace: "on-first-retry",
   },
   webServer: {
-    command: `npx next dev --port ${port}`,
+    command: `npx next dev --webpack --port ${port}`,
     url: `http://127.0.0.1:${port}`,
     reuseExistingServer: false,
     env: {

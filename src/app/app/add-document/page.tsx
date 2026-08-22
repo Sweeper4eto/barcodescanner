@@ -7,6 +7,7 @@ import {
   ExpiryNavIcon,
   MergedItemsStatIcon,
   NewItemsStatIcon,
+  RefreshIcon,
 } from "@/components/app-nav-icons";
 import { CameraCapture, prepareDocumentImage } from "@/components/camera-capture";
 import { assessDocumentPhotoQuality } from "@/lib/document-image";
@@ -21,6 +22,7 @@ import { useT } from "@/components/i18n-provider";
 import { useAppSession } from "@/components/app-session-provider";
 import { navigateApp } from "@/lib/app-navigation";
 import {
+  appButtonCancelFull,
   appButtonPrimaryFull,
   appButtonNeutralFull,
   appFooterButtonGrid,
@@ -513,7 +515,7 @@ function AddDocumentContent() {
           >
             <button
               type="button"
-              className={appButtonPrimaryFull}
+              className={appButtonCancelFull}
               onClick={() => {
                 setItems([]);
                 setSearch("");
@@ -522,6 +524,7 @@ function AddDocumentContent() {
                 setStep("camera");
               }}
             >
+              <RefreshIcon className="size-4 shrink-0" />
               {t("addDocument.retake")}
             </button>
             <button
@@ -530,6 +533,9 @@ function AddDocumentContent() {
               className={`${appButtonPrimaryFull} disabled:opacity-50`}
               onClick={() => void confirmImport()}
             >
+              {!importing ? (
+                <ExpiryNavIcon className="size-4 shrink-0" />
+              ) : null}
               {importing ? t("addDocument.importing") : t("addDocument.confirmImport")}
             </button>
           </div>

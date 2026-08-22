@@ -75,7 +75,8 @@ type Props = {
   entry: BuyListDetailEntry;
   storeId: string;
   favourite?: boolean;
-  onToggleFavourite?: () => void;
+  /** Persist favourite only when Save is confirmed (draft star until then). */
+  onCommitFavourite?: (nextFavourite: boolean) => void | Promise<void>;
   onClose: () => void;
   onUpdated: (entry: BuyListDetailEntry) => void;
 };
@@ -84,7 +85,7 @@ export function BuyListEntryDetailSheet({
   entry,
   storeId,
   favourite = false,
-  onToggleFavourite,
+  onCommitFavourite,
   onClose,
   onUpdated,
 }: Props) {
@@ -100,6 +101,7 @@ export function BuyListEntryDetailSheet({
   const [changingPicture, setChangingPicture] = useState(false);
   const [imageDraft, setImageDraft] = useState<string | null>(null);
   const [editingName, setEditingName] = useState(false);
+  const [favouriteDraft, setFavouriteDraft] = useState(favourite);
 
   const savedBarcodeDisplay = isAdhocBarcode(entry.barcode) ? "" : entry.barcode;
   const parsedQuantity = Number(quantity);
@@ -109,12 +111,14 @@ export function BuyListEntryDetailSheet({
     parsedQuantity >= 1;
   const displayImage = imageDraft ?? entry.product.imagePath;
   const displayName = nameDraft.trim() || t("common.noName");
+  const favouriteChanged = favouriteDraft !== favourite;
 
-  const hasChanges =
+  const entryChanged =
     Boolean(imageDraft) ||
     (quantityValid && parsedQuantity !== entry.quantity) ||
     nameDraft.trim() !== entry.product.name.trim() ||
     barcodeDraft.trim() !== savedBarcodeDisplay.trim();
+  const hasChanges = entryChanged || favouriteChanged;
   const canConfirm = hasChanges && quantityValid;
 
   useEffect(() => {
@@ -124,8 +128,16 @@ export function BuyListEntryDetailSheet({
     setImageDraft(null);
     setChangingPicture(false);
     setEditingName(false);
+    setFavouriteDraft(favourite);
     setError(null);
-  }, [entry.id, entry.quantity, entry.barcode, entry.product.name, entry.product.imagePath]);
+  }, [
+    entry.id,
+    entry.quantity,
+    entry.barcode,
+    entry.product.name,
+    entry.product.imagePath,
+    favourite,
+  ]);
 
   useEffect(() => {
     document.body.style.overflow = "hidden";
@@ -146,40 +158,47 @@ export function BuyListEntryDetailSheet({
     setError(null);
 
     try {
-      const body: Record<string, unknown> = {
-        entryId: entry.id,
-        storeId,
-      };
-      if (imageDraft) {
-        body.imagePath = await uploadImage(imageDraft);
-      }
-      if (parsedQuantity !== entry.quantity) {
-        body.quantity = parsedQuantity;
-      }
-      if (nameDraft.trim() !== entry.product.name.trim()) {
-        body.name = nameDraft.trim();
-      }
-      if (barcodeDraft.trim() !== savedBarcodeDisplay.trim()) {
-        body.barcode = barcodeDraft.trim() || null;
+      if (entryChanged) {
+        const body: Record<string, unknown> = {
+          entryId: entry.id,
+          storeId,
+        };
+        if (imageDraft) {
+          body.imagePath = await uploadImage(imageDraft);
+        }
+        if (parsedQuantity !== entry.quantity) {
+          body.quantity = parsedQuantity;
+        }
+        if (nameDraft.trim() !== entry.product.name.trim()) {
+          body.name = nameDraft.trim();
+        }
+        if (barcodeDraft.trim() !== savedBarcodeDisplay.trim()) {
+          body.barcode = barcodeDraft.trim() || null;
+        }
+
+        const response = await fetch("/api/buy-list", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        const data = ((await response.json().catch(() => null)) ?? {}) as {
+          entry?: BuyListDetailEntry;
+          error?: string;
+        };
+
+        if (!response.ok || !data.entry) {
+          setError(data.error ?? t("buyList.saveFailed"));
+          return;
+        }
+
+        onUpdated(data.entry);
+        setImageDraft(null);
       }
 
-      const response = await fetch("/api/buy-list", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      const data = ((await response.json().catch(() => null)) ?? {}) as {
-        entry?: BuyListDetailEntry;
-        error?: string;
-      };
-
-      if (!response.ok || !data.entry) {
-        setError(data.error ?? t("buyList.saveFailed"));
-        return;
+      if (favouriteChanged && onCommitFavourite) {
+        await onCommitFavourite(favouriteDraft);
       }
 
-      onUpdated(data.entry);
-      setImageDraft(null);
       onClose();
     } catch (err) {
       setError(
@@ -223,6 +242,16 @@ export function BuyListEntryDetailSheet({
                 <CameraIcon className="size-3.5" />
                 {t("buyList.changePhotoButton")}
               </button>
+              {imageDraft ? (
+                <button
+                  type="button"
+                  className="inline-flex h-8 items-center justify-center rounded-md border border-white px-1.5 text-xs font-medium text-white"
+                  onClick={() => setImageDraft(null)}
+                  disabled={saving}
+                >
+                  {t("camera.keepOldPicture")}
+                </button>
+              ) : null}
             </div>
 
             <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
@@ -256,19 +285,24 @@ export function BuyListEntryDetailSheet({
                   label={t("buyList.copyName")}
                   copiedLabel={t("buyList.copied")}
                 />
-                {onToggleFavourite ? (
+                {onCommitFavourite ? (
                   <button
                     type="button"
                     aria-label={
-                      favourite ? t("favourites.remove") : t("favourites.add")
+                      favouriteDraft
+                        ? t("favourites.remove")
+                        : t("favourites.add")
                     }
                     className={`mt-0.5 shrink-0 ${
-                      favourite ? "text-amber-400" : "text-muted"
+                      favouriteDraft ? "text-amber-400" : "text-muted"
                     }`}
-                    onClick={onToggleFavourite}
+                    onClick={() => setFavouriteDraft((current) => !current)}
                     disabled={saving}
                   >
-                    <StarFavouriteIcon className="size-5" filled={favourite} />
+                    <StarFavouriteIcon
+                      className="size-5"
+                      filled={favouriteDraft}
+                    />
                   </button>
                 ) : null}
               </div>
@@ -315,6 +349,9 @@ export function BuyListEntryDetailSheet({
 
       <div className="shrink-0 border-t border-card-border px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]">
         <div className={appFooterButtonGrid}>
+          <CancelButton onClick={onClose} disabled={saving}>
+            {t("buyList.confirmCancel")}
+          </CancelButton>
           <ConfirmButton
             busy={saving}
             disabled={!canConfirm}
@@ -322,9 +359,6 @@ export function BuyListEntryDetailSheet({
           >
             {t("buyList.saveChangesButton")}
           </ConfirmButton>
-          <CancelButton onClick={onClose} disabled={saving}>
-            {t("buyList.confirmCancel")}
-          </CancelButton>
         </div>
       </div>
 
@@ -338,7 +372,8 @@ export function BuyListEntryDetailSheet({
               autoStart
               forceInAppCamera
               captureOnPreviewTap
-              confirmMode="save"
+              confirmMode="instant"
+              keepOldPicture
               onCapture={(dataUrl) => {
                 setImageDraft(dataUrl);
                 setChangingPicture(false);
