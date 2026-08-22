@@ -1,5 +1,5 @@
 /**
- * expire365-v22 — push + cache cleanup only.
+ * expire365-v24 — push + cache cleanup only.
  * Does not cache pages or intercept fetches (that broke phone login).
  * Must stay registered: PushManager.subscribe needs an active worker.
  */
@@ -48,8 +48,9 @@ self.addEventListener("push", (event) => {
       await self.registration.showNotification(title, {
         body,
         data: { url },
-        icon: "/icon.png",
-        badge: "/icon.png",
+        // Mint logo on black — same brand tile for large + small slots.
+        icon: "/icons/icon-notification.png?v=12",
+        badge: "/icons/icon-badge.png?v=12",
       });
     })(),
   );

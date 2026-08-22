@@ -16,17 +16,17 @@ export default function manifest(): MetadataRoute.Manifest {
     categories: ["business", "productivity"],
     icons: [
       {
-        src: "/icons/icon-192.png?v=10",
+        src: "/icons/icon-192.png?v=12",
         sizes: "192x192",
         type: "image/png",
       },
       {
-        src: "/icons/icon-512.png?v=10",
+        src: "/icons/icon-512.png?v=12",
         sizes: "512x512",
         type: "image/png",
       },
       {
-        src: "/icons/icon-512-maskable.png?v=10",
+        src: "/icons/icon-512-maskable.png?v=12",
         sizes: "512x512",
         type: "image/png",
         purpose: "maskable",

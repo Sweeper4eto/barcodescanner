@@ -8,7 +8,8 @@ const root = path.resolve(__dirname, "..");
 const src = path.join(root, "public/icons/icon-source-1024.png");
 
 const transparent = { r: 0, g: 0, b: 0, alpha: 0 };
-const opaqueWhite = { r: 255, g: 255, b: 255, alpha: 1 };
+/** App chrome background — mint logo sits on this for Apple / PWA / push tiles. */
+const appBlack = { r: 9, g: 9, b: 11, alpha: 1 };
 
 async function png(size, rel, background = transparent) {
   const out = path.join(root, rel);
@@ -20,7 +21,24 @@ async function png(size, rel, background = transparent) {
   console.log("wrote", rel);
 }
 
-// Transparent for UI / favicon / PWA display icons
+/** Mint mark inset on opaque black (home screen, maskable, push). */
+async function brandOnBlack(size, rel, inset = 0.72) {
+  const inner = Math.round(size * inset);
+  const mark = await sharp(src)
+    .ensureAlpha()
+    .resize(inner, inner, { fit: "contain", background: transparent })
+    .png()
+    .toBuffer();
+  await sharp({
+    create: { width: size, height: size, channels: 4, background: appBlack },
+  })
+    .composite([{ input: mark, gravity: "center" }])
+    .png()
+    .toFile(path.join(root, rel));
+  console.log("wrote", rel);
+}
+
+// Transparent for UI / favicon / in-app display icons
 const transparentOutputs = [
   ["public/icons/icon-16.png", 16],
   ["public/icons/icon-32.png", 32],
@@ -34,33 +52,16 @@ for (const [rel, size] of transparentOutputs) {
   await png(size, rel, transparent);
 }
 
-// Apple home-screen icons need an opaque backdrop
-for (const [rel, size] of [
-  ["public/icons/apple-touch-icon.png", 180],
-  ["src/app/apple-icon.png", 180],
-]) {
-  await png(size, rel, opaqueWhite);
-}
+// Push notification tiles
+await brandOnBlack(192, "public/icons/icon-notification.png");
+await brandOnBlack(96, "public/icons/icon-badge.png");
 
-const maskSize = 512;
-const inner = Math.round(maskSize * 0.72);
-const resized = await sharp(src)
-  .ensureAlpha()
-  .resize(inner, inner, { fit: "contain", background: transparent })
-  .png()
-  .toBuffer();
-await sharp({
-  create: {
-    width: maskSize,
-    height: maskSize,
-    channels: 4,
-    background: opaqueWhite,
-  },
-})
-  .composite([{ input: resized, gravity: "center" }])
-  .png()
-  .toFile(path.join(root, "public/icons/icon-512-maskable.png"));
-console.log("wrote public/icons/icon-512-maskable.png");
+// Apple home-screen + Next apple-icon — opaque black, not white
+await brandOnBlack(180, "public/icons/apple-touch-icon.png");
+await brandOnBlack(180, "src/app/apple-icon.png");
+
+// Android maskable safe-zone on black
+await brandOnBlack(512, "public/icons/icon-512-maskable.png");
 
 async function writeIco(rel) {
   const sizes = [16, 32, 48];
