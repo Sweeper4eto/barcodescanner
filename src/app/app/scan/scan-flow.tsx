@@ -14,7 +14,7 @@ import { MobilePageHeader, listPageShellClassName } from "@/components/mobile-pa
 import { ProductImage } from "@/components/product-image";
 import { QuantityStepper } from "@/components/quantity-picker";
 import { useT } from "@/components/i18n-provider";
-import { goBackOrApp, navigateApp } from "@/lib/app-navigation";
+import { goBackOrApp, navigateApp, replaceApp } from "@/lib/app-navigation";
 import { appButtonCancelFull } from "@/lib/app-ui";
 import { normalizeBarcode } from "@/lib/barcode";
 import { isAdhocBarcode } from "@/lib/inventory-entry-display";
@@ -223,14 +223,24 @@ export function ScanFlow() {
     step === "missing" ? t("scan.resultTitle") : t("scan.title");
 
   function skipMissingItem() {
+    // Soft-navigating to the same /app/scan URL does nothing — stay on this
+    // page and reset the wizard instead.
     setMessage("");
     setProduct(null);
     setBarcode("");
-    navigateApp(
-      storeId
-        ? `/app/scan?storeId=${encodeURIComponent(storeId)}`
-        : "/app/scan",
-    );
+    setName("");
+    setEntryImagePath(null);
+    setCapturingPhoto(false);
+    setQuantity("1");
+    setExpiryDate("");
+    goToStep("scan");
+    if (urlBarcode) {
+      replaceApp(
+        storeId
+          ? `/app/scan?storeId=${encodeURIComponent(storeId)}`
+          : "/app/scan",
+      );
+    }
   }
 
   return (

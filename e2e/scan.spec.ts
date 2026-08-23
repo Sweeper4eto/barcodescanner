@@ -121,4 +121,50 @@ test.describe("Scan flow", () => {
     ).toBeVisible();
     await assertNoNextJsOverlay(page);
   });
+
+  test("skip on missing product returns to scan screen (URL barcode)", async ({
+    page,
+    baseURL,
+  }) => {
+    const user = await provisionBusinessOwner(baseURL!, { withProduct: false });
+    await loginWithStore(page, user);
+    await stubResolveAsMissing(page, UNKNOWN_BARCODE);
+
+    await openScanReady(page, user.storeId, UNKNOWN_BARCODE);
+    await expect(
+      page.getByRole("heading", { name: "Product not found" }),
+    ).toBeVisible();
+
+    await page.getByRole("button", { name: "Skip" }).click();
+
+    await expect(
+      page.getByRole("heading", { name: "Product not found" }),
+    ).not.toBeVisible();
+    await expect(page.getByTestId("barcode-manual-input")).toBeVisible();
+    await assertNoNextJsOverlay(page);
+  });
+
+  test("skip on missing product returns to scan screen (manual barcode)", async ({
+    page,
+    baseURL,
+  }) => {
+    const user = await provisionBusinessOwner(baseURL!, { withProduct: false });
+    await loginWithStore(page, user);
+    await stubResolveAsMissing(page, UNKNOWN_BARCODE);
+    await openScanReady(page, user.storeId);
+
+    await enterManualBarcode(page, UNKNOWN_BARCODE);
+    await page.getByTestId("scanner-confirm-barcode").click();
+    await expect(
+      page.getByRole("heading", { name: "Product not found" }),
+    ).toBeVisible();
+
+    await page.getByRole("button", { name: "Skip" }).click();
+
+    await expect(
+      page.getByRole("heading", { name: "Product not found" }),
+    ).not.toBeVisible();
+    await expect(page.getByTestId("barcode-manual-input")).toBeVisible();
+    await assertNoNextJsOverlay(page);
+  });
 });
