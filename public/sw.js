@@ -1,8 +1,15 @@
 /**
- * expire365-v25 — push + cache cleanup only.
+ * expire365-v26 — push + cache cleanup only.
  * Does not cache pages or intercept fetches (that broke phone login).
  * Must stay registered: PushManager.subscribe needs an active worker.
+ *
+ * Android Chrome rejects colored badge PNGs (falls back to a calendar glyph).
+ * Badge must be a monochrome alpha silhouette; we embed it as a data URL so
+ * the notification never depends on a network fetch for that asset.
  */
+const BADGE_DATA_URL =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEgAAABICAYAAABV7bNHAAAACXBIWXMAAAPoAAAD6AG1e1JrAAABwElEQVR4nO3VS27EQAgE0Lr/pYmyi6z4000BhU1JrOKh6WdmAjPDlJ0aDI5dL8gA2QDB8xMyG2QDhNkgi/tPPF8xGyDMBtl8xfDF36DVfAKIldcBRaU9UFbaAT1NRL/V3ulAd8ncSjmgq1RsqRTQWSK2NO2ldMdBB6BKnLZAGCCTwDl7SbTenTcHCzNKAOHmmcitCTs7enuOicA56005O3J7cHIRL9RKvxKg/7L6/N1nVvpc9fKeSQGC43KROJQtygIC6YK7l93CyQbCxmUZOC4kL85vGD3M8dzqmalAIAx87HcVfB3oKvgSEC4puOe0BUISTmsgJOC4SgEIJJyVtAPCZt/dtARCAkw4EIqRWHklECt4IxAzrwOybkDwHlqIM0A3WX5JzDeLou2BIhBEgEJxvEAIRGLjyABZElAKDgMI7IEeXH4VpxwIAUgSOEwgkIdj4UgBgTgkCwhqQCANK4ETBQTC4N5AHQjOyxz/XoITDQTHNvz93NMeIfNnAGFzC57ihM6dCYTNbUhHqQaCyuU7AEG9ygcw8SofwMSrfAATr/IBTLzKBzDxKh/AxKt8ABOv8gFMvMoHMPEqH8DE6wfdyT1HnzMXRQAAAABJRU5ErkJggg==";
+
 self.addEventListener("install", (event) => {
   self.skipWaiting();
   event.waitUntil(Promise.resolve());
@@ -45,15 +52,12 @@ self.addEventListener("push", (event) => {
         if (text) body = text;
       }
 
-      // Absolute URLs — relative icon paths often fail on Chrome Android.
       const origin = self.location.origin;
       await self.registration.showNotification(title, {
         body,
         data: { url },
-        // Full-color mint on black (large / right on many Androids).
         icon: `${origin}/icons/icon-notification.png?v=13`,
-        // Monochrome logo silhouette — required to replace Chrome's calendar glyph.
-        badge: `${origin}/icons/icon-badge.png?v=13`,
+        badge: BADGE_DATA_URL,
       });
     })(),
   );

@@ -57,22 +57,19 @@ for (const [rel, size] of transparentOutputs) {
 await brandOnBlack(192, "public/icons/icon-notification.png");
 {
   const badgeRel = "public/icons/icon-badge.png";
-  const badgeSize = 96;
-  const mark = await sharp(src)
+  const badgeSize = 72;
+  const { data, info } = await sharp(src)
     .ensureAlpha()
     .resize(badgeSize, badgeSize, { fit: "contain", background: transparent })
-    .png()
-    .toBuffer();
-  const { data, info } = await sharp(mark)
-    .ensureAlpha()
     .raw()
     .toBuffer({ resolveWithObject: true });
+  // Pure white + binary alpha — Chrome Android rejects soft greyscale badges.
   for (let i = 0; i < data.length; i += 4) {
     const a = data[i + 3];
     data[i] = 255;
     data[i + 1] = 255;
     data[i + 2] = 255;
-    data[i + 3] = a;
+    data[i + 3] = a > 40 ? 255 : 0;
   }
   await sharp(data, {
     raw: { width: info.width, height: info.height, channels: 4 },
