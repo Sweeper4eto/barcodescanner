@@ -122,6 +122,7 @@ export function MenuSelect<T extends string>({
           className={`min-w-0 flex-1 truncate ${
             selected ? "text-foreground" : "text-muted"
           }`}
+          title={displayLabel || undefined}
         >
           {displayLabel}
         </span>
@@ -140,7 +141,7 @@ export function MenuSelect<T extends string>({
           id={listId}
           role="listbox"
           aria-label={label}
-          className={`absolute z-[70] max-h-60 min-w-full overflow-y-auto rounded-xl border border-input-border bg-background py-1 shadow-lg shadow-black/40 ${
+          className={`absolute z-[70] max-h-60 min-w-full w-max max-w-[min(90vw,20rem)] overflow-y-auto rounded-xl border border-input-border bg-background py-1 shadow-lg shadow-black/40 ${
             menuAbove ? "bottom-full mb-1" : "top-full mt-1"
           } ${menuAlign === "end" ? "right-0" : "left-0"}`}
         >
@@ -156,7 +157,8 @@ export function MenuSelect<T extends string>({
                     role="option"
                     aria-selected={active}
                     disabled={option.disabled}
-                    className={`flex w-full px-3 py-2.5 text-left text-sm disabled:cursor-not-allowed disabled:opacity-40 ${
+                    title={option.label}
+                    className={`flex w-full px-3 py-2.5 text-left text-sm whitespace-nowrap disabled:cursor-not-allowed disabled:opacity-40 ${
                       active
                         ? "bg-selected text-primary"
                         : "text-foreground hover:bg-transparent"

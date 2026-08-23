@@ -26,12 +26,12 @@ function StoreIcon({ className = "size-3.5" }: { className?: string }) {
   );
 }
 
-/** Language control for the header top row (keeps brand free of the store chip). */
+/** Language control for the header (flag sits above the store chip). */
 export function AppLanguageAction() {
   return <LanguageSwitch />;
 }
 
-/** Full-width location picker for the header second row. */
+/** Compact location picker under the language flag (≤30vw via header stack). */
 export function AppStoreSelect() {
   const { t } = useT();
   const { user, ready } = useAppSession();
@@ -66,7 +66,7 @@ export function AppStoreSelect() {
     return (
       <span
         aria-hidden
-        className="mt-2 inline-block h-8 w-full rounded-lg border border-card-border/60 bg-card-border/20"
+        className="inline-block h-8 w-full rounded-lg border border-card-border/60 bg-card-border/20"
       />
     );
   }
@@ -74,10 +74,10 @@ export function AppStoreSelect() {
   if (stores.length < 1) return null;
 
   return (
-    <div className="mt-2 min-w-0">
+    <div className="w-full min-w-0">
       <MenuSelect
         size="compact"
-        menuAlign="start"
+        menuAlign="end"
         className="w-full min-w-0"
         label={t("app.selectStore")}
         value={storeId}
@@ -94,7 +94,7 @@ export function AppStoreSelect() {
   );
 }
 
-/** Prefer AppLanguageAction + AppStoreSelect in the two-row header. */
+/** Prefer AppLanguageAction + AppStoreSelect stacked in the header. */
 export function AppTopActions() {
   return <AppLanguageAction />;
 }

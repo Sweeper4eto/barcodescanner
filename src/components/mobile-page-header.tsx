@@ -30,16 +30,18 @@ export function MobilePageHeader({
 
   return (
     <div className={`${base} ${className}`.trim()}>
-      {/* Brand stays intact; location sits on its own row so long names never cover "365". */}
-      <div className="flex h-11 items-center justify-between gap-2 overflow-visible sm:gap-3">
-        <div className="min-w-0 shrink-0 overflow-visible">
+      {/* Language + store under flag; store chip capped at 30vw with ellipsis. */}
+      <div className="flex items-start justify-between gap-2 overflow-visible sm:gap-3">
+        <div className="min-w-0 shrink-0 overflow-visible pt-0.5">
           <AppHeaderLogo />
         </div>
-        <div className="flex h-11 shrink-0 items-center overflow-visible">
+        <div className="flex shrink-0 flex-col items-end gap-1.5 overflow-visible">
           <AppLanguageAction />
+          <div className="w-[30vw] max-w-[30vw] min-w-0">
+            <AppStoreSelect />
+          </div>
         </div>
       </div>
-      <AppStoreSelect />
 
       {title || action ? (
         <div className="mt-2 flex items-start justify-between gap-2">

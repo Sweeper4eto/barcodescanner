@@ -114,4 +114,11 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
     titleBg:
       "На началния екран ще виждате „Какво е новото“, когато пуснем обновления.",
   },
+  {
+    key: "2026-08-header-store-under-flag",
+    titleEn:
+      "Store name sits under the language flag (shortened with …); full name in the menu.",
+    titleBg:
+      "Името на магазина е под знамето за език (със … при дълго име); пълното име е в менюто.",
+  },
 ];
