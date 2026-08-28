@@ -55,8 +55,12 @@ export function AppBottomNav() {
           { credentials: "same-origin", cache: "no-store" },
         );
         if (!response.ok) return;
-        const data = (await response.json()) as { total?: number };
-        if (!cancelled) setCartCount(Math.max(0, Number(data.total) || 0));
+        const data = (await response.json()) as {
+          pagination?: { total?: number };
+        };
+        if (!cancelled) {
+          setCartCount(Math.max(0, Number(data.pagination?.total) || 0));
+        }
       } catch {
         if (!cancelled) setCartCount(0);
       }

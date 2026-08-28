@@ -1,6 +1,5 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActionFlash } from "@/components/action-flash";
 import { CameraCapture, uploadImage } from "@/components/camera-capture";
@@ -19,7 +18,9 @@ import { ProductImage } from "@/components/product-image";
 import { RemoveConfirmDialog } from "@/components/remove-confirm-dialog";
 import { SearchField } from "@/components/search-field";
 import { useT } from "@/components/i18n-provider";
+import { useAppSession } from "@/components/app-session-provider";
 import { useBrowserBackStack } from "@/lib/browser-back";
+import { useAppStoreId } from "@/hooks/use-app-store-id";
 import { useViewportInsets } from "@/hooks/use-viewport-insets";
 import { expiryYmdToIso } from "@/lib/inventory";
 import { CancelButton } from "@/components/cancel-button";
@@ -62,10 +63,9 @@ const buyListScrollClassName = `min-h-0 flex-1 space-y-1.5 overflow-y-auto overs
 
 function BuyListContent() {
   const { t } = useT();
+  const { homeUser, ready: sessionReady } = useAppSession();
+  const { storeId, ready: storeReady } = useAppStoreId();
   const { offsetTop, keyboardInset } = useViewportInsets();
-  const searchParams = useSearchParams();
-  const storeId = searchParams.get("storeId") ?? "";
-  const [homeUser, setHomeUser] = useState<boolean | null>(null);
   const [entries, setEntries] = useState<Entry[]>([]);
   const [pagination, setPagination] = useState<Pagination>({
     page: 1,
@@ -98,7 +98,8 @@ function BuyListContent() {
   >(undefined);
   const [manualCapturing, setManualCapturing] = useState(false);
   const [manualSaving, setManualSaving] = useState(false);
-  const [loading, setLoading] = useState(() => Boolean(storeId));
+  const [loading, setLoading] = useState(false);
+  const pageReady = sessionReady && storeReady;
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const clearFlash = useCallback(() => setFlashMessage(null), []);
   const loadingMoreRef = useRef(false);
@@ -140,23 +141,6 @@ function BuyListContent() {
       },
     },
   ]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadUser() {
-      const response = await fetch("/api/auth/me");
-      const data = await response.json();
-      if (!cancelled) {
-        setHomeUser(Boolean(data.user?.homeUser));
-      }
-    }
-
-    void loadUser();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   const loadFavourites = useCallback(async () => {
     if (!storeId || homeUser !== true) return;
@@ -214,7 +198,7 @@ function BuyListContent() {
 
   const loadEntries = useCallback(
     async (targetPage: number, append: boolean) => {
-      if (!storeId || homeUser !== true) return;
+      if (!storeId || homeUser !== true || !pageReady) return;
 
       const generation = ++fetchGenerationRef.current;
       loadingMoreRef.current = true;
@@ -253,14 +237,14 @@ function BuyListContent() {
         }
       }
     },
-    [storeId, debouncedSearch, homeUser],
+    [storeId, debouncedSearch, homeUser, pageReady],
   );
 
   useEffect(() => {
-    if (storeId && homeUser === true) {
+    if (storeId && homeUser === true && pageReady) {
       void loadEntries(page, page > 1 && !debouncedSearch);
     }
-  }, [storeId, debouncedSearch, page, homeUser, loadEntries]);
+  }, [storeId, debouncedSearch, page, homeUser, pageReady, loadEntries]);
 
   useEffect(() => {
     if (debouncedSearch || loading || homeUser !== true) return;
@@ -534,7 +518,7 @@ function BuyListContent() {
     ? (entries.find((entry) => entry.id === confirmId) ?? null)
     : null;
 
-  if (homeUser === null) {
+  if (!pageReady || homeUser === null) {
     return (
       <div className={buyListShellClassName}>
         <div className={`${listPageChromeClassName} px-4`}>
@@ -589,6 +573,7 @@ function BuyListContent() {
                 className="px-1.5 text-xs font-semibold text-primary"
                 onClick={() => {
                   setShowScanner(false);
+                  (document.activeElement as HTMLElement | null)?.blur?.();
                   setManualName(search);
                   setManualQty("1");
                   setManualImagePath(null);

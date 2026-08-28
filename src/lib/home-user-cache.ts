@@ -19,3 +19,11 @@ export function writeCachedHomeUser(homeUser: boolean) {
     /* ignore */
   }
 }
+
+export function clearCachedHomeUser() {
+  try {
+    sessionStorage.removeItem(HOME_USER_CACHE_KEY);
+  } catch {
+    /* ignore */
+  }
+}

@@ -15,8 +15,10 @@ export async function clearClientSession(): Promise<void> {
   try {
     // Dynamic import keeps the token/jose module out of the initial bundle.
     const { CLIENT_COOKIE_NAME } = await import("@/lib/session-token");
+    const { clearCachedHomeUser } = await import("@/lib/home-user-cache");
     document.cookie = `${CLIENT_COOKIE_NAME}=; Path=/; Max-Age=0; SameSite=Lax`;
     sessionStorage.removeItem(CLIENT_COOKIE_NAME);
+    clearCachedHomeUser();
   } catch {
     /* ignore */
   }
