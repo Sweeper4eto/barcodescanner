@@ -121,4 +121,11 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
     titleBg:
       "Името на магазина е под знамето за език (със … при дълго име); пълното име е в менюто.",
   },
+  {
+    key: "2026-09-no-picture-mint-placeholder",
+    titleEn:
+      "Products without a photo show a mint store illustration instead of grey “No picture” text.",
+    titleBg:
+      "Продуктите без снимка показват mint илюстрация на щанд вместо сив текст „Няма снимка“.",
+  },
 ];
