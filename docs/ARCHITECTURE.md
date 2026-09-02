@@ -1,6 +1,6 @@
 # Magazin — архитектура
 
-**Last updated:** 2026-06-24
+**Last updated:** 2026-09-02
 
 Мобилно-оптимизирано уеб приложение за управление на стока по магазини, срок на годност, клиенти и месечни плащания.
 
@@ -38,6 +38,15 @@
 - **Сканирай:** камера/ръчно → продукт → количество 1–20 → дата → запис
 - **Въведи стока:** баркод → име → снимка → глобална база
 - **Годност:** сортиране по срок, цветове, премахване
+
+### Placeholder за липсваща снимка
+
+`ProductImage` (`src/components/product-image.tsx`) показва **`NoPicturePlaceholder`** когато няма `imagePath` или зареждането е неуспешно:
+
+- Илюстрация: **#29 Mini market scene** (малък щанд с стоки)
+- Стил: **mint glow** — mint рамка, radial halo, mint икона (`text-accent`)
+- Компонент: `src/components/no-picture-placeholder.tsx`
+- Достъпност: `aria-label` от `common.noPicture` (без видим текст „Няма снимка“)
 
 ### Годност и purge
 
@@ -111,3 +120,4 @@ npm run validate   # lint + test + build
 ```
 
 `tests/expiry.test.ts` — формула за плащания, видимост и цветове на годност.
+`tests/no-picture-placeholder.test.ts` — избран placeholder (#29 + mint glow).

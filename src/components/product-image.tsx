@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type MouseEvent, type PointerEvent } from "react";
 import { useT } from "@/components/i18n-provider";
+import { NoPicturePlaceholder } from "@/components/no-picture-placeholder";
 
 type Props = {
   src: string | null | undefined;
@@ -113,16 +114,12 @@ export function ProductImage({
 
   if (!showImage) {
     return (
-      <div
-        className={`flex select-none items-center justify-center border border-card-border bg-transparent text-center text-muted ${placeholderClassName || className}`}
+      <NoPicturePlaceholder
+        className={`select-none ${placeholderClassName || className}`.trim()}
         role="img"
         aria-label={t("common.noPicture")}
         {...interactiveProps}
-      >
-        <span className="px-2 text-xs font-medium leading-tight">
-          {t("common.noPicture")}
-        </span>
-      </div>
+      />
     );
   }
 
