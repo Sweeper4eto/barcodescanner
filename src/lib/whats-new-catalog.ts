@@ -136,4 +136,20 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Персонализирайте push известия за годност: ранно и спешно напомняне, график, тихи часове и филтър по обект.",
     href: "/app/settings/notifications",
   },
+  {
+    key: "2026-09-document-scan-no-reprompt",
+    titleEn:
+      "Document scan on iPhone keeps the in-app camera open — no permission prompt on every new scan.",
+    titleBg:
+      "Сканиране на документ на iPhone остава в приложението — без повторно питане за камера при нов скан.",
+    href: "/app/add-document",
+  },
+  {
+    key: "2026-09-notification-timezone-auto",
+    titleEn:
+      "Expiry alert timezone is auto-detected; pick another from the list and Save to keep it.",
+    titleBg:
+      "Часовата зона за известия се открива автоматично; изберете друга от списъка и Запази, за да остане.",
+    href: "/app/settings/notifications",
+  },
 ];

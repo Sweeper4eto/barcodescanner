@@ -90,7 +90,9 @@ export function MenuSelect<T extends string>({
   return (
     <div
       ref={rootRef}
-      className={`relative ${compact ? "z-[60]" : "z-30"} ${className}`.trim()}
+      className={`relative ${
+        open ? "z-[90]" : compact ? "z-[40]" : "z-30"
+      } ${className}`.trim()}
     >
       <button
         type="button"
@@ -141,7 +143,7 @@ export function MenuSelect<T extends string>({
           id={listId}
           role="listbox"
           aria-label={label}
-          className={`absolute z-[70] max-h-60 min-w-full w-max max-w-[min(90vw,20rem)] overflow-y-auto rounded-xl border border-input-border bg-background py-1 shadow-lg shadow-black/40 ${
+          className={`absolute z-[100] max-h-72 min-w-full w-max max-w-[min(90vw,24rem)] overflow-y-auto overscroll-contain rounded-xl border border-input-border bg-zinc-950 py-1 shadow-lg shadow-black/50 ${
             menuAbove ? "bottom-full mb-1" : "top-full mt-1"
           } ${menuAlign === "end" ? "right-0" : "left-0"}`}
         >
@@ -161,7 +163,7 @@ export function MenuSelect<T extends string>({
                     className={`flex w-full px-3 py-2.5 text-left text-sm whitespace-nowrap disabled:cursor-not-allowed disabled:opacity-40 ${
                       active
                         ? "bg-selected text-primary"
-                        : "text-foreground hover:bg-transparent"
+                        : "bg-zinc-950 text-foreground hover:bg-zinc-900"
                     }`}
                     onClick={() => {
                       if (option.disabled) return;

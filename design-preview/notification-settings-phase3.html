@@ -125,10 +125,17 @@
       background: #fff;
     }
     .toggle.off span { left: 3px; }
-    .chip-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .chip-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 10px;
+    }
     .chip {
-      font-size: 11px;
-      padding: 6px 10px;
+      font-size: 12px;
+      font-weight: 500;
+      text-align: center;
+      padding: 8px 10px;
       border-radius: 999px;
       border: 1px solid #52525b;
       color: #a1a1aa;
@@ -345,9 +352,9 @@
                 <div class="toggle"><span></span></div>
               </div>
               <div class="chip-row">
+                <span class="chip">3 д</span>
                 <span class="chip">7 д</span>
                 <span class="chip warn on">14 д</span>
-                <span class="chip">21 д</span>
                 <span class="chip">По избор</span>
               </div>
               <div class="row-sub" style="margin-top:8px">„3 продукта изтичат в следващите 14 дни“</div>
@@ -359,9 +366,9 @@
                 <div class="toggle"><span></span></div>
               </div>
               <div class="chip-row">
-                <span class="chip">1 д</span>
                 <span class="chip urgent on">3 д</span>
                 <span class="chip">7 д</span>
+                <span class="chip">14 д</span>
                 <span class="chip">По избор</span>
               </div>
               <div class="row-sub" style="margin-top:8px">„Мляко 1L изтича след 3 дни“</div>

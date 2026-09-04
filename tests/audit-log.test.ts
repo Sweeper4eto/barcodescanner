@@ -1,0 +1,39 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import {
+  auditStoreDetailsNeedle,
+  buildAuditLogWhere,
+} from "../src/lib/audit-log";
+
+test("auditStoreDetailsNeedle matches audit detail format", () => {
+  assert.equal(auditStoreDetailsNeedle("1030"), 'store "1030"');
+  assert.equal(auditStoreDetailsNeedle("  Main  "), 'store "Main"');
+});
+
+test("buildAuditLogWhere filters by username store and ip", () => {
+  const where = buildAuditLogWhere({
+    username: "dayana",
+    store: "1030",
+    ip: "149.62",
+  });
+
+  assert.deepEqual(where, {
+    AND: [
+      { username: { equals: "dayana" } },
+      { details: { contains: 'store "1030"' } },
+      { ipAddress: { contains: "149.62" } },
+    ],
+  });
+});
+
+test("buildAuditLogWhere combines event group with free text", () => {
+  const where = buildAuditLogWhere({
+    filter: "inventory",
+    q: "Milk",
+  });
+
+  assert.ok(where.AND);
+  const and = where.AND as Array<Record<string, unknown>>;
+  assert.ok(and.some((clause) => "event" in clause));
+  assert.ok(and.some((clause) => "OR" in clause));
+});

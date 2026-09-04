@@ -87,7 +87,10 @@ export function LanguageSwitch() {
   }, [open]);
 
   return (
-    <div ref={rootRef} className="relative z-[60] shrink-0">
+    <div
+      ref={rootRef}
+      className={`relative shrink-0 ${open ? "z-[90]" : "z-[50]"}`}
+    >
       <button
         type="button"
         className="flex h-8 items-center gap-1.5 rounded-lg border border-input-border bg-transparent px-2 pr-1.5 text-xs text-foreground"
@@ -108,7 +111,7 @@ export function LanguageSwitch() {
           id={listId}
           role="listbox"
           aria-label="Language"
-          className="absolute right-0 top-full z-[70] mt-1 min-w-full overflow-hidden rounded-lg border border-input-border bg-background py-1 shadow-lg shadow-black/40"
+          className="absolute right-0 top-full z-[100] mt-1 min-w-full overflow-hidden rounded-lg border border-input-border bg-zinc-950 py-1 shadow-lg shadow-black/50"
         >
           {options.map((option) => {
             const OptionFlag = option.Flag;
@@ -122,7 +125,7 @@ export function LanguageSwitch() {
                   className={`flex w-full items-center gap-1.5 px-2.5 py-2 text-left text-xs ${
                     active
                       ? "bg-selected text-primary"
-                      : "text-foreground hover:bg-transparent"
+                      : "bg-zinc-950 text-foreground hover:bg-zinc-900"
                   }`}
                   onClick={() => {
                     setLocale(option.value);

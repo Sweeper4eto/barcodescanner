@@ -4,18 +4,24 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { LoadingSpinnerBlock } from "@/components/loading-spinner";
 import { MobilePageHeader, appPageClassName } from "@/components/mobile-page-header";
+import { MenuSelect } from "@/components/menu-select";
 import { useT } from "@/components/i18n-provider";
 import {
   appButtonPrimaryFull,
   appFormInput,
 } from "@/lib/app-ui";
-import type { ExpiryNotificationPrefs, NotifySchedule } from "@/lib/expiry-notification-prefs";
+import type { ExpiryNotificationPrefs } from "@/lib/expiry-notification-prefs";
+import {
+  buildTimezoneOptions,
+  detectBrowserTimezone,
+  resolveTimezoneForForm,
+} from "@/lib/timezones";
 
 type StoreOption = { id: string; name: string };
 
 type SettingsResponse = ExpiryNotificationPrefs & { stores: StoreOption[] };
 
-const DAY_PRESETS = [0, 1, 3, 7, 14, 21] as const;
+const DAY_PRESETS = [3, 7, 14] as const;
 
 function Toggle({
   checked,
@@ -77,46 +83,49 @@ function Section({
 function DayChips({
   value,
   onChange,
-  presets,
   customLabel,
   daysLabel,
 }: {
   value: number;
   onChange: (days: number) => void;
-  presets: readonly number[];
   customLabel: string;
   daysLabel: string;
 }) {
-  const [custom, setCustom] = useState(!presets.includes(value as (typeof presets)[number]));
+  const [custom, setCustom] = useState(
+    !DAY_PRESETS.includes(value as (typeof DAY_PRESETS)[number]),
+  );
+
+  const chipClass = (active: boolean) =>
+    `rounded-full border px-3 py-2 text-center text-xs font-medium ${
+      active
+        ? "border-primary/45 bg-primary/10 text-primary"
+        : "border-card-border text-muted"
+    }`;
 
   return (
-    <div className="mt-2 flex flex-wrap gap-2">
-      {presets.map((days) => (
+    <div className="mt-3 space-y-2">
+      <div className="grid grid-cols-2 gap-2">
+        {DAY_PRESETS.map((days) => (
+          <button
+            key={days}
+            type="button"
+            onClick={() => {
+              setCustom(false);
+              onChange(days);
+            }}
+            className={chipClass(!custom && value === days)}
+          >
+            {days} {daysLabel}
+          </button>
+        ))}
         <button
-          key={days}
           type="button"
-          onClick={() => {
-            setCustom(false);
-            onChange(days);
-          }}
-          className={`rounded-full border px-3 py-1.5 text-xs ${
-            !custom && value === days
-              ? "border-primary/45 bg-primary/10 text-primary"
-              : "border-card-border text-muted"
-          }`}
+          onClick={() => setCustom(true)}
+          className={chipClass(custom)}
         >
-          {days === 0 ? "0" : `${days} ${daysLabel}`}
+          {customLabel}
         </button>
-      ))}
-      <button
-        type="button"
-        onClick={() => setCustom(true)}
-        className={`rounded-full border px-3 py-1.5 text-xs ${
-          custom ? "border-primary/45 bg-primary/10 text-primary" : "border-card-border text-muted"
-        }`}
-      >
-        {customLabel}
-      </button>
+      </div>
       {custom ? (
         <input
           type="number"
@@ -124,7 +133,8 @@ function DayChips({
           max={90}
           value={value}
           onChange={(event) => onChange(Number(event.target.value))}
-          className={`${appFormInput} w-20 px-2 py-1.5 text-center text-sm`}
+          className={`${appFormInput} w-full px-3 py-2 text-center text-sm`}
+          aria-label={customLabel}
         />
       ) : null}
     </div>
@@ -155,6 +165,7 @@ export function ExpiryNotificationSettingsForm() {
         return;
       }
       const next = data.settings;
+      const detected = detectBrowserTimezone();
       setStores(next.stores);
       setPrefs({
         earlyEnabled: next.earlyEnabled,
@@ -168,7 +179,11 @@ export function ExpiryNotificationSettingsForm() {
         quietHoursEnabled: next.quietHoursEnabled,
         quietHoursStart: next.quietHoursStart,
         quietHoursEnd: next.quietHoursEnd,
-        timezone: next.timezone,
+        timezone: resolveTimezoneForForm(
+          next.customized,
+          next.timezone,
+          detected,
+        ),
         storeIds: next.storeIds,
         customized: next.customized,
       });
@@ -251,6 +266,14 @@ export function ExpiryNotificationSettingsForm() {
     );
   }
 
+  const detectedTimezone = detectBrowserTimezone();
+  const timezoneOptions = buildTimezoneOptions(
+    detectedTimezone,
+    prefs.timezone,
+    (zone, isDetected) =>
+      isDetected ? t("pushSettings.timezoneAuto", { zone }) : zone,
+  );
+
   return (
     <div className={appPageClassName}>
       <MobilePageHeader
@@ -278,7 +301,6 @@ export function ExpiryNotificationSettingsForm() {
             <DayChips
               value={prefs.earlyDays}
               onChange={(earlyDays) => patch({ earlyDays })}
-              presets={[1, 3, 7, 14, 21]}
               customLabel={t("pushSettings.customDays")}
               daysLabel={t("pushSettings.daysLabel")}
             />
@@ -298,7 +320,6 @@ export function ExpiryNotificationSettingsForm() {
             <DayChips
               value={prefs.urgentDays}
               onChange={(urgentDays) => patch({ urgentDays })}
-              presets={DAY_PRESETS}
               customLabel={t("pushSettings.customDays")}
               daysLabel={t("pushSettings.daysLabel")}
             />
@@ -306,19 +327,18 @@ export function ExpiryNotificationSettingsForm() {
         </Section>
 
         <Section title={t("pushSettings.schedule")}>
-          <div className="flex flex-wrap gap-2">
+          <div className="grid grid-cols-2 gap-2">
             {(
               [
                 ["daily", t("pushSettings.frequencyDaily")],
                 ["twice_daily", t("pushSettings.frequencyTwice")],
-                ["custom", t("pushSettings.frequencyCustom")],
               ] as const
             ).map(([schedule, label]) => (
               <button
                 key={schedule}
                 type="button"
-                onClick={() => patch({ schedule: schedule as NotifySchedule })}
-                className={`rounded-full border px-3 py-1.5 text-xs ${
+                onClick={() => patch({ schedule })}
+                className={`rounded-full border px-3 py-2 text-center text-xs font-medium ${
                   prefs.schedule === schedule
                     ? "border-primary/45 bg-primary/10 text-primary"
                     : "border-card-border text-muted"
@@ -327,57 +347,74 @@ export function ExpiryNotificationSettingsForm() {
                 {label}
               </button>
             ))}
+            <button
+              type="button"
+              onClick={() => patch({ schedule: "custom" })}
+              className={`col-span-2 rounded-full border px-3 py-2 text-center text-xs font-medium ${
+                prefs.schedule === "custom"
+                  ? "border-primary/45 bg-primary/10 text-primary"
+                  : "border-card-border text-muted"
+              }`}
+            >
+              {t("pushSettings.frequencyCustom")}
+            </button>
           </div>
 
           {prefs.schedule !== "custom" ? (
-            <div className="mt-3 flex flex-wrap items-center gap-3">
-              <label className="text-xs text-muted">
+            <div
+              className={`mt-3 grid gap-2 ${
+                prefs.schedule === "twice_daily" ? "grid-cols-2" : "grid-cols-1"
+              }`}
+            >
+              <label className="block text-xs text-muted">
                 {t("pushSettings.timeLabel")}
                 <input
                   type="time"
                   value={prefs.time1}
                   onChange={(event) => patch({ time1: event.target.value })}
-                  className={`${appFormInput} mt-1 block`}
+                  className={`${appFormInput} mt-1 block w-full`}
                 />
               </label>
               {prefs.schedule === "twice_daily" ? (
-                <label className="text-xs text-muted">
+                <label className="block text-xs text-muted">
                   {t("pushSettings.timeSecond")}
                   <input
                     type="time"
                     value={prefs.time2}
                     onChange={(event) => patch({ time2: event.target.value })}
-                    className={`${appFormInput} mt-1 block`}
+                    className={`${appFormInput} mt-1 block w-full`}
                   />
                 </label>
               ) : null}
             </div>
           ) : (
-            <div className="mt-3 flex items-center gap-2 text-sm">
-              <span className="text-muted">{t("pushSettings.minInterval")}</span>
-              <input
-                type="number"
-                min={6}
-                max={168}
-                value={prefs.minIntervalHours}
-                onChange={(event) =>
-                  patch({ minIntervalHours: Number(event.target.value) })
-                }
-                className={`${appFormInput} w-20 px-2 py-1.5 text-center`}
-              />
-              <span className="text-muted">{t("pushSettings.hours")}</span>
-            </div>
+            <label className="mt-3 block text-xs text-muted">
+              {t("pushSettings.minInterval")}
+              <div className="mt-1 flex items-center gap-2">
+                <input
+                  type="number"
+                  min={6}
+                  max={168}
+                  value={prefs.minIntervalHours}
+                  onChange={(event) =>
+                    patch({ minIntervalHours: Number(event.target.value) })
+                  }
+                  className={`${appFormInput} w-24 px-3 py-2 text-center text-sm`}
+                />
+                <span className="text-sm text-muted">{t("pushSettings.hours")}</span>
+              </div>
+            </label>
           )}
 
-          <label className="mt-3 block text-xs text-muted">
-            {t("pushSettings.timezone")}
-            <input
-              type="text"
+          <div className="mt-3">
+            <p className="mb-1 text-xs text-muted">{t("pushSettings.timezone")}</p>
+            <MenuSelect
+              label={t("pushSettings.timezone")}
               value={prefs.timezone}
-              onChange={(event) => patch({ timezone: event.target.value })}
-              className={`${appFormInput} mt-1 block w-full`}
+              options={timezoneOptions}
+              onChange={(timezone) => patch({ timezone })}
             />
-          </label>
+          </div>
         </Section>
 
         <Section
@@ -393,34 +430,38 @@ export function ExpiryNotificationSettingsForm() {
               label={t("pushSettings.quietEnabled")}
             />
           </div>
-          <div className="mt-3 flex flex-wrap items-center gap-3">
-            <label className="text-xs text-muted">
-              {t("pushSettings.quietFrom")}
-              <input
-                type="time"
-                value={prefs.quietHoursStart}
-                onChange={(event) => patch({ quietHoursStart: event.target.value })}
-                className={`${appFormInput} mt-1 block`}
-              />
-            </label>
-            <label className="text-xs text-muted">
-              {t("pushSettings.quietTo")}
-              <input
-                type="time"
-                value={prefs.quietHoursEnd}
-                onChange={(event) => patch({ quietHoursEnd: event.target.value })}
-                className={`${appFormInput} mt-1 block`}
-              />
-            </label>
-          </div>
+          {prefs.quietHoursEnabled ? (
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <label className="block text-xs text-muted">
+                {t("pushSettings.quietFrom")}
+                <input
+                  type="time"
+                  value={prefs.quietHoursStart}
+                  onChange={(event) =>
+                    patch({ quietHoursStart: event.target.value })
+                  }
+                  className={`${appFormInput} mt-1 block w-full`}
+                />
+              </label>
+              <label className="block text-xs text-muted">
+                {t("pushSettings.quietTo")}
+                <input
+                  type="time"
+                  value={prefs.quietHoursEnd}
+                  onChange={(event) => patch({ quietHoursEnd: event.target.value })}
+                  className={`${appFormInput} mt-1 block w-full`}
+                />
+              </label>
+            </div>
+          ) : null}
         </Section>
 
         <Section title={t("pushSettings.stores")}>
-          <div className="flex flex-wrap gap-2">
+          <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
               onClick={() => setStoreMode("all")}
-              className={`rounded-full border px-3 py-1.5 text-xs ${
+              className={`rounded-full border px-3 py-2 text-center text-xs font-medium ${
                 storeMode === "all"
                   ? "border-primary/45 bg-primary/10 text-primary"
                   : "border-card-border text-muted"
@@ -431,7 +472,7 @@ export function ExpiryNotificationSettingsForm() {
             <button
               type="button"
               onClick={() => setStoreMode("selected")}
-              className={`rounded-full border px-3 py-1.5 text-xs ${
+              className={`rounded-full border px-3 py-2 text-center text-xs font-medium ${
                 storeMode === "selected"
                   ? "border-primary/45 bg-primary/10 text-primary"
                   : "border-card-border text-muted"

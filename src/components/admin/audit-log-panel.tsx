@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { AdminField, adminInputClass, adminPaginationClass, adminSearchInputClass } from "@/components/admin/admin-ui";
 import { LoadingSpinnerBlock } from "@/components/loading-spinner";
 import { MenuSelect } from "@/components/menu-select";
@@ -21,7 +21,15 @@ type AuditEntry = {
 
 type AuditFilter = "all" | "auth" | "inventory" | "products" | "admin";
 
+type StoreOption = {
+  id: string;
+  name: string;
+  active: boolean;
+  clientName: string;
+};
+
 const PAGE_SIZES = [10, 20, 50] as const;
+const ALL = "__all__";
 
 function eventLabelKey(event: string): MessageKey {
   const key = `admin.auditEvents.${event}` as MessageKey;
@@ -33,6 +41,12 @@ export function AuditLogPanel() {
   const [entries, setEntries] = useState<AuditEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<AuditFilter>("all");
+  const [username, setUsername] = useState(ALL);
+  const [storeName, setStoreName] = useState(ALL);
+  const [storeSearch, setStoreSearch] = useState("");
+  const [ip, setIp] = useState("");
+  const [usernames, setUsernames] = useState<string[]>([]);
+  const [stores, setStores] = useState<StoreOption[]>([]);
   const [search, setSearch] = useState("");
   const [query, setQuery] = useState("");
   const [dateFrom, setDateFrom] = useState("");
@@ -45,6 +59,35 @@ export function AuditLogPanel() {
   const [totalPages, setTotalPages] = useState(1);
   const [error, setError] = useState("");
 
+  const storeOptions = useMemo(() => {
+    const needle = storeSearch.trim().toLowerCase();
+    const filtered = needle
+      ? stores.filter(
+          (store) =>
+            store.name.toLowerCase().includes(needle) ||
+            store.clientName.toLowerCase().includes(needle) ||
+            store.name === storeName,
+        )
+      : stores;
+    return [
+      { value: ALL, label: t("admin.auditAllStores") },
+      ...filtered.map((store) => ({
+        value: store.name,
+        label: store.active
+          ? `${store.name} · ${store.clientName}`
+          : `${store.name} · ${store.clientName} (${t("team.inactive")})`,
+      })),
+    ];
+  }, [stores, storeSearch, storeName, t]);
+
+  const usernameOptions = useMemo(
+    () => [
+      { value: ALL, label: t("admin.auditAllUsers") },
+      ...usernames.map((name) => ({ value: name, label: name })),
+    ],
+    [usernames, t],
+  );
+
   const loadAuditLog = useCallback(async (signal?: AbortSignal) => {
     setLoading(true);
     setError("");
@@ -53,8 +96,12 @@ export function AuditLogPanel() {
         filter,
         page: String(page),
         pageSize: String(pageSize),
+        options: "1",
       });
       if (query) params.set("q", query);
+      if (username !== ALL) params.set("username", username);
+      if (storeName !== ALL) params.set("store", storeName);
+      if (ip.trim()) params.set("ip", ip.trim());
       if (dateFrom) params.set("dateFrom", dateFrom);
       if (dateTo) params.set("dateTo", dateTo);
       if (timeFrom) params.set("timeFrom", timeFrom);
@@ -72,6 +119,7 @@ export function AuditLogPanel() {
         page?: number;
         pageSize?: number;
         error?: string;
+        options?: { usernames?: string[]; stores?: StoreOption[] };
       };
       if (!response.ok) {
         throw new Error(data.error ?? t("admin.failedLoadAuditLog"));
@@ -82,6 +130,10 @@ export function AuditLogPanel() {
       setPage(data.page ?? 1);
       if (data.pageSize && PAGE_SIZES.includes(data.pageSize as (typeof PAGE_SIZES)[number])) {
         setPageSize(data.pageSize);
+      }
+      if (data.options) {
+        setUsernames(data.options.usernames ?? []);
+        setStores(data.options.stores ?? []);
       }
     } catch (loadError) {
       if (loadError instanceof DOMException && loadError.name === "AbortError") {
@@ -95,7 +147,20 @@ export function AuditLogPanel() {
     } finally {
       setLoading(false);
     }
-  }, [filter, page, pageSize, query, dateFrom, dateTo, timeFrom, timeTo, t]);
+  }, [
+    filter,
+    page,
+    pageSize,
+    query,
+    username,
+    storeName,
+    ip,
+    dateFrom,
+    dateTo,
+    timeFrom,
+    timeTo,
+    t,
+  ]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -111,6 +176,10 @@ export function AuditLogPanel() {
 
   function clearFilters() {
     setFilter("all");
+    setUsername(ALL);
+    setStoreName(ALL);
+    setStoreSearch("");
+    setIp("");
     setSearch("");
     setQuery("");
     setDateFrom("");
@@ -172,6 +241,38 @@ export function AuditLogPanel() {
             }}
           />
         </AdminField>
+        <AdminField label={t("admin.userLabel")}>
+          <MenuSelect
+            label={t("admin.userLabel")}
+            value={username}
+            options={usernameOptions}
+            onChange={(next) => {
+              setUsername(next);
+              setPage(1);
+            }}
+          />
+        </AdminField>
+        <AdminField label={t("admin.auditStoreFilter")}>
+          <div className="space-y-2">
+            <input
+              type="search"
+              value={storeSearch}
+              onChange={(event) => setStoreSearch(event.target.value)}
+              placeholder={t("admin.auditStoreSearch")}
+              className={adminInputClass}
+              aria-label={t("admin.auditStoreSearch")}
+            />
+            <MenuSelect
+              label={t("admin.auditStoreFilter")}
+              value={storeName}
+              options={storeOptions}
+              onChange={(next) => {
+                setStoreName(next);
+                setPage(1);
+              }}
+            />
+          </div>
+        </AdminField>
         <AdminField label={t("admin.perPage")}>
           <MenuSelect
             label={t("admin.perPage")}
@@ -228,6 +329,18 @@ export function AuditLogPanel() {
               setTimeTo(event.target.value);
               setPage(1);
             }}
+          />
+        </AdminField>
+        <AdminField label={t("admin.auditIpFilter")}>
+          <input
+            type="text"
+            className={adminInputClass}
+            value={ip}
+            onChange={(event) => {
+              setIp(event.target.value);
+              setPage(1);
+            }}
+            placeholder={t("admin.auditIpPlaceholder")}
           />
         </AdminField>
       </div>

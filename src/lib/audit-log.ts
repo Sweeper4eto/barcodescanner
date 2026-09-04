@@ -181,6 +181,9 @@ function eventsForFilter(filter: AuditFilter): AuditEvent[] | null {
 export type AuditLogQuery = {
   filter?: AuditFilter;
   q?: string;
+  username?: string;
+  store?: string;
+  ip?: string;
   dateFrom?: string;
   dateTo?: string;
   timeFrom?: string;
@@ -189,6 +192,11 @@ export type AuditLogQuery = {
   pageSize?: number;
 };
 
+/** Match store name as written in audit details (`store "Name"`). */
+export function auditStoreDetailsNeedle(storeName: string): string {
+  return `store "${storeName.trim()}"`;
+}
+
 export function buildAuditLogWhere(query: AuditLogQuery): Prisma.AuditLogWhereInput {
   const filter = query.filter ?? "all";
   const events = eventsForFilter(filter);
@@ -196,6 +204,21 @@ export function buildAuditLogWhere(query: AuditLogQuery): Prisma.AuditLogWhereIn
 
   if (events) {
     and.push({ event: { in: events } });
+  }
+
+  const username = query.username?.trim();
+  if (username) {
+    and.push({ username: { equals: username } });
+  }
+
+  const store = query.store?.trim();
+  if (store) {
+    and.push({ details: { contains: auditStoreDetailsNeedle(store) } });
+  }
+
+  const ip = query.ip?.trim();
+  if (ip) {
+    and.push({ ipAddress: { contains: ip } });
   }
 
   const q = query.q?.trim();
@@ -228,6 +251,37 @@ export function buildAuditLogWhere(query: AuditLogQuery): Prisma.AuditLogWhereIn
   }
 
   return and.length ? { AND: and } : {};
+}
+
+export async function getAuditFilterOptions() {
+  const [usernameRows, stores] = await Promise.all([
+    db.auditLog.findMany({
+      distinct: ["username"],
+      select: { username: true },
+      orderBy: { username: "asc" },
+    }),
+    db.store.findMany({
+      select: {
+        id: true,
+        name: true,
+        active: true,
+        client: { select: { name: true } },
+      },
+      orderBy: [{ client: { name: "asc" } }, { name: "asc" }],
+    }),
+  ]);
+
+  return {
+    usernames: usernameRows
+      .map((row) => row.username)
+      .filter((name) => name.trim().length > 0),
+    stores: stores.map((store) => ({
+      id: store.id,
+      name: store.name,
+      active: store.active,
+      clientName: store.client.name,
+    })),
+  };
 }
 
 export async function queryAuditLog(query: AuditLogQuery) {

@@ -46,6 +46,7 @@ type Props = {
   /**
    * Always use the in-app getUserMedia preview (skip iOS native camera shortcut).
    * Useful for product photo changes that need Take / Retake / Save in-app.
+   * Document scan always uses in-app camera so iOS does not re-prompt on every shot.
    */
   forceInAppCamera?: boolean;
   /** Tap the live camera preview to take a photo. */
@@ -148,8 +149,22 @@ function supportsFullStillCapture(): boolean {
   return typeof ImageCapture !== "undefined";
 }
 
-function prefersNativeCameraCapture(): boolean {
+/**
+ * Prefer the system camera picker on iOS for one-off product photos (sharper stills).
+ * Do not use this for document scan: each `capture=` file input open can re-ask for
+ * camera access even after the user already allowed it for the site.
+ */
+export function prefersNativeCameraCapture(): boolean {
   return isIosLike() && !supportsFullStillCapture();
+}
+
+/** Whether CameraCapture should open the native `capture=` picker instead of getUserMedia. */
+export function resolveUseNativeCapture(
+  forceInAppCamera: boolean,
+  documentLayout: boolean,
+  prefersNative: boolean,
+): boolean {
+  return !forceInAppCamera && !documentLayout && prefersNative;
 }
 
 function isAcceptedImageFile(file: File): boolean {
@@ -498,9 +513,17 @@ export function CameraCapture({
   const showCorners = showViewfinder || documentLayout;
 
   useEffect(() => {
-    setUseNativeCapture(!forceInAppCamera && prefersNativeCameraCapture());
+    // Document flow keeps a live in-app preview so "new scan" / Retake reuse the
+    // already-granted getUserMedia permission instead of reopening native capture.
+    setUseNativeCapture(
+      resolveUseNativeCapture(
+        forceInAppCamera,
+        documentLayout,
+        prefersNativeCameraCapture(),
+      ),
+    );
     setPlatformReady(true);
-  }, [forceInAppCamera]);
+  }, [documentLayout, forceInAppCamera]);
 
   const stopCamera = useCallback(() => {
     streamRef.current?.getTracks().forEach((track) => track.stop());
