@@ -1,4 +1,14 @@
 import { db } from "@/lib/db";
+import {
+  clientDefaultsFromRow,
+  mergeClientDefaults,
+  prefsFromUserRow,
+  resolveNotifyStoreIds,
+  shouldSendNotificationNow,
+  splitItemsByTier,
+  type DigestTier,
+  type ExpiryNotificationPrefs,
+} from "@/lib/expiry-notification-prefs";
 import { expiryListVisible, daysUntilExpiry } from "@/lib/expiry";
 import {
   isPushConfigured,
@@ -8,10 +18,6 @@ import {
 import { t, type Locale } from "@/i18n";
 
 const DIGEST_KIND = "expiry-digest";
-const MIN_INTERVAL_MS = 20 * 60 * 60 * 1000;
-/** Notify only for products expiring within this many days (inclusive). */
-const NOTIFY_WITHIN_DAYS = 5;
-const CRITICAL_WITHIN_DAYS = 5;
 
 export type ExpiryDigestItem = {
   productName: string;
@@ -26,28 +32,29 @@ export { daysUntilExpiry } from "@/lib/expiry";
 export function buildExpiryDigestPayload(
   items: ExpiryDigestItem[],
   locale: Locale = "en",
+  options?: { tier?: DigestTier; withinDays?: number },
 ): PushPayload | null {
   if (items.length === 0) return null;
 
-  const critical = items.filter(
-    (item) => item.daysUntilExpiry <= CRITICAL_WITHIN_DAYS,
-  );
+  const tier = options?.tier ?? "urgent";
+  const withinDays = options?.withinDays ?? 3;
+
   const storeIds = [...new Set(items.map((item) => item.storeId))];
   const url =
     storeIds.length === 1
       ? `/app/expiry?storeId=${storeIds[0]}`
       : "/app";
 
-  if (critical.length > 0) {
-    const first = critical[0];
+  if (tier === "urgent") {
+    const first = items[0];
     const title =
-      critical.length === 1
-        ? t("push.digestCriticalSingle", { productName: first.productName }, locale)
-        : t("push.digestCriticalMany", { count: critical.length }, locale);
+      items.length === 1
+        ? t("push.digestUrgentSingle", { productName: first.productName }, locale)
+        : t("push.digestUrgentMany", { count: items.length, days: withinDays }, locale);
     const body =
-      critical.length === 1
+      items.length === 1
         ? t(
-            "push.digestCriticalSingleBody",
+            "push.digestUrgentSingleBody",
             {
               quantity: first.quantity,
               storeName: first.storeName,
@@ -56,7 +63,7 @@ export function buildExpiryDigestPayload(
             locale,
           )
         : t(
-            "push.digestCriticalManyBody",
+            "push.digestUrgentManyBody",
             { productName: first.productName, storeName: first.storeName },
             locale,
           );
@@ -65,9 +72,9 @@ export function buildExpiryDigestPayload(
 
   const first = items[0];
   return {
-    title: t("push.digestSoonTitle", { count: items.length }, locale),
+    title: t("push.digestEarlyMany", { count: items.length, days: withinDays }, locale),
     body: t(
-      "push.digestSoonBody",
+      "push.digestEarlyBody",
       { productName: first.productName, storeName: first.storeName },
       locale,
     ),
@@ -75,16 +82,83 @@ export function buildExpiryDigestPayload(
   };
 }
 
+/** @deprecated Use shouldSendNotificationNow with user prefs instead. */
 export function shouldSendDigest(
   lastSentAt: Date | null,
   now = new Date(),
 ): boolean {
+  const minMs = 20 * 60 * 60 * 1000;
   if (!lastSentAt) return true;
-  return now.getTime() - lastSentAt.getTime() >= MIN_INTERVAL_MS;
+  return now.getTime() - lastSentAt.getTime() >= minMs;
 }
 
 function subscriptionLocale(locale: string): Locale {
   return locale === "bg" ? "bg" : "en";
+}
+
+const userPrefsSelect = {
+  expiryNotifyEarlyEnabled: true,
+  expiryNotifyEarlyDays: true,
+  expiryNotifyUrgentEnabled: true,
+  expiryNotifyUrgentDays: true,
+  expiryNotifySchedule: true,
+  expiryNotifyTime1: true,
+  expiryNotifyTime2: true,
+  expiryNotifyMinIntervalHours: true,
+  expiryQuietHoursEnabled: true,
+  expiryQuietHoursStart: true,
+  expiryQuietHoursEnd: true,
+  expiryNotifyTimezone: true,
+  expiryNotifyStoreIdsJson: true,
+  expiryNotifyPrefsCustomized: true,
+  client: {
+    select: {
+      expiryDefaultEarlyDays: true,
+      expiryDefaultUrgentDays: true,
+      expiryDefaultSchedule: true,
+      expiryDefaultTime1: true,
+      expiryDefaultTime2: true,
+      expiryDefaultMinIntervalHours: true,
+      expiryDefaultQuietEnabled: true,
+      expiryDefaultQuietStart: true,
+      expiryDefaultQuietEnd: true,
+      expiryDefaultTimezone: true,
+    },
+  },
+} as const;
+
+function resolveUserPrefs(
+  user: {
+    expiryNotifyEarlyEnabled: boolean;
+    expiryNotifyEarlyDays: number;
+    expiryNotifyUrgentEnabled: boolean;
+    expiryNotifyUrgentDays: number;
+    expiryNotifySchedule: string;
+    expiryNotifyTime1: string;
+    expiryNotifyTime2: string;
+    expiryNotifyMinIntervalHours: number;
+    expiryQuietHoursEnabled: boolean;
+    expiryQuietHoursStart: string;
+    expiryQuietHoursEnd: string;
+    expiryNotifyTimezone: string;
+    expiryNotifyStoreIdsJson: string | null;
+    expiryNotifyPrefsCustomized: boolean;
+    client: {
+      expiryDefaultEarlyDays: number | null;
+      expiryDefaultUrgentDays: number | null;
+      expiryDefaultSchedule: string | null;
+      expiryDefaultTime1: string | null;
+      expiryDefaultTime2: string | null;
+      expiryDefaultMinIntervalHours: number | null;
+      expiryDefaultQuietEnabled: boolean | null;
+      expiryDefaultQuietStart: string | null;
+      expiryDefaultQuietEnd: string | null;
+      expiryDefaultTimezone: string | null;
+    } | null;
+  },
+): ExpiryNotificationPrefs {
+  const base = prefsFromUserRow(user);
+  return mergeClientDefaults(base, clientDefaultsFromRow(user.client ?? undefined));
 }
 
 export async function sendExpiryDigests(): Promise<{
@@ -101,6 +175,7 @@ export async function sendExpiryDigests(): Promise<{
     where: { active: true, role: "USER", clientId: { not: null } },
     select: {
       id: true,
+      ...userPrefsSelect,
       pushSubscriptions: {
         select: {
           id: true,
@@ -123,14 +198,26 @@ export async function sendExpiryDigests(): Promise<{
   for (const user of users) {
     if (user.pushSubscriptions.length === 0) continue;
 
+    const prefs = resolveUserPrefs(user);
+
     const lastLog = await db.pushNotificationLog.findFirst({
       where: { userId: user.id, kind: DIGEST_KIND },
       orderBy: { sentAt: "desc" },
     });
-    if (!shouldSendDigest(lastLog?.sentAt ?? null, now)) continue;
 
-    const storeIds = user.storeLinks.map((link) => link.storeId);
+    if (!shouldSendNotificationNow(prefs, lastLog?.sentAt ?? null, now)) {
+      continue;
+    }
+
+    const assignedStoreIds = user.storeLinks.map((link) => link.storeId);
+    const storeIds = resolveNotifyStoreIds(prefs, assignedStoreIds);
     if (storeIds.length === 0) continue;
+
+    const maxDays = Math.max(
+      prefs.earlyEnabled ? prefs.earlyDays : 0,
+      prefs.urgentEnabled ? prefs.urgentDays : 0,
+    );
+    if (maxDays <= 0) continue;
 
     const entries = await db.inventoryEntry.findMany({
       where: {
@@ -151,14 +238,19 @@ export async function sendExpiryDigests(): Promise<{
         quantity: entry.quantity,
         daysUntilExpiry: daysUntilExpiry(entry.expiryDate, now),
       }))
-      .filter((item) => item.daysUntilExpiry <= NOTIFY_WITHIN_DAYS);
+      .filter((item) => item.daysUntilExpiry <= maxDays);
 
+    const tiered = splitItemsByTier(items, prefs);
+    if (!tiered) continue;
+
+    const digestItems = tiered.items as ExpiryDigestItem[];
     let userSent = 0;
 
     for (const subscription of user.pushSubscriptions) {
       const payload = buildExpiryDigestPayload(
-        items,
+        digestItems,
         subscriptionLocale(subscription.locale),
+        { tier: tiered.tier, withinDays: tiered.withinDays },
       );
       if (!payload) continue;
 
@@ -179,3 +271,5 @@ export async function sendExpiryDigests(): Promise<{
 
   return { users: usersNotified, sent: totalSent, skipped: false };
 }
+
+export { userPrefsSelect };

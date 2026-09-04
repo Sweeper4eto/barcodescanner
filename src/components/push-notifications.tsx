@@ -1,7 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useT } from "@/components/i18n-provider";
+import {
+  formatPrefsSummary,
+  type ExpiryNotificationPrefs,
+} from "@/lib/expiry-notification-prefs";
 import { isIosDevice, isPwaInstalled } from "@/lib/pwa-install";
 
 type PushState =
@@ -45,6 +50,39 @@ export function PushNotifications() {
   const { t, locale } = useT();
   const [state, setState] = useState<PushState>("loading");
   const [error, setError] = useState("");
+  const [summary, setSummary] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadSummary() {
+      try {
+        const response = await fetch("/api/push/notification-settings");
+        if (!response.ok) return;
+        const data = (await response.json()) as {
+          settings?: ExpiryNotificationPrefs;
+        };
+        if (cancelled || !data.settings) return;
+        setSummary(
+          formatPrefsSummary(data.settings, {
+            urgentDays: (days) => t("push.summaryUrgent", { days }),
+            earlyDays: (days) => t("push.summaryEarly", { days }),
+            time: (time) => t("push.summaryTime", { time }),
+            allStores: t("push.summaryAllStores"),
+            storeCount: (count) => t("push.summaryStoreCount", { count }),
+            off: t("push.summaryOff"),
+          }),
+        );
+      } catch {
+        /* optional */
+      }
+    }
+
+    void loadSummary();
+    return () => {
+      cancelled = true;
+    };
+  }, [t]);
 
   useEffect(() => {
     let cancelled = false;
@@ -231,8 +269,15 @@ export function PushNotifications() {
           {t("push.title")}
         </h2>
         <p className="mt-0.5 text-xs font-normal leading-snug text-muted">
-          {t("push.description")}
+          {summary || t("push.description")}
         </p>
+
+        <Link
+          href="/app/settings/notifications"
+          className="mt-1.5 inline-block text-xs font-semibold text-primary"
+        >
+          {t("push.customize")} →
+        </Link>
 
         {state === "iosNeedsInstall" ? (
           <p className="mt-2 rounded-lg border border-card-border bg-transparent px-2.5 py-1.5 text-xs text-foreground">

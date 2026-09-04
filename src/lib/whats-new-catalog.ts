@@ -128,4 +128,12 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
     titleBg:
       "Продуктите без снимка показват mint илюстрация на щанд вместо сив текст „Няма снимка“.",
   },
+  {
+    key: "2026-09-expiry-notification-settings",
+    titleEn:
+      "Customize expiry push alerts: reminder tiers (early + urgent), daily schedule, quiet hours, and store filter.",
+    titleBg:
+      "Персонализирайте push известия за годност: ранно и спешно напомняне, график, тихи часове и филтър по обект.",
+    href: "/app/settings/notifications",
+  },
 ];

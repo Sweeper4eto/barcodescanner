@@ -23,6 +23,12 @@
 
 Известията за изтичащ срок изискват VAPID ключове в `.env` — без тях функцията е тихо изключена (бутонът не се показва, cron-джобът пропуска изпращането):
 
+Потребителите персонализират известията в `/app/settings/notifications`. Cron за изпращане (препоръчително на всеки час):
+
+```bash
+curl -X POST -H "x-cron-secret: YOUR_SECRET" https://your-host/api/cron/expiry-notifications
+```
+
 ```bash
 npm run vapid
 # копирай изхода (VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY / VAPID_SUBJECT) в .env

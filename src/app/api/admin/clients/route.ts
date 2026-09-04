@@ -4,6 +4,7 @@ import { logAuditEvent } from "@/lib/audit-log";
 import { auditClientCreated, auditClientDeleted, auditClientUpdated } from "@/lib/audit-details";
 import { requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { clientDefaultsSchema, clientDefaultsToData } from "@/lib/expiry-notification-prefs";
 import { apiT } from "@/i18n";
 
 async function requireAdminResponse(request: Request) {
@@ -78,6 +79,8 @@ const patchSchema = z.object({
   monthlyFeePerStore: z.number().nonnegative().optional(),
   active: z.boolean().optional(),
   homeUser: z.boolean().optional(),
+  notificationDefaults: clientDefaultsSchema.optional(),
+  clearNotificationDefaults: z.boolean().optional(),
 });
 
 export async function PATCH(request: Request) {
@@ -93,7 +96,7 @@ export async function PATCH(request: Request) {
     );
   }
 
-  const { id, ...data } = parsed.data;
+  const { id, notificationDefaults, clearNotificationDefaults, ...data } = parsed.data;
   const before = await db.client.findUnique({ where: { id } });
   if (!before) {
     return NextResponse.json(
@@ -101,7 +104,28 @@ export async function PATCH(request: Request) {
       { status: 404 },
     );
   }
-  const client = await db.client.update({ where: { id }, data });
+
+  const defaultsPatch = clearNotificationDefaults
+    ? {
+        expiryDefaultEarlyDays: null,
+        expiryDefaultUrgentDays: null,
+        expiryDefaultSchedule: null,
+        expiryDefaultTime1: null,
+        expiryDefaultTime2: null,
+        expiryDefaultMinIntervalHours: null,
+        expiryDefaultQuietEnabled: null,
+        expiryDefaultQuietStart: null,
+        expiryDefaultQuietEnd: null,
+        expiryDefaultTimezone: null,
+      }
+    : notificationDefaults
+      ? clientDefaultsToData(notificationDefaults)
+      : {};
+
+  const client = await db.client.update({
+    where: { id },
+    data: { ...data, ...defaultsPatch },
+  });
   await logAuditEvent(request, admin, "client_updated", auditClientUpdated(before, client));
   return NextResponse.json({ client });
 }

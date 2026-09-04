@@ -16,7 +16,7 @@ test("buildExpiryDigestPayload returns null for empty list", () => {
   assert.equal(buildExpiryDigestPayload([]), null);
 });
 
-test("buildExpiryDigestPayload highlights critical items in English", () => {
+test("buildExpiryDigestPayload highlights urgent items in English", () => {
   const payload = buildExpiryDigestPayload(
     [
       {
@@ -24,16 +24,36 @@ test("buildExpiryDigestPayload highlights critical items in English", () => {
         storeName: "Central",
         storeId: "store-1",
         quantity: 3,
-        daysUntilExpiry: 5,
+        daysUntilExpiry: 3,
       },
     ],
     "en",
+    { tier: "urgent", withinDays: 3 },
   );
 
   assert.ok(payload);
   assert.match(payload.title, /Milk/);
   assert.match(payload.body, /Central/);
   assert.equal(payload.url, "/app/expiry?storeId=store-1");
+});
+
+test("buildExpiryDigestPayload highlights early warning in English", () => {
+  const payload = buildExpiryDigestPayload(
+    [
+      {
+        productName: "Yogurt",
+        storeName: "Central",
+        storeId: "store-1",
+        quantity: 2,
+        daysUntilExpiry: 12,
+      },
+    ],
+    "en",
+    { tier: "early", withinDays: 14 },
+  );
+
+  assert.ok(payload);
+  assert.match(payload.title, /14 days/);
 });
 
 test("buildExpiryDigestPayload highlights critical items in Bulgarian", () => {
@@ -44,10 +64,11 @@ test("buildExpiryDigestPayload highlights critical items in Bulgarian", () => {
         storeName: "Централен",
         storeId: "store-1",
         quantity: 3,
-        daysUntilExpiry: 5,
+        daysUntilExpiry: 3,
       },
     ],
     "bg",
+    { tier: "urgent", withinDays: 3 },
   );
 
   assert.ok(payload);
@@ -63,17 +84,18 @@ test("buildExpiryDigestPayload links to app home for multiple stores", () => {
         storeName: "Central",
         storeId: "store-1",
         quantity: 1,
-        daysUntilExpiry: 4,
+        daysUntilExpiry: 3,
       },
       {
         productName: "Bread",
         storeName: "North",
         storeId: "store-2",
         quantity: 2,
-        daysUntilExpiry: 5,
+        daysUntilExpiry: 2,
       },
     ],
     "en",
+    { tier: "urgent", withinDays: 3 },
   );
 
   assert.ok(payload);

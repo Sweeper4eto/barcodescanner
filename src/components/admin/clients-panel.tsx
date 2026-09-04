@@ -25,6 +25,9 @@ export type Client = {
   active: boolean;
   homeUser: boolean;
   monthlyFeePerStore: number;
+  expiryDefaultEarlyDays: number | null;
+  expiryDefaultUrgentDays: number | null;
+  expiryDefaultTime1: string | null;
   _count: { stores: number; users: number };
 };
 
@@ -49,6 +52,9 @@ type EditState = {
   monthlyFeePerStore: string;
   active: boolean;
   homeUser: boolean;
+  notifyEarlyDays: string;
+  notifyUrgentDays: string;
+  notifyTime1: string;
 };
 
 function clientEditState(client: Client): EditState {
@@ -59,6 +65,15 @@ function clientEditState(client: Client): EditState {
     monthlyFeePerStore: String(client.monthlyFeePerStore),
     active: client.active,
     homeUser: client.homeUser,
+    notifyEarlyDays:
+      client.expiryDefaultEarlyDays != null
+        ? String(client.expiryDefaultEarlyDays)
+        : "",
+    notifyUrgentDays:
+      client.expiryDefaultUrgentDays != null
+        ? String(client.expiryDefaultUrgentDays)
+        : "",
+    notifyTime1: client.expiryDefaultTime1 ?? "",
   };
 }
 
@@ -70,7 +85,10 @@ function editIsDirty(current: EditState, saved: EditState | null) {
     current.additionalInfo !== saved.additionalInfo ||
     current.monthlyFeePerStore !== saved.monthlyFeePerStore ||
     current.active !== saved.active ||
-    current.homeUser !== saved.homeUser
+    current.homeUser !== saved.homeUser ||
+    current.notifyEarlyDays !== saved.notifyEarlyDays ||
+    current.notifyUrgentDays !== saved.notifyUrgentDays ||
+    current.notifyTime1 !== saved.notifyTime1
   );
 }
 
@@ -94,6 +112,9 @@ export function ClientsPanel({ onRefresh }: Props) {
     monthlyFeePerStore: "0",
     active: true,
     homeUser: false,
+    notifyEarlyDays: "",
+    notifyUrgentDays: "",
+    notifyTime1: "",
   });
   const [savedEdit, setSavedEdit] = useState<EditState | null>(null);
   const [saving, setSaving] = useState(false);
@@ -184,6 +205,15 @@ export function ClientsPanel({ onRefresh }: Props) {
           monthlyFeePerStore: Number(edit.monthlyFeePerStore),
           active: edit.active,
           homeUser: edit.homeUser,
+          notificationDefaults: {
+            earlyDays: edit.notifyEarlyDays.trim()
+              ? Number(edit.notifyEarlyDays)
+              : null,
+            urgentDays: edit.notifyUrgentDays.trim()
+              ? Number(edit.notifyUrgentDays)
+              : null,
+            time1: edit.notifyTime1.trim() || null,
+          },
         }),
       });
       if (!response.ok) {
@@ -488,6 +518,54 @@ export function ClientsPanel({ onRefresh }: Props) {
                         {t("admin.homeUser")}
                       </label>
                       <p className="text-xs text-muted">{t("admin.homeUserHint")}</p>
+
+                      <div className="mt-4 space-y-3 rounded-xl border border-card-border p-3">
+                        <div>
+                          <p className="text-sm font-medium text-foreground">
+                            {t("admin.notificationDefaults")}
+                          </p>
+                          <p className="mt-1 text-xs text-muted">
+                            {t("admin.notificationDefaultsHint")}
+                          </p>
+                        </div>
+                        <AdminField label={t("admin.notificationEarlyDays")}>
+                          <input
+                            type="number"
+                            min={1}
+                            max={90}
+                            value={edit.notifyEarlyDays}
+                            onChange={(event) =>
+                              setEdit({ ...edit, notifyEarlyDays: event.target.value })
+                            }
+                            className={adminInputClass}
+                            placeholder="14"
+                          />
+                        </AdminField>
+                        <AdminField label={t("admin.notificationUrgentDays")}>
+                          <input
+                            type="number"
+                            min={0}
+                            max={90}
+                            value={edit.notifyUrgentDays}
+                            onChange={(event) =>
+                              setEdit({ ...edit, notifyUrgentDays: event.target.value })
+                            }
+                            className={adminInputClass}
+                            placeholder="3"
+                          />
+                        </AdminField>
+                        <AdminField label={t("admin.notificationTime")}>
+                          <input
+                            type="time"
+                            value={edit.notifyTime1}
+                            onChange={(event) =>
+                              setEdit({ ...edit, notifyTime1: event.target.value })
+                            }
+                            className={adminInputClass}
+                          />
+                        </AdminField>
+                      </div>
+
                       {saveMessage ? (
                         <p
                           className={`text-sm ${

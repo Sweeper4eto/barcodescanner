@@ -33,6 +33,22 @@ model User {
   pushNotificationLogs PushNotificationLog[]
   auditLogs           AuditLog[]
   supportRequests     SupportRequest[]
+  /** Expiry push notification preferences (phases 1–3). */
+  expiryNotifyEarlyEnabled     Boolean @default(true)
+  expiryNotifyEarlyDays        Int     @default(14)
+  expiryNotifyUrgentEnabled    Boolean @default(true)
+  expiryNotifyUrgentDays       Int     @default(3)
+  expiryNotifySchedule         String  @default("daily")
+  expiryNotifyTime1            String  @default("09:00")
+  expiryNotifyTime2            String  @default("18:00")
+  expiryNotifyMinIntervalHours Int     @default(24)
+  expiryQuietHoursEnabled      Boolean @default(true)
+  expiryQuietHoursStart        String  @default("22:00")
+  expiryQuietHoursEnd          String  @default("07:00")
+  expiryNotifyTimezone         String  @default("Europe/Sofia")
+  /** JSON string[] of store ids; null = all assigned stores. */
+  expiryNotifyStoreIdsJson     String?
+  expiryNotifyPrefsCustomized  Boolean @default(false)
   createdAt           DateTime    @default(now())
   updatedAt           DateTime    @updatedAt
 
@@ -48,6 +64,17 @@ model Client {
   active             Boolean   @default(true)
   homeUser           Boolean   @default(false)
   monthlyFeePerStore Float     @default(20)
+  /** Defaults copied for new users until they customize notification prefs. */
+  expiryDefaultEarlyDays        Int?
+  expiryDefaultUrgentDays       Int?
+  expiryDefaultSchedule         String?
+  expiryDefaultTime1            String?
+  expiryDefaultTime2            String?
+  expiryDefaultMinIntervalHours Int?
+  expiryDefaultQuietEnabled     Boolean?
+  expiryDefaultQuietStart       String?
+  expiryDefaultQuietEnd         String?
+  expiryDefaultTimezone         String?
   users              User[]
   stores             Store[]
   payments           Payment[]

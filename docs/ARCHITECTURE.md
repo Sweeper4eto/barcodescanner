@@ -55,6 +55,14 @@
 - Публикуване: админ избира редове → **Push to users** → потребителите виждат sheet на `/app`.
 - Разработчикът **не** пише текст в админ панела — само в каталога; админът само пуска Live.
 
+### Push известия за годност (phases 1–3)
+
+- **Настройки:** `/app/settings/notifications` — ранно/спешно напомняне (дни), график (дневен / 2× дневно / интервал), тихи часове, филтър по обект, timezone.
+- **API:** `GET/PATCH /api/push/notification-settings` (auth user).
+- **Admin defaults:** полета на `Client` + секция в Admin → Clients → Edit (за потребители без собствени настройки).
+- **Изпращане:** `sendExpiryDigests()` в `src/lib/push-expiry.ts` — urgent има приоритет пред early; тихи часове пропускат push до края на прозореца.
+- **Cron:** `POST /api/cron/expiry-notifications` (header `x-cron-secret`) — препоръчително **на всеки час**; purge cron също вика digest за обратна съвместимост.
+
 ### Годност и purge
 
 - Видими: изтичащи в следващите 3 месеца или изтекли до 6 месеца назад
