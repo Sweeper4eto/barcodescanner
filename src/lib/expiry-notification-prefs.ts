@@ -231,12 +231,39 @@ export function getLocalTimeParts(
       hour12: false,
     });
     const parts = fmt.formatToParts(date);
-    const hour = Number(parts.find((p) => p.type === "hour")?.value ?? 0);
+    // Some engines report midnight as 24 — normalize to 0.
+    let hour = Number(parts.find((p) => p.type === "hour")?.value ?? 0);
+    if (hour === 24) hour = 0;
     const minute = Number(parts.find((p) => p.type === "minute")?.value ?? 0);
     return { hour, minute };
   } catch {
     return { hour: date.getUTCHours(), minute: date.getUTCMinutes() };
   }
+}
+
+function localDateKey(date: Date, timeZone: string): string {
+  try {
+    return date.toLocaleDateString("en-CA", { timeZone });
+  } catch {
+    return date.toISOString().slice(0, 10);
+  }
+}
+
+function localMinutesOf(date: Date, timeZone: string): number {
+  const { hour, minute } = getLocalTimeParts(date, timeZone);
+  return hour * 60 + minute;
+}
+
+/** Scheduled send times for today, sorted ascending (minutes from midnight). */
+export function scheduledSlotMinutes(
+  prefs: Pick<ExpiryNotificationPrefs, "schedule" | "time1" | "time2">,
+): number[] {
+  if (prefs.schedule === "custom") return [];
+  const slots =
+    prefs.schedule === "twice_daily"
+      ? [parseTimeToMinutes(prefs.time1), parseTimeToMinutes(prefs.time2)]
+      : [parseTimeToMinutes(prefs.time1)];
+  return [...new Set(slots)].sort((a, b) => a - b);
 }
 
 export function isInQuietHours(
@@ -253,6 +280,13 @@ export function isInQuietHours(
   return localMinutes >= startM || localMinutes < endM;
 }
 
+/**
+ * True when at least one scheduled slot for today has already passed.
+ * Custom schedule is always "open" (interval alone gates sending).
+ *
+ * Catch-up: any cron after the chosen time can send — not only the exact hour.
+ * A strict 09:00–10:00 window broke digests when cron ran nightly or later.
+ */
 export function isInSendWindow(
   now: Date,
   prefs: Pick<
@@ -260,23 +294,26 @@ export function isInSendWindow(
     "schedule" | "time1" | "time2" | "timezone"
   >,
 ): boolean {
-  const { hour, minute } = getLocalTimeParts(now, prefs.timezone);
-  const localMinutes = hour * 60 + minute;
+  if (prefs.schedule === "custom") return true;
+  const localMinutes = localMinutesOf(now, prefs.timezone);
+  const slots = scheduledSlotMinutes(prefs);
+  return slots.some((slot) => localMinutes >= slot);
+}
 
-  if (prefs.schedule === "custom") {
-    return true;
-  }
-
-  const windows =
-    prefs.schedule === "twice_daily"
-      ? [prefs.time1, prefs.time2]
-      : [prefs.time1];
-
-  return windows.some((time) => {
-    const target = parseTimeToMinutes(time);
-    const targetHour = Math.floor(target / 60);
-    return hour === targetHour && localMinutes >= target && localMinutes < target + 60;
-  });
+/**
+ * Latest scheduled slot that is already due today, or null if none yet.
+ */
+export function latestDueSlotMinutes(
+  now: Date,
+  prefs: Pick<
+    ExpiryNotificationPrefs,
+    "schedule" | "time1" | "time2" | "timezone"
+  >,
+): number | null {
+  if (prefs.schedule === "custom") return null;
+  const localMinutes = localMinutesOf(now, prefs.timezone);
+  const due = scheduledSlotMinutes(prefs).filter((slot) => localMinutes >= slot);
+  return due.length > 0 ? due[due.length - 1]! : null;
 }
 
 export function shouldSendNotificationNow(
@@ -284,10 +321,16 @@ export function shouldSendNotificationNow(
   lastSentAt: Date | null,
   now = new Date(),
 ): boolean {
+  const localMinutes = localMinutesOf(now, prefs.timezone);
+
   if (prefs.quietHoursEnabled) {
-    const { hour, minute } = getLocalTimeParts(now, prefs.timezone);
-    const localMinutes = hour * 60 + minute;
-    if (isInQuietHours(localMinutes, prefs.quietHoursStart, prefs.quietHoursEnd)) {
+    if (
+      isInQuietHours(
+        localMinutes,
+        prefs.quietHoursStart,
+        prefs.quietHoursEnd,
+      )
+    ) {
       return false;
     }
   }
@@ -298,28 +341,18 @@ export function shouldSendNotificationNow(
     return now.getTime() - lastSentAt.getTime() >= minMs;
   }
 
-  if (!isInSendWindow(now, prefs)) {
-    return false;
-  }
+  const dueSlot = latestDueSlotMinutes(now, prefs);
+  if (dueSlot == null) return false;
 
   if (!lastSentAt) return true;
 
-  const { hour, minute } = getLocalTimeParts(now, prefs.timezone);
-  const { hour: lastHour, minute: lastMinute } = getLocalTimeParts(
-    lastSentAt,
-    prefs.timezone,
-  );
+  const today = localDateKey(now, prefs.timezone);
+  const lastDay = localDateKey(lastSentAt, prefs.timezone);
+  if (lastDay !== today) return true;
 
-  if (prefs.schedule === "twice_daily") {
-    const slot = (h: number, m: number) => h * 2 + (m >= 30 ? 1 : 0);
-    return slot(hour, minute) !== slot(lastHour, lastMinute) ||
-      now.getTime() - lastSentAt.getTime() >= 6 * 60 * 60 * 1000;
-  }
-
-  const sameLocalDay =
-    now.toLocaleDateString("en-CA", { timeZone: prefs.timezone }) ===
-    lastSentAt.toLocaleDateString("en-CA", { timeZone: prefs.timezone });
-  return !sameLocalDay;
+  // Already sent for this slot (or a later one) today.
+  const lastMinutes = localMinutesOf(lastSentAt, prefs.timezone);
+  return lastMinutes < dueSlot;
 }
 
 export function resolveNotifyStoreIds(

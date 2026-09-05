@@ -91,8 +91,46 @@ test("shouldSendNotificationNow blocks during quiet hours", () => {
   assert.equal(shouldSendNotificationNow(prefs, null, quietTime), false);
 });
 
-test("isInSendWindow matches daily hour in timezone", () => {
+test("isInSendWindow is true after scheduled time (catch-up)", () => {
   const prefs = prefsFromUserRow(baseRow);
   const nineAmSofia = new Date("2026-06-02T06:00:00Z");
   assert.equal(isInSendWindow(nineAmSofia, prefs), true);
+  const afternoonSofia = new Date("2026-06-02T12:00:00Z");
+  assert.equal(isInSendWindow(afternoonSofia, prefs), true);
+});
+
+test("isInSendWindow is false before first scheduled time", () => {
+  const prefs = prefsFromUserRow(baseRow);
+  const beforeNineSofia = new Date("2026-06-02T05:30:00Z");
+  assert.equal(isInSendWindow(beforeNineSofia, prefs), false);
+});
+
+test("shouldSendNotificationNow catch-up after 09:00 when cron runs later", () => {
+  const prefs = prefsFromUserRow(baseRow);
+  const afternoon = new Date("2026-06-02T12:00:00Z"); // 15:00 Sofia
+  assert.equal(shouldSendNotificationNow(prefs, null, afternoon), true);
+});
+
+test("shouldSendNotificationNow skips second daily send same day", () => {
+  const prefs = prefsFromUserRow(baseRow);
+  const morningSend = new Date("2026-06-02T06:10:00Z"); // ~09:10 Sofia
+  const afternoon = new Date("2026-06-02T12:00:00Z");
+  assert.equal(shouldSendNotificationNow(prefs, morningSend, afternoon), false);
+});
+
+test("shouldSendNotificationNow allows second slot for twice_daily", () => {
+  const prefs = prefsFromUserRow({
+    ...baseRow,
+    expiryNotifySchedule: "twice_daily",
+  });
+  const morningSend = new Date("2026-06-02T06:10:00Z");
+  const evening = new Date("2026-06-02T15:30:00Z"); // 18:30 Sofia
+  assert.equal(shouldSendNotificationNow(prefs, morningSend, evening), true);
+});
+
+test("shouldSendNotificationNow allows next day after prior send", () => {
+  const prefs = prefsFromUserRow(baseRow);
+  const yesterday = new Date("2026-06-01T06:10:00Z");
+  const todayAfternoon = new Date("2026-06-02T12:00:00Z");
+  assert.equal(shouldSendNotificationNow(prefs, yesterday, todayAfternoon), true);
 });
