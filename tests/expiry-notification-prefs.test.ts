@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  buildTimeSlotOptions,
   isInQuietHours,
   isInSendWindow,
   mergeClientDefaults,
@@ -8,6 +9,7 @@ import {
   prefsFromUserRow,
   resolveNotifyStoreIds,
   shouldSendNotificationNow,
+  snapTimeToStep,
   splitItemsByTier,
   SYSTEM_DEFAULT_PREFS,
 } from "../src/lib/expiry-notification-prefs";
@@ -32,6 +34,21 @@ const baseRow = {
 test("parseTimeToMinutes converts HH:mm", () => {
   assert.equal(parseTimeToMinutes("09:00"), 9 * 60);
   assert.equal(parseTimeToMinutes("22:30"), 22 * 60 + 30);
+});
+
+test("snapTimeToStep rounds to 15 minutes", () => {
+  assert.equal(snapTimeToStep("12:11"), "12:15");
+  assert.equal(snapTimeToStep("12:07"), "12:00");
+  assert.equal(snapTimeToStep("09:00"), "09:00");
+  assert.equal(snapTimeToStep("23:59"), "00:00");
+});
+
+test("buildTimeSlotOptions has 96 quarter-hours", () => {
+  const options = buildTimeSlotOptions();
+  assert.equal(options.length, 96);
+  assert.equal(options[0]?.value, "00:00");
+  assert.equal(options[1]?.value, "00:15");
+  assert.equal(options[95]?.value, "23:45");
 });
 
 test("isInQuietHours handles overnight window", () => {
@@ -91,12 +108,14 @@ test("shouldSendNotificationNow blocks during quiet hours", () => {
   assert.equal(shouldSendNotificationNow(prefs, null, quietTime), false);
 });
 
-test("isInSendWindow is true after scheduled time (catch-up)", () => {
+test("isInSendWindow is true only near scheduled clock time", () => {
   const prefs = prefsFromUserRow(baseRow);
   const nineAmSofia = new Date("2026-06-02T06:00:00Z");
   assert.equal(isInSendWindow(nineAmSofia, prefs), true);
+  const nineOhOneSofia = new Date("2026-06-02T06:01:00Z");
+  assert.equal(isInSendWindow(nineOhOneSofia, prefs), true);
   const afternoonSofia = new Date("2026-06-02T12:00:00Z");
-  assert.equal(isInSendWindow(afternoonSofia, prefs), true);
+  assert.equal(isInSendWindow(afternoonSofia, prefs), false);
 });
 
 test("isInSendWindow is false before first scheduled time", () => {
@@ -105,17 +124,23 @@ test("isInSendWindow is false before first scheduled time", () => {
   assert.equal(isInSendWindow(beforeNineSofia, prefs), false);
 });
 
-test("shouldSendNotificationNow catch-up after 09:00 when cron runs later", () => {
+test("shouldSendNotificationNow does not catch-up hours later", () => {
   const prefs = prefsFromUserRow(baseRow);
   const afternoon = new Date("2026-06-02T12:00:00Z"); // 15:00 Sofia
-  assert.equal(shouldSendNotificationNow(prefs, null, afternoon), true);
+  assert.equal(shouldSendNotificationNow(prefs, null, afternoon), false);
 });
 
-test("shouldSendNotificationNow skips second daily send same day", () => {
+test("shouldSendNotificationNow fires at scheduled minute", () => {
   const prefs = prefsFromUserRow(baseRow);
-  const morningSend = new Date("2026-06-02T06:10:00Z"); // ~09:10 Sofia
-  const afternoon = new Date("2026-06-02T12:00:00Z");
-  assert.equal(shouldSendNotificationNow(prefs, morningSend, afternoon), false);
+  const atNine = new Date("2026-06-02T06:00:30Z");
+  assert.equal(shouldSendNotificationNow(prefs, null, atNine), true);
+});
+
+test("shouldSendNotificationNow skips second daily send same slot", () => {
+  const prefs = prefsFromUserRow(baseRow);
+  const morningSend = new Date("2026-06-02T06:00:10Z");
+  const stillInWindow = new Date("2026-06-02T06:01:00Z");
+  assert.equal(shouldSendNotificationNow(prefs, morningSend, stillInWindow), false);
 });
 
 test("shouldSendNotificationNow allows second slot for twice_daily", () => {
@@ -123,14 +148,14 @@ test("shouldSendNotificationNow allows second slot for twice_daily", () => {
     ...baseRow,
     expiryNotifySchedule: "twice_daily",
   });
-  const morningSend = new Date("2026-06-02T06:10:00Z");
-  const evening = new Date("2026-06-02T15:30:00Z"); // 18:30 Sofia
+  const morningSend = new Date("2026-06-02T06:00:10Z");
+  const evening = new Date("2026-06-02T15:00:20Z"); // 18:00 Sofia
   assert.equal(shouldSendNotificationNow(prefs, morningSend, evening), true);
 });
 
-test("shouldSendNotificationNow allows next day after prior send", () => {
+test("shouldSendNotificationNow allows next day at schedule time", () => {
   const prefs = prefsFromUserRow(baseRow);
-  const yesterday = new Date("2026-06-01T06:10:00Z");
-  const todayAfternoon = new Date("2026-06-02T12:00:00Z");
-  assert.equal(shouldSendNotificationNow(prefs, yesterday, todayAfternoon), true);
+  const yesterday = new Date("2026-06-01T06:00:10Z");
+  const todayAtNine = new Date("2026-06-02T06:00:20Z");
+  assert.equal(shouldSendNotificationNow(prefs, yesterday, todayAtNine), true);
 });

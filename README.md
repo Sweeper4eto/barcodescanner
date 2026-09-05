@@ -23,10 +23,18 @@
 
 Известията за изтичащ срок изискват VAPID ключове в `.env` — без тях функцията е тихо изключена (бутонът не се показва, cron-джобът пропуска изпращането):
 
-Потребителите персонализират известията в `/app/settings/notifications`. Cron за изпращане (препоръчително на всеки час):
+Потребителите персонализират известията в `/app/settings/notifications`.  
+Часовете са на **15 минути**; cron трябва да върви на всеки 15 минути:
 
 ```bash
-curl -X POST -H "x-cron-secret: YOUR_SECRET" https://your-host/api/cron/expiry-notifications
+# crontab -e  (same CRON_SECRET as ecosystem / process env)
+*/15 * * * * curl -s -X POST -H "x-cron-secret: YOUR_SECRET" http://127.0.0.1:3000/api/cron/expiry-notifications >/dev/null 2>&1
+```
+
+Ръчен тест:
+
+```bash
+curl -X POST -H "x-cron-secret: YOUR_SECRET" http://127.0.0.1:3000/api/cron/expiry-notifications
 ```
 
 ```bash

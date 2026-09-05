@@ -159,12 +159,12 @@ export function prefsFromUserRow(row: UserPrefsRow): ExpiryNotificationPrefs {
     urgentEnabled: row.expiryNotifyUrgentEnabled,
     urgentDays: row.expiryNotifyUrgentDays,
     schedule: parseSchedule(row.expiryNotifySchedule),
-    time1: row.expiryNotifyTime1,
-    time2: row.expiryNotifyTime2,
+    time1: snapTimeToStep(row.expiryNotifyTime1),
+    time2: snapTimeToStep(row.expiryNotifyTime2),
     minIntervalHours: row.expiryNotifyMinIntervalHours,
     quietHoursEnabled: row.expiryQuietHoursEnabled,
-    quietHoursStart: row.expiryQuietHoursStart,
-    quietHoursEnd: row.expiryQuietHoursEnd,
+    quietHoursStart: snapTimeToStep(row.expiryQuietHoursStart),
+    quietHoursEnd: snapTimeToStep(row.expiryQuietHoursEnd),
     timezone: row.expiryNotifyTimezone,
     storeIds,
     customized: row.expiryNotifyPrefsCustomized,
@@ -199,12 +199,12 @@ export function prefsToUserData(prefs: ExpiryNotificationPrefs) {
     expiryNotifyUrgentEnabled: prefs.urgentEnabled,
     expiryNotifyUrgentDays: prefs.urgentDays,
     expiryNotifySchedule: prefs.schedule,
-    expiryNotifyTime1: prefs.time1,
-    expiryNotifyTime2: prefs.time2,
+    expiryNotifyTime1: snapTimeToStep(prefs.time1),
+    expiryNotifyTime2: snapTimeToStep(prefs.time2),
     expiryNotifyMinIntervalHours: prefs.minIntervalHours,
     expiryQuietHoursEnabled: prefs.quietHoursEnabled,
-    expiryQuietHoursStart: prefs.quietHoursStart,
-    expiryQuietHoursEnd: prefs.quietHoursEnd,
+    expiryQuietHoursStart: snapTimeToStep(prefs.quietHoursStart),
+    expiryQuietHoursEnd: snapTimeToStep(prefs.quietHoursEnd),
     expiryNotifyTimezone: prefs.timezone,
     expiryNotifyStoreIdsJson:
       prefs.storeIds && prefs.storeIds.length > 0
@@ -281,11 +281,44 @@ export function isInQuietHours(
 }
 
 /**
- * True when at least one scheduled slot for today has already passed.
+ * Minutes after each scheduled clock time when cron may still deliver.
+ * Matches 15-minute schedule slots / cron every 15 minutes.
+ */
+export const NOTIFY_TIME_STEP_MINUTES = 15;
+export const SEND_WINDOW_GRACE_MINUTES = NOTIFY_TIME_STEP_MINUTES;
+
+export function formatMinutesAsTime(totalMinutes: number): string {
+  const day = ((totalMinutes % (24 * 60)) + 24 * 60) % (24 * 60);
+  const hour = Math.floor(day / 60);
+  const minute = day % 60;
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
+/** Snap HH:mm to the nearest 15-minute step (00 / 15 / 30 / 45). */
+export function snapTimeToStep(
+  value: string,
+  stepMinutes = NOTIFY_TIME_STEP_MINUTES,
+): string {
+  if (!timePattern.test(value)) return formatMinutesAsTime(0);
+  const mins = parseTimeToMinutes(value);
+  const snapped = Math.round(mins / stepMinutes) * stepMinutes;
+  return formatMinutesAsTime(snapped);
+}
+
+export function buildTimeSlotOptions(
+  stepMinutes = NOTIFY_TIME_STEP_MINUTES,
+): Array<{ value: string; label: string }> {
+  const options: Array<{ value: string; label: string }> = [];
+  for (let mins = 0; mins < 24 * 60; mins += stepMinutes) {
+    const value = formatMinutesAsTime(mins);
+    options.push({ value, label: value });
+  }
+  return options;
+}
+
+/**
+ * True only near a scheduled clock time (slot + 15-minute grace for quarter-hour cron).
  * Custom schedule is always "open" (interval alone gates sending).
- *
- * Catch-up: any cron after the chosen time can send — not only the exact hour.
- * A strict 09:00–10:00 window broke digests when cron ran nightly or later.
  */
 export function isInSendWindow(
   now: Date,
@@ -293,16 +326,35 @@ export function isInSendWindow(
     ExpiryNotificationPrefs,
     "schedule" | "time1" | "time2" | "timezone"
   >,
+  graceMinutes = SEND_WINDOW_GRACE_MINUTES,
 ): boolean {
   if (prefs.schedule === "custom") return true;
   const localMinutes = localMinutesOf(now, prefs.timezone);
-  const slots = scheduledSlotMinutes(prefs);
-  return slots.some((slot) => localMinutes >= slot);
+  return scheduledSlotMinutes(prefs).some(
+    (slot) => localMinutes >= slot && localMinutes < slot + graceMinutes,
+  );
 }
 
 /**
- * Latest scheduled slot that is already due today, or null if none yet.
+ * Scheduled slot currently in the send window, or null if outside all windows.
  */
+export function activeSlotMinutes(
+  now: Date,
+  prefs: Pick<
+    ExpiryNotificationPrefs,
+    "schedule" | "time1" | "time2" | "timezone"
+  >,
+  graceMinutes = SEND_WINDOW_GRACE_MINUTES,
+): number | null {
+  if (prefs.schedule === "custom") return null;
+  const localMinutes = localMinutesOf(now, prefs.timezone);
+  const active = scheduledSlotMinutes(prefs).filter(
+    (slot) => localMinutes >= slot && localMinutes < slot + graceMinutes,
+  );
+  return active.length > 0 ? active[active.length - 1]! : null;
+}
+
+/** @deprecated Use activeSlotMinutes — catch-up-after-time was removed for exact delivery. */
 export function latestDueSlotMinutes(
   now: Date,
   prefs: Pick<
@@ -310,10 +362,7 @@ export function latestDueSlotMinutes(
     "schedule" | "time1" | "time2" | "timezone"
   >,
 ): number | null {
-  if (prefs.schedule === "custom") return null;
-  const localMinutes = localMinutesOf(now, prefs.timezone);
-  const due = scheduledSlotMinutes(prefs).filter((slot) => localMinutes >= slot);
-  return due.length > 0 ? due[due.length - 1]! : null;
+  return activeSlotMinutes(now, prefs);
 }
 
 export function shouldSendNotificationNow(
@@ -341,7 +390,7 @@ export function shouldSendNotificationNow(
     return now.getTime() - lastSentAt.getTime() >= minMs;
   }
 
-  const dueSlot = latestDueSlotMinutes(now, prefs);
+  const dueSlot = activeSlotMinutes(now, prefs);
   if (dueSlot == null) return false;
 
   if (!lastSentAt) return true;
@@ -350,7 +399,7 @@ export function shouldSendNotificationNow(
   const lastDay = localDateKey(lastSentAt, prefs.timezone);
   if (lastDay !== today) return true;
 
-  // Already sent for this slot (or a later one) today.
+  // Already sent for this slot today (send landed in/after the slot minute).
   const lastMinutes = localMinutesOf(lastSentAt, prefs.timezone);
   return lastMinutes < dueSlot;
 }

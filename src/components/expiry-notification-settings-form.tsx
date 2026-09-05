@@ -5,12 +5,11 @@ import { useCallback, useEffect, useState } from "react";
 import { LoadingSpinnerBlock } from "@/components/loading-spinner";
 import { MobilePageHeader, appPageClassName } from "@/components/mobile-page-header";
 import { MenuSelect } from "@/components/menu-select";
+import { NotifyTimeSelect } from "@/components/notify-time-select";
 import { useT } from "@/components/i18n-provider";
-import {
-  appButtonPrimaryFull,
-  appFormInput,
-} from "@/lib/app-ui";
+import { appButtonPrimaryFull, appFormInput } from "@/lib/app-ui";
 import type { ExpiryNotificationPrefs } from "@/lib/expiry-notification-prefs";
+import { snapTimeToStep } from "@/lib/expiry-notification-prefs";
 import {
   buildTimezoneOptions,
   detectBrowserTimezone,
@@ -327,6 +326,9 @@ export function ExpiryNotificationSettingsForm() {
         </Section>
 
         <Section title={t("pushSettings.schedule")}>
+          <p className="mb-2 text-xs leading-relaxed text-muted">
+            {t("pushSettings.scheduleHint")}
+          </p>
           <div className="grid grid-cols-2 gap-2">
             {(
               [
@@ -362,29 +364,21 @@ export function ExpiryNotificationSettingsForm() {
 
           {prefs.schedule !== "custom" ? (
             <div
-              className={`mt-3 grid gap-2 ${
-                prefs.schedule === "twice_daily" ? "grid-cols-2" : "grid-cols-1"
+              className={`mt-3 grid gap-3 ${
+                prefs.schedule === "twice_daily" ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1"
               }`}
             >
-              <label className="block text-xs text-muted">
-                {t("pushSettings.timeLabel")}
-                <input
-                  type="time"
-                  value={prefs.time1}
-                  onChange={(event) => patch({ time1: event.target.value })}
-                  className={`${appFormInput} mt-1 block w-full`}
-                />
-              </label>
+              <NotifyTimeSelect
+                label={t("pushSettings.timeLabel")}
+                value={prefs.time1}
+                onChange={(time1) => patch({ time1: snapTimeToStep(time1) })}
+              />
               {prefs.schedule === "twice_daily" ? (
-                <label className="block text-xs text-muted">
-                  {t("pushSettings.timeSecond")}
-                  <input
-                    type="time"
-                    value={prefs.time2}
-                    onChange={(event) => patch({ time2: event.target.value })}
-                    className={`${appFormInput} mt-1 block w-full`}
-                  />
-                </label>
+                <NotifyTimeSelect
+                  label={t("pushSettings.timeSecond")}
+                  value={prefs.time2}
+                  onChange={(time2) => patch({ time2: snapTimeToStep(time2) })}
+                />
               ) : null}
             </div>
           ) : (
@@ -432,26 +426,20 @@ export function ExpiryNotificationSettingsForm() {
           </div>
           {prefs.quietHoursEnabled ? (
             <div className="mt-3 grid grid-cols-2 gap-2">
-              <label className="block text-xs text-muted">
-                {t("pushSettings.quietFrom")}
-                <input
-                  type="time"
-                  value={prefs.quietHoursStart}
-                  onChange={(event) =>
-                    patch({ quietHoursStart: event.target.value })
-                  }
-                  className={`${appFormInput} mt-1 block w-full`}
-                />
-              </label>
-              <label className="block text-xs text-muted">
-                {t("pushSettings.quietTo")}
-                <input
-                  type="time"
-                  value={prefs.quietHoursEnd}
-                  onChange={(event) => patch({ quietHoursEnd: event.target.value })}
-                  className={`${appFormInput} mt-1 block w-full`}
-                />
-              </label>
+              <NotifyTimeSelect
+                label={t("pushSettings.quietFrom")}
+                value={prefs.quietHoursStart}
+                onChange={(quietHoursStart) =>
+                  patch({ quietHoursStart: snapTimeToStep(quietHoursStart) })
+                }
+              />
+              <NotifyTimeSelect
+                label={t("pushSettings.quietTo")}
+                value={prefs.quietHoursEnd}
+                onChange={(quietHoursEnd) =>
+                  patch({ quietHoursEnd: snapTimeToStep(quietHoursEnd) })
+                }
+              />
             </div>
           ) : null}
         </Section>

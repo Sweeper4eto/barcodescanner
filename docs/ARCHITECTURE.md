@@ -61,8 +61,8 @@
 - **Настройки:** `/app/settings/notifications` — ранно/спешно напомняне (дни), график (дневен / 2× дневно / интервал), тихи часове, филтър по обект; timezone dropdown (auto-detect до първо Save, после запазената стойност).
 - **API:** `GET/PATCH /api/push/notification-settings` (auth user).
 - **Admin defaults:** полета на `Client` + секция в Admin → Clients → Edit (за потребители без собствени настройки).
-- **Изпращане:** `sendExpiryDigests()` в `src/lib/push-expiry.ts` — urgent има приоритет пред early; тихи часове пропускат push; след избрания час за деня cron може да „навакса“ (не само в точния час).
-- **Cron:** `POST /api/cron/expiry-notifications` (header `x-cron-secret`) — препоръчително **на всеки час през деня** (тихите часове блокират нощни пускания); purge cron също вика digest за обратна съвместимост.
+- **Изпращане:** `sendExpiryDigests()` в `src/lib/push-expiry.ts` — urgent има приоритет пред early; тихи часове пропускат push; дневният/2× график праща в **15‑минутен** слот около избрания час.
+- **Cron:** `POST /api/cron/expiry-notifications` (header `x-cron-secret`) — `*/15 * * * *`; purge cron също вика digest, но за точния слот трябва 15‑минутен cron.
 
 ### Годност и purge
 
