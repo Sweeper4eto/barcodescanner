@@ -54,25 +54,16 @@ function Toggle({
 
 function Section({
   title,
-  tag,
   hint,
   children,
 }: {
   title: string;
-  tag?: string;
   hint?: string;
   children: React.ReactNode;
 }) {
   return (
     <section className="rounded-2xl border border-card-border p-4">
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold text-foreground">{title}</h2>
-        {tag ? (
-          <span className="rounded-full border border-primary/35 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary">
-            {tag}
-          </span>
-        ) : null}
-      </div>
+      <h2 className="mb-2 text-sm font-semibold text-foreground">{title}</h2>
       {hint ? <p className="mb-3 text-xs leading-snug text-muted">{hint}</p> : null}
       {children}
     </section>
@@ -285,7 +276,7 @@ export function ExpiryNotificationSettingsForm() {
       />
 
       <div className="space-y-3 pb-8">
-        <Section title={t("pushSettings.tiers")} tag="Phase 3" hint={t("pushSettings.tiersHint")}>
+        <Section title={t("pushSettings.tiers")} hint={t("pushSettings.tiersHint")}>
           <div className="rounded-xl border border-yellow-500/25 p-3">
             <div className="flex items-center justify-between gap-3">
               <div>
@@ -413,7 +404,6 @@ export function ExpiryNotificationSettingsForm() {
 
         <Section
           title={t("pushSettings.quietHours")}
-          tag="Phase 3"
           hint={t("pushSettings.quietHoursHint")}
         >
           <div className="flex items-center justify-between gap-3">
