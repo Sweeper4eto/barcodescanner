@@ -10,6 +10,11 @@ import {
   adminInputClass,
 } from "@/components/admin/admin-ui";
 import { appButtonPrimary, appButtonNeutral } from "@/lib/app-ui";
+import {
+  MINIMART_STATUSES,
+  MINIMART_STATUS_COLORS,
+  type MinimartVisitStatus,
+} from "@/lib/minimart-locator";
 
 const adminActionButtonClass =
   "rounded-xl border border-primary bg-transparent px-4 py-2 text-sm font-medium text-primary disabled:opacity-50";
@@ -25,19 +30,19 @@ export type MinimartStoreRow = {
   postalCode: string | null;
   lat: number;
   lng: number;
-  marked: boolean;
+  status: MinimartVisitStatus;
   comment: string;
   syncedAt: string;
   manual?: boolean;
 };
 
-type FilterMode = "all" | "marked" | "unmarked";
+type FilterMode = "all" | MinimartVisitStatus;
 
 type Draft = {
   title: string;
   street: string;
   city: string;
-  marked: boolean;
+  status: MinimartVisitStatus;
   comment: string;
   lat: number;
   lng: number;
@@ -48,11 +53,16 @@ function draftFromStore(store: MinimartStoreRow): Draft {
     title: store.title,
     street: store.street,
     city: store.city,
-    marked: store.marked,
+    status: store.status,
     comment: store.comment,
     lat: store.lat,
     lng: store.lng,
   };
+}
+
+function statusMarkerHtml(status: MinimartVisitStatus): string {
+  const color = MINIMART_STATUS_COLORS[status];
+  return `<span style="display:block;width:16px;height:16px;border-radius:9999px;background:${color};border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.45)"></span>`;
 }
 
 export function MinimartLocatorPanel() {
@@ -82,6 +92,22 @@ export function MinimartLocatorPanel() {
     [stores, selectedId],
   );
 
+  const statusLabel = useCallback(
+    (status: MinimartVisitStatus) => {
+      switch (status) {
+        case "ACCEPTED":
+          return t("admin.minimartStatusAccepted");
+        case "THINKING":
+          return t("admin.minimartStatusThinking");
+        case "REJECTED":
+          return t("admin.minimartStatusRejected");
+        default:
+          return t("admin.minimartStatusNotVisited");
+      }
+    },
+    [t],
+  );
+
   useEffect(() => {
     placeModeRef.current = placeMode;
   }, [placeMode]);
@@ -92,8 +118,7 @@ export function MinimartLocatorPanel() {
     try {
       const params = new URLSearchParams();
       if (q.trim()) params.set("q", q.trim());
-      if (filter === "marked") params.set("marked", "1");
-      if (filter === "unmarked") params.set("marked", "0");
+      if (filter !== "all") params.set("status", filter);
       const response = await fetch(
         `/api/admin/minimart-locator?${params.toString()}`,
       );
@@ -147,6 +172,14 @@ export function MinimartLocatorPanel() {
           "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
       });
 
+      if (!document.getElementById("minimart-marker-css")) {
+        const style = document.createElement("style");
+        style.id = "minimart-marker-css";
+        style.textContent =
+          ".minimart-status-marker{background:transparent!important;border:none!important}";
+        document.head.appendChild(style);
+      }
+
       const map = L.map(mapRef.current, {
         center: [42.7, 25.4],
         zoom: 7,
@@ -165,7 +198,7 @@ export function MinimartLocatorPanel() {
           title: "Minimart",
           street: "",
           city: "",
-          marked: true,
+          status: "NOT_VISITED",
           comment: "",
           lat,
           lng,
@@ -197,9 +230,22 @@ export function MinimartLocatorPanel() {
     }
 
     for (const store of stores) {
+      const icon =
+        store.status === "NOT_VISITED"
+          ? new L.Icon.Default()
+          : L.divIcon({
+              className: "minimart-status-marker",
+              html: statusMarkerHtml(store.status),
+              iconSize: [16, 16],
+              iconAnchor: [8, 8],
+            });
+
       let marker = markersRef.current.get(store.id);
       if (!marker) {
-        marker = L.marker([store.lat, store.lng], { draggable: true });
+        marker = L.marker([store.lat, store.lng], {
+          draggable: true,
+          icon,
+        });
         marker.addTo(map);
         marker.on("click", () => {
           setIsNewPin(false);
@@ -213,7 +259,7 @@ export function MinimartLocatorPanel() {
             title: current?.title ?? store.title,
             street: current?.street ?? store.street,
             city: current?.city ?? store.city,
-            marked: current?.marked ?? store.marked,
+            status: current?.status ?? store.status,
             comment: current?.comment ?? store.comment,
             lat: pos.lat,
             lng: pos.lng,
@@ -222,13 +268,13 @@ export function MinimartLocatorPanel() {
         markersRef.current.set(store.id, marker);
       } else {
         marker.setLatLng([store.lat, store.lng]);
+        marker.setIcon(icon);
       }
-      const tick = store.marked ? "✓ " : "";
       const label = store.city || store.title;
-      marker.bindTooltip(`${tick}${label} · ${store.street || "—"}`, {
-        direction: "top",
-      });
-      marker.setOpacity(store.marked ? 1 : 0.7);
+      marker.bindTooltip(
+        `${statusLabel(store.status)} · ${label} · ${store.street || "—"}`,
+        { direction: "top" },
+      );
     }
 
     if (!fittedRef.current && stores.length > 0) {
@@ -239,13 +285,15 @@ export function MinimartLocatorPanel() {
       fittedRef.current = true;
     }
     requestAnimationFrame(() => map.invalidateSize());
-  }, [stores]);
+  }, [stores, statusLabel]);
 
   useEffect(() => {
     if (!draft || !mapInstance.current) return;
-    mapInstance.current.setView([draft.lat, draft.lng], Math.max(mapInstance.current.getZoom(), 14), {
-      animate: true,
-    });
+    mapInstance.current.setView(
+      [draft.lat, draft.lng],
+      Math.max(mapInstance.current.getZoom(), 14),
+      { animate: true },
+    );
   }, [draft?.lat, draft?.lng]);
 
   async function syncFromMinimart() {
@@ -303,7 +351,7 @@ export function MinimartLocatorPanel() {
             city: draft.city.trim(),
             lat: draft.lat,
             lng: draft.lng,
-            marked: draft.marked,
+            status: draft.status,
             comment: draft.comment,
           }),
         });
@@ -333,7 +381,7 @@ export function MinimartLocatorPanel() {
           city: draft.city.trim(),
           lat: draft.lat,
           lng: draft.lng,
-          marked: draft.marked,
+          status: draft.status,
           comment: draft.comment,
         }),
       });
@@ -389,7 +437,14 @@ export function MinimartLocatorPanel() {
     }
   }
 
-  const markedCount = stores.filter((s) => s.marked).length;
+  const acceptedCount = stores.filter((s) => s.status === "ACCEPTED").length;
+  const filterButtons: { id: FilterMode; label: string }[] = [
+    { id: "all", label: t("admin.minimartFilterAll") },
+    ...MINIMART_STATUSES.map((status) => ({
+      id: status as FilterMode,
+      label: statusLabel(status),
+    })),
+  ];
 
   return (
     <div className="space-y-4">
@@ -407,13 +462,7 @@ export function MinimartLocatorPanel() {
             </AdminField>
           </div>
           <div className="flex flex-wrap gap-1.5">
-            {(
-              [
-                ["all", t("admin.minimartFilterAll")],
-                ["marked", t("admin.minimartFilterMarked")],
-                ["unmarked", t("admin.minimartFilterUnmarked")],
-              ] as const
-            ).map(([id, label]) => (
+            {filterButtons.map(({ id, label }) => (
               <button
                 key={id}
                 type="button"
@@ -422,6 +471,15 @@ export function MinimartLocatorPanel() {
                   filter === id ? "border-primary text-primary" : ""
                 }`}
               >
+                {id !== "all" ? (
+                  <span
+                    aria-hidden
+                    className="mr-1.5 inline-block size-2 rounded-full"
+                    style={{
+                      background: MINIMART_STATUS_COLORS[id as MinimartVisitStatus],
+                    }}
+                  />
+                ) : null}
                 {label}
               </button>
             ))}
@@ -433,9 +491,7 @@ export function MinimartLocatorPanel() {
             }`}
             onClick={() => {
               setPlaceMode((value) => !value);
-              setMessage(
-                placeMode ? "" : t("admin.minimartPlaceHint"),
-              );
+              setMessage(placeMode ? "" : t("admin.minimartPlaceHint"));
             }}
           >
             {placeMode ? t("admin.minimartPlaceCancel") : t("admin.minimartPlacePin")}
@@ -460,7 +516,7 @@ export function MinimartLocatorPanel() {
         <p className="mt-2 text-xs text-muted">
           {t("admin.minimartCounts", {
             total: stores.length,
-            marked: markedCount,
+            accepted: acceptedCount,
           })}
         </p>
         {message ? (
@@ -498,8 +554,14 @@ export function MinimartLocatorPanel() {
                       : "border-transparent hover:bg-transparent"
                   }`}
                 >
-                  <span className="font-medium text-foreground">
-                    {store.marked ? "✓ " : ""}
+                  <span className="flex items-center gap-1.5 font-medium text-foreground">
+                    <span
+                      aria-hidden
+                      className="inline-block size-2.5 shrink-0 rounded-full"
+                      style={{
+                        background: MINIMART_STATUS_COLORS[store.status],
+                      }}
+                    />
                     {store.city || store.title}
                     {store.manual ? (
                       <span className="ml-1 text-[10px] text-muted">
@@ -507,8 +569,8 @@ export function MinimartLocatorPanel() {
                       </span>
                     ) : null}
                   </span>
-                  <span className="text-xs text-muted">
-                    {store.street || "—"}
+                  <span className="pl-4 text-xs text-muted">
+                    {statusLabel(store.status)} · {store.street || "—"}
                   </span>
                 </button>
               ))
@@ -552,29 +614,24 @@ export function MinimartLocatorPanel() {
                     className={adminInputClass}
                   />
                 </AdminField>
-                <label className="flex items-center justify-between gap-3 text-sm text-foreground">
-                  <span>{t("admin.minimartMarked")}</span>
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={draft.marked}
-                    onClick={() =>
-                      setDraft({ ...draft, marked: !draft.marked })
+                <AdminField label={t("admin.minimartStatus")}>
+                  <select
+                    value={draft.status}
+                    onChange={(event) =>
+                      setDraft({
+                        ...draft,
+                        status: event.target.value as MinimartVisitStatus,
+                      })
                     }
-                    className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${
-                      draft.marked
-                        ? "bg-primary"
-                        : "border border-card-border bg-transparent"
-                    }`}
+                    className={adminInputClass}
                   >
-                    <span
-                      aria-hidden
-                      className={`absolute top-0.5 size-6 rounded-full bg-white transition-transform ${
-                        draft.marked ? "left-5" : "left-0.5"
-                      }`}
-                    />
-                  </button>
-                </label>
+                    {MINIMART_STATUSES.map((status) => (
+                      <option key={status} value={status}>
+                        {statusLabel(status)}
+                      </option>
+                    ))}
+                  </select>
+                </AdminField>
                 <AdminField label={t("admin.minimartComment")}>
                   <textarea
                     value={draft.comment}

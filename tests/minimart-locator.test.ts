@@ -2,7 +2,10 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   aslStoreSchema,
+  isMinimartVisitStatus,
   mapAslStoreToUpsert,
+  MINIMART_STATUS_COLORS,
+  MINIMART_STATUSES,
 } from "../src/lib/minimart-locator";
 
 test("mapAslStoreToUpsert maps ASL payload fields", () => {
@@ -35,4 +38,13 @@ test("mapAslStoreToUpsert rejects invalid coordinates", () => {
     lng: "y",
   });
   assert.equal(mapAslStoreToUpsert(parsed), null);
+});
+
+test("minimart status colors cover all statuses", () => {
+  for (const status of MINIMART_STATUSES) {
+    assert.equal(typeof MINIMART_STATUS_COLORS[status], "string");
+    assert.ok(MINIMART_STATUS_COLORS[status].startsWith("#"));
+  }
+  assert.equal(isMinimartVisitStatus("ACCEPTED"), true);
+  assert.equal(isMinimartVisitStatus("marked"), false);
 });

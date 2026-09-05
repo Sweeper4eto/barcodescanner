@@ -269,15 +269,18 @@ model MinimartLocatorStore {
   website       String?
   openHoursJson String?
   slug          String?
-  /** Admin tick: visited / contacted / handled */
-  marked        Boolean  @default(false)
+  /**
+   * Visit CRM status: NOT_VISITED | ACCEPTED | THINKING | REJECTED
+   * (Accepted = already active / working with store)
+   */
+  status        String   @default("NOT_VISITED")
   comment       String   @default("")
   syncedAt      DateTime
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
   @@index([city])
-  @@index([marked])
+  @@index([status])
 }
 
 /** Admin-managed “What’s new” bullets shown once to app users when published. */

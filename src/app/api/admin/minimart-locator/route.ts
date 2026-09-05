@@ -6,6 +6,9 @@ import { apiT } from "@/i18n";
 import {
   ASL_SOURCE,
   fetchMinimartAslStores,
+  isMinimartVisitStatus,
+  minimartStatusSchema,
+  type MinimartVisitStatus,
 } from "@/lib/minimart-locator";
 
 async function requireAdminResponse(request: Request) {
@@ -28,12 +31,16 @@ function serialize(store: {
   postalCode: string | null;
   lat: number;
   lng: number;
-  marked: boolean;
+  status: string;
   comment: string;
   syncedAt: Date;
 }) {
+  const status: MinimartVisitStatus = isMinimartVisitStatus(store.status)
+    ? store.status
+    : "NOT_VISITED";
   return {
     ...store,
+    status,
     syncedAt: store.syncedAt.toISOString(),
     manual: store.externalId.startsWith("manual:"),
   };
@@ -45,12 +52,13 @@ export async function GET(request: Request) {
 
   const url = new URL(request.url);
   const q = (url.searchParams.get("q") ?? "").trim().toLowerCase();
-  const marked = url.searchParams.get("marked");
+  const statusParam = (url.searchParams.get("status") ?? "").trim();
+  const statusFilter =
+    statusParam && isMinimartVisitStatus(statusParam) ? statusParam : null;
 
   const stores = await db.minimartLocatorStore.findMany({
     where: {
-      ...(marked === "1" ? { marked: true } : null),
-      ...(marked === "0" ? { marked: false } : null),
+      ...(statusFilter ? { status: statusFilter } : null),
       ...(q
         ? {
             OR: [
@@ -65,17 +73,31 @@ export async function GET(request: Request) {
     orderBy: [{ city: "asc" }, { street: "asc" }],
   });
 
+  const statusCounts = {
+    NOT_VISITED: 0,
+    ACCEPTED: 0,
+    THINKING: 0,
+    REJECTED: 0,
+  };
+  for (const store of stores) {
+    if (isMinimartVisitStatus(store.status)) {
+      statusCounts[store.status] += 1;
+    } else {
+      statusCounts.NOT_VISITED += 1;
+    }
+  }
+
   return NextResponse.json({
     source: ASL_SOURCE,
     count: stores.length,
-    markedCount: stores.filter((s) => s.marked).length,
+    statusCounts,
     stores: stores.map(serialize),
   });
 }
 
 const patchSchema = z.object({
   id: z.string().min(1),
-  marked: z.boolean().optional(),
+  status: minimartStatusSchema.optional(),
   comment: z.string().max(4000).optional(),
   title: z.string().min(1).max(200).optional(),
   street: z.string().max(300).optional(),
@@ -126,7 +148,7 @@ const createSchema = z.object({
   postalCode: z.string().max(32).nullable().optional(),
   lat: z.number().min(-90).max(90),
   lng: z.number().min(-180).max(180),
-  marked: z.boolean().optional().default(false),
+  status: minimartStatusSchema.optional().default("NOT_VISITED"),
   comment: z.string().max(4000).optional().default(""),
 });
 
@@ -162,7 +184,7 @@ export async function POST(request: Request) {
         country: "Bulgaria",
         lat: parsed.data.lat,
         lng: parsed.data.lng,
-        marked: parsed.data.marked,
+        status: parsed.data.status,
         comment: parsed.data.comment,
         syncedAt: now,
       },
@@ -188,7 +210,7 @@ export async function POST(request: Request) {
         where: { externalId: row.externalId },
         create: {
           ...row,
-          marked: false,
+          status: "NOT_VISITED",
           comment: "",
           syncedAt: now,
         },
@@ -211,15 +233,15 @@ export async function POST(request: Request) {
     }
 
     const count = await db.minimartLocatorStore.count();
-    const markedCount = await db.minimartLocatorStore.count({
-      where: { marked: true },
+    const acceptedCount = await db.minimartLocatorStore.count({
+      where: { status: "ACCEPTED" },
     });
 
     return NextResponse.json({
       source: ASL_SOURCE,
       upserted,
       count,
-      markedCount,
+      acceptedCount,
     });
   } catch (error) {
     console.error("minimart locator sync failed", error);

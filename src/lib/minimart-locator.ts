@@ -3,6 +3,30 @@ import { z } from "zod";
 const ASL_LOAD_URL = "https://mini-mart.bg/wp-admin/admin-ajax.php";
 const ASL_SOURCE = "https://mini-mart.bg/nameri-magazin/";
 
+/** Admin CRM visit status for locator pins. */
+export const MINIMART_STATUSES = [
+  "NOT_VISITED",
+  "ACCEPTED",
+  "THINKING",
+  "REJECTED",
+] as const;
+
+export type MinimartVisitStatus = (typeof MINIMART_STATUSES)[number];
+
+export const minimartStatusSchema = z.enum(MINIMART_STATUSES);
+
+/** Marker fill colors on the admin map. */
+export const MINIMART_STATUS_COLORS: Record<MinimartVisitStatus, string> = {
+  NOT_VISITED: "#3b82f6",
+  ACCEPTED: "#22c55e",
+  THINKING: "#eab308",
+  REJECTED: "#ef4444",
+};
+
+export function isMinimartVisitStatus(value: string): value is MinimartVisitStatus {
+  return (MINIMART_STATUSES as readonly string[]).includes(value);
+}
+
 export const aslStoreSchema = z.object({
   id: z.union([z.string(), z.number()]).transform(String),
   title: z.string().optional().default("Minimart"),
