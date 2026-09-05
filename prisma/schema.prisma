@@ -253,6 +253,33 @@ model SupportRequest {
   @@index([userId, createdAt])
 }
 
+/** Admin CRM overlay for public Minimart store locator locations. */
+model MinimartLocatorStore {
+  id            String   @id @default(cuid())
+  /** Agile Store Locator id from mini-mart.bg */
+  externalId    String   @unique
+  title         String
+  street        String
+  city          String
+  postalCode    String?
+  country       String?
+  lat           Float
+  lng           Float
+  phone         String?
+  website       String?
+  openHoursJson String?
+  slug          String?
+  /** Admin tick: visited / contacted / handled */
+  marked        Boolean  @default(false)
+  comment       String   @default("")
+  syncedAt      DateTime
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([city])
+  @@index([marked])
+}
+
 /** Admin-managed “What’s new” bullets shown once to app users when published. */
 model WhatsNewItem {
   id        String   @id @default(cuid())

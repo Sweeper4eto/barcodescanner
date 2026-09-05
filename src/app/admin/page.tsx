@@ -10,6 +10,7 @@ import {
 import { AuditLogPanel } from "@/components/admin/audit-log-panel";
 import { ClientsPanel, type Client } from "@/components/admin/clients-panel";
 import { ItemsPanel } from "@/components/admin/items-panel";
+import { MinimartLocatorPanel } from "@/components/admin/minimart-locator-panel";
 import { PaymentsPanel } from "@/components/admin/payments-panel";
 import { SupportRequestsPanel } from "@/components/admin/support-requests-panel";
 import { UsersPanel } from "@/components/admin/users-panel";
@@ -22,7 +23,14 @@ export default function AdminPage() {
   const router = useRouter();
   const { t } = useT();
   const [tab, setTab] = useState<
-    "clients" | "users" | "payments" | "items" | "support" | "whatsNew" | "audit"
+    | "clients"
+    | "users"
+    | "payments"
+    | "items"
+    | "support"
+    | "whatsNew"
+    | "audit"
+    | "minimart"
   >("clients");
   const [clients, setClients] = useState<Client[]>([]);
   const [supportNewCount, setSupportNewCount] = useState(0);
@@ -112,6 +120,7 @@ export default function AdminPage() {
                   ),
                 },
                 { id: "whatsNew" as const, label: t("admin.whatsNewTab") },
+                { id: "minimart" as const, label: t("admin.minimartLocatorTab") },
                 { id: "audit" as const, label: t("admin.auditLog") },
               ]}
               active={tab}
@@ -137,6 +146,7 @@ export default function AdminPage() {
               />
             ) : null}
             {tab === "whatsNew" ? <WhatsNewPanel /> : null}
+            {tab === "minimart" ? <MinimartLocatorPanel /> : null}
             {tab === "audit" ? <AuditLogPanel /> : null}
           </AdminPanelBody>
         </AdminPanel>
