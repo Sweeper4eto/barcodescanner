@@ -116,6 +116,7 @@ export function ClientsPanel({ onRefresh }: Props) {
     monthlyFeePerStore: "0",
     active: true,
     homeUser: false,
+    paymentsRequired: false,
     notifyEarlyDays: "",
     notifyUrgentDays: "",
     notifyTime1: "",
