@@ -10,7 +10,7 @@ import { markPwaInstallOffered, shouldOfferPwaInstall } from "@/lib/pwa-install"
 import {
   markWhatsNewSeen,
   shouldShowWhatsNew,
-  whatsNewFingerprint,
+  unseenWhatsNewItems,
   type WhatsNewPublicItem,
 } from "@/lib/whats-new";
 
@@ -77,7 +77,8 @@ export function WhatsNewDialog({ ready = true }: Props) {
         const data = (await response.json()) as { items?: WhatsNewPublicItem[] };
         if (cancelled) return;
         const next = data.items ?? [];
-        setItems(next);
+        const unseen = unseenWhatsNewItems(next);
+        setItems(unseen);
         if (shouldShowWhatsNew(next)) setOpen(true);
         else if (shouldOfferPwaInstall()) markPwaInstallOffered();
       } catch {
@@ -92,7 +93,7 @@ export function WhatsNewDialog({ ready = true }: Props) {
   }, [ready]);
 
   function dismiss() {
-    markWhatsNewSeen(whatsNewFingerprint(items));
+    markWhatsNewSeen(items);
     setOpen(false);
     if (shouldOfferPwaInstall()) markPwaInstallOffered();
   }

@@ -425,7 +425,8 @@ function AddDocumentContent() {
             onMultipleCapture={(pages) => void onMultipleCapture(pages)}
             onNewDocument={() => {
               setError("");
-              // Return to the document start screen (fresh camera).
+              // CameraCapture retakes in place (keeps MediaStream). Only remount
+              // if the child could not reuse a live stream.
               setCameraSession((n) => n + 1);
             }}
             onCancel={() => navigateApp("/app")}

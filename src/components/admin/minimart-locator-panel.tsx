@@ -10,6 +10,7 @@ import {
   adminInputClass,
 } from "@/components/admin/admin-ui";
 import { appButtonPrimary, appButtonNeutral } from "@/lib/app-ui";
+import { MenuSelect } from "@/components/menu-select";
 import {
   MINIMART_STATUSES,
   MINIMART_STATUS_COLORS,
@@ -288,6 +289,16 @@ export function MinimartLocatorPanel() {
   }, [stores, statusLabel]);
 
   useEffect(() => {
+    const map = mapInstance.current;
+    if (!map) return;
+    // Place-mode chrome must not leave Leaflet with a stale size (blank tiles).
+    const id = window.requestAnimationFrame(() => {
+      map.invalidateSize();
+    });
+    return () => window.cancelAnimationFrame(id);
+  }, [placeMode]);
+
+  useEffect(() => {
     if (!draft || !mapInstance.current) return;
     mapInstance.current.setView(
       [draft.lat, draft.lng],
@@ -527,11 +538,17 @@ export function MinimartLocatorPanel() {
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <div
-          ref={mapRef}
-          className={`h-[28rem] w-full overflow-hidden rounded-2xl border border-card-border bg-card-border/20 lg:h-[36rem] ${
-            placeMode ? "cursor-crosshair ring-2 ring-primary/40" : ""
+          className={`overflow-hidden rounded-2xl border border-card-border ${
+            placeMode ? "ring-2 ring-primary/40 ring-offset-2 ring-offset-background" : ""
           }`}
-        />
+        >
+          <div
+            ref={mapRef}
+            className={`h-[28rem] w-full bg-card-border/20 lg:h-[36rem] ${
+              placeMode ? "cursor-crosshair" : ""
+            }`}
+          />
+        </div>
 
         <div className="flex max-h-[36rem] flex-col gap-3">
           <div className="min-h-0 flex-1 space-y-1 overflow-y-auto rounded-2xl border border-card-border p-2">
@@ -615,22 +632,18 @@ export function MinimartLocatorPanel() {
                   />
                 </AdminField>
                 <AdminField label={t("admin.minimartStatus")}>
-                  <select
+                  <MenuSelect
+                    label={t("admin.minimartStatus")}
                     value={draft.status}
-                    onChange={(event) =>
-                      setDraft({
-                        ...draft,
-                        status: event.target.value as MinimartVisitStatus,
-                      })
+                    options={MINIMART_STATUSES.map((status) => ({
+                      value: status,
+                      label: statusLabel(status),
+                    }))}
+                    onChange={(status) =>
+                      setDraft({ ...draft, status })
                     }
-                    className={adminInputClass}
-                  >
-                    {MINIMART_STATUSES.map((status) => (
-                      <option key={status} value={status}>
-                        {statusLabel(status)}
-                      </option>
-                    ))}
-                  </select>
+                    buttonClassName={`${adminInputClass} mt-1 flex items-center justify-between gap-2 text-left`}
+                  />
                 </AdminField>
                 <AdminField label={t("admin.minimartComment")}>
                   <textarea

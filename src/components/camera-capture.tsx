@@ -592,10 +592,15 @@ export function CameraCapture({
     setError("");
     try {
       const dataUrl = await captureHighQualityStill(stream, video, canvas);
-      stopCamera();
       if (confirmMode === "instant") {
+        stopCamera();
         onCapture(dataUrl);
         return;
+      }
+      // Document flow: keep the MediaStream alive so Retake / Back does not call
+      // getUserMedia again (iOS otherwise re-prompts or flashes permission UI).
+      if (!documentLayout) {
+        stopCamera();
       }
       setPreview(dataUrl);
     } catch {
@@ -648,13 +653,53 @@ export function CameraCapture({
 
   async function uploadAndContinue() {
     if (!preview) return;
+    // Leaving the camera step — release the stream now.
+    stopCamera();
     onCapture(preview);
+  }
+
+  function streamIsLive(): boolean {
+    return Boolean(
+      streamRef.current
+        ?.getVideoTracks()
+        .some((track) => track.readyState === "live"),
+    );
   }
 
   function retakePhoto() {
     setPreview(null);
+    setError("");
     if (useNativeCapture && !forceInAppCamera) return;
+    // Reuse the open stream when possible (document retake on iPhone).
+    if (streamIsLive()) {
+      setActive(true);
+      // Video unmounts while preview is shown — reattach after it remounts.
+      window.requestAnimationFrame(() => {
+        const video = videoRef.current;
+        const stream = streamRef.current;
+        if (!video || !stream) return;
+        video.srcObject = stream;
+        void video.play().catch(() => {
+          setError(t("camera.unavailable"));
+          stopCamera();
+        });
+      });
+      return;
+    }
     void startCamera();
+  }
+
+  function handleNewDocument() {
+    // Prefer in-place retake so we do not remount and re-request the camera.
+    if (preview || streamIsLive()) {
+      retakePhoto();
+      return;
+    }
+    if (onNewDocument) {
+      onNewDocument();
+      return;
+    }
+    retakePhoto();
   }
 
   const previewFrameClass = documentLayout
@@ -762,14 +807,6 @@ export function CameraCapture({
       </div>
     </div>
   );
-
-  function handleNewDocument() {
-    if (onNewDocument) {
-      onNewDocument();
-      return;
-    }
-    retakePhoto();
-  }
 
   const documentPreviewToolbar = documentLayout && preview ? (
     <div className="flex items-center gap-2 pt-1">

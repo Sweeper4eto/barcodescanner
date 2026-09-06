@@ -14,3 +14,8 @@ test("resolveUseNativeCapture allows native picker for product photos on iOS", (
   assert.equal(resolveUseNativeCapture(false, false, true), true);
   assert.equal(resolveUseNativeCapture(false, false, false), false);
 });
+
+test("document layout never uses native capture even when iOS prefers it", () => {
+  assert.equal(resolveUseNativeCapture(false, true, true), false);
+  assert.equal(resolveUseNativeCapture(true, true, true), false);
+});
