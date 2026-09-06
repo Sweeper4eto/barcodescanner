@@ -138,7 +138,11 @@ echo "==> Removing old .next build..."
 rm -rf .next
 
 echo "==> Building app (webpack, low-memory friendly)..."
-export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=1536}"
+# Skip Next's in-build typecheck on the VPS (OOM / exit 137 on 4GB).
+# Local `npm run validate` still typechecks.
+export MAGAZIN_SKIP_TYPECHECK="${MAGAZIN_SKIP_TYPECHECK:-1}"
+# Keep the heap under typical 4GB RAM after OS + npm overhead.
+export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=1280}"
 npm run build
 
 echo "==> Restarting PM2..."

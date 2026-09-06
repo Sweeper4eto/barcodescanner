@@ -9,6 +9,10 @@ const fromEnv =
 // and you get a white screen after login.
 const nextConfig: NextConfig = {
   reactCompiler: true,
+  // Production VPS builds (4GB) OOM during Next's typecheck; validate runs tsc locally.
+  typescript: {
+    ignoreBuildErrors: process.env.MAGAZIN_SKIP_TYPECHECK === "1",
+  },
   allowedDevOrigins: [
     "127.0.0.1",
     "localhost",
