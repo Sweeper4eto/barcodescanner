@@ -144,27 +144,24 @@ function isIosLike(): boolean {
   );
 }
 
-/** Safari/iOS usually lacks ImageCapture — stills are only video frames unless we use the native camera. */
-function supportsFullStillCapture(): boolean {
-  return typeof ImageCapture !== "undefined";
-}
-
 /**
- * Prefer the system camera picker on iOS for one-off product photos (sharper stills).
- * Do not use this for document scan: each `capture=` file input open can re-ask for
- * camera access even after the user already allowed it for the site.
+ * Historically we preferred the system camera picker on iOS for sharper stills.
+ * That path uses `<input capture>`, which can ask for camera access on every
+ * open even after the user already allowed this website — so we never use it.
+ * In-app getUserMedia reuses the granted origin permission.
  */
 export function prefersNativeCameraCapture(): boolean {
-  return isIosLike() && !supportsFullStillCapture();
+  return false;
 }
 
 /** Whether CameraCapture should open the native `capture=` picker instead of getUserMedia. */
 export function resolveUseNativeCapture(
-  forceInAppCamera: boolean,
-  documentLayout: boolean,
-  prefersNative: boolean,
+  _forceInAppCamera: boolean,
+  _documentLayout: boolean,
+  _prefersNative: boolean,
 ): boolean {
-  return !forceInAppCamera && !documentLayout && prefersNative;
+  // Always prefer in-app camera so a one-time Allow sticks for the site.
+  return false;
 }
 
 function isAcceptedImageFile(file: File): boolean {
