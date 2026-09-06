@@ -10,3 +10,10 @@ export function setStoredStoreId(storeId: string): void {
   localStorage.setItem(STORE_KEY, storeId);
   window.dispatchEvent(new Event("magazin:store-changed"));
 }
+
+export function clearStoredStoreId(): void {
+  if (typeof window === "undefined") return;
+  if (!localStorage.getItem(STORE_KEY)) return;
+  localStorage.removeItem(STORE_KEY);
+  window.dispatchEvent(new Event("magazin:store-changed"));
+}

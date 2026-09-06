@@ -225,7 +225,7 @@ export const en = {
     navOrders: "Cart",
     bottomNav: "Main navigation",
     noStores:
-      "You have no assigned locations. Contact an administrator.",
+      "No locations yet. Expiry, scan, and documents stay locked until a location is assigned. You can still contact support from here.",
     team: "Team",
     teamHint: "Add users or assign additional owners for your account",
     contact: "Contact support",

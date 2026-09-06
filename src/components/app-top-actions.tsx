@@ -5,7 +5,7 @@ import { LanguageSwitch } from "@/components/language-switch";
 import { MenuSelect } from "@/components/menu-select";
 import { useAppSession } from "@/components/app-session-provider";
 import { useT } from "@/components/i18n-provider";
-import { getStoredStoreId, setStoredStoreId } from "@/lib/store-selection";
+import { getStoredStoreId, setStoredStoreId, clearStoredStoreId } from "@/lib/store-selection";
 import { navigateApp } from "@/lib/app-navigation";
 
 function StoreIcon({ className = "size-3.5" }: { className?: string }) {
@@ -39,7 +39,12 @@ export function AppStoreSelect() {
   const [storeId, setStoreId] = useState("");
 
   useEffect(() => {
-    if (!ready || stores.length === 0) return;
+    if (!ready) return;
+    if (stores.length === 0) {
+      setStoreId("");
+      clearStoredStoreId();
+      return;
+    }
     const stored = getStoredStoreId();
     const valid = stores.find((store) => store.id === stored);
     const nextId = valid?.id ?? stores[0]?.id ?? "";

@@ -113,13 +113,19 @@ export async function registerUser(
       },
     });
 
-    const store = await tx.store.create({
-      data: {
-        clientId: client.id,
-        name: defaultLocationName(options.accountType),
-        active: true,
-      },
-    });
+    // Home accounts get a default "Home" location. Retail/business owners
+    // start with no locations until an admin assigns one — app features stay locked.
+    let storeId: string | null = null;
+    if (homeUser) {
+      const store = await tx.store.create({
+        data: {
+          clientId: client.id,
+          name: defaultLocationName("home"),
+          active: true,
+        },
+      });
+      storeId = store.id;
+    }
 
     return tx.user.create({
       data: {
@@ -129,9 +135,9 @@ export async function registerUser(
         role: "USER",
         clientRole: "OWNER",
         clientId: client.id,
-        storeLinks: {
-          create: [{ storeId: store.id }],
-        },
+        ...(storeId
+          ? { storeLinks: { create: [{ storeId }] } }
+          : {}),
       },
       select: {
         id: true,

@@ -65,6 +65,26 @@ export async function POST(request: Request) {
   }
 
   const store = await db.store.create({ data: parsed.data });
+
+  // Business owners register without a location — link all OWNERS when admin adds one.
+  const owners = await db.user.findMany({
+    where: {
+      clientId: parsed.data.clientId,
+      clientRole: "OWNER",
+      active: true,
+    },
+    select: { id: true },
+  });
+  if (owners.length > 0) {
+    await db.userStore.createMany({
+      data: owners.map((owner) => ({
+        userId: owner.id,
+        storeId: store.id,
+      })),
+      skipDuplicates: true,
+    });
+  }
+
   const client = await db.client.findUnique({
     where: { id: parsed.data.clientId },
     select: { name: true },

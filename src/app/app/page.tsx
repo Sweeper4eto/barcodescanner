@@ -8,8 +8,9 @@ import { MobilePageHeader, appPageClassName } from "@/components/mobile-page-hea
 import { PushNotifications } from "@/components/push-notifications";
 import { WhatsNewDialog } from "@/components/whats-new-dialog";
 import { useT } from "@/components/i18n-provider";
+import { useAppSession } from "@/components/app-session-provider";
 import { isSignedOut, logoutSession } from "@/lib/client-session";
-import { getStoredStoreId, setStoredStoreId } from "@/lib/store-selection";
+import { getStoredStoreId, setStoredStoreId, clearStoredStoreId } from "@/lib/store-selection";
 
 type Store = { id: string; name: string; active: boolean };
 
@@ -129,6 +130,7 @@ function HomeLinkCard({
 export default function AppHomePage() {
   const router = useRouter();
   const { t } = useT();
+  const { refresh: refreshSession } = useAppSession();
   const [stores, setStores] = useState<Store[]>([]);
   const [username, setUsername] = useState("");
   const [isOwner, setIsOwner] = useState(false);
@@ -188,7 +190,12 @@ export default function AppHomePage() {
       const stored = getStoredStoreId();
       const valid = list.find((store) => store.id === stored);
       const nextId = valid?.id ?? list[0]?.id ?? "";
-      if (nextId) setStoredStoreId(nextId);
+      if (nextId) {
+        setStoredStoreId(nextId);
+      } else {
+        clearStoredStoreId();
+      }
+      await refreshSession();
       setBootstrapped(true);
     }
 
@@ -196,7 +203,7 @@ export default function AppHomePage() {
     return () => {
       cancelled = true;
     };
-  }, [router]);
+  }, [router, refreshSession]);
 
   async function logout() {
     await logoutSession();
@@ -251,7 +258,7 @@ export default function AppHomePage() {
           </p>
         ) : null}
 
-        {isOwner && !sessionMissing ? (
+        {isOwner && !sessionMissing && stores.length > 0 ? (
           <HomeLinkCard
             href="/app/team"
             title={t("app.team")}

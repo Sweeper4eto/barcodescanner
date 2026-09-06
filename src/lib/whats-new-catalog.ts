@@ -152,4 +152,20 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Часовата зона за известия се открива автоматично; изберете друга от списъка и Запази, за да остане.",
     href: "/app/settings/notifications",
   },
+  {
+    key: "2026-09-retail-no-default-location",
+    titleEn:
+      "Business accounts start without a location — bottom menu stays locked until a location is assigned; home and support stay available.",
+    titleBg:
+      "Бизнес акаунтите започват без обект — долното меню е заключено до назначаване на обект; началото и поддръжката остават достъпни.",
+    href: "/app",
+  },
+  {
+    key: "2026-09-register-scroll-with-keyboard",
+    titleEn:
+      "Registration and other forms: you can scroll to the next fields while the keyboard is open.",
+    titleBg:
+      "Регистрация и други форми: можете да скролвате към следващите полета докато клавиатурата е отворена.",
+    href: "/register",
+  },
 ];

@@ -50,6 +50,40 @@ test("registerUser rejects duplicate usernames", async () => {
   if (!second.ok) assert.equal(second.errorKey, "auth.usernameTaken");
 });
 
+test("registerUser home creates a Home location; retail creates none", async () => {
+  const home = await registerUser("homeowner1", "password123", {
+    accountType: "home",
+  });
+  assert.equal(home.ok, true);
+  if (!home.ok) return;
+
+  const homeStores = await db.store.findMany({
+    where: { clientId: home.user.clientId! },
+  });
+  assert.equal(homeStores.length, 1);
+  assert.equal(homeStores[0]?.name, "Home");
+  const homeLinks = await db.userStore.count({
+    where: { userId: home.user.id },
+  });
+  assert.equal(homeLinks, 1);
+
+  const retail = await registerUser("bizowner1", "password123", {
+    accountType: "retail",
+  });
+  assert.equal(retail.ok, true);
+  if (!retail.ok) return;
+
+  const retailStores = await db.store.findMany({
+    where: { clientId: retail.user.clientId! },
+  });
+  assert.equal(retailStores.length, 0);
+  const retailLinks = await db.userStore.count({
+    where: { userId: retail.user.id },
+  });
+  assert.equal(retailLinks, 0);
+  assert.ok(retail.user.clientId);
+});
+
 test("loginUser rejects user without client assignment", async () => {
   const { hashPassword } = await import("../src/lib/password");
   await db.user.create({

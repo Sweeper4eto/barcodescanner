@@ -57,7 +57,7 @@ function RegisterPageContent() {
         />
       </div>
 
-      <div className="relative z-0">
+      <div className="relative z-0 pb-[min(42vh,18rem)]">
         <RegisterForm />
       </div>
     </div>

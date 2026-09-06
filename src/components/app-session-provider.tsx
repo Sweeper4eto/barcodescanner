@@ -2,6 +2,7 @@
 
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -12,6 +13,11 @@ import {
   readCachedHomeUser,
   writeCachedHomeUser,
 } from "@/lib/home-user-cache";
+import {
+  clearStoredStoreId,
+  getStoredStoreId,
+  setStoredStoreId,
+} from "@/lib/store-selection";
 
 export type AppSessionStore = { id: string; name: string; active: boolean };
 
@@ -24,28 +30,78 @@ type AppSessionState = {
   ready: boolean;
   user: AppSessionUser | null;
   homeUser: boolean | null;
+  /** Re-fetch /me (e.g. after admin assigns a location). Returns active stores. */
+  refresh: () => Promise<AppSessionStore[]>;
 };
 
 const AppSessionContext = createContext<AppSessionState>({
   ready: false,
   user: null,
   homeUser: null,
+  refresh: async () => [],
 });
 
 export function useAppSession() {
   return useContext(AppSessionContext);
 }
 
+function syncSelectedStore(stores: AppSessionStore[]) {
+  if (stores.length === 0) {
+    clearStoredStoreId();
+    return;
+  }
+  const stored = getStoredStoreId();
+  const valid = stores.some((store) => store.id === stored);
+  if (!valid) {
+    setStoredStoreId(stores[0]!.id);
+  }
+}
+
 export function AppSessionProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<AppSessionState>({
+  const [state, setState] = useState<Omit<AppSessionState, "refresh">>({
     ready: false,
     user: null,
     // Keep null until after mount so SSR and the first client paint match.
     homeUser: null,
   });
 
+  const refresh = useCallback(async (): Promise<AppSessionStore[]> => {
+    try {
+      const response = await fetch("/api/auth/me", {
+        credentials: "same-origin",
+        cache: "no-store",
+      });
+      const data = await response.json();
+
+      if (!data.user) {
+        setState({ ready: true, user: null, homeUser: null });
+        clearStoredStoreId();
+        return [];
+      }
+
+      const homeUser = Boolean(data.user.homeUser);
+      writeCachedHomeUser(homeUser);
+      const stores: AppSessionStore[] = (data.user.stores ?? []).filter(
+        (store: AppSessionStore) => store.active,
+      );
+      setState({
+        ready: true,
+        user: { homeUser, stores },
+        homeUser,
+      });
+      syncSelectedStore(stores);
+      return stores;
+    } catch {
+      setState((current) => ({
+        ready: true,
+        user: current.user,
+        homeUser: current.homeUser ?? false,
+      }));
+      return [];
+    }
+  }, []);
+
   useEffect(() => {
-    let cancelled = false;
     const cached = readCachedHomeUser();
     if (cached !== null) {
       setState((current) =>
@@ -55,48 +111,27 @@ export function AppSessionProvider({ children }: { children: ReactNode }) {
       );
     }
 
-    async function load() {
-      try {
-        const response = await fetch("/api/auth/me", {
-          credentials: "same-origin",
-          cache: "no-store",
-        });
-        const data = await response.json();
-        if (cancelled) return;
+    void refresh();
 
-        if (!data.user) {
-          setState({ ready: true, user: null, homeUser: null });
-          return;
-        }
-
-        const homeUser = Boolean(data.user.homeUser);
-        writeCachedHomeUser(homeUser);
-        const stores: AppSessionStore[] = (data.user.stores ?? []).filter(
-          (store: AppSessionStore) => store.active,
-        );
-        setState({
-          ready: true,
-          user: { homeUser, stores },
-          homeUser,
-        });
-      } catch {
-        if (!cancelled) {
-          setState((current) => ({
-            ready: true,
-            user: current.user,
-            homeUser: current.homeUser ?? false,
-          }));
-        }
-      }
+    function onFocus() {
+      void refresh();
+    }
+    function onVisibility() {
+      if (document.visibilityState === "visible") void refresh();
     }
 
-    void load();
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibility);
     return () => {
-      cancelled = true;
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, []);
+  }, [refresh]);
 
-  const value = useMemo(() => state, [state]);
+  const value = useMemo(
+    () => ({ ...state, refresh }),
+    [state, refresh],
+  );
 
   return (
     <AppSessionContext.Provider value={value}>{children}</AppSessionContext.Provider>
