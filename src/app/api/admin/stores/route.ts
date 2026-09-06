@@ -76,12 +76,12 @@ export async function POST(request: Request) {
     select: { id: true },
   });
   if (owners.length > 0) {
+    // New store id — no existing links; SQLite createMany has no skipDuplicates.
     await db.userStore.createMany({
       data: owners.map((owner) => ({
         userId: owner.id,
         storeId: store.id,
       })),
-      skipDuplicates: true,
     });
   }
 
