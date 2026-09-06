@@ -1205,15 +1205,20 @@ test("payments calendar and mark paid APIs", async () => {
 });
 
 test("payment enforcement blocks unpaid retail login when enabled", async () => {
-  const { setPaymentsEnabled } = await import("../src/lib/app-config");
   const client = await seedClientWithStore(db);
   const user = await seedUserWithAccess(db, client.id, client.stores[0].id);
 
-  await setPaymentsEnabled(false);
+  await db.client.update({
+    where: { id: client.id },
+    data: { paymentsRequired: false },
+  });
   const openLogin = await loginUser(user.username, "password123");
   assert.equal(openLogin.ok, true);
 
-  await setPaymentsEnabled(true);
+  await db.client.update({
+    where: { id: client.id },
+    data: { paymentsRequired: true, monthlyFeePerStore: 20 },
+  });
   const blocked = await loginUser(user.username, "password123");
   assert.equal(blocked.ok, false);
   if (!blocked.ok) {
@@ -1241,7 +1246,12 @@ test("payment enforcement blocks unpaid retail login when enabled", async () => 
   const allowed = await loginUser(user.username, "password123");
   assert.equal(allowed.ok, true);
 
-  await setPaymentsEnabled(false);
+  await db.client.update({
+    where: { id: client.id },
+    data: { paymentsRequired: true, monthlyFeePerStore: 0 },
+  });
+  const freeLogin = await loginUser(user.username, "password123");
+  assert.equal(freeLogin.ok, true);
 });
 
 test("cron purge endpoint requires secret", async () => {

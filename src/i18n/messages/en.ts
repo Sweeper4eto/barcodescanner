@@ -732,6 +732,13 @@ export const en = {
     searchPlaceholder: "Search...",
     newClient: "New client",
     feePerStore: "Fee per location",
+    feePerStoreHint:
+      "Monthly total = active locations × this fee. If the total is 0 or less, the client stays green every month (no payment needed).",
+    paymentsRequired: "Require monthly payments",
+    paymentsRequiredHint:
+      "Off by default for testing. When on, this business client must pay each month (unless the fee total is 0).",
+    paymentsRequiredOff: "Payments off",
+    paymentStandingFree: "Free (fee ≤ 0)",
     editClient: "Edit client",
     activeClient: "Active client",
     homeUser: "Household account",
@@ -801,16 +808,10 @@ export const en = {
     markAsPaid: "Mark as paid",
     unmarkPayment: "Unmark payment",
     confirmUnmarkPayment: "Remove this payment record?",
-    paymentsSettings: "Payment enforcement",
-    paymentsEnabled: "Require monthly payments",
-    paymentsEnabledHintOff:
-      "Payments are off. Business users can use the app without a paid month (testing). Households never pay.",
-    paymentsEnabledHintOn:
-      "Payments are on. Business users need a payment for the current month to sign in. Households never pay.",
     paymentsViewClients: "By client",
     paymentsViewMonth: "By month",
     paymentsHomeExempt:
-      "Household accounts do not pay (free). They stay exempt while payments are enforced.",
+      "Household accounts do not pay (free).",
     paymentFilterAll: "All",
     clientLocations: "Locations",
     locationEnabled: "Enabled",
@@ -822,7 +823,7 @@ export const en = {
     paymentHistory: "Payment history",
     noPaymentsYet: "No payments recorded yet.",
     paymentStandingHint:
-      "Each row is one client (all locations). Green = paid up to now. Neutral = 1 month unpaid. Red = 2+ months unpaid. Households do not pay.",
+      "Each row is one client (all locations). Turn on payments per client. Green = paid up / payments off / fee ≤ 0. Neutral = 1 month unpaid. Red = 2+ months unpaid. Households never pay.",
     paymentStandingCurrent: "Paid up to date",
     paymentStandingBehind1: "1 month unpaid",
     paymentStandingBehind2plus: "2+ months unpaid",

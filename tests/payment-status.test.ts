@@ -31,10 +31,54 @@ describe("payment standing", () => {
   });
 
   test("standing colors map unpaid counts", () => {
-    assert.equal(paymentStandingFromUnpaid(0, false), "current");
-    assert.equal(paymentStandingFromUnpaid(1, false), "behind1");
-    assert.equal(paymentStandingFromUnpaid(2, false), "behind2plus");
-    assert.equal(paymentStandingFromUnpaid(5, true), "exempt");
+    assert.equal(
+      paymentStandingFromUnpaid(0, {
+        homeUser: false,
+        paymentsRequired: true,
+        expectedAmount: 40,
+      }),
+      "current",
+    );
+    assert.equal(
+      paymentStandingFromUnpaid(1, {
+        homeUser: false,
+        paymentsRequired: true,
+        expectedAmount: 40,
+      }),
+      "behind1",
+    );
+    assert.equal(
+      paymentStandingFromUnpaid(2, {
+        homeUser: false,
+        paymentsRequired: true,
+        expectedAmount: 40,
+      }),
+      "behind2plus",
+    );
+    assert.equal(
+      paymentStandingFromUnpaid(5, {
+        homeUser: true,
+        paymentsRequired: true,
+        expectedAmount: 40,
+      }),
+      "exempt",
+    );
+    assert.equal(
+      paymentStandingFromUnpaid(5, {
+        homeUser: false,
+        paymentsRequired: false,
+        expectedAmount: 40,
+      }),
+      "current",
+    );
+    assert.equal(
+      paymentStandingFromUnpaid(5, {
+        homeUser: false,
+        paymentsRequired: true,
+        expectedAmount: 0,
+      }),
+      "current",
+    );
   });
 
   test("sort rank puts red first", () => {

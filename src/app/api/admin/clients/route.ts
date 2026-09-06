@@ -51,6 +51,7 @@ const clientSchema = z.object({
   monthlyFeePerStore: z.number().nonnegative().optional(),
   active: z.boolean().optional(),
   homeUser: z.boolean().optional(),
+  paymentsRequired: z.boolean().optional(),
 });
 
 export async function POST(request: Request) {
@@ -79,6 +80,7 @@ const patchSchema = z.object({
   monthlyFeePerStore: z.number().nonnegative().optional(),
   active: z.boolean().optional(),
   homeUser: z.boolean().optional(),
+  paymentsRequired: z.boolean().optional(),
   notificationDefaults: clientDefaultsSchema.optional(),
   clearNotificationDefaults: z.boolean().optional(),
 });

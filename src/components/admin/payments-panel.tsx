@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { PrimaryButton } from "@/components/auth-forms";
 import {
   AdminField,
-  AdminSection,
   adminInputClass,
 } from "@/components/admin/admin-ui";
 import { useT } from "@/components/i18n-provider";
@@ -30,6 +29,7 @@ type StatusRow = {
     name: string;
     active: boolean;
     homeUser: boolean;
+    paymentsRequired: boolean;
     monthlyFeePerStore: number;
   };
   activeStoreCount: number;
@@ -81,9 +81,6 @@ function standingRowClass(standing: PaymentStanding, selected: boolean): string 
 export function PaymentsPanel() {
   const { t, monthName } = useT();
   const now = new Date();
-  const [paymentsEnabled, setPaymentsEnabled] = useState(false);
-  const [configLoaded, setConfigLoaded] = useState(false);
-  const [toggling, setToggling] = useState(false);
   const [view, setView] = useState<ViewMode>("clients");
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
@@ -93,6 +90,8 @@ export function PaymentsPanel() {
   const [clientQuery, setClientQuery] = useState("");
   const [selectedClientId, setSelectedClientId] = useState("");
   const [detail, setDetail] = useState<ClientDetail | null>(null);
+  const [feePerStore, setFeePerStore] = useState("20");
+  const [paymentsRequired, setPaymentsRequired] = useState(false);
   const [discount, setDiscount] = useState("0");
   const [notes, setNotes] = useState("");
   const [savedPayment, setSavedPayment] = useState({ discount: "0", notes: "" });
@@ -102,15 +101,6 @@ export function PaymentsPanel() {
   const [markMonth, setMarkMonth] = useState(now.getMonth() + 1);
 
   const currency = t("common.currency");
-
-  const loadConfig = useCallback(async () => {
-    const response = await fetch("/api/admin/app-config");
-    const data = (await response.json()) as {
-      config?: { paymentsEnabled?: boolean };
-    };
-    setPaymentsEnabled(Boolean(data.config?.paymentsEnabled));
-    setConfigLoaded(true);
-  }, []);
 
   const loadStatusList = useCallback(async () => {
     const response = await fetch("/api/admin/payments?status=1");
@@ -137,6 +127,8 @@ export function PaymentsPanel() {
       }
       const data = (await response.json()) as ClientDetail;
       setDetail(data);
+      setFeePerStore(String(data.client.monthlyFeePerStore));
+      setPaymentsRequired(Boolean(data.client.paymentsRequired));
       const paidThis = data.payments.find(
         (p) => p.year === markYear && p.month === markMonth,
       );
@@ -150,9 +142,8 @@ export function PaymentsPanel() {
   );
 
   useEffect(() => {
-    void loadConfig();
     void loadStatusList();
-  }, [loadConfig, loadStatusList]);
+  }, [loadStatusList]);
 
   useEffect(() => {
     if (view === "month") void loadCalendar();
@@ -184,37 +175,51 @@ export function PaymentsPanel() {
     }
   }, [filteredStatusRows, selectedClientId]);
 
-  function standingLabel(standing: PaymentStanding, unpaidMonths: number) {
-    switch (standing) {
+  function standingLabel(
+    row: {
+      standing: PaymentStanding;
+      unpaidMonths: number;
+      expectedAmount: number;
+      client: { homeUser: boolean; paymentsRequired: boolean };
+    },
+  ) {
+    if (row.client.homeUser) return t("admin.paymentsHomeExempt");
+    if (!row.client.paymentsRequired) return t("admin.paymentsRequiredOff");
+    if (row.expectedAmount <= 0) return t("admin.paymentStandingFree");
+    switch (row.standing) {
       case "current":
         return t("admin.paymentStandingCurrent");
       case "behind1":
         return t("admin.paymentStandingBehind1");
       case "behind2plus":
-        return t("admin.paymentStandingBehindN", { count: unpaidMonths });
+        return t("admin.paymentStandingBehindN", { count: row.unpaidMonths });
       case "exempt":
         return t("admin.paymentsHomeExempt");
     }
   }
 
-  async function togglePaymentsEnabled() {
-    setToggling(true);
+  async function saveClientBilling() {
+    if (!detail || detail.client.homeUser) return;
+    setSaving(true);
     setSaveMessage("");
     try {
-      const next = !paymentsEnabled;
-      const response = await fetch("/api/admin/app-config", {
+      const response = await fetch("/api/admin/clients", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ paymentsEnabled: next }),
+        body: JSON.stringify({
+          id: detail.client.id,
+          monthlyFeePerStore: Number(feePerStore) || 0,
+          paymentsRequired,
+        }),
       });
       if (!response.ok) {
         setSaveMessage(t("errors.saveFailed"));
         return;
       }
-      setPaymentsEnabled(next);
+      await refreshAfterPaymentChange();
       setSaveMessage(t("admin.saveSuccess"));
     } finally {
-      setToggling(false);
+      setSaving(false);
     }
   }
 
@@ -343,40 +348,6 @@ export function PaymentsPanel() {
 
   return (
     <div className="space-y-6">
-      <AdminSection title={t("admin.paymentsSettings")}>
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-card-border p-4">
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-foreground">
-              {t("admin.paymentsEnabled")}
-            </p>
-            <p className="mt-1 text-sm text-muted">
-              {paymentsEnabled
-                ? t("admin.paymentsEnabledHintOn")
-                : t("admin.paymentsEnabledHintOff")}
-            </p>
-          </div>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={paymentsEnabled}
-            disabled={!configLoaded || toggling}
-            onClick={() => void togglePaymentsEnabled()}
-            className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${
-              paymentsEnabled
-                ? "bg-primary"
-                : "border border-card-border bg-transparent"
-            }`}
-          >
-            <span
-              aria-hidden
-              className={`absolute top-0.5 size-6 rounded-full bg-white transition-transform ${
-                paymentsEnabled ? "left-5" : "left-0.5"
-              }`}
-            />
-          </button>
-        </div>
-      </AdminSection>
-
       <div className="flex flex-wrap gap-1.5">
         {(
           [
@@ -478,7 +449,7 @@ export function PaymentsPanel() {
                           : "text-foreground"
                       }`}
                     >
-                      {standingLabel(row.standing, row.unpaidMonths)}
+                      {standingLabel(row)}
                     </span>
                   </button>
                 ))
@@ -502,7 +473,7 @@ export function PaymentsPanel() {
                         : "text-muted"
                     }`}
                   >
-                    {standingLabel(detail.standing, detail.unpaidMonths)}
+                    {standingLabel(detail)}
                   </p>
                   <p className="mt-1 text-sm text-muted">
                     {t("admin.expectedAmount", {
@@ -516,6 +487,64 @@ export function PaymentsPanel() {
                     {t("admin.paymentCoversAllStores")}
                   </p>
                 </div>
+
+                {!detail.client.homeUser ? (
+                  <div className="space-y-3 rounded-xl border border-card-border p-3">
+                    <label className="flex items-center justify-between gap-3 text-sm text-foreground">
+                      <span>
+                        <span className="block font-semibold">
+                          {t("admin.paymentsRequired")}
+                        </span>
+                        <span className="mt-0.5 block text-xs text-muted">
+                          {t("admin.paymentsRequiredHint")}
+                        </span>
+                      </span>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={paymentsRequired}
+                        disabled={saving}
+                        onClick={() => setPaymentsRequired((v) => !v)}
+                        className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${
+                          paymentsRequired
+                            ? "bg-primary"
+                            : "border border-card-border bg-transparent"
+                        }`}
+                      >
+                        <span
+                          aria-hidden
+                          className={`absolute top-0.5 size-6 rounded-full bg-white transition-transform ${
+                            paymentsRequired ? "left-5" : "left-0.5"
+                          }`}
+                        />
+                      </button>
+                    </label>
+                    <AdminField label={t("admin.feePerStore")}>
+                      <input
+                        className={adminInputClass}
+                        inputMode="decimal"
+                        value={feePerStore}
+                        onChange={(event) => setFeePerStore(event.target.value)}
+                      />
+                    </AdminField>
+                    <p className="text-xs text-muted">{t("admin.feePerStoreHint")}</p>
+                    <PrimaryButton
+                      disabled={
+                        saving ||
+                        (Number(feePerStore) ===
+                          detail.client.monthlyFeePerStore &&
+                          paymentsRequired === detail.client.paymentsRequired)
+                      }
+                      onClick={() => void saveClientBilling()}
+                    >
+                      {saving ? t("admin.saving") : t("common.save")}
+                    </PrimaryButton>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted">
+                    {t("admin.paymentsHomeExempt")}
+                  </p>
+                )}
 
                 <div>
                   <h4 className="mb-2 text-sm font-semibold text-foreground">

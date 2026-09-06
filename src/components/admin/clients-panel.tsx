@@ -24,6 +24,7 @@ export type Client = {
   additionalInfo: string | null;
   active: boolean;
   homeUser: boolean;
+  paymentsRequired: boolean;
   monthlyFeePerStore: number;
   expiryDefaultEarlyDays: number | null;
   expiryDefaultUrgentDays: number | null;
@@ -52,6 +53,7 @@ type EditState = {
   monthlyFeePerStore: string;
   active: boolean;
   homeUser: boolean;
+  paymentsRequired: boolean;
   notifyEarlyDays: string;
   notifyUrgentDays: string;
   notifyTime1: string;
@@ -65,6 +67,7 @@ function clientEditState(client: Client): EditState {
     monthlyFeePerStore: String(client.monthlyFeePerStore),
     active: client.active,
     homeUser: client.homeUser,
+    paymentsRequired: Boolean(client.paymentsRequired),
     notifyEarlyDays:
       client.expiryDefaultEarlyDays != null
         ? String(client.expiryDefaultEarlyDays)
@@ -86,6 +89,7 @@ function editIsDirty(current: EditState, saved: EditState | null) {
     current.monthlyFeePerStore !== saved.monthlyFeePerStore ||
     current.active !== saved.active ||
     current.homeUser !== saved.homeUser ||
+    current.paymentsRequired !== saved.paymentsRequired ||
     current.notifyEarlyDays !== saved.notifyEarlyDays ||
     current.notifyUrgentDays !== saved.notifyUrgentDays ||
     current.notifyTime1 !== saved.notifyTime1
@@ -205,6 +209,7 @@ export function ClientsPanel({ onRefresh }: Props) {
           monthlyFeePerStore: Number(edit.monthlyFeePerStore),
           active: edit.active,
           homeUser: edit.homeUser,
+          paymentsRequired: edit.paymentsRequired,
           notificationDefaults: {
             earlyDays: edit.notifyEarlyDays.trim()
               ? Number(edit.notifyEarlyDays)
@@ -497,6 +502,26 @@ export function ClientsPanel({ onRefresh }: Props) {
                           }
                         />
                       </AdminField>
+                      <p className="text-xs text-muted">{t("admin.feePerStoreHint")}</p>
+                      <label className="flex items-center gap-2 text-sm text-foreground">
+                        <input
+                          type="checkbox"
+                          checked={edit.paymentsRequired}
+                          disabled={edit.homeUser}
+                          onChange={(event) =>
+                            setEdit({
+                              ...edit,
+                              paymentsRequired: event.target.checked,
+                            })
+                          }
+                        />
+                        {t("admin.paymentsRequired")}
+                      </label>
+                      <p className="text-xs text-muted">
+                        {edit.homeUser
+                          ? t("admin.paymentsHomeExempt")
+                          : t("admin.paymentsRequiredHint")}
+                      </p>
                       <label className="flex items-center gap-2 text-sm text-foreground">
                         <input
                           type="checkbox"
@@ -512,7 +537,13 @@ export function ClientsPanel({ onRefresh }: Props) {
                           type="checkbox"
                           checked={edit.homeUser}
                           onChange={(event) =>
-                            setEdit({ ...edit, homeUser: event.target.checked })
+                            setEdit({
+                              ...edit,
+                              homeUser: event.target.checked,
+                              paymentsRequired: event.target.checked
+                                ? false
+                                : edit.paymentsRequired,
+                            })
                           }
                         />
                         {t("admin.homeUser")}

@@ -56,9 +56,17 @@ export function countUnpaidMonths(options: {
 
 export function paymentStandingFromUnpaid(
   unpaidMonths: number,
-  exempt: boolean,
+  options: {
+    homeUser: boolean;
+    paymentsRequired: boolean;
+    expectedAmount: number;
+  },
 ): PaymentStanding {
-  if (exempt) return "exempt";
+  if (options.homeUser) return "exempt";
+  // Payments off, or fee × locations ≤ 0 → always green.
+  if (!options.paymentsRequired || options.expectedAmount <= 0) {
+    return "current";
+  }
   if (unpaidMonths <= 0) return "current";
   if (unpaidMonths === 1) return "behind1";
   return "behind2plus";

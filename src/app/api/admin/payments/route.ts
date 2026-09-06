@@ -55,36 +55,43 @@ export async function GET(request: Request) {
 
     const rows = clients.map((client) => {
       const activeStoreCount = client.stores.filter((s) => s.active).length;
+      const expectedAmount = paymentAmount(
+        activeStoreCount,
+        client.monthlyFeePerStore,
+        0,
+      );
       const paidKeys = new Set(
         client.payments.map((p) => periodKey(p.year, p.month)),
       );
-      const unpaidMonths = client.homeUser
-        ? 0
-        : countUnpaidMonths({
+      const tracksPayments =
+        !client.homeUser &&
+        client.paymentsRequired &&
+        expectedAmount > 0;
+      const unpaidMonths = tracksPayments
+        ? countUnpaidMonths({
             billingStart: periodFromDate(client.createdAt),
             through,
             paidKeys,
-          });
-      const standing = paymentStandingFromUnpaid(
-        unpaidMonths,
-        client.homeUser,
-      );
+          })
+        : 0;
+      const standing = paymentStandingFromUnpaid(unpaidMonths, {
+        homeUser: client.homeUser,
+        paymentsRequired: client.paymentsRequired,
+        expectedAmount,
+      });
       return {
         client: {
           id: client.id,
           name: client.name,
           active: client.active,
           homeUser: client.homeUser,
+          paymentsRequired: client.paymentsRequired,
           monthlyFeePerStore: client.monthlyFeePerStore,
           createdAt: client.createdAt.toISOString(),
         },
         activeStoreCount,
         storeCount: client.stores.length,
-        expectedAmount: paymentAmount(
-          activeStoreCount,
-          client.monthlyFeePerStore,
-          0,
-        ),
+        expectedAmount,
         unpaidMonths,
         standing,
       };
@@ -122,15 +129,28 @@ export async function GET(request: Request) {
       allPayments.map((p) => periodKey(p.year, p.month)),
     );
     const through = periodFromDate(new Date());
-    const unpaidMonths = client.homeUser
-      ? 0
-      : countUnpaidMonths({
+    const activeStoreCount = client.stores.filter((s) => s.active).length;
+    const expectedAmount = paymentAmount(
+      activeStoreCount,
+      client.monthlyFeePerStore,
+      0,
+    );
+    const tracksPayments =
+      !client.homeUser &&
+      client.paymentsRequired &&
+      expectedAmount > 0;
+    const unpaidMonths = tracksPayments
+      ? countUnpaidMonths({
           billingStart: periodFromDate(client.createdAt),
           through,
           paidKeys,
-        });
-    const standing = paymentStandingFromUnpaid(unpaidMonths, client.homeUser);
-    const activeStoreCount = client.stores.filter((s) => s.active).length;
+        })
+      : 0;
+    const standing = paymentStandingFromUnpaid(unpaidMonths, {
+      homeUser: client.homeUser,
+      paymentsRequired: client.paymentsRequired,
+      expectedAmount,
+    });
 
     return NextResponse.json({
       client: {
@@ -138,6 +158,7 @@ export async function GET(request: Request) {
         name: client.name,
         active: client.active,
         homeUser: client.homeUser,
+        paymentsRequired: client.paymentsRequired,
         monthlyFeePerStore: client.monthlyFeePerStore,
         createdAt: client.createdAt.toISOString(),
       },
@@ -147,11 +168,7 @@ export async function GET(request: Request) {
         active: store.active,
       })),
       activeStoreCount,
-      expectedAmount: paymentAmount(
-        activeStoreCount,
-        client.monthlyFeePerStore,
-        0,
-      ),
+      expectedAmount,
       unpaidMonths,
       standing,
       payments: allPayments.slice(0, 36),
