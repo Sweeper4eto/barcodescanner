@@ -150,6 +150,8 @@ export const bg = {
     noClientAssigned:
       "Не сте назначени към клиент. Свържете се с администратор.",
     clientDeactivated: "Клиентът е деактивиран. Свържете се с администратор.",
+    paymentRequired:
+      "За този акаунт е нужно плащане. Свържете се с администратор.",
     tooManyAttempts:
       "Твърде много неуспешни опити за вход. Опитайте отново след няколко минути.",
   },
@@ -803,6 +805,38 @@ export const bg = {
     notesPlaceholder: "Бележки",
     finalAmount: "Крайна сума: {amount} {currency}",
     markAsPaid: "Маркирай като платено",
+    unmarkPayment: "Премахни плащането",
+    confirmUnmarkPayment: "Да премахнем записа за това плащане?",
+    paymentsSettings: "Налагане на плащания",
+    paymentsEnabled: "Изисквай месечни плащания",
+    paymentsEnabledHintOff:
+      "Плащанията са изключени. Бизнес потребителите могат да ползват приложението без платен месец (тестване). Домакинствата не плащат.",
+    paymentsEnabledHintOn:
+      "Плащанията са включени. Бизнес потребителите трябва да имат плащане за текущия месец, за да влязат. Домакинствата не плащат.",
+    paymentsViewClients: "По клиент",
+    paymentsViewMonth: "По месец",
+    paymentsHomeExempt:
+      "Домакинските акаунти не плащат (безплатни). Остават освободени, докато плащанията са задължителни.",
+    paymentFilterAll: "Всички",
+    clientLocations: "Обекти",
+    locationEnabled: "Включен",
+    locationDisabled: "Изключен",
+    disableLocation: "Изключи",
+    enableLocation: "Включи",
+    billingMonth: "Месец",
+    billingYear: "Година",
+    paymentHistory: "История на плащанията",
+    noPaymentsYet: "Все още няма записани плащания.",
+    paymentStandingHint:
+      "Всеки ред е един клиент (всички обекти). Зелено = платено досега. Неутрално = 1 неплатен месец. Червено = 2+ неплатени месеца. Домакинствата не плащат.",
+    paymentStandingCurrent: "Платено до момента",
+    paymentStandingBehind1: "1 неплатен месец",
+    paymentStandingBehind2plus: "2+ неплатени месеца",
+    paymentStandingBehindN: "{count} неплатени месеца",
+    paymentClientStores:
+      "{active}/{total} обекта · {amount} {currency}/мес.",
+    paymentCoversAllStores:
+      "Всяко плащане е за целия клиент (всички обекти за този месец).",
     saveSuccess: "Промените са запазени успешно.",
     saving: "Записване…",
     items: "Артикули",

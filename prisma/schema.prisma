@@ -191,6 +191,14 @@ model Payment {
   @@unique([clientId, year, month])
 }
 
+/** Singleton app settings (id is always 1). */
+model AppConfig {
+  id              Int      @id @default(1)
+  /** When false (default), users are not required to have a paid month. */
+  paymentsEnabled Boolean  @default(false)
+  updatedAt       DateTime @updatedAt
+}
+
 model PushSubscription {
   id        String   @id @default(cuid())
   userId    String

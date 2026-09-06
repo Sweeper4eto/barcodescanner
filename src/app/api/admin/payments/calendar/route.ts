@@ -45,7 +45,7 @@ export async function GET(request: Request) {
 
   const [clients, payments] = await Promise.all([
     db.client.findMany({
-      where: { active: true },
+      where: { active: true, homeUser: false },
       include: { stores: { where: { active: true } } },
       orderBy: { name: "asc" },
     }),

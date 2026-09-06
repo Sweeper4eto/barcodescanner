@@ -6,6 +6,13 @@ import { requireAdmin } from "@/lib/auth";
 import { paymentAmount } from "@/lib/expiry";
 import { db } from "@/lib/db";
 import { apiT } from "@/i18n";
+import {
+  countUnpaidMonths,
+  paymentStandingFromUnpaid,
+  periodFromDate,
+  periodKey,
+  standingSortRank,
+} from "@/lib/payment-status";
 
 async function requireAdminResponse(request: Request) {
   try {
@@ -33,6 +40,123 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const year = Number(searchParams.get("year"));
   const month = Number(searchParams.get("month"));
+  const clientId = (searchParams.get("clientId") ?? "").trim();
+  const statusList = searchParams.get("status") === "1";
+
+  if (statusList) {
+    const through = periodFromDate(new Date());
+    const clients = await db.client.findMany({
+      include: {
+        stores: { select: { id: true, active: true } },
+        payments: { select: { year: true, month: true } },
+      },
+      orderBy: { name: "asc" },
+    });
+
+    const rows = clients.map((client) => {
+      const activeStoreCount = client.stores.filter((s) => s.active).length;
+      const paidKeys = new Set(
+        client.payments.map((p) => periodKey(p.year, p.month)),
+      );
+      const unpaidMonths = client.homeUser
+        ? 0
+        : countUnpaidMonths({
+            billingStart: periodFromDate(client.createdAt),
+            through,
+            paidKeys,
+          });
+      const standing = paymentStandingFromUnpaid(
+        unpaidMonths,
+        client.homeUser,
+      );
+      return {
+        client: {
+          id: client.id,
+          name: client.name,
+          active: client.active,
+          homeUser: client.homeUser,
+          monthlyFeePerStore: client.monthlyFeePerStore,
+          createdAt: client.createdAt.toISOString(),
+        },
+        activeStoreCount,
+        storeCount: client.stores.length,
+        expectedAmount: paymentAmount(
+          activeStoreCount,
+          client.monthlyFeePerStore,
+          0,
+        ),
+        unpaidMonths,
+        standing,
+      };
+    });
+
+    rows.sort((a, b) => {
+      const rank = standingSortRank(a.standing) - standingSortRank(b.standing);
+      if (rank !== 0) return rank;
+      return a.client.name.localeCompare(b.client.name);
+    });
+
+    return NextResponse.json({ through, rows });
+  }
+
+  if (clientId) {
+    const client = await db.client.findUnique({
+      where: { id: clientId },
+      include: {
+        stores: { orderBy: { name: "asc" } },
+      },
+    });
+    if (!client) {
+      return NextResponse.json(
+        { error: apiT(request, "errors.clientNotFound") },
+        { status: 404 },
+      );
+    }
+
+    const allPayments = await db.payment.findMany({
+      where: { clientId },
+      orderBy: [{ year: "desc" }, { month: "desc" }],
+    });
+
+    const paidKeys = new Set(
+      allPayments.map((p) => periodKey(p.year, p.month)),
+    );
+    const through = periodFromDate(new Date());
+    const unpaidMonths = client.homeUser
+      ? 0
+      : countUnpaidMonths({
+          billingStart: periodFromDate(client.createdAt),
+          through,
+          paidKeys,
+        });
+    const standing = paymentStandingFromUnpaid(unpaidMonths, client.homeUser);
+    const activeStoreCount = client.stores.filter((s) => s.active).length;
+
+    return NextResponse.json({
+      client: {
+        id: client.id,
+        name: client.name,
+        active: client.active,
+        homeUser: client.homeUser,
+        monthlyFeePerStore: client.monthlyFeePerStore,
+        createdAt: client.createdAt.toISOString(),
+      },
+      stores: client.stores.map((store) => ({
+        id: store.id,
+        name: store.name,
+        active: store.active,
+      })),
+      activeStoreCount,
+      expectedAmount: paymentAmount(
+        activeStoreCount,
+        client.monthlyFeePerStore,
+        0,
+      ),
+      unpaidMonths,
+      standing,
+      payments: allPayments.slice(0, 36),
+    });
+  }
 
   const payments = await db.payment.findMany({
     where: {
@@ -123,4 +247,34 @@ export async function POST(request: Request) {
   );
 
   return NextResponse.json({ payment }, { status: 201 });
+}
+
+export async function DELETE(request: Request) {
+  const admin = await requireAdminResponse(request);
+  if (admin instanceof NextResponse) return admin;
+
+  const { searchParams } = new URL(request.url);
+  const clientId = (searchParams.get("clientId") ?? "").trim();
+  const year = Number(searchParams.get("year"));
+  const month = Number(searchParams.get("month"));
+  if (!clientId || !year || !month) {
+    return NextResponse.json(
+      { error: apiT(request, "errors.invalidData") },
+      { status: 400 },
+    );
+  }
+
+  try {
+    await db.payment.delete({
+      where: {
+        clientId_year_month: { clientId, year, month },
+      },
+    });
+    return NextResponse.json({ ok: true });
+  } catch {
+    return NextResponse.json(
+      { error: apiT(request, "errors.entryNotFound") },
+      { status: 404 },
+    );
+  }
 }

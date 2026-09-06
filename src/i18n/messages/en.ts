@@ -149,6 +149,8 @@ export const en = {
     noClientAssigned:
       "You are not assigned to a client. Please contact an administrator.",
     clientDeactivated: "Client is deactivated. Contact an administrator.",
+    paymentRequired:
+      "Payment is required for this account. Contact an administrator.",
     tooManyAttempts:
       "Too many failed login attempts. Try again in a few minutes.",
   },
@@ -797,6 +799,38 @@ export const en = {
     notesPlaceholder: "Notes",
     finalAmount: "Final amount: {amount} {currency}",
     markAsPaid: "Mark as paid",
+    unmarkPayment: "Unmark payment",
+    confirmUnmarkPayment: "Remove this payment record?",
+    paymentsSettings: "Payment enforcement",
+    paymentsEnabled: "Require monthly payments",
+    paymentsEnabledHintOff:
+      "Payments are off. Business users can use the app without a paid month (testing). Households never pay.",
+    paymentsEnabledHintOn:
+      "Payments are on. Business users need a payment for the current month to sign in. Households never pay.",
+    paymentsViewClients: "By client",
+    paymentsViewMonth: "By month",
+    paymentsHomeExempt:
+      "Household accounts do not pay (free). They stay exempt while payments are enforced.",
+    paymentFilterAll: "All",
+    clientLocations: "Locations",
+    locationEnabled: "Enabled",
+    locationDisabled: "Disabled",
+    disableLocation: "Disable",
+    enableLocation: "Enable",
+    billingMonth: "Month",
+    billingYear: "Year",
+    paymentHistory: "Payment history",
+    noPaymentsYet: "No payments recorded yet.",
+    paymentStandingHint:
+      "Each row is one client (all locations). Green = paid up to now. Neutral = 1 month unpaid. Red = 2+ months unpaid. Households do not pay.",
+    paymentStandingCurrent: "Paid up to date",
+    paymentStandingBehind1: "1 month unpaid",
+    paymentStandingBehind2plus: "2+ months unpaid",
+    paymentStandingBehindN: "{count} months unpaid",
+    paymentClientStores:
+      "{active}/{total} locations · {amount} {currency}/mo",
+    paymentCoversAllStores:
+      "Each payment covers the whole client (all locations for that month).",
     saveSuccess: "Changes saved successfully.",
     saving: "Saving…",
     items: "Items",

@@ -29,7 +29,7 @@ export type AuthUser = Pick<
 export type AuthFailure = {
   ok: false;
   errorKey: MessageKey;
-  code?: "NO_CLIENT" | "MUST_CHANGE_PASSWORD";
+  code?: "NO_CLIENT" | "MUST_CHANGE_PASSWORD" | "PAYMENT_REQUIRED";
 };
 
 export type RegisterAccountType = "home" | "retail";
@@ -193,6 +193,14 @@ export async function loginUser(
     if (!client?.active) {
       return { ok: false, errorKey: "auth.clientDeactivated" };
     }
+    const { clientRequiresPayment } = await import("@/lib/app-config");
+    if (await clientRequiresPayment(user.clientId)) {
+      return {
+        ok: false,
+        code: "PAYMENT_REQUIRED",
+        errorKey: "auth.paymentRequired",
+      };
+    }
   }
 
   const payload: SessionPayload = {
@@ -266,13 +274,22 @@ export async function requireSession(options?: {
 
   const user = await db.user.findUnique({
     where: { id: session.userId },
-    select: { active: true, mustChangePassword: true },
+    select: { active: true, mustChangePassword: true, role: true, clientId: true },
   });
   if (!user?.active) {
     throw new Error("UNAUTHORIZED");
   }
   if (user.mustChangePassword && !options?.allowMustChangePassword) {
     throw new Error("MUST_CHANGE_PASSWORD");
+  }
+
+  if (user.role === "USER" && user.clientId) {
+    const { clientRequiresPayment } = await import("@/lib/app-config");
+    if (await clientRequiresPayment(user.clientId)) {
+      const { clearSessionCookie } = await import("@/lib/session");
+      await clearSessionCookie();
+      throw new Error("PAYMENT_REQUIRED");
+    }
   }
 
   return {

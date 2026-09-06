@@ -1204,6 +1204,46 @@ test("payments calendar and mark paid APIs", async () => {
   assert.equal(markPaid.data.payment.amountPaid, 20);
 });
 
+test("payment enforcement blocks unpaid retail login when enabled", async () => {
+  const { setPaymentsEnabled } = await import("../src/lib/app-config");
+  const client = await seedClientWithStore(db);
+  const user = await seedUserWithAccess(db, client.id, client.stores[0].id);
+
+  await setPaymentsEnabled(false);
+  const openLogin = await loginUser(user.username, "password123");
+  assert.equal(openLogin.ok, true);
+
+  await setPaymentsEnabled(true);
+  const blocked = await loginUser(user.username, "password123");
+  assert.equal(blocked.ok, false);
+  if (!blocked.ok) {
+    assert.equal(blocked.code, "PAYMENT_REQUIRED");
+  }
+
+  const now = new Date();
+  const adminLogin = await loginUser("admin", "admin123");
+  assert.equal(adminLogin.ok, true);
+  if (!adminLogin.ok) return;
+  await setMockSession(adminLogin.token);
+
+  const markPaid = await jsonRequest(paymentsPost, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      clientId: client.id,
+      year: now.getFullYear(),
+      month: now.getMonth() + 1,
+      discount: 0,
+    }),
+  });
+  assert.equal(markPaid.response.status, 201);
+
+  const allowed = await loginUser(user.username, "password123");
+  assert.equal(allowed.ok, true);
+
+  await setPaymentsEnabled(false);
+});
+
 test("cron purge endpoint requires secret", async () => {
   const forbidden = await jsonRequest(cronPost, { method: "POST" });
   assert.equal(forbidden.response.status, 403);

@@ -28,6 +28,11 @@ export async function resetTestDb(db: PrismaClient): Promise<void> {
   await db.store.deleteMany();
   await db.user.deleteMany();
   await db.client.deleteMany();
+  await db.appConfig.upsert({
+    where: { id: 1 },
+    create: { id: 1, paymentsEnabled: false },
+    update: { paymentsEnabled: false },
+  });
 }
 
 export async function seedAdmin(db: PrismaClient) {

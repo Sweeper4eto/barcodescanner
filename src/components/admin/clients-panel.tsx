@@ -881,7 +881,9 @@ function StoreCard({
               className="rounded-lg border border-input-border bg-transparent px-2 py-1 text-xs text-foreground"
               onClick={onToggle}
             >
-              {store.active ? t("common.deactivate") : t("common.activate")}
+              {store.active
+                ? t("admin.disableLocation")
+                : t("admin.enableLocation")}
             </button>
             <button
               type="button"

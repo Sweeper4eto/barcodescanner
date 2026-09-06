@@ -4,18 +4,41 @@ set -euo pipefail
 APP_DIR="${MAGAZIN_APP_DIR:-/var/www/magazin}"
 SCRIPT_PATH="${APP_DIR}/scripts/update-magazin.sh"
 DB_PATH="${MAGAZIN_DB_PATH:-/var/lib/magazin/data.db}"
+MAINTENANCE_FLAG="${MAGAZIN_MAINTENANCE_FLAG:-$APP_DIR/MAINTENANCE}"
 
 cd "$APP_DIR"
+
+enable_maintenance() {
+  touch "$MAINTENANCE_FLAG"
+  echo "==> Maintenance mode ON ($MAINTENANCE_FLAG)"
+}
+
+disable_maintenance() {
+  if [[ -f "$MAINTENANCE_FLAG" ]]; then
+    rm -f "$MAINTENANCE_FLAG"
+    echo "==> Maintenance mode OFF"
+  fi
+}
 
 # After git reset the file on disk is new, but bash keeps running the old
 # inode. Re-exec once so migrate/stop order from origin/master actually runs.
 if [[ "${MAGAZIN_UPDATE_REEXEC:-}" != "1" ]]; then
+  # Flip maintenance on early (needs nginx snippet from a previous deploy).
+  if [[ -f "$APP_DIR/public/maintenance.html" ]]; then
+    enable_maintenance
+  fi
   echo "==> Syncing to latest origin/master..."
   git fetch origin
   git reset --hard origin/master
   export MAGAZIN_UPDATE_REEXEC=1
   exec bash "$SCRIPT_PATH"
 fi
+
+# Clear the flag only after a successful finish. If the script fails mid-update,
+# leave MAINTENANCE on so visitors keep seeing the maintenance page.
+trap 'code=$?; if [[ $code -ne 0 ]]; then echo "==> Update failed (exit $code) — leaving maintenance ON ($MAINTENANCE_FLAG)"; fi' EXIT
+
+enable_maintenance
 
 # prisma migrate deploy needs DATABASE_URL in the env (prisma.config.ts reads
 # it). If .env doesn't provide one, fall back to the known DB path so a missing
@@ -121,4 +144,8 @@ npm run build
 echo "==> Restarting PM2..."
 pm2 restart magazin || pm2 start npm --name magazin -- start
 
+# Give Node a moment to listen before nginx stops returning the maintenance page.
+sleep 2
+
+disable_maintenance
 echo "==> Done."
