@@ -51,6 +51,7 @@ type Entry = {
   expiryDate: string;
   priceReducedAt: string | null;
   priceDiscountPercent: number | null;
+  priceReducedByUser?: { id: string; username: string } | null;
   product: { id: string; name: string; imagePath: string | null };
 };
 
@@ -424,6 +425,7 @@ function ExpiryList() {
               expiryDate: updated.expiryDate,
               priceReducedAt: updated.priceReducedAt,
               priceDiscountPercent: updated.priceDiscountPercent ?? null,
+              priceReducedByUser: updated.priceReducedByUser ?? null,
               product: updated.product,
             };
           }
@@ -451,6 +453,7 @@ function ExpiryList() {
             expiryDate: updated.expiryDate,
             priceReducedAt: updated.priceReducedAt,
             priceDiscountPercent: updated.priceDiscountPercent ?? null,
+            priceReducedByUser: updated.priceReducedByUser ?? null,
             product: updated.product,
           },
         ];

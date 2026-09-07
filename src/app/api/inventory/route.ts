@@ -15,7 +15,10 @@ import { expiryListDateBounds, parseExpiryWithinDays } from "@/lib/expiry";
 import {
   activeInventoryWhere,
   expiryDateDayBounds,
+  inventoryEntryInclude,
   normalizeExpiryDate,
+  priceReducedOffData,
+  priceReducedOnData,
 } from "@/lib/inventory";
 import { filterInventoryEntriesBySearch } from "@/lib/inventory-search";
 import { db } from "@/lib/db";
@@ -116,7 +119,7 @@ export async function POST(request: Request) {
         ...(articul ? { articul } : {}),
         ...(entryImagePath ? { imagePath: entryImagePath } : {}),
       },
-      include: { product: true },
+      include: inventoryEntryInclude,
     });
 
     await logAuditEvent(
@@ -146,7 +149,7 @@ export async function POST(request: Request) {
       quantity: parsed.data.quantity,
       expiryDate,
     },
-    include: { product: true },
+    include: inventoryEntryInclude,
   });
 
   await logAuditEvent(
@@ -224,7 +227,7 @@ export async function GET(request: Request) {
   if (q) {
     const candidates = await db.inventoryEntry.findMany({
       where,
-      include: { product: true },
+      include: inventoryEntryInclude,
       orderBy,
       take: 1000,
     });
@@ -244,7 +247,7 @@ export async function GET(request: Request) {
   const [entries, total] = await Promise.all([
     db.inventoryEntry.findMany({
       where,
-      include: { product: true },
+      include: inventoryEntryInclude,
       orderBy,
       skip: (page - 1) * limit,
       take: limit,
@@ -323,7 +326,7 @@ export async function PATCH(request: Request) {
         storeId: parsed.data.storeId,
         ...activeInventoryWhere,
       },
-      include: { product: true },
+      include: inventoryEntryInclude,
     });
 
     if (!existing) {
@@ -339,8 +342,8 @@ export async function PATCH(request: Request) {
 
     const entry = await db.inventoryEntry.update({
       where: { id: existing.id },
-      data: { priceReducedAt: null, priceDiscountPercent: null },
-      include: { product: true },
+      data: priceReducedOffData(),
+      include: inventoryEntryInclude,
     });
 
     await logAuditEvent(
@@ -366,7 +369,7 @@ export async function PATCH(request: Request) {
         storeId: parsed.data.storeId,
         ...activeInventoryWhere,
       },
-      include: { product: true },
+      include: inventoryEntryInclude,
     });
 
     if (!existing) {
@@ -391,8 +394,8 @@ export async function PATCH(request: Request) {
 
       const entry = await db.inventoryEntry.update({
         where: { id: existing.id },
-        data: { priceDiscountPercent: discountPercent },
-        include: { product: true },
+        data: priceReducedOnData(session.userId, discountPercent),
+        include: inventoryEntryInclude,
       });
 
       await logAuditEvent(
@@ -414,11 +417,8 @@ export async function PATCH(request: Request) {
 
     const entry = await db.inventoryEntry.update({
       where: { id: existing.id },
-      data: {
-        priceReducedAt: new Date(),
-        priceDiscountPercent: discountPercent,
-      },
-      include: { product: true },
+      data: priceReducedOnData(session.userId, discountPercent),
+      include: inventoryEntryInclude,
     });
 
     await logAuditEvent(
@@ -454,7 +454,7 @@ export async function PATCH(request: Request) {
         storeId: parsed.data.storeId,
         ...activeInventoryWhere,
       },
-      include: { product: true },
+      include: inventoryEntryInclude,
     });
 
     if (!existing) {
@@ -516,7 +516,7 @@ export async function PATCH(request: Request) {
     if (!entryFieldUpdate) {
       const entry = await db.inventoryEntry.findUniqueOrThrow({
         where: { id: existing.id },
-        include: { product: true },
+        include: inventoryEntryInclude,
       });
       return NextResponse.json({ entry });
     }
@@ -536,7 +536,7 @@ export async function PATCH(request: Request) {
           ...activeInventoryWhere,
           expiryDate: { gte: start, lt: end },
         },
-        include: { product: true },
+        include: inventoryEntryInclude,
       });
 
       if (conflict) {
@@ -549,6 +549,7 @@ export async function PATCH(request: Request) {
                 ? {
                     priceReducedAt: existing.priceReducedAt,
                     priceDiscountPercent: existing.priceDiscountPercent,
+                    priceReducedByUserId: existing.priceReducedByUserId,
                   }
                 : {}),
             },
@@ -565,7 +566,7 @@ export async function PATCH(request: Request) {
           }
           return tx.inventoryEntry.findUniqueOrThrow({
             where: { id: conflict.id },
-            include: { product: true },
+            include: inventoryEntryInclude,
           });
         });
 
@@ -607,16 +608,22 @@ export async function PATCH(request: Request) {
           ? { imagePath: parsed.data.imagePath?.trim() || null }
           : {}),
         ...(parsed.data.priceReduced === true && !existing.priceReducedAt
-          ? {
-              priceReducedAt: new Date(),
-              priceDiscountPercent: parsed.data.priceDiscountPercent ?? 25,
-            }
+          ? priceReducedOnData(
+              session.userId,
+              parsed.data.priceDiscountPercent ?? 25,
+            )
+          : {}),
+        ...(parsed.data.priceReduced === true &&
+        existing.priceReducedAt &&
+        parsed.data.priceDiscountPercent !== undefined &&
+        parsed.data.priceDiscountPercent !== existing.priceDiscountPercent
+          ? priceReducedOnData(session.userId, parsed.data.priceDiscountPercent)
           : {}),
         ...(parsed.data.priceReduced === false
-          ? { priceReducedAt: null, priceDiscountPercent: null }
+          ? priceReducedOffData()
           : {}),
       },
-      include: { product: true },
+      include: inventoryEntryInclude,
     });
 
     if (
@@ -688,6 +695,24 @@ export async function PATCH(request: Request) {
         }),
       );
     } else if (
+      parsed.data.priceReduced === true &&
+      existing.priceReducedAt &&
+      entry.priceDiscountPercent !== existing.priceDiscountPercent
+    ) {
+      await logAuditEvent(
+        request,
+        session,
+        "inventory_price_reduced",
+        auditInventoryPriceReduced({
+          productName: existing.product.name,
+          barcode: existing.barcode,
+          quantity: entry.quantity,
+          storeName: store.name,
+          expiryDate: entry.expiryDate,
+          discountPercent: entry.priceDiscountPercent ?? undefined,
+        }),
+      );
+    } else if (
       parsed.data.priceReduced === false &&
       existing.priceReducedAt &&
       !entry.priceReducedAt
@@ -715,7 +740,7 @@ export async function PATCH(request: Request) {
       storeId: parsed.data.storeId,
       ...activeInventoryWhere,
     },
-    include: { product: true },
+    include: inventoryEntryInclude,
   });
 
   if (!removed) {

@@ -24,7 +24,7 @@ import { useViewportInsets } from "@/hooks/use-viewport-insets";
 import { CancelButton } from "@/components/cancel-button";
 import { ConfirmButton } from "@/components/confirm-button";
 import { appFooterButtonGrid } from "@/lib/app-ui";
-import { daysUntilExpiry, formatLocaleDay } from "@/lib/expiry";
+import { daysUntilExpiry, formatLocaleDay, formatLocaleTime } from "@/lib/expiry";
 import {
   isAdhocBarcode,
   resolveEntryImagePath,
@@ -87,6 +87,7 @@ export type ExpiryDetailEntry = {
   expiryDate: string;
   priceReducedAt: string | null;
   priceDiscountPercent?: number | null;
+  priceReducedByUser?: { id: string; username: string } | null;
   product: { id: string; name: string; imagePath: string | null };
 };
 
@@ -533,6 +534,25 @@ export function ExpiryEntryDetailSheet({
                   value={discountPercentDraft}
                   onChange={setDiscountPercentDraft}
                 />
+                {savedPriceReduced && entry.priceReducedByUser?.username ? (
+                  <div className="mt-3 flex items-end justify-between gap-2 border-t border-card-border pt-3">
+                    <div className="min-w-0">
+                      <p className="text-xs text-muted">
+                        {t("expiry.reducedBy")}
+                      </p>
+                      <p className="truncate text-sm font-semibold text-foreground">
+                        {entry.priceReducedByUser.username}
+                      </p>
+                    </div>
+                    {entry.priceReducedAt ? (
+                      <p className="shrink-0 text-[11px] text-muted">
+                        {formatLocaleDay(entry.priceReducedAt, dateLocale)}
+                        {" · "}
+                        {formatLocaleTime(entry.priceReducedAt, dateLocale)}
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
             ) : null}
           </div>

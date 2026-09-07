@@ -539,6 +539,7 @@ export const en = {
     discountIncrease: "Increase discount",
     priceReduced: "Price reduced",
     priceReducedHint: "Enable if this item is on discount.",
+    reducedBy: "Reduced by",
     priceReduction: "Price reduction",
     priceReductionYes: "Yes",
     priceReductionNo: "No",

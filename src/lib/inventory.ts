@@ -18,6 +18,29 @@ export const activeInventoryWhere = {
   deletedAt: null,
 } as const;
 
+/** Prisma include for inventory API/list payloads. */
+export const inventoryEntryInclude = {
+  product: true,
+  priceReducedByUser: { select: { id: true, username: true } },
+} as const;
+
+/** Last-editor semantics: who + when whenever discount is set or changed. */
+export function priceReducedOnData(userId: string, discountPercent: number) {
+  return {
+    priceReducedAt: new Date(),
+    priceDiscountPercent: discountPercent,
+    priceReducedByUserId: userId,
+  };
+}
+
+export function priceReducedOffData() {
+  return {
+    priceReducedAt: null,
+    priceDiscountPercent: null,
+    priceReducedByUserId: null,
+  };
+}
+
 /** UTC calendar day as YYYY-MM-DD from stored expiry ISO. */
 export function expiryIsoToYmd(iso: string): string {
   const date = new Date(iso);

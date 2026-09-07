@@ -1,6 +1,6 @@
 # Magazin — архитектура
 
-**Last updated:** 2026-09-04
+**Last updated:** 2026-09-07
 
 Мобилно-оптимизирано уеб приложение за управление на стока по магазини, срок на годност, клиенти и месечни плащания.
 
@@ -70,6 +70,7 @@
 - Цветове: ≤7д червено, ≤14д жълто, ≤28д синьо
 - `removedAt` — ръчно премахване от списъка
 - `deletedAt` — hard delete 6 месеца след изтичане (cron + при зареждане на списъка)
+- **Намалена цена:** `priceReducedAt` + `priceDiscountPercent` + `priceReducedByUserId` — last editor (който последно е включил/сменил %); при restore се чистят; UI footer „Reduced by / Намалил“ + дата/час
 
 ## API
 
@@ -114,6 +115,41 @@
 
 ```bash
 curl -X POST -H "x-cron-secret: YOUR_SECRET" http://localhost:3000/api/cron/purge-inventory
+```
+
+## Backups (VPS / SQLite)
+
+Production DB is SQLite (`MAGAZIN_DB_PATH`, default `/var/lib/magazin/data.db`). Photos are under `public/uploads`.
+
+Script: `scripts/backup-magazin.sh`
+
+**Policy:** 1 local backup per week; keep the **2 newest** folders (~2 weeks / ~2–3 GB compressed). Each run deletes anything older. Once a month you can download `/var/backups/magazin/` to your PC.
+
+```bash
+# Once on the server
+sudo apt install -y sqlite3
+sudo mkdir -p /var/backups/magazin
+sudo chmod +x /var/www/magazin/scripts/backup-magazin.sh
+
+# Crontab — every Sunday 03:15
+15 3 * * 0 /var/www/magazin/scripts/backup-magazin.sh >> /var/log/magazin-backup.log 2>&1
+```
+
+Monthly (from your PC):
+
+```bash
+scp -r root@YOUR_SERVER:/var/backups/magazin ./magazin-backup-$(date +%Y%m)
+ssh root@YOUR_SERVER 'rm -rf /var/backups/magazin/*'
+```
+
+Restore (stop app first):
+
+```bash
+pm2 stop magazin
+gunzip -c /path/to/backup/data.db.gz > /var/lib/magazin/data.db
+# optional: restore uploads
+tar -C /var/www/magazin/public -xzf /path/to/backup/uploads.tar.gz
+pm2 start magazin
 ```
 
 ## Стартиране

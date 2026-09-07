@@ -168,4 +168,12 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Регистрация и други форми: можете да скролвате към следващите полета докато клавиатурата е отворена.",
     href: "/register",
   },
+  {
+    key: "2026-09-price-reduced-by-user",
+    titleEn:
+      "Price reduced shows who last set the discount and when (updates if someone else changes it).",
+    titleBg:
+      "Намалена цена показва кой последно е задал отстъпката и кога (обновява се при промяна от друг).",
+    href: "/app/expiry",
+  },
 ];

@@ -541,6 +541,7 @@ export const bg = {
     discountIncrease: "Увеличи отстъпката",
     priceReduced: "Намалена цена",
     priceReducedHint: "Включи ако артикулът е на намаление.",
+    reducedBy: "Намалил",
     priceReduction: "Намалена цена",
     priceReductionYes: "Да",
     priceReductionNo: "Не",
