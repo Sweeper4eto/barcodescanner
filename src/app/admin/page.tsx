@@ -19,21 +19,24 @@ import { AppHeaderLogo } from "@/components/app-header-logo";
 import { useT } from "@/components/i18n-provider";
 import { logoutSession } from "@/lib/client-session";
 
+type HubSection = "overview" | "locations" | "people" | "billing" | "newStore";
+
 export default function AdminPage() {
   const router = useRouter();
   const { t } = useT();
   const [tab, setTab] = useState<
-    | "clients"
-    | "users"
+    | "accounts"
     | "payments"
     | "items"
     | "support"
     | "whatsNew"
     | "audit"
     | "minimart"
-  >("clients");
+  >("accounts");
   const [clients, setClients] = useState<Client[]>([]);
   const [supportNewCount, setSupportNewCount] = useState(0);
+  const [openClientId, setOpenClientId] = useState<string | null>(null);
+  const [openSection, setOpenSection] = useState<HubSection | null>(null);
 
   const refreshClients = useCallback(async () => {
     const response = await fetch("/api/admin/clients");
@@ -58,7 +61,9 @@ export default function AdminPage() {
     let cancelled = false;
     async function loadSupportCount() {
       try {
-        const response = await fetch("/api/admin/support/requests?status=new&take=1");
+        const response = await fetch(
+          "/api/admin/support/requests?status=new&take=1",
+        );
         const data = await response.json().catch(() => null);
         if (cancelled) return;
         setSupportNewCount(data?.counts?.new ?? 0);
@@ -76,6 +81,12 @@ export default function AdminPage() {
     await logoutSession();
     router.push("/login");
     router.refresh();
+  }
+
+  function openAccountBilling(clientId: string) {
+    setOpenClientId(clientId);
+    setOpenSection("billing");
+    setTab("accounts");
   }
 
   return (
@@ -102,8 +113,7 @@ export default function AdminPage() {
           <AdminPanelBody className="pb-0">
             <AdminTabBar
               tabs={[
-                { id: "clients" as const, label: t("admin.clients") },
-                { id: "users" as const, label: t("admin.users") },
+                { id: "accounts" as const, label: t("admin.accounts") },
                 { id: "payments" as const, label: t("admin.payments") },
                 { id: "items" as const, label: t("admin.items") },
                 {
@@ -120,7 +130,10 @@ export default function AdminPage() {
                   ),
                 },
                 { id: "whatsNew" as const, label: t("admin.whatsNewTab") },
-                { id: "minimart" as const, label: t("admin.minimartLocatorTab") },
+                {
+                  id: "minimart" as const,
+                  label: t("admin.minimartLocatorTab"),
+                },
                 { id: "audit" as const, label: t("admin.auditLog") },
               ]}
               active={tab}
@@ -129,16 +142,26 @@ export default function AdminPage() {
           </AdminPanelBody>
 
           <AdminPanelBody className="border-t border-card-border pt-6">
-            {tab === "clients" ? (
-              <ClientsPanel onRefresh={() => void refreshClients()} />
-            ) : null}
-            {tab === "users" ? (
-              <UsersPanel
-                clients={clients}
+            {tab === "accounts" ? (
+              <ClientsPanel
                 onRefresh={() => void refreshClients()}
+                openClientId={openClientId}
+                openSection={openSection}
+                onOpenConsumed={() => {
+                  setOpenClientId(null);
+                  setOpenSection(null);
+                }}
+                usersSlot={
+                  <UsersPanel
+                    clients={clients}
+                    onRefresh={() => void refreshClients()}
+                  />
+                }
               />
             ) : null}
-            {tab === "payments" ? <PaymentsPanel /> : null}
+            {tab === "payments" ? (
+              <PaymentsPanel onOpenAccount={openAccountBilling} />
+            ) : null}
             {tab === "items" ? <ItemsPanel /> : null}
             {tab === "support" ? (
               <SupportRequestsPanel

@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useState, type ReactNode } from "react";
+import { AccountBillingSection } from "@/components/admin/account-billing-section";
+import { AccountPeopleSection } from "@/components/admin/account-people-section";
 import {
   AdminEmptyState,
   AdminField,
@@ -16,6 +18,7 @@ import { PrimaryButton } from "@/components/auth-forms";
 import { CancelButton } from "@/components/cancel-button";
 import { SearchField } from "@/components/search-field";
 import { useT } from "@/components/i18n-provider";
+import type { PaymentStanding } from "@/lib/payment-status";
 
 export type Client = {
   id: string;
@@ -41,8 +44,16 @@ type Store = {
   active: boolean;
 };
 
-type ClientsSubview = "current" | "new";
-type ClientDetailTab = "edit" | "stores" | "newStore";
+type ClientsSubview = "current" | "new" | "users";
+type ClientDetailTab = "overview" | "locations" | "people" | "billing" | "newStore";
+
+type StandingInfo = {
+  standing: PaymentStanding;
+  unpaidMonths: number;
+  expectedAmount: number;
+  paymentsRequired: boolean;
+  homeUser: boolean;
+};
 
 const STORES_PER_PAGE = 5;
 
@@ -98,15 +109,30 @@ function editIsDirty(current: EditState, saved: EditState | null) {
 
 type Props = {
   onRefresh: () => void;
+  /** Deep-link from Payments portfolio into an account hub section. */
+  openClientId?: string | null;
+  openSection?: ClientDetailTab | null;
+  onOpenConsumed?: () => void;
+  /** Render global Users panel under Accounts. */
+  usersSlot?: ReactNode;
 };
 
-export function ClientsPanel({ onRefresh }: Props) {
+export function ClientsPanel({
+  onRefresh,
+  openClientId = null,
+  openSection = null,
+  onOpenConsumed,
+  usersSlot,
+}: Props) {
   const { t } = useT();
   const [subview, setSubview] = useState<ClientsSubview>("current");
-  const [detailTab, setDetailTab] = useState<ClientDetailTab>("edit");
+  const [detailTab, setDetailTab] = useState<ClientDetailTab>("overview");
   const [storePage, setStorePage] = useState(1);
   const [query, setQuery] = useState("");
   const [clients, setClients] = useState<Client[]>([]);
+  const [standingByClient, setStandingByClient] = useState<
+    Record<string, StandingInfo>
+  >({});
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [stores, setStores] = useState<Store[]>([]);
   const [edit, setEdit] = useState<EditState>({
@@ -145,6 +171,37 @@ export function ClientsPanel({ onRefresh }: Props) {
     setClients(data.clients ?? []);
   }, [query]);
 
+  const loadStanding = useCallback(async () => {
+    try {
+      const response = await fetch("/api/admin/payments?status=1");
+      const data = (await response.json()) as {
+        rows?: {
+          client: {
+            id: string;
+            homeUser: boolean;
+            paymentsRequired: boolean;
+          };
+          unpaidMonths: number;
+          expectedAmount: number;
+          standing: PaymentStanding;
+        }[];
+      };
+      const map: Record<string, StandingInfo> = {};
+      for (const row of data.rows ?? []) {
+        map[row.client.id] = {
+          standing: row.standing,
+          unpaidMonths: row.unpaidMonths,
+          expectedAmount: row.expectedAmount,
+          paymentsRequired: row.client.paymentsRequired,
+          homeUser: row.client.homeUser,
+        };
+      }
+      setStandingByClient(map);
+    } catch {
+      setStandingByClient({});
+    }
+  }, []);
+
   const loadStores = useCallback(async (clientId: string) => {
     const response = await fetch(`/api/admin/stores?clientId=${clientId}`);
     const data = await response.json();
@@ -155,11 +212,28 @@ export function ClientsPanel({ onRefresh }: Props) {
 
   useEffect(() => {
     void loadClients("");
-  }, [loadClients]);
+    void loadStanding();
+  }, [loadClients, loadStanding]);
+
+  useEffect(() => {
+    if (!openClientId) return;
+    const client = clients.find((row) => row.id === openClientId);
+    if (!client) return;
+    setSubview("current");
+    setSelectedId(client.id);
+    setDetailTab(openSection ?? "billing");
+    setStorePage(1);
+    const snapshot = clientEditState(client);
+    setEdit(snapshot);
+    setSavedEdit(snapshot);
+    setSaveMessage("");
+    void loadStores(client.id);
+    onOpenConsumed?.();
+  }, [openClientId, openSection, clients, loadStores, onOpenConsumed]);
 
   function selectClient(client: Client) {
     setSelectedId(client.id);
-    setDetailTab("edit");
+    setDetailTab("overview");
     setStorePage(1);
     const snapshot = clientEditState(client);
     setEdit(snapshot);
@@ -261,7 +335,7 @@ export function ClientsPanel({ onRefresh }: Props) {
       const list = await loadStores(selectedId);
       await loadClients();
       onRefresh();
-      setDetailTab("stores");
+      setDetailTab("locations");
       setStorePage(Math.max(1, Math.ceil(list.length / STORES_PER_PAGE)));
     } catch {
       setSaveMessage(t("errors.networkError"));
@@ -280,6 +354,7 @@ export function ClientsPanel({ onRefresh }: Props) {
         return;
       }
       if (selectedId) await loadStores(selectedId);
+      await loadStanding();
       onRefresh();
     } catch {
       setSaveMessage(t("errors.networkError"));
@@ -325,18 +400,61 @@ export function ClientsPanel({ onRefresh }: Props) {
     }
   }, [clientDirty, saveMessage, t]);
 
+  function standingBadge(client: Client) {
+    const info = standingByClient[client.id];
+    if (client.homeUser || info?.homeUser) {
+      return (
+        <span className="rounded-full border border-card-border px-2 py-0.5 text-[10px] text-muted">
+          {t("admin.paymentsHomeExempt")}
+        </span>
+      );
+    }
+    if (!client.paymentsRequired && !info?.paymentsRequired) {
+      return (
+        <span className="rounded-full border border-card-border px-2 py-0.5 text-[10px] text-muted">
+          {t("admin.paymentsRequiredOff")}
+        </span>
+      );
+    }
+    const standing = info?.standing ?? "current";
+    if (standing === "behind2plus") {
+      return (
+        <span className="rounded-full border border-danger-border bg-red-950/40 px-2 py-0.5 text-[10px] font-semibold text-error">
+          {t("admin.paymentStandingBehindN", {
+            count: info?.unpaidMonths ?? 2,
+          })}
+        </span>
+      );
+    }
+    if (standing === "behind1") {
+      return (
+        <span className="rounded-full border border-card-border px-2 py-0.5 text-[10px] text-warning-fg">
+          {t("admin.paymentStandingBehind1")}
+        </span>
+      );
+    }
+    return (
+      <span className="rounded-full border border-primary/35 bg-primary/10 px-2 py-0.5 text-[10px] text-primary">
+        {t("admin.paymentStandingCurrent")}
+      </span>
+    );
+  }
+
   return (
     <div>
       <div className="mb-6">
         <AdminTabBar
           tabs={[
-            { id: "current" as const, label: t("admin.currentClients") },
-            { id: "new" as const, label: t("admin.newClient") },
+            { id: "current" as const, label: t("admin.accountsList") },
+            { id: "new" as const, label: t("admin.newAccount") },
+            { id: "users" as const, label: t("admin.users") },
           ]}
           active={subview}
           onChange={setSubview}
         />
       </div>
+
+      {subview === "users" ? usersSlot : null}
 
       {subview === "new" ? (
         <div className="mx-auto max-w-md">
@@ -384,10 +502,13 @@ export function ClientsPanel({ onRefresh }: Props) {
             </form>
           </AdminSection>
         </div>
-      ) : (
+      ) : subview === "current" ? (
         <div className="grid min-w-0 gap-6 md:grid-cols-12">
           <div className="min-w-0 md:col-span-4">
-            <AdminSection title={t("admin.currentClients")}>
+            <AdminSection title={t("admin.accountsList")}>
+              <p className="-mt-2 mb-4 text-xs text-muted">
+                {t("admin.accountsListHint")}
+              </p>
               <form
                 className="mb-4 flex gap-2"
                 onSubmit={(event) => {
@@ -423,12 +544,21 @@ export function ClientsPanel({ onRefresh }: Props) {
                           : "border-card-border hover:bg-transparent"
                       } ${!client.active ? "opacity-60" : ""}`}
                     >
-                      <p className="font-medium text-foreground">{client.name}</p>
-                      {client.homeUser ? (
-                        <p className="mt-1 text-xs font-medium text-primary">
-                          {t("admin.homeUser")}
-                        </p>
-                      ) : null}
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-medium text-foreground">{client.name}</p>
+                        <span
+                          className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${
+                            client.homeUser
+                              ? "border-primary/40 text-primary"
+                              : "border-sky-400/40 text-sky-300"
+                          }`}
+                        >
+                          {client.homeUser
+                            ? t("admin.accountTypeHousehold")
+                            : t("admin.accountTypeBusiness")}
+                        </span>
+                        {standingBadge(client)}
+                      </div>
                       {client.phone ? (
                         <p className="mt-1 text-xs text-muted">{client.phone}</p>
                       ) : null}
@@ -447,7 +577,7 @@ export function ClientsPanel({ onRefresh }: Props) {
 
           <div className="min-w-0 md:col-span-8">
             {!selectedId ? (
-              <AdminEmptyState message={t("admin.selectClient")} />
+              <AdminEmptyState message={t("admin.selectAccount")} />
             ) : (
               <div className="rounded-2xl border border-card-border bg-background p-5">
                 <p className="mb-4 text-lg font-semibold text-foreground">
@@ -455,8 +585,10 @@ export function ClientsPanel({ onRefresh }: Props) {
                 </p>
                 <AdminTabBar
                   tabs={[
-                    { id: "edit" as const, label: t("admin.editClient") },
-                    { id: "stores" as const, label: t("admin.clientStores") },
+                    { id: "overview" as const, label: t("admin.hubOverview") },
+                    { id: "locations" as const, label: t("admin.hubLocations") },
+                    { id: "people" as const, label: t("admin.hubPeople") },
+                    { id: "billing" as const, label: t("admin.hubBilling") },
                     { id: "newStore" as const, label: t("admin.newStore") },
                   ]}
                   active={detailTab}
@@ -464,8 +596,52 @@ export function ClientsPanel({ onRefresh }: Props) {
                 />
 
                 <div className="mt-6">
-                  {detailTab === "edit" ? (
+                  {detailTab === "overview" ? (
                     <div className="mx-auto max-w-md space-y-4">
+                      <div>
+                        <p className="mb-2 text-sm font-medium text-foreground">
+                          {t("admin.accountType")}
+                        </p>
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setEdit({
+                                ...edit,
+                                homeUser: false,
+                              })
+                            }
+                            className={`rounded-full border px-3 py-2 text-sm font-medium transition-colors ${
+                              !edit.homeUser
+                                ? "border-primary/45 bg-primary/10 text-primary"
+                                : "border-card-border text-muted"
+                            }`}
+                          >
+                            {t("admin.accountTypeBusiness")}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setEdit({
+                                ...edit,
+                                homeUser: true,
+                                paymentsRequired: false,
+                              })
+                            }
+                            className={`rounded-full border px-3 py-2 text-sm font-medium transition-colors ${
+                              edit.homeUser
+                                ? "border-primary/45 bg-primary/10 text-primary"
+                                : "border-card-border text-muted"
+                            }`}
+                          >
+                            {t("admin.accountTypeHousehold")}
+                          </button>
+                        </div>
+                        <p className="mt-1 text-xs text-muted">
+                          {t("admin.homeUserHint")}
+                        </p>
+                      </div>
+
                       <AdminField label={t("common.name")}>
                         <input
                           className={adminInputClass}
@@ -493,36 +669,6 @@ export function ClientsPanel({ onRefresh }: Props) {
                           }
                         />
                       </AdminField>
-                      <AdminField label={t("admin.feePerStore")}>
-                        <input
-                          className={adminInputClass}
-                          inputMode="decimal"
-                          value={edit.monthlyFeePerStore}
-                          onChange={(event) =>
-                            setEdit({ ...edit, monthlyFeePerStore: event.target.value })
-                          }
-                        />
-                      </AdminField>
-                      <p className="text-xs text-muted">{t("admin.feePerStoreHint")}</p>
-                      <label className="flex items-center gap-2 text-sm text-foreground">
-                        <input
-                          type="checkbox"
-                          checked={edit.paymentsRequired}
-                          disabled={edit.homeUser}
-                          onChange={(event) =>
-                            setEdit({
-                              ...edit,
-                              paymentsRequired: event.target.checked,
-                            })
-                          }
-                        />
-                        {t("admin.paymentsRequired")}
-                      </label>
-                      <p className="text-xs text-muted">
-                        {edit.homeUser
-                          ? t("admin.paymentsHomeExempt")
-                          : t("admin.paymentsRequiredHint")}
-                      </p>
                       <label className="flex items-center gap-2 text-sm text-foreground">
                         <input
                           type="checkbox"
@@ -533,23 +679,6 @@ export function ClientsPanel({ onRefresh }: Props) {
                         />
                         {t("admin.activeClient")}
                       </label>
-                      <label className="flex items-center gap-2 text-sm text-foreground">
-                        <input
-                          type="checkbox"
-                          checked={edit.homeUser}
-                          onChange={(event) =>
-                            setEdit({
-                              ...edit,
-                              homeUser: event.target.checked,
-                              paymentsRequired: event.target.checked
-                                ? false
-                                : edit.paymentsRequired,
-                            })
-                          }
-                        />
-                        {t("admin.homeUser")}
-                      </label>
-                      <p className="text-xs text-muted">{t("admin.homeUserHint")}</p>
 
                       <div className="mt-4 space-y-3 rounded-xl border border-card-border p-3">
                         <div>
@@ -627,7 +756,7 @@ export function ClientsPanel({ onRefresh }: Props) {
                     </div>
                   ) : null}
 
-                  {detailTab === "stores" ? (
+                  {detailTab === "locations" ? (
                     <div className="space-y-4">
                       {stores.length === 0 ? (
                         <AdminEmptyState message={t("admin.noStoresYet")} />
@@ -682,6 +811,28 @@ export function ClientsPanel({ onRefresh }: Props) {
                     </div>
                   ) : null}
 
+                  {detailTab === "people" && selectedId ? (
+                    <AccountPeopleSection
+                      clientId={selectedId}
+                      stores={stores}
+                      onChanged={() => {
+                        void loadClients();
+                        onRefresh();
+                      }}
+                    />
+                  ) : null}
+
+                  {detailTab === "billing" && selectedId ? (
+                    <AccountBillingSection
+                      clientId={selectedId}
+                      onChanged={() => {
+                        void loadClients();
+                        void loadStanding();
+                        onRefresh();
+                      }}
+                    />
+                  ) : null}
+
                   {detailTab === "newStore" ? (
                     <form
                       className="mx-auto max-w-md space-y-4"
@@ -732,7 +883,7 @@ export function ClientsPanel({ onRefresh }: Props) {
             )}
           </div>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

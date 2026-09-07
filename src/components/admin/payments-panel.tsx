@@ -78,7 +78,11 @@ function standingRowClass(standing: PaymentStanding, selected: boolean): string 
   }
 }
 
-export function PaymentsPanel() {
+export function PaymentsPanel({
+  onOpenAccount,
+}: {
+  onOpenAccount?: (clientId: string) => void;
+} = {}) {
   const { t, monthName } = useT();
   const now = new Date();
   const [view, setView] = useState<ViewMode>("clients");
@@ -90,8 +94,6 @@ export function PaymentsPanel() {
   const [clientQuery, setClientQuery] = useState("");
   const [selectedClientId, setSelectedClientId] = useState("");
   const [detail, setDetail] = useState<ClientDetail | null>(null);
-  const [feePerStore, setFeePerStore] = useState("20");
-  const [paymentsRequired, setPaymentsRequired] = useState(false);
   const [discount, setDiscount] = useState("0");
   const [notes, setNotes] = useState("");
   const [savedPayment, setSavedPayment] = useState({ discount: "0", notes: "" });
@@ -127,8 +129,6 @@ export function PaymentsPanel() {
       }
       const data = (await response.json()) as ClientDetail;
       setDetail(data);
-      setFeePerStore(String(data.client.monthlyFeePerStore));
-      setPaymentsRequired(Boolean(data.client.paymentsRequired));
       const paidThis = data.payments.find(
         (p) => p.year === markYear && p.month === markMonth,
       );
@@ -195,31 +195,6 @@ export function PaymentsPanel() {
         return t("admin.paymentStandingBehindN", { count: row.unpaidMonths });
       case "exempt":
         return t("admin.paymentsHomeExempt");
-    }
-  }
-
-  async function saveClientBilling() {
-    if (!detail || detail.client.homeUser) return;
-    setSaving(true);
-    setSaveMessage("");
-    try {
-      const response = await fetch("/api/admin/clients", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: detail.client.id,
-          monthlyFeePerStore: Number(feePerStore) || 0,
-          paymentsRequired,
-        }),
-      });
-      if (!response.ok) {
-        setSaveMessage(t("errors.saveFailed"));
-        return;
-      }
-      await refreshAfterPaymentChange();
-      setSaveMessage(t("admin.saveSuccess"));
-    } finally {
-      setSaving(false);
     }
   }
 
@@ -320,24 +295,6 @@ export function PaymentsPanel() {
     }
   }
 
-  async function toggleStoreActive(storeId: string, active: boolean) {
-    setSaving(true);
-    try {
-      const response = await fetch("/api/admin/stores", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: storeId, active: !active }),
-      });
-      if (!response.ok) {
-        setSaveMessage(t("errors.saveFailed"));
-        return;
-      }
-      await refreshAfterPaymentChange();
-    } finally {
-      setSaving(false);
-    }
-  }
-
   const paidKeys = useMemo(() => {
     const set = new Set<string>();
     for (const payment of detail?.payments ?? []) {
@@ -371,7 +328,7 @@ export function PaymentsPanel() {
       {view === "clients" ? (
         <div className="space-y-4">
           <section className="rounded-2xl border border-card-border p-4">
-            <p className="text-sm text-muted">{t("admin.paymentStandingHint")}</p>
+            <p className="text-sm text-muted">{t("admin.paymentsPortfolioHint")}</p>
             <div className="mt-3 flex flex-wrap gap-3 text-xs">
               <span className="rounded-lg border border-success-border bg-success-bg px-2 py-1">
                 {t("admin.paymentStandingCurrent")}
@@ -486,105 +443,15 @@ export function PaymentsPanel() {
                   <p className="mt-1 text-xs text-muted">
                     {t("admin.paymentCoversAllStores")}
                   </p>
-                </div>
-
-                {!detail.client.homeUser ? (
-                  <div className="space-y-3 rounded-xl border border-card-border p-3">
-                    <label className="flex items-center justify-between gap-3 text-sm text-foreground">
-                      <span>
-                        <span className="block font-semibold">
-                          {t("admin.paymentsRequired")}
-                        </span>
-                        <span className="mt-0.5 block text-xs text-muted">
-                          {t("admin.paymentsRequiredHint")}
-                        </span>
-                      </span>
-                      <button
-                        type="button"
-                        role="switch"
-                        aria-checked={paymentsRequired}
-                        disabled={saving}
-                        onClick={() => setPaymentsRequired((v) => !v)}
-                        className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${
-                          paymentsRequired
-                            ? "bg-primary"
-                            : "border border-card-border bg-transparent"
-                        }`}
-                      >
-                        <span
-                          aria-hidden
-                          className={`absolute top-0.5 size-6 rounded-full bg-white transition-transform ${
-                            paymentsRequired ? "left-5" : "left-0.5"
-                          }`}
-                        />
-                      </button>
-                    </label>
-                    <AdminField label={t("admin.feePerStore")}>
-                      <input
-                        className={adminInputClass}
-                        inputMode="decimal"
-                        value={feePerStore}
-                        onChange={(event) => setFeePerStore(event.target.value)}
-                      />
-                    </AdminField>
-                    <p className="text-xs text-muted">{t("admin.feePerStoreHint")}</p>
-                    <PrimaryButton
-                      disabled={
-                        saving ||
-                        (Number(feePerStore) ===
-                          detail.client.monthlyFeePerStore &&
-                          paymentsRequired === detail.client.paymentsRequired)
-                      }
-                      onClick={() => void saveClientBilling()}
+                  {onOpenAccount ? (
+                    <button
+                      type="button"
+                      className="mt-3 text-sm font-semibold text-primary"
+                      onClick={() => onOpenAccount(detail.client.id)}
                     >
-                      {saving ? t("admin.saving") : t("common.save")}
-                    </PrimaryButton>
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted">
-                    {t("admin.paymentsHomeExempt")}
-                  </p>
-                )}
-
-                <div>
-                  <h4 className="mb-2 text-sm font-semibold text-foreground">
-                    {t("admin.clientLocations")}
-                  </h4>
-                  <div className="space-y-1.5">
-                    {detail.stores.length === 0 ? (
-                      <p className="text-sm text-muted">{t("admin.noStoresYet")}</p>
-                    ) : (
-                      detail.stores.map((store) => (
-                        <div
-                          key={store.id}
-                          className={`flex items-center justify-between gap-2 rounded-xl border border-card-border px-3 py-2 text-sm ${
-                            !store.active ? "opacity-60" : ""
-                          }`}
-                        >
-                          <span className="min-w-0 truncate font-medium">
-                            {store.name}
-                            <span className="ml-2 text-xs font-normal text-muted">
-                              {store.active
-                                ? t("admin.locationEnabled")
-                                : t("admin.locationDisabled")}
-                            </span>
-                          </span>
-                          <button
-                            type="button"
-                            disabled={saving}
-                            className="shrink-0 rounded-lg border border-input-border px-2 py-1 text-xs"
-                            onClick={() =>
-                              void toggleStoreActive(store.id, store.active)
-                            }
-                          >
-                            {store.active
-                              ? t("admin.disableLocation")
-                              : t("admin.enableLocation")}
-                          </button>
-                        </div>
-                      ))
-                    )}
-                  </div>
+                      {t("admin.openAccountBilling")}
+                    </button>
+                  ) : null}
                 </div>
 
                 <div className="grid gap-3 sm:grid-cols-2">

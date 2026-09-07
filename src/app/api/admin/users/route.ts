@@ -24,13 +24,14 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
   const q = searchParams.get("q")?.trim();
+  const clientIdFilter = searchParams.get("clientId")?.trim() || null;
   const page = Math.max(1, Number.parseInt(searchParams.get("page") ?? "1", 10) || 1);
   const pageSize = Math.min(
     50,
     Math.max(1, Number.parseInt(searchParams.get("pageSize") ?? "20", 10) || 20),
   );
 
-  const where = q
+  const searchOr = q
     ? {
         OR: [
           { username: { contains: q } },
@@ -39,7 +40,14 @@ export async function GET(request: Request) {
           { storeLinks: { some: { store: { name: { contains: q } } } } },
         ],
       }
-    : undefined;
+    : null;
+
+  const where =
+    clientIdFilter && searchOr
+      ? { AND: [{ clientId: clientIdFilter }, searchOr] }
+      : clientIdFilter
+        ? { clientId: clientIdFilter }
+        : searchOr ?? undefined;
 
   const [users, total] = await Promise.all([
     db.user.findMany({
