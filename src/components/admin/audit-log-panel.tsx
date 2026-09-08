@@ -28,6 +28,13 @@ type StoreOption = {
   clientName: string;
 };
 
+type ClientOption = {
+  id: string;
+  name: string;
+  homeUser: boolean;
+  active: boolean;
+};
+
 const PAGE_SIZES = [10, 20, 50] as const;
 const ALL = "__all__";
 
@@ -41,10 +48,12 @@ export function AuditLogPanel() {
   const [entries, setEntries] = useState<AuditEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<AuditFilter>("all");
+  const [clientId, setClientId] = useState(ALL);
   const [username, setUsername] = useState(ALL);
   const [storeName, setStoreName] = useState(ALL);
   const [storeSearch, setStoreSearch] = useState("");
   const [ip, setIp] = useState("");
+  const [clients, setClients] = useState<ClientOption[]>([]);
   const [usernames, setUsernames] = useState<string[]>([]);
   const [stores, setStores] = useState<StoreOption[]>([]);
   const [search, setSearch] = useState("");
@@ -58,6 +67,23 @@ export function AuditLogPanel() {
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [error, setError] = useState("");
+
+  const clientOptions = useMemo(
+    () => [
+      { value: ALL, label: t("admin.auditAllClients") },
+      ...clients.map((client) => ({
+        value: client.id,
+        label: client.active
+          ? `${client.name} · ${
+              client.homeUser
+                ? t("admin.accountTypeHousehold")
+                : t("admin.accountTypeBusiness")
+            }`
+          : `${client.name} (${t("team.inactive")})`,
+      })),
+    ],
+    [clients, t],
+  );
 
   const storeOptions = useMemo(() => {
     const needle = storeSearch.trim().toLowerCase();
@@ -82,10 +108,16 @@ export function AuditLogPanel() {
 
   const usernameOptions = useMemo(
     () => [
-      { value: ALL, label: t("admin.auditAllUsers") },
+      {
+        value: ALL,
+        label:
+          clientId === ALL
+            ? t("admin.auditAllUsers")
+            : t("admin.auditAllClientUsers"),
+      },
       ...usernames.map((name) => ({ value: name, label: name })),
     ],
-    [usernames, t],
+    [usernames, clientId, t],
   );
 
   const loadAuditLog = useCallback(async (signal?: AbortSignal) => {
@@ -99,6 +131,7 @@ export function AuditLogPanel() {
         options: "1",
       });
       if (query) params.set("q", query);
+      if (clientId !== ALL) params.set("clientId", clientId);
       if (username !== ALL) params.set("username", username);
       if (storeName !== ALL) params.set("store", storeName);
       if (ip.trim()) params.set("ip", ip.trim());
@@ -119,7 +152,11 @@ export function AuditLogPanel() {
         page?: number;
         pageSize?: number;
         error?: string;
-        options?: { usernames?: string[]; stores?: StoreOption[] };
+        options?: {
+          clients?: ClientOption[];
+          usernames?: string[];
+          stores?: StoreOption[];
+        };
       };
       if (!response.ok) {
         throw new Error(data.error ?? t("admin.failedLoadAuditLog"));
@@ -132,6 +169,7 @@ export function AuditLogPanel() {
         setPageSize(data.pageSize);
       }
       if (data.options) {
+        setClients(data.options.clients ?? []);
         setUsernames(data.options.usernames ?? []);
         setStores(data.options.stores ?? []);
       }
@@ -152,6 +190,7 @@ export function AuditLogPanel() {
     page,
     pageSize,
     query,
+    clientId,
     username,
     storeName,
     ip,
@@ -168,6 +207,24 @@ export function AuditLogPanel() {
     return () => controller.abort();
   }, [loadAuditLog]);
 
+  useEffect(() => {
+    if (username !== ALL && usernames.length > 0 && !usernames.includes(username)) {
+      setUsername(ALL);
+      setPage(1);
+    }
+  }, [usernames, username]);
+
+  useEffect(() => {
+    if (
+      storeName !== ALL &&
+      stores.length > 0 &&
+      !stores.some((store) => store.name === storeName)
+    ) {
+      setStoreName(ALL);
+      setPage(1);
+    }
+  }, [stores, storeName]);
+
   function onSearch(event: FormEvent) {
     event.preventDefault();
     setPage(1);
@@ -176,6 +233,7 @@ export function AuditLogPanel() {
 
   function clearFilters() {
     setFilter("all");
+    setClientId(ALL);
     setUsername(ALL);
     setStoreName(ALL);
     setStoreSearch("");
@@ -237,6 +295,20 @@ export function AuditLogPanel() {
             ]}
             onChange={(next) => {
               setFilter(next);
+              setPage(1);
+            }}
+          />
+        </AdminField>
+        <AdminField label={t("admin.auditClientFilter")}>
+          <MenuSelect
+            label={t("admin.auditClientFilter")}
+            value={clientId}
+            options={clientOptions}
+            onChange={(next) => {
+              setClientId(next);
+              setUsername(ALL);
+              setStoreName(ALL);
+              setStoreSearch("");
               setPage(1);
             }}
           />

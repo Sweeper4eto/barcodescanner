@@ -181,6 +181,7 @@ function eventsForFilter(filter: AuditFilter): AuditEvent[] | null {
 export type AuditLogQuery = {
   filter?: AuditFilter;
   q?: string;
+  clientId?: string;
   username?: string;
   store?: string;
   ip?: string;
@@ -204,6 +205,11 @@ export function buildAuditLogWhere(query: AuditLogQuery): Prisma.AuditLogWhereIn
 
   if (events) {
     and.push({ event: { in: events } });
+  }
+
+  const clientId = query.clientId?.trim();
+  if (clientId) {
+    and.push({ user: { clientId } });
   }
 
   const username = query.username?.trim();
@@ -253,14 +259,30 @@ export function buildAuditLogWhere(query: AuditLogQuery): Prisma.AuditLogWhereIn
   return and.length ? { AND: and } : {};
 }
 
-export async function getAuditFilterOptions() {
-  const [usernameRows, stores] = await Promise.all([
-    db.auditLog.findMany({
-      distinct: ["username"],
-      select: { username: true },
-      orderBy: { username: "asc" },
+export async function getAuditFilterOptions(clientId?: string) {
+  const clientFilter = clientId?.trim() || null;
+
+  const [clients, usernameRows, clientUsers, stores] = await Promise.all([
+    db.client.findMany({
+      select: { id: true, name: true, homeUser: true, active: true },
+      orderBy: [{ homeUser: "asc" }, { name: "asc" }],
     }),
+    clientFilter
+      ? Promise.resolve([])
+      : db.auditLog.findMany({
+          distinct: ["username"],
+          select: { username: true },
+          orderBy: { username: "asc" },
+        }),
+    clientFilter
+      ? db.user.findMany({
+          where: { clientId: clientFilter, role: "USER" },
+          select: { username: true },
+          orderBy: { username: "asc" },
+        })
+      : Promise.resolve([]),
     db.store.findMany({
+      where: clientFilter ? { clientId: clientFilter } : undefined,
       select: {
         id: true,
         name: true,
@@ -271,10 +293,20 @@ export async function getAuditFilterOptions() {
     }),
   ]);
 
+  const usernames = (
+    clientFilter
+      ? clientUsers.map((row) => row.username)
+      : usernameRows.map((row) => row.username)
+  ).filter((name) => name.trim().length > 0);
+
   return {
-    usernames: usernameRows
-      .map((row) => row.username)
-      .filter((name) => name.trim().length > 0),
+    clients: clients.map((client) => ({
+      id: client.id,
+      name: client.name,
+      homeUser: client.homeUser,
+      active: client.active,
+    })),
+    usernames,
     stores: stores.map((store) => ({
       id: store.id,
       name: store.name,

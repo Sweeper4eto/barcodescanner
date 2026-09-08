@@ -440,6 +440,49 @@ export function ClientsPanel({
     );
   }
 
+  const businessClients = clients.filter((client) => !client.homeUser);
+  const householdClients = clients.filter((client) => client.homeUser);
+
+  function renderAccountCard(client: Client) {
+    return (
+      <button
+        key={client.id}
+        type="button"
+        onClick={() => selectClient(client)}
+        className={`w-full rounded-xl border p-3 text-left transition-colors ${
+          selectedId === client.id
+            ? "border-primary bg-selected"
+            : "border-card-border hover:bg-transparent"
+        } ${!client.active ? "opacity-60" : ""}`}
+      >
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="font-medium text-foreground">{client.name}</p>
+          <span
+            className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${
+              client.homeUser
+                ? "border-primary/40 text-primary"
+                : "border-sky-400/40 text-sky-300"
+            }`}
+          >
+            {client.homeUser
+              ? t("admin.accountTypeHousehold")
+              : t("admin.accountTypeBusiness")}
+          </span>
+          {standingBadge(client)}
+        </div>
+        {client.phone ? (
+          <p className="mt-1 text-xs text-muted">{client.phone}</p>
+        ) : null}
+        <p className="mt-1 text-xs text-muted">
+          {t("admin.storesCount", {
+            stores: client._count.stores,
+            users: client._count.users,
+          })}
+        </p>
+      </button>
+    );
+  }
+
   return (
     <div>
       <div className="mb-6">
@@ -529,47 +572,32 @@ export function ClientsPanel({
                   {t("common.search")}
                 </button>
               </form>
-              <div className="max-h-[28rem] space-y-2 overflow-y-auto">
+              <div className="max-h-[28rem] space-y-4 overflow-y-auto">
                 {clients.length === 0 ? (
                   <AdminEmptyState message={t("admin.noClientsFound")} />
                 ) : (
-                  clients.map((client) => (
-                    <button
-                      key={client.id}
-                      type="button"
-                      onClick={() => selectClient(client)}
-                      className={`w-full rounded-xl border p-3 text-left transition-colors ${
-                        selectedId === client.id
-                          ? "border-primary bg-selected"
-                          : "border-card-border hover:bg-transparent"
-                      } ${!client.active ? "opacity-60" : ""}`}
-                    >
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="font-medium text-foreground">{client.name}</p>
-                        <span
-                          className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${
-                            client.homeUser
-                              ? "border-primary/40 text-primary"
-                              : "border-sky-400/40 text-sky-300"
-                          }`}
-                        >
-                          {client.homeUser
-                            ? t("admin.accountTypeHousehold")
-                            : t("admin.accountTypeBusiness")}
-                        </span>
-                        {standingBadge(client)}
+                  <>
+                    {businessClients.length > 0 ? (
+                      <div className="space-y-2">
+                        <p className="sticky top-0 z-[1] bg-background px-0.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-sky-300">
+                          {t("admin.accountsBusinessSection", {
+                            count: businessClients.length,
+                          })}
+                        </p>
+                        {businessClients.map((client) => renderAccountCard(client))}
                       </div>
-                      {client.phone ? (
-                        <p className="mt-1 text-xs text-muted">{client.phone}</p>
-                      ) : null}
-                      <p className="mt-1 text-xs text-muted">
-                        {t("admin.storesCount", {
-                          stores: client._count.stores,
-                          users: client._count.users,
-                        })}
-                      </p>
-                    </button>
-                  ))
+                    ) : null}
+                    {householdClients.length > 0 ? (
+                      <div className="space-y-2">
+                        <p className="sticky top-0 z-[1] bg-background px-0.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-primary">
+                          {t("admin.accountsHouseholdSection", {
+                            count: householdClients.length,
+                          })}
+                        </p>
+                        {householdClients.map((client) => renderAccountCard(client))}
+                      </div>
+                    ) : null}
+                  </>
                 )}
               </div>
             </AdminSection>

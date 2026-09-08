@@ -26,6 +26,30 @@ test("buildAuditLogWhere filters by username store and ip", () => {
   });
 });
 
+test("buildAuditLogWhere filters by client via user relation", () => {
+  const where = buildAuditLogWhere({
+    clientId: "client_1",
+  });
+
+  assert.deepEqual(where, {
+    AND: [{ user: { clientId: "client_1" } }],
+  });
+});
+
+test("buildAuditLogWhere combines client and username", () => {
+  const where = buildAuditLogWhere({
+    clientId: "client_1",
+    username: "emanuela",
+  });
+
+  assert.deepEqual(where, {
+    AND: [
+      { user: { clientId: "client_1" } },
+      { username: { equals: "emanuela" } },
+    ],
+  });
+});
+
 test("buildAuditLogWhere combines event group with free text", () => {
   const where = buildAuditLogWhere({
     filter: "inventory",

@@ -25,10 +25,11 @@
 
 ### Админ панел
 
-- **Акаунти (hub):** списък бизнес/домакинство; за всеки акаунт — Overview, Locations, People, Billing (такса, require payments, mark paid)
+- **Акаунти (hub):** списък бизнес/домакинство в отделни секции; за всеки акаунт — Overview, Locations, People, Billing (такса, require payments, mark paid)
 - **Потребители:** глобално търсене като подтаб в Accounts
 - **Плащания:** portfolio „кой дължи“ + by-month; редакция на такса/обекти е в Account → Billing
-- **Items / Support / What’s new / Minimart / Audit:** както досега
+- **Audit log:** филтри по акаунт (client), потребител (само хората на избрания акаунт), обект, IP, период
+- **Items / Support / What’s new / Minimart:** както досега
 
 ### Потребител
 

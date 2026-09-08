@@ -33,10 +33,12 @@ export async function GET(request: Request) {
       : "all";
 
     const includeOptions = searchParams.get("options") === "1";
+    const clientId = searchParams.get("clientId") ?? undefined;
     const [result, options] = await Promise.all([
       queryAuditLog({
         filter,
         q: searchParams.get("q") ?? undefined,
+        clientId,
         username: searchParams.get("username") ?? undefined,
         store: searchParams.get("store") ?? undefined,
         ip: searchParams.get("ip") ?? undefined,
@@ -47,7 +49,7 @@ export async function GET(request: Request) {
         page: Number(searchParams.get("page") ?? "1"),
         pageSize: Number(searchParams.get("pageSize") ?? "20"),
       }),
-      includeOptions ? getAuditFilterOptions() : Promise.resolve(null),
+      includeOptions ? getAuditFilterOptions(clientId) : Promise.resolve(null),
     ]);
 
     return NextResponse.json({
