@@ -82,6 +82,7 @@ model Client {
   stores             Store[]
   payments           Payment[]
   supportRequests    SupportRequest[]
+  minimartLocatorStores MinimartLocatorStore[]
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 }
@@ -290,12 +291,16 @@ model MinimartLocatorStore {
    */
   status        String   @default("NOT_VISITED")
   comment       String   @default("")
+  /** Optional link to an expire365 Business client (household not allowed; many pins per client OK). */
+  clientId      String?
+  client        Client?  @relation(fields: [clientId], references: [id], onDelete: SetNull)
   syncedAt      DateTime
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
   @@index([city])
   @@index([status])
+  @@index([clientId])
 }
 
 /** Admin-managed “What’s new” bullets shown once to app users when published. */

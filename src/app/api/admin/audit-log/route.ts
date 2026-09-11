@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
 import {
+  type AuditAccountKind,
   type AuditFilter,
   getAuditFilterOptions,
   queryAuditLog,
@@ -20,6 +21,7 @@ async function requireAdminResponse(request: Request) {
 }
 
 const FILTERS: AuditFilter[] = ["all", "auth", "inventory", "products", "admin"];
+const ACCOUNT_KINDS: AuditAccountKind[] = ["business", "household"];
 
 export async function GET(request: Request) {
   const admin = await requireAdminResponse(request);
@@ -31,6 +33,12 @@ export async function GET(request: Request) {
     const filter: AuditFilter = FILTERS.includes(filterRaw as AuditFilter)
       ? (filterRaw as AuditFilter)
       : "all";
+    const kindRaw = searchParams.get("accountKind") ?? "business";
+    const accountKind: AuditAccountKind = ACCOUNT_KINDS.includes(
+      kindRaw as AuditAccountKind,
+    )
+      ? (kindRaw as AuditAccountKind)
+      : "business";
 
     const includeOptions = searchParams.get("options") === "1";
     const clientId = searchParams.get("clientId") ?? undefined;
@@ -38,6 +46,7 @@ export async function GET(request: Request) {
       queryAuditLog({
         filter,
         q: searchParams.get("q") ?? undefined,
+        accountKind,
         clientId,
         username: searchParams.get("username") ?? undefined,
         store: searchParams.get("store") ?? undefined,
@@ -49,7 +58,9 @@ export async function GET(request: Request) {
         page: Number(searchParams.get("page") ?? "1"),
         pageSize: Number(searchParams.get("pageSize") ?? "20"),
       }),
-      includeOptions ? getAuditFilterOptions(clientId) : Promise.resolve(null),
+      includeOptions
+        ? getAuditFilterOptions({ clientId, accountKind })
+        : Promise.resolve(null),
     ]);
 
     return NextResponse.json({

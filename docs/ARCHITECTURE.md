@@ -28,8 +28,9 @@
 - **Акаунти (hub):** списък бизнес/домакинство в отделни секции; за всеки акаунт — Overview, Locations, People, Billing (такса, require payments, mark paid)
 - **Потребители:** глобално търсене като подтаб в Accounts
 - **Плащания:** portfolio „кой дължи“ + by-month; редакция на такса/обекти е в Account → Billing
-- **Audit log:** филтри по акаунт (client), потребител (само хората на избрания акаунт), обект, IP, период
-- **Items / Support / What’s new / Minimart:** както досега
+- **Audit log:** подтабове Business / Household; филтри по акаунт (само от текущия тип), потребител, обект, IP, период
+- **Items / Support / What’s new:** както досега
+- **Minimart locator:** карта + CRM статуси; пин може да се свърже с **Business** Client (`clientId`, без household); един клиент → много пинове; sync не пипа status/comment/clientId
 
 ### Потребител
 
@@ -83,7 +84,7 @@
 | GET/POST/PATCH/DELETE | `/api/admin/clients` | Клиенти |
 | GET/POST/PATCH/DELETE | `/api/admin/stores` | Магазини |
 | GET/PATCH | `/api/admin/users` | Потребители |
-| GET/POST | `/api/admin/payments` | Плащания |
+| GET/POST/PATCH/DELETE | `/api/admin/minimart-locator` | Minimart карта (sync/create/edit; optional `clientId`) |
 | GET | `/api/admin/payments/calendar` | Календарен изглед |
 | GET/POST | `/api/products` | Продукти |
 | GET/POST/PATCH | `/api/inventory` | Стока в магазин |

@@ -36,6 +36,37 @@ test("buildAuditLogWhere filters by client via user relation", () => {
   });
 });
 
+test("buildAuditLogWhere filters business accounts by homeUser false", () => {
+  const where = buildAuditLogWhere({
+    accountKind: "business",
+  });
+
+  assert.deepEqual(where, {
+    AND: [{ user: { client: { homeUser: false } } }],
+  });
+});
+
+test("buildAuditLogWhere filters household accounts by homeUser true", () => {
+  const where = buildAuditLogWhere({
+    accountKind: "household",
+  });
+
+  assert.deepEqual(where, {
+    AND: [{ user: { client: { homeUser: true } } }],
+  });
+});
+
+test("buildAuditLogWhere prefers clientId over accountKind", () => {
+  const where = buildAuditLogWhere({
+    accountKind: "household",
+    clientId: "client_1",
+  });
+
+  assert.deepEqual(where, {
+    AND: [{ user: { clientId: "client_1" } }],
+  });
+});
+
 test("buildAuditLogWhere combines client and username", () => {
   const where = buildAuditLogWhere({
     clientId: "client_1",

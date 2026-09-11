@@ -1,7 +1,13 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { AdminField, adminInputClass, adminPaginationClass, adminSearchInputClass } from "@/components/admin/admin-ui";
+import {
+  AdminField,
+  AdminTabBar,
+  adminInputClass,
+  adminPaginationClass,
+  adminSearchInputClass,
+} from "@/components/admin/admin-ui";
 import { LoadingSpinnerBlock } from "@/components/loading-spinner";
 import { MenuSelect } from "@/components/menu-select";
 import { SearchField } from "@/components/search-field";
@@ -20,6 +26,7 @@ type AuditEntry = {
 };
 
 type AuditFilter = "all" | "auth" | "inventory" | "products" | "admin";
+type AccountKind = "business" | "household";
 
 type StoreOption = {
   id: string;
@@ -45,6 +52,7 @@ function eventLabelKey(event: string): MessageKey {
 
 export function AuditLogPanel() {
   const { t } = useT();
+  const [accountKind, setAccountKind] = useState<AccountKind>("business");
   const [entries, setEntries] = useState<AuditEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<AuditFilter>("all");
@@ -70,19 +78,21 @@ export function AuditLogPanel() {
 
   const clientOptions = useMemo(
     () => [
-      { value: ALL, label: t("admin.auditAllClients") },
+      {
+        value: ALL,
+        label:
+          accountKind === "household"
+            ? t("admin.auditAllHouseholdClients")
+            : t("admin.auditAllBusinessClients"),
+      },
       ...clients.map((client) => ({
         value: client.id,
         label: client.active
-          ? `${client.name} · ${
-              client.homeUser
-                ? t("admin.accountTypeHousehold")
-                : t("admin.accountTypeBusiness")
-            }`
+          ? client.name
           : `${client.name} (${t("team.inactive")})`,
       })),
     ],
-    [clients, t],
+    [clients, accountKind, t],
   );
 
   const storeOptions = useMemo(() => {
@@ -126,6 +136,7 @@ export function AuditLogPanel() {
     try {
       const params = new URLSearchParams({
         filter,
+        accountKind,
         page: String(page),
         pageSize: String(pageSize),
         options: "1",
@@ -186,6 +197,7 @@ export function AuditLogPanel() {
       setLoading(false);
     }
   }, [
+    accountKind,
     filter,
     page,
     pageSize,
@@ -225,6 +237,13 @@ export function AuditLogPanel() {
     }
   }, [stores, storeName]);
 
+  useEffect(() => {
+    if (clientId !== ALL && clients.length > 0 && !clients.some((c) => c.id === clientId)) {
+      setClientId(ALL);
+      setPage(1);
+    }
+  }, [clients, clientId]);
+
   function onSearch(event: FormEvent) {
     event.preventDefault();
     setPage(1);
@@ -244,6 +263,16 @@ export function AuditLogPanel() {
     setDateTo("");
     setTimeFrom("");
     setTimeTo("");
+    setPage(1);
+  }
+
+  function switchAccountKind(next: AccountKind) {
+    if (next === accountKind) return;
+    setAccountKind(next);
+    setClientId(ALL);
+    setUsername(ALL);
+    setStoreName(ALL);
+    setStoreSearch("");
     setPage(1);
   }
 
@@ -280,6 +309,15 @@ export function AuditLogPanel() {
         <h2 className="text-lg font-semibold text-foreground">{t("admin.auditLog")}</h2>
         <p className="mt-1 text-sm text-muted">{t("admin.auditDescription")}</p>
       </div>
+
+      <AdminTabBar
+        tabs={[
+          { id: "business" as const, label: t("admin.accountTypeBusiness") },
+          { id: "household" as const, label: t("admin.accountTypeHousehold") },
+        ]}
+        active={accountKind}
+        onChange={switchAccountKind}
+      />
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <AdminField label={t("admin.eventType")}>

@@ -22,6 +22,10 @@ async function requireAdminResponse(request: Request) {
   }
 }
 
+const clientInclude = {
+  client: { select: { id: true, name: true, homeUser: true } },
+} as const;
+
 function serialize(store: {
   id: string;
   externalId: string;
@@ -33,17 +37,55 @@ function serialize(store: {
   lng: number;
   status: string;
   comment: string;
+  clientId: string | null;
   syncedAt: Date;
+  client?: { id: string; name: string; homeUser: boolean } | null;
 }) {
   const status: MinimartVisitStatus = isMinimartVisitStatus(store.status)
     ? store.status
     : "NOT_VISITED";
   return {
-    ...store,
+    id: store.id,
+    externalId: store.externalId,
+    title: store.title,
+    street: store.street,
+    city: store.city,
+    postalCode: store.postalCode,
+    lat: store.lat,
+    lng: store.lng,
     status,
+    comment: store.comment,
+    clientId: store.clientId,
+    clientName: store.client?.name ?? null,
+    clientHomeUser: store.client?.homeUser ?? null,
     syncedAt: store.syncedAt.toISOString(),
     manual: store.externalId.startsWith("manual:"),
   };
+}
+
+async function resolveClientId(
+  request: Request,
+  clientId: string | null | undefined,
+): Promise<string | null | undefined | NextResponse> {
+  if (clientId === undefined) return undefined;
+  if (clientId === null || clientId === "") return null;
+  const client = await db.client.findUnique({
+    where: { id: clientId },
+    select: { id: true, homeUser: true },
+  });
+  if (!client) {
+    return NextResponse.json(
+      { error: apiT(request, "errors.entryNotFound") },
+      { status: 404 },
+    );
+  }
+  if (client.homeUser) {
+    return NextResponse.json(
+      { error: apiT(request, "errors.invalidData") },
+      { status: 400 },
+    );
+  }
+  return client.id;
 }
 
 export async function GET(request: Request) {
@@ -66,10 +108,12 @@ export async function GET(request: Request) {
               { street: { contains: q } },
               { title: { contains: q } },
               { comment: { contains: q } },
+              { client: { name: { contains: q } } },
             ],
           }
         : null),
     },
+    include: clientInclude,
     orderBy: [{ city: "asc" }, { street: "asc" }],
   });
 
@@ -105,6 +149,7 @@ const patchSchema = z.object({
   postalCode: z.string().max(32).nullable().optional(),
   lat: z.number().min(-90).max(90).optional(),
   lng: z.number().min(-180).max(180).optional(),
+  clientId: z.string().nullable().optional(),
 });
 
 export async function PATCH(request: Request) {
@@ -120,16 +165,21 @@ export async function PATCH(request: Request) {
     );
   }
 
-  const { id, ...rest } = parsed.data;
+  const { id, clientId: clientIdRaw, ...rest } = parsed.data;
+  const clientId = await resolveClientId(request, clientIdRaw);
+  if (clientId instanceof NextResponse) return clientId;
+
   const data: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(rest)) {
     if (value !== undefined) data[key] = value;
   }
+  if (clientId !== undefined) data.clientId = clientId;
 
   try {
     const store = await db.minimartLocatorStore.update({
       where: { id },
       data,
+      include: clientInclude,
     });
     return NextResponse.json({ store: serialize(store) });
   } catch {
@@ -150,6 +200,7 @@ const createSchema = z.object({
   lng: z.number().min(-180).max(180),
   status: minimartStatusSchema.optional().default("NOT_VISITED"),
   comment: z.string().max(4000).optional().default(""),
+  clientId: z.string().nullable().optional(),
 });
 
 const syncSchema = z.object({
@@ -172,6 +223,9 @@ export async function POST(request: Request) {
       );
     }
 
+    const clientId = await resolveClientId(request, parsed.data.clientId);
+    if (clientId instanceof NextResponse) return clientId;
+
     const now = new Date();
     const externalId = `manual:${crypto.randomUUID()}`;
     const store = await db.minimartLocatorStore.create({
@@ -186,8 +240,10 @@ export async function POST(request: Request) {
         lng: parsed.data.lng,
         status: parsed.data.status,
         comment: parsed.data.comment,
+        clientId: clientId ?? null,
         syncedAt: now,
       },
+      include: clientInclude,
     });
     return NextResponse.json({ store: serialize(store) }, { status: 201 });
   }
@@ -227,6 +283,7 @@ export async function POST(request: Request) {
           openHoursJson: row.openHoursJson,
           slug: row.slug,
           syncedAt: now,
+          // Keep status, comment, and clientId untouched on sync.
         },
       });
       upserted += 1;

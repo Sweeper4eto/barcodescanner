@@ -178,9 +178,12 @@ function eventsForFilter(filter: AuditFilter): AuditEvent[] | null {
   }
 }
 
+export type AuditAccountKind = "business" | "household";
+
 export type AuditLogQuery = {
   filter?: AuditFilter;
   q?: string;
+  accountKind?: AuditAccountKind;
   clientId?: string;
   username?: string;
   store?: string;
@@ -210,6 +213,10 @@ export function buildAuditLogWhere(query: AuditLogQuery): Prisma.AuditLogWhereIn
   const clientId = query.clientId?.trim();
   if (clientId) {
     and.push({ user: { clientId } });
+  } else if (query.accountKind === "household") {
+    and.push({ user: { client: { homeUser: true } } });
+  } else if (query.accountKind === "business") {
+    and.push({ user: { client: { homeUser: false } } });
   }
 
   const username = query.username?.trim();
@@ -259,30 +266,51 @@ export function buildAuditLogWhere(query: AuditLogQuery): Prisma.AuditLogWhereIn
   return and.length ? { AND: and } : {};
 }
 
-export async function getAuditFilterOptions(clientId?: string) {
-  const clientFilter = clientId?.trim() || null;
+export async function getAuditFilterOptions(opts?: {
+  clientId?: string;
+  accountKind?: AuditAccountKind;
+}) {
+  const clientFilter = opts?.clientId?.trim() || null;
+  const accountKind = opts?.accountKind;
+  const homeUser =
+    accountKind === "household"
+      ? true
+      : accountKind === "business"
+        ? false
+        : null;
 
-  const [clients, usernameRows, clientUsers, stores] = await Promise.all([
+  const clientWhere =
+    homeUser === null ? undefined : ({ homeUser } as const);
+  const storeWhere = clientFilter
+    ? { clientId: clientFilter }
+    : homeUser === null
+      ? undefined
+      : { client: { homeUser } };
+
+  const [clients, scopedUsers, stores] = await Promise.all([
     db.client.findMany({
+      where: clientWhere,
       select: { id: true, name: true, homeUser: true, active: true },
-      orderBy: [{ homeUser: "asc" }, { name: "asc" }],
+      orderBy: { name: "asc" },
     }),
-    clientFilter
-      ? Promise.resolve([])
-      : db.auditLog.findMany({
-          distinct: ["username"],
-          select: { username: true },
-          orderBy: { username: "asc" },
-        }),
     clientFilter
       ? db.user.findMany({
           where: { clientId: clientFilter, role: "USER" },
           select: { username: true },
           orderBy: { username: "asc" },
         })
-      : Promise.resolve([]),
+      : db.user.findMany({
+          where: {
+            role: "USER",
+            ...(homeUser === null
+              ? { clientId: { not: null } }
+              : { client: { homeUser } }),
+          },
+          select: { username: true },
+          orderBy: { username: "asc" },
+        }),
     db.store.findMany({
-      where: clientFilter ? { clientId: clientFilter } : undefined,
+      where: storeWhere,
       select: {
         id: true,
         name: true,
@@ -293,12 +321,6 @@ export async function getAuditFilterOptions(clientId?: string) {
     }),
   ]);
 
-  const usernames = (
-    clientFilter
-      ? clientUsers.map((row) => row.username)
-      : usernameRows.map((row) => row.username)
-  ).filter((name) => name.trim().length > 0);
-
   return {
     clients: clients.map((client) => ({
       id: client.id,
@@ -306,7 +328,9 @@ export async function getAuditFilterOptions(clientId?: string) {
       homeUser: client.homeUser,
       active: client.active,
     })),
-    usernames,
+    usernames: scopedUsers
+      .map((row) => row.username)
+      .filter((name) => name.trim().length > 0),
     stores: stores.map((store) => ({
       id: store.id,
       name: store.name,

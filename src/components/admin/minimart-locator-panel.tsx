@@ -33,11 +33,23 @@ export type MinimartStoreRow = {
   lng: number;
   status: MinimartVisitStatus;
   comment: string;
+  clientId: string | null;
+  clientName: string | null;
+  clientHomeUser: boolean | null;
   syncedAt: string;
   manual?: boolean;
 };
 
+type ClientOption = {
+  id: string;
+  name: string;
+  homeUser: boolean;
+  active: boolean;
+};
+
 type FilterMode = "all" | MinimartVisitStatus;
+
+const NO_CLIENT = "__none__";
 
 type Draft = {
   title: string;
@@ -45,6 +57,7 @@ type Draft = {
   city: string;
   status: MinimartVisitStatus;
   comment: string;
+  clientId: string | null;
   lat: number;
   lng: number;
 };
@@ -56,6 +69,7 @@ function draftFromStore(store: MinimartStoreRow): Draft {
     city: store.city,
     status: store.status,
     comment: store.comment,
+    clientId: store.clientId,
     lat: store.lat,
     lng: store.lng,
   };
@@ -69,6 +83,7 @@ function statusMarkerHtml(status: MinimartVisitStatus): string {
 export function MinimartLocatorPanel() {
   const { t } = useT();
   const [stores, setStores] = useState<MinimartStoreRow[]>([]);
+  const [clients, setClients] = useState<ClientOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -93,6 +108,22 @@ export function MinimartLocatorPanel() {
     [stores, selectedId],
   );
 
+  const clientOptions = useMemo(
+    () => [
+      { value: NO_CLIENT, label: t("admin.minimartNoClient") },
+      ...clients
+        .filter((client) => !client.homeUser)
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map((client) => ({
+          value: client.id,
+          label: client.active
+            ? client.name
+            : `${client.name} (${t("team.inactive")})`,
+        })),
+    ],
+    [clients, t],
+  );
+
   const statusLabel = useCallback(
     (status: MinimartVisitStatus) => {
       switch (status) {
@@ -112,6 +143,24 @@ export function MinimartLocatorPanel() {
   useEffect(() => {
     placeModeRef.current = placeMode;
   }, [placeMode]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const response = await fetch("/api/admin/clients");
+        const data = (await response.json()) as {
+          clients?: ClientOption[];
+        };
+        if (!cancelled) setClients(data.clients ?? []);
+      } catch {
+        if (!cancelled) setClients([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -201,6 +250,7 @@ export function MinimartLocatorPanel() {
           city: "",
           status: "NOT_VISITED",
           comment: "",
+          clientId: null,
           lat,
           lng,
         });
@@ -262,6 +312,10 @@ export function MinimartLocatorPanel() {
             city: current?.city ?? store.city,
             status: current?.status ?? store.status,
             comment: current?.comment ?? store.comment,
+            clientId:
+              current?.clientId !== undefined
+                ? current.clientId
+                : store.clientId,
             lat: pos.lat,
             lng: pos.lng,
           }));
@@ -364,6 +418,7 @@ export function MinimartLocatorPanel() {
             lng: draft.lng,
             status: draft.status,
             comment: draft.comment,
+            clientId: draft.clientId,
           }),
         });
         const data = (await response.json()) as {
@@ -394,6 +449,7 @@ export function MinimartLocatorPanel() {
           lng: draft.lng,
           status: draft.status,
           comment: draft.comment,
+          clientId: draft.clientId,
         }),
       });
       const data = (await response.json()) as {
@@ -588,6 +644,9 @@ export function MinimartLocatorPanel() {
                   </span>
                   <span className="pl-4 text-xs text-muted">
                     {statusLabel(store.status)} · {store.street || "—"}
+                    {store.clientName
+                      ? ` · ${store.clientName}`
+                      : ""}
                   </span>
                 </button>
               ))
@@ -644,6 +703,23 @@ export function MinimartLocatorPanel() {
                     }
                     buttonClassName={`${adminInputClass} mt-1 flex items-center justify-between gap-2 text-left`}
                   />
+                </AdminField>
+                <AdminField label={t("admin.minimartLinkedClient")}>
+                  <MenuSelect
+                    label={t("admin.minimartLinkedClient")}
+                    value={draft.clientId ?? NO_CLIENT}
+                    options={clientOptions}
+                    onChange={(next) =>
+                      setDraft({
+                        ...draft,
+                        clientId: next === NO_CLIENT ? null : next,
+                      })
+                    }
+                    buttonClassName={`${adminInputClass} mt-1 flex items-center justify-between gap-2 text-left`}
+                  />
+                  <p className="mt-1 text-[11px] text-muted">
+                    {t("admin.minimartLinkedClientHint")}
+                  </p>
                 </AdminField>
                 <AdminField label={t("admin.minimartComment")}>
                   <textarea
