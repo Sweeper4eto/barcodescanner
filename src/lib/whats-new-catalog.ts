@@ -137,6 +137,14 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
     href: "/app/settings/notifications",
   },
   {
+    key: "2026-09-expiry-dual-tier-times",
+    titleEn:
+      "Early and Urgent expiry alerts each have their own daily time — you get both when both are due.",
+    titleBg:
+      "Ранно и Спешно известие за годност имат отделен час всеки ден — получавате и двете, когато са насрочени.",
+    href: "/app/settings/notifications",
+  },
+  {
     key: "2026-09-document-scan-no-reprompt",
     titleEn:
       "Document scan on iPhone keeps the in-app camera open — no permission prompt on every new scan.",

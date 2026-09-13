@@ -1,6 +1,6 @@
 # Magazin — архитектура
 
-**Last updated:** 2026-09-08
+**Last updated:** 2026-09-13
 
 Мобилно-оптимизирано уеб приложение за управление на стока по магазини, срок на годност, клиенти и месечни плащания.
 
@@ -60,10 +60,10 @@
 
 ### Push известия за годност (phases 1–3)
 
-- **Настройки:** `/app/settings/notifications` — ранно/спешно напомняне (дни), график (дневен / 2× дневно / интервал), тихи часове, филтър по обект; timezone dropdown (auto-detect до първо Save, после запазената стойност).
+- **Настройки:** `/app/settings/notifications` — ранно/спешно напомняне (дни + **отделен час** за всяко ниво), филтър по обект; timezone dropdown (auto-detect до първо Save, после запазената стойност). График „веднъж/два пъти дневно“ е премахнат — всяко ниво е винаги **веднъж дневно**.
 - **API:** `GET/PATCH /api/push/notification-settings` (auth user).
 - **Admin defaults:** полета на `Client` + секция в Admin → Accounts → Overview (за потребители без собствени настройки).
-- **Изпращане:** `sendExpiryDigests()` в `src/lib/push-expiry.ts` — urgent има приоритет пред early; тихи часове пропускат push; дневният/2× график праща в **15‑минутен** слот около избрания час.
+- **Изпращане:** `sendExpiryDigests()` в `src/lib/push-expiry.ts` — Early и Urgent са **независими** digest-и (`expiry-digest-early` / `expiry-digest-urgent`); всеки с собствен час (`time1` / `time2`). Ако часовете съвпадат, се пращат и двете. Продукт в двата прозореца може да влезе и в двата digest-а. Пращане в **15‑минутен** слот около избрания час.
 - **Cron:** `POST /api/cron/expiry-notifications` (header `x-cron-secret`) — `*/15 * * * *`; purge cron също вика digest, но за точния слот трябва 15‑минутен cron.
 
 ### Годност и purge

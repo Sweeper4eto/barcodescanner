@@ -2,15 +2,16 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   buildTimeSlotOptions,
+  digestKindForTier,
   isInQuietHours,
-  isInSendWindow,
+  isInTierSendWindow,
+  itemsForDigestTier,
   mergeClientDefaults,
   parseTimeToMinutes,
   prefsFromUserRow,
   resolveNotifyStoreIds,
-  shouldSendNotificationNow,
+  shouldSendTierNow,
   snapTimeToStep,
-  splitItemsByTier,
   SYSTEM_DEFAULT_PREFS,
 } from "../src/lib/expiry-notification-prefs";
 
@@ -23,7 +24,7 @@ const baseRow = {
   expiryNotifyTime1: "09:00",
   expiryNotifyTime2: "18:00",
   expiryNotifyMinIntervalHours: 24,
-  expiryQuietHoursEnabled: true,
+  expiryQuietHoursEnabled: false,
   expiryQuietHoursStart: "22:00",
   expiryQuietHoursEnd: "07:00",
   expiryNotifyTimezone: "Europe/Sofia",
@@ -57,25 +58,26 @@ test("isInQuietHours handles overnight window", () => {
   assert.equal(isInQuietHours(3 * 60, "22:00", "07:00"), true);
 });
 
-test("splitItemsByTier prefers urgent over early", () => {
+test("itemsForDigestTier keeps overlapping products in both windows", () => {
   const prefs = prefsFromUserRow(baseRow);
-  const result = splitItemsByTier(
-    [
-      { daysUntilExpiry: 2 },
-      { daysUntilExpiry: 10 },
-    ],
-    prefs,
-  );
-  assert.ok(result);
-  assert.equal(result.tier, "urgent");
-  assert.equal(result.items.length, 1);
+  const items = [{ daysUntilExpiry: 2 }, { daysUntilExpiry: 10 }];
+  const urgent = itemsForDigestTier(items, prefs, "urgent");
+  const early = itemsForDigestTier(items, prefs, "early");
+  assert.equal(urgent.length, 1);
+  assert.equal(early.length, 2);
 });
 
-test("splitItemsByTier returns early when no urgent items", () => {
+test("itemsForDigestTier returns early-only when no urgent items", () => {
   const prefs = prefsFromUserRow(baseRow);
-  const result = splitItemsByTier([{ daysUntilExpiry: 10 }], prefs);
-  assert.ok(result);
-  assert.equal(result.tier, "early");
+  const early = itemsForDigestTier([{ daysUntilExpiry: 10 }], prefs, "early");
+  const urgent = itemsForDigestTier([{ daysUntilExpiry: 10 }], prefs, "urgent");
+  assert.equal(early.length, 1);
+  assert.equal(urgent.length, 0);
+});
+
+test("digestKindForTier is independent per tier", () => {
+  assert.equal(digestKindForTier("early"), "expiry-digest-early");
+  assert.equal(digestKindForTier("urgent"), "expiry-digest-urgent");
 });
 
 test("resolveNotifyStoreIds filters to assigned stores", () => {
@@ -102,60 +104,87 @@ test("mergeClientDefaults applies client values for non-customized users", () =>
   assert.equal(merged.time1, "08:00");
 });
 
-test("shouldSendNotificationNow blocks during quiet hours", () => {
-  const prefs = prefsFromUserRow(baseRow);
-  const quietTime = new Date("2026-06-02T21:00:00Z");
-  assert.equal(shouldSendNotificationNow(prefs, null, quietTime), false);
-});
-
-test("isInSendWindow is true only near scheduled clock time", () => {
-  const prefs = prefsFromUserRow(baseRow);
-  const nineAmSofia = new Date("2026-06-02T06:00:00Z");
-  assert.equal(isInSendWindow(nineAmSofia, prefs), true);
-  const nineOhOneSofia = new Date("2026-06-02T06:01:00Z");
-  assert.equal(isInSendWindow(nineOhOneSofia, prefs), true);
-  const afternoonSofia = new Date("2026-06-02T12:00:00Z");
-  assert.equal(isInSendWindow(afternoonSofia, prefs), false);
-});
-
-test("isInSendWindow is false before first scheduled time", () => {
-  const prefs = prefsFromUserRow(baseRow);
-  const beforeNineSofia = new Date("2026-06-02T05:30:00Z");
-  assert.equal(isInSendWindow(beforeNineSofia, prefs), false);
-});
-
-test("shouldSendNotificationNow does not catch-up hours later", () => {
-  const prefs = prefsFromUserRow(baseRow);
-  const afternoon = new Date("2026-06-02T12:00:00Z"); // 15:00 Sofia
-  assert.equal(shouldSendNotificationNow(prefs, null, afternoon), false);
-});
-
-test("shouldSendNotificationNow fires at scheduled minute", () => {
-  const prefs = prefsFromUserRow(baseRow);
-  const atNine = new Date("2026-06-02T06:00:30Z");
-  assert.equal(shouldSendNotificationNow(prefs, null, atNine), true);
-});
-
-test("shouldSendNotificationNow skips second daily send same slot", () => {
-  const prefs = prefsFromUserRow(baseRow);
-  const morningSend = new Date("2026-06-02T06:00:10Z");
-  const stillInWindow = new Date("2026-06-02T06:01:00Z");
-  assert.equal(shouldSendNotificationNow(prefs, morningSend, stillInWindow), false);
-});
-
-test("shouldSendNotificationNow allows second slot for twice_daily", () => {
+test("legacy twice_daily schedule is normalized to daily", () => {
   const prefs = prefsFromUserRow({
     ...baseRow,
     expiryNotifySchedule: "twice_daily",
   });
-  const morningSend = new Date("2026-06-02T06:00:10Z");
-  const evening = new Date("2026-06-02T15:00:20Z"); // 18:00 Sofia
-  assert.equal(shouldSendNotificationNow(prefs, morningSend, evening), true);
+  assert.equal(prefs.schedule, "daily");
 });
 
-test("shouldSendNotificationNow allows next day at schedule time", () => {
+test("shouldSendTierNow ignores legacy quiet hours", () => {
+  const prefs = prefsFromUserRow({
+    ...baseRow,
+    expiryQuietHoursEnabled: true,
+    expiryQuietHoursStart: "00:00",
+    expiryQuietHoursEnd: "23:59",
+  });
+  assert.equal(prefs.quietHoursEnabled, false);
+  const atNine = new Date("2026-06-02T06:00:30Z");
+  assert.equal(shouldSendTierNow(prefs, "early", null, atNine), true);
+});
+
+test("isInTierSendWindow uses per-tier clock times", () => {
+  const prefs = prefsFromUserRow(baseRow);
+  const nineAmSofia = new Date("2026-06-02T06:00:00Z");
+  assert.equal(isInTierSendWindow(nineAmSofia, prefs, "early"), true);
+  assert.equal(isInTierSendWindow(nineAmSofia, prefs, "urgent"), false);
+
+  const sixPmSofia = new Date("2026-06-02T15:00:00Z");
+  assert.equal(isInTierSendWindow(sixPmSofia, prefs, "early"), false);
+  assert.equal(isInTierSendWindow(sixPmSofia, prefs, "urgent"), true);
+});
+
+test("shouldSendTierNow does not catch-up hours later", () => {
+  const prefs = prefsFromUserRow(baseRow);
+  const afternoon = new Date("2026-06-02T12:00:00Z"); // 15:00 Sofia
+  assert.equal(shouldSendTierNow(prefs, "early", null, afternoon), false);
+  assert.equal(shouldSendTierNow(prefs, "urgent", null, afternoon), false);
+});
+
+test("shouldSendTierNow fires early at morning time", () => {
+  const prefs = prefsFromUserRow(baseRow);
+  const atNine = new Date("2026-06-02T06:00:30Z");
+  assert.equal(shouldSendTierNow(prefs, "early", null, atNine), true);
+  assert.equal(shouldSendTierNow(prefs, "urgent", null, atNine), false);
+});
+
+test("shouldSendTierNow skips same tier again in the same window", () => {
+  const prefs = prefsFromUserRow(baseRow);
+  const morningSend = new Date("2026-06-02T06:00:10Z");
+  const stillInWindow = new Date("2026-06-02T06:01:00Z");
+  assert.equal(
+    shouldSendTierNow(prefs, "early", morningSend, stillInWindow),
+    false,
+  );
+});
+
+test("same clock for both tiers can fire both independently", () => {
+  const prefs = prefsFromUserRow({
+    ...baseRow,
+    expiryNotifyTime1: "09:00",
+    expiryNotifyTime2: "09:00",
+  });
+  const atNine = new Date("2026-06-02T06:00:30Z");
+  assert.equal(shouldSendTierNow(prefs, "early", null, atNine), true);
+  assert.equal(shouldSendTierNow(prefs, "urgent", null, atNine), true);
+  // Early already sent — urgent still due (separate log kind in production).
+  const earlySent = new Date("2026-06-02T06:00:10Z");
+  assert.equal(shouldSendTierNow(prefs, "early", earlySent, atNine), false);
+  assert.equal(shouldSendTierNow(prefs, "urgent", null, atNine), true);
+});
+
+test("shouldSendTierNow allows urgent at its own evening slot", () => {
+  const prefs = prefsFromUserRow(baseRow);
+  const morningSend = new Date("2026-06-02T06:00:10Z");
+  const evening = new Date("2026-06-02T15:00:20Z"); // 18:00 Sofia
+  assert.equal(shouldSendTierNow(prefs, "early", morningSend, evening), false);
+  assert.equal(shouldSendTierNow(prefs, "urgent", null, evening), true);
+});
+
+test("shouldSendTierNow allows next day at schedule time", () => {
   const prefs = prefsFromUserRow(baseRow);
   const yesterday = new Date("2026-06-01T06:00:10Z");
   const todayAtNine = new Date("2026-06-02T06:00:20Z");
-  assert.equal(shouldSendNotificationNow(prefs, yesterday, todayAtNine), true);
+  assert.equal(shouldSendTierNow(prefs, "early", yesterday, todayAtNine), true);
 });

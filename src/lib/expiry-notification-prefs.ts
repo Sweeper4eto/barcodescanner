@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export type NotifySchedule = "daily" | "twice_daily" | "custom";
+export type NotifySchedule = "daily" | "twice_daily";
 
 export type ExpiryNotificationPrefs = {
   earlyEnabled: boolean;
@@ -38,10 +38,12 @@ export const SYSTEM_DEFAULT_PREFS: ExpiryNotificationPrefs = {
   urgentEnabled: true,
   urgentDays: 3,
   schedule: "daily",
+  /** Early warning send time (once per day). */
   time1: "09:00",
+  /** Urgent send time (once per day). */
   time2: "18:00",
   minIntervalHours: 24,
-  quietHoursEnabled: true,
+  quietHoursEnabled: false,
   quietHoursStart: "22:00",
   quietHoursEnd: "07:00",
   timezone: "Europe/Sofia",
@@ -57,8 +59,10 @@ export const expiryNotificationPrefsSchema = z
     earlyDays: z.number().int().min(1).max(90),
     urgentEnabled: z.boolean(),
     urgentDays: z.number().int().min(0).max(90),
-    schedule: z.enum(["daily", "twice_daily", "custom"]),
+    schedule: z.literal("daily"),
+    /** Early warning clock time */
     time1: z.string().regex(timePattern),
+    /** Urgent clock time */
     time2: z.string().regex(timePattern),
     minIntervalHours: z.number().int().min(6).max(168),
     quietHoursEnabled: z.boolean(),
@@ -108,8 +112,8 @@ export type ClientDefaultsRow = {
   expiryDefaultTimezone: string | null;
 };
 
-function parseSchedule(value: string): NotifySchedule {
-  if (value === "twice_daily" || value === "custom") return value;
+function parseSchedule(_value: string): NotifySchedule {
+  // Frequency UI retired — each tier is always once daily at its own clock time.
   return "daily";
 }
 
@@ -162,7 +166,8 @@ export function prefsFromUserRow(row: UserPrefsRow): ExpiryNotificationPrefs {
     time1: snapTimeToStep(row.expiryNotifyTime1),
     time2: snapTimeToStep(row.expiryNotifyTime2),
     minIntervalHours: row.expiryNotifyMinIntervalHours,
-    quietHoursEnabled: row.expiryQuietHoursEnabled,
+    // Quiet hours UI retired — never suppress by night window.
+    quietHoursEnabled: false,
     quietHoursStart: snapTimeToStep(row.expiryQuietHoursStart),
     quietHoursEnd: snapTimeToStep(row.expiryQuietHoursEnd),
     timezone: row.expiryNotifyTimezone,
@@ -185,7 +190,7 @@ export function mergeClientDefaults(
     time1: defaults.time1 ?? prefs.time1,
     time2: defaults.time2 ?? prefs.time2,
     minIntervalHours: defaults.minIntervalHours ?? prefs.minIntervalHours,
-    quietHoursEnabled: defaults.quietEnabled ?? prefs.quietHoursEnabled,
+    quietHoursEnabled: false,
     quietHoursStart: defaults.quietStart ?? prefs.quietHoursStart,
     quietHoursEnd: defaults.quietEnd ?? prefs.quietHoursEnd,
     timezone: defaults.timezone ?? prefs.timezone,
@@ -202,7 +207,7 @@ export function prefsToUserData(prefs: ExpiryNotificationPrefs) {
     expiryNotifyTime1: snapTimeToStep(prefs.time1),
     expiryNotifyTime2: snapTimeToStep(prefs.time2),
     expiryNotifyMinIntervalHours: prefs.minIntervalHours,
-    expiryQuietHoursEnabled: prefs.quietHoursEnabled,
+    expiryQuietHoursEnabled: false,
     expiryQuietHoursStart: snapTimeToStep(prefs.quietHoursStart),
     expiryQuietHoursEnd: snapTimeToStep(prefs.quietHoursEnd),
     expiryNotifyTimezone: prefs.timezone,
@@ -256,14 +261,14 @@ function localMinutesOf(date: Date, timeZone: string): number {
 
 /** Scheduled send times for today, sorted ascending (minutes from midnight). */
 export function scheduledSlotMinutes(
-  prefs: Pick<ExpiryNotificationPrefs, "schedule" | "time1" | "time2">,
+  prefs: Pick<ExpiryNotificationPrefs, "time1" | "time2">,
 ): number[] {
-  if (prefs.schedule === "custom") return [];
-  const slots =
-    prefs.schedule === "twice_daily"
-      ? [parseTimeToMinutes(prefs.time1), parseTimeToMinutes(prefs.time2)]
-      : [parseTimeToMinutes(prefs.time1)];
-  return [...new Set(slots)].sort((a, b) => a - b);
+  return [
+    ...new Set([
+      parseTimeToMinutes(prefs.time1),
+      parseTimeToMinutes(prefs.time2),
+    ]),
+  ].sort((a, b) => a - b);
 }
 
 export function isInQuietHours(
@@ -316,92 +321,73 @@ export function buildTimeSlotOptions(
   return options;
 }
 
-/**
- * True only near a scheduled clock time (slot + 15-minute grace for quarter-hour cron).
- * Custom schedule is always "open" (interval alone gates sending).
- */
-export function isInSendWindow(
+export type DigestTier = "urgent" | "early";
+
+export function digestKindForTier(tier: DigestTier): string {
+  return tier === "urgent" ? "expiry-digest-urgent" : "expiry-digest-early";
+}
+
+export function timeForTier(
+  prefs: Pick<ExpiryNotificationPrefs, "time1" | "time2">,
+  tier: DigestTier,
+): string {
+  return tier === "urgent" ? prefs.time2 : prefs.time1;
+}
+
+export function isInTierSendWindow(
   now: Date,
-  prefs: Pick<
-    ExpiryNotificationPrefs,
-    "schedule" | "time1" | "time2" | "timezone"
-  >,
+  prefs: Pick<ExpiryNotificationPrefs, "time1" | "time2" | "timezone">,
+  tier: DigestTier,
   graceMinutes = SEND_WINDOW_GRACE_MINUTES,
 ): boolean {
-  if (prefs.schedule === "custom") return true;
+  const slot = parseTimeToMinutes(timeForTier(prefs, tier));
   const localMinutes = localMinutesOf(now, prefs.timezone);
-  return scheduledSlotMinutes(prefs).some(
-    (slot) => localMinutes >= slot && localMinutes < slot + graceMinutes,
-  );
+  return localMinutes >= slot && localMinutes < slot + graceMinutes;
 }
 
-/**
- * Scheduled slot currently in the send window, or null if outside all windows.
- */
-export function activeSlotMinutes(
+/** @deprecated Prefer isInTierSendWindow — kept for older call sites. */
+export function isInSendWindow(
   now: Date,
-  prefs: Pick<
-    ExpiryNotificationPrefs,
-    "schedule" | "time1" | "time2" | "timezone"
-  >,
+  prefs: Pick<ExpiryNotificationPrefs, "time1" | "time2" | "timezone">,
   graceMinutes = SEND_WINDOW_GRACE_MINUTES,
-): number | null {
-  if (prefs.schedule === "custom") return null;
-  const localMinutes = localMinutesOf(now, prefs.timezone);
-  const active = scheduledSlotMinutes(prefs).filter(
-    (slot) => localMinutes >= slot && localMinutes < slot + graceMinutes,
+): boolean {
+  return (
+    isInTierSendWindow(now, prefs, "early", graceMinutes) ||
+    isInTierSendWindow(now, prefs, "urgent", graceMinutes)
   );
-  return active.length > 0 ? active[active.length - 1]! : null;
 }
 
-/** @deprecated Use activeSlotMinutes — catch-up-after-time was removed for exact delivery. */
-export function latestDueSlotMinutes(
-  now: Date,
-  prefs: Pick<
-    ExpiryNotificationPrefs,
-    "schedule" | "time1" | "time2" | "timezone"
-  >,
-): number | null {
-  return activeSlotMinutes(now, prefs);
-}
-
-export function shouldSendNotificationNow(
+export function shouldSendTierNow(
   prefs: ExpiryNotificationPrefs,
+  tier: DigestTier,
   lastSentAt: Date | null,
   now = new Date(),
 ): boolean {
-  const localMinutes = localMinutesOf(now, prefs.timezone);
+  if (tier === "early" && !prefs.earlyEnabled) return false;
+  if (tier === "urgent" && !prefs.urgentEnabled) return false;
+  if (!isInTierSendWindow(now, prefs, tier)) return false;
 
-  if (prefs.quietHoursEnabled) {
-    if (
-      isInQuietHours(
-        localMinutes,
-        prefs.quietHoursStart,
-        prefs.quietHoursEnd,
-      )
-    ) {
-      return false;
-    }
-  }
-
-  if (prefs.schedule === "custom") {
-    if (!lastSentAt) return true;
-    const minMs = prefs.minIntervalHours * 60 * 60 * 1000;
-    return now.getTime() - lastSentAt.getTime() >= minMs;
-  }
-
-  const dueSlot = activeSlotMinutes(now, prefs);
-  if (dueSlot == null) return false;
-
+  const dueSlot = parseTimeToMinutes(timeForTier(prefs, tier));
   if (!lastSentAt) return true;
 
   const today = localDateKey(now, prefs.timezone);
   const lastDay = localDateKey(lastSentAt, prefs.timezone);
   if (lastDay !== today) return true;
 
-  // Already sent for this slot today (send landed in/after the slot minute).
   const lastMinutes = localMinutesOf(lastSentAt, prefs.timezone);
   return lastMinutes < dueSlot;
+}
+
+/** @deprecated Use shouldSendTierNow */
+export function shouldSendNotificationNow(
+  prefs: ExpiryNotificationPrefs,
+  lastSentAt: Date | null,
+  now = new Date(),
+): boolean {
+  return (
+    shouldSendTierNow(prefs, "early", lastSentAt, now) ||
+    shouldSendTierNow(prefs, "urgent", lastSentAt, now)
+  );
 }
 
 export function resolveNotifyStoreIds(
@@ -416,8 +402,31 @@ export function resolveNotifyStoreIds(
   return prefs.storeIds.filter((id) => allowed.has(id));
 }
 
-export type DigestTier = "urgent" | "early";
+/** Products included in a tier digest (windows may overlap on purpose). */
+export function itemsForDigestTier<T extends { daysUntilExpiry: number }>(
+  items: T[],
+  prefs: Pick<
+    ExpiryNotificationPrefs,
+    "earlyEnabled" | "earlyDays" | "urgentEnabled" | "urgentDays"
+  >,
+  tier: DigestTier,
+): T[] {
+  if (tier === "urgent") {
+    if (!prefs.urgentEnabled) return [];
+    return items.filter((item) => item.daysUntilExpiry <= prefs.urgentDays);
+  }
+  if (!prefs.earlyEnabled) return [];
+  return items.filter((item) => item.daysUntilExpiry <= prefs.earlyDays);
+}
 
+export function withinDaysForTier(
+  prefs: Pick<ExpiryNotificationPrefs, "earlyDays" | "urgentDays">,
+  tier: DigestTier,
+): number {
+  return tier === "urgent" ? prefs.urgentDays : prefs.earlyDays;
+}
+
+/** @deprecated Prefer itemsForDigestTier — returns first non-empty tier only. */
 export function splitItemsByTier(
   items: Array<{ daysUntilExpiry: number }>,
   prefs: Pick<
@@ -425,20 +434,14 @@ export function splitItemsByTier(
     "earlyEnabled" | "earlyDays" | "urgentEnabled" | "urgentDays"
   >,
 ): { tier: DigestTier; withinDays: number; items: typeof items } | null {
-  const urgentItems = prefs.urgentEnabled
-    ? items.filter((item) => item.daysUntilExpiry <= prefs.urgentDays)
-    : [];
+  const urgentItems = itemsForDigestTier(items, prefs, "urgent");
   if (urgentItems.length > 0) {
     return { tier: "urgent", withinDays: prefs.urgentDays, items: urgentItems };
   }
-
-  const earlyItems = prefs.earlyEnabled
-    ? items.filter((item) => item.daysUntilExpiry <= prefs.earlyDays)
-    : [];
+  const earlyItems = itemsForDigestTier(items, prefs, "early");
   if (earlyItems.length > 0) {
     return { tier: "early", withinDays: prefs.earlyDays, items: earlyItems };
   }
-
   return null;
 }
 
@@ -454,12 +457,13 @@ export function formatPrefsSummary(
   },
 ): string {
   const parts: string[] = [];
-  if (prefs.urgentEnabled) parts.push(labels.urgentDays(prefs.urgentDays));
-  if (prefs.earlyEnabled) parts.push(labels.earlyDays(prefs.earlyDays));
-  if (parts.length === 0) return labels.off;
-  if (prefs.schedule === "daily") {
-    parts.push(labels.time(prefs.time1));
+  if (prefs.earlyEnabled) {
+    parts.push(`${labels.earlyDays(prefs.earlyDays)} · ${labels.time(prefs.time1)}`);
   }
+  if (prefs.urgentEnabled) {
+    parts.push(`${labels.urgentDays(prefs.urgentDays)} · ${labels.time(prefs.time2)}`);
+  }
+  if (parts.length === 0) return labels.off;
   if (prefs.storeIds && prefs.storeIds.length > 0) {
     parts.push(labels.storeCount(prefs.storeIds.length));
   } else {
@@ -471,7 +475,7 @@ export function formatPrefsSummary(
 export const clientDefaultsSchema = z.object({
   earlyDays: z.number().int().min(1).max(90).nullable().optional(),
   urgentDays: z.number().int().min(0).max(90).nullable().optional(),
-  schedule: z.enum(["daily", "twice_daily", "custom"]).nullable().optional(),
+  schedule: z.literal("daily").nullable().optional(),
   time1: z.string().regex(timePattern).nullable().optional(),
   time2: z.string().regex(timePattern).nullable().optional(),
   minIntervalHours: z.number().int().min(6).max(168).nullable().optional(),

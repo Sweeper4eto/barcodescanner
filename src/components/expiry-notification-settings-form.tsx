@@ -166,7 +166,7 @@ export function ExpiryNotificationSettingsForm() {
         time1: next.time1,
         time2: next.time2,
         minIntervalHours: next.minIntervalHours,
-        quietHoursEnabled: next.quietHoursEnabled,
+        quietHoursEnabled: false,
         quietHoursStart: next.quietHoursStart,
         quietHoursEnd: next.quietHoursEnd,
         timezone: resolveTimezoneForForm(
@@ -211,6 +211,7 @@ export function ExpiryNotificationSettingsForm() {
     try {
       const payload = {
         ...prefs,
+        schedule: "daily" as const,
         storeIds: storeMode === "all" ? null : prefs.storeIds ?? [],
       };
       const response = await fetch("/api/push/notification-settings", {
@@ -277,10 +278,10 @@ export function ExpiryNotificationSettingsForm() {
 
       <div className="space-y-3 pb-8">
         <Section title={t("pushSettings.tiers")} hint={t("pushSettings.tiersHint")}>
-          <div className="rounded-xl border border-yellow-500/25 p-3">
+          <div className="rounded-xl border border-primary/35 bg-primary/5 p-3">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-sm font-medium text-yellow-200/90">{t("pushSettings.earlyTitle")}</p>
+                <p className="text-sm font-medium text-primary">{t("pushSettings.earlyTitle")}</p>
               </div>
               <Toggle
                 checked={prefs.earlyEnabled}
@@ -294,12 +295,21 @@ export function ExpiryNotificationSettingsForm() {
               customLabel={t("pushSettings.customDays")}
               daysLabel={t("pushSettings.daysLabel")}
             />
+            {prefs.earlyEnabled ? (
+              <div className="mt-3">
+                <NotifyTimeSelect
+                  label={t("pushSettings.timeLabel")}
+                  value={prefs.time1}
+                  onChange={(time1) => patch({ time1: snapTimeToStep(time1) })}
+                />
+              </div>
+            ) : null}
           </div>
 
-          <div className="mt-3 rounded-xl border border-red-400/25 p-3">
+          <div className="mt-3 rounded-xl border border-danger/40 bg-danger/5 p-3">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-sm font-medium text-red-200/90">{t("pushSettings.urgentTitle")}</p>
+                <p className="text-sm font-medium text-danger">{t("pushSettings.urgentTitle")}</p>
               </div>
               <Toggle
                 checked={prefs.urgentEnabled}
@@ -313,125 +323,25 @@ export function ExpiryNotificationSettingsForm() {
               customLabel={t("pushSettings.customDays")}
               daysLabel={t("pushSettings.daysLabel")}
             />
-          </div>
-        </Section>
-
-        <Section title={t("pushSettings.schedule")}>
-          <p className="mb-2 text-xs leading-relaxed text-muted">
-            {t("pushSettings.scheduleHint")}
-          </p>
-          <div className="grid grid-cols-2 gap-2">
-            {(
-              [
-                ["daily", t("pushSettings.frequencyDaily")],
-                ["twice_daily", t("pushSettings.frequencyTwice")],
-              ] as const
-            ).map(([schedule, label]) => (
-              <button
-                key={schedule}
-                type="button"
-                onClick={() => patch({ schedule })}
-                className={`rounded-full border px-3 py-2 text-center text-xs font-medium ${
-                  prefs.schedule === schedule
-                    ? "border-primary/45 bg-primary/10 text-primary"
-                    : "border-card-border text-muted"
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-            <button
-              type="button"
-              onClick={() => patch({ schedule: "custom" })}
-              className={`col-span-2 rounded-full border px-3 py-2 text-center text-xs font-medium ${
-                prefs.schedule === "custom"
-                  ? "border-primary/45 bg-primary/10 text-primary"
-                  : "border-card-border text-muted"
-              }`}
-            >
-              {t("pushSettings.frequencyCustom")}
-            </button>
-          </div>
-
-          {prefs.schedule !== "custom" ? (
-            <div
-              className={`mt-3 grid gap-3 ${
-                prefs.schedule === "twice_daily" ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1"
-              }`}
-            >
-              <NotifyTimeSelect
-                label={t("pushSettings.timeLabel")}
-                value={prefs.time1}
-                onChange={(time1) => patch({ time1: snapTimeToStep(time1) })}
-              />
-              {prefs.schedule === "twice_daily" ? (
+            {prefs.urgentEnabled ? (
+              <div className="mt-3">
                 <NotifyTimeSelect
-                  label={t("pushSettings.timeSecond")}
+                  label={t("pushSettings.timeLabel")}
                   value={prefs.time2}
                   onChange={(time2) => patch({ time2: snapTimeToStep(time2) })}
                 />
-              ) : null}
-            </div>
-          ) : (
-            <label className="mt-3 block text-xs text-muted">
-              {t("pushSettings.minInterval")}
-              <div className="mt-1 flex items-center gap-2">
-                <input
-                  type="number"
-                  min={6}
-                  max={168}
-                  value={prefs.minIntervalHours}
-                  onChange={(event) =>
-                    patch({ minIntervalHours: Number(event.target.value) })
-                  }
-                  className={`${appFormInput} w-24 px-3 py-2 text-center text-sm`}
-                />
-                <span className="text-sm text-muted">{t("pushSettings.hours")}</span>
               </div>
-            </label>
-          )}
-
-          <div className="mt-3">
-            <p className="mb-1 text-xs text-muted">{t("pushSettings.timezone")}</p>
-            <MenuSelect
-              label={t("pushSettings.timezone")}
-              value={prefs.timezone}
-              options={timezoneOptions}
-              onChange={(timezone) => patch({ timezone })}
-            />
+            ) : null}
           </div>
         </Section>
 
-        <Section
-          title={t("pushSettings.quietHours")}
-          hint={t("pushSettings.quietHoursHint")}
-        >
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-sm text-foreground">{t("pushSettings.quietEnabled")}</p>
-            <Toggle
-              checked={prefs.quietHoursEnabled}
-              onChange={(quietHoursEnabled) => patch({ quietHoursEnabled })}
-              label={t("pushSettings.quietEnabled")}
-            />
-          </div>
-          {prefs.quietHoursEnabled ? (
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              <NotifyTimeSelect
-                label={t("pushSettings.quietFrom")}
-                value={prefs.quietHoursStart}
-                onChange={(quietHoursStart) =>
-                  patch({ quietHoursStart: snapTimeToStep(quietHoursStart) })
-                }
-              />
-              <NotifyTimeSelect
-                label={t("pushSettings.quietTo")}
-                value={prefs.quietHoursEnd}
-                onChange={(quietHoursEnd) =>
-                  patch({ quietHoursEnd: snapTimeToStep(quietHoursEnd) })
-                }
-              />
-            </div>
-          ) : null}
+        <Section title={t("pushSettings.timezone")} hint={t("pushSettings.timezoneHint")}>
+          <MenuSelect
+            label={t("pushSettings.timezone")}
+            value={prefs.timezone}
+            options={timezoneOptions}
+            onChange={(timezone) => patch({ timezone })}
+          />
         </Section>
 
         <Section title={t("pushSettings.stores")}>

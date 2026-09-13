@@ -1,11 +1,13 @@
 import { db } from "@/lib/db";
 import {
   clientDefaultsFromRow,
+  digestKindForTier,
+  itemsForDigestTier,
   mergeClientDefaults,
   prefsFromUserRow,
   resolveNotifyStoreIds,
-  shouldSendNotificationNow,
-  splitItemsByTier,
+  shouldSendTierNow,
+  withinDaysForTier,
   type DigestTier,
   type ExpiryNotificationPrefs,
 } from "@/lib/expiry-notification-prefs";
@@ -17,7 +19,7 @@ import {
 } from "@/lib/push";
 import { t, type Locale } from "@/i18n";
 
-const DIGEST_KIND = "expiry-digest";
+const DIGEST_TIERS: DigestTier[] = ["early", "urgent"];
 
 export type ExpiryDigestItem = {
   productName: string;
@@ -82,7 +84,7 @@ export function buildExpiryDigestPayload(
   };
 }
 
-/** @deprecated Use shouldSendNotificationNow with user prefs instead. */
+/** @deprecated Use shouldSendTierNow with user prefs instead. */
 export function shouldSendDigest(
   lastSentAt: Date | null,
   now = new Date(),
@@ -161,6 +163,61 @@ function resolveUserPrefs(
   return mergeClientDefaults(base, clientDefaultsFromRow(user.client ?? undefined));
 }
 
+async function sendTierDigest(params: {
+  userId: string;
+  subscriptions: Array<{
+    id: string;
+    endpoint: string;
+    p256dh: string;
+    auth: string;
+    locale: string;
+  }>;
+  prefs: ExpiryNotificationPrefs;
+  items: ExpiryDigestItem[];
+  tier: DigestTier;
+  now: Date;
+}): Promise<number> {
+  const { userId, subscriptions, prefs, items, tier, now } = params;
+  const kind = digestKindForTier(tier);
+
+  const lastLog = await db.pushNotificationLog.findFirst({
+    where: { userId, kind },
+    orderBy: { sentAt: "desc" },
+  });
+
+  if (!shouldSendTierNow(prefs, tier, lastLog?.sentAt ?? null, now)) {
+    return 0;
+  }
+
+  const digestItems = itemsForDigestTier(items, prefs, tier);
+  if (digestItems.length === 0) return 0;
+
+  const withinDays = withinDaysForTier(prefs, tier);
+  let userSent = 0;
+
+  for (const subscription of subscriptions) {
+    const payload = buildExpiryDigestPayload(
+      digestItems,
+      subscriptionLocale(subscription.locale),
+      { tier, withinDays },
+    );
+    if (!payload) continue;
+
+    const result = await sendPushToSubscription(subscription, payload);
+    if (result === "sent") {
+      userSent += 1;
+    }
+  }
+
+  if (userSent > 0) {
+    await db.pushNotificationLog.create({
+      data: { userId, kind },
+    });
+  }
+
+  return userSent;
+}
+
 export async function sendExpiryDigests(): Promise<{
   users: number;
   sent: number;
@@ -199,16 +256,6 @@ export async function sendExpiryDigests(): Promise<{
     if (user.pushSubscriptions.length === 0) continue;
 
     const prefs = resolveUserPrefs(user);
-
-    const lastLog = await db.pushNotificationLog.findFirst({
-      where: { userId: user.id, kind: DIGEST_KIND },
-      orderBy: { sentAt: "desc" },
-    });
-
-    if (!shouldSendNotificationNow(prefs, lastLog?.sentAt ?? null, now)) {
-      continue;
-    }
-
     const assignedStoreIds = user.storeLinks.map((link) => link.storeId);
     const storeIds = resolveNotifyStoreIds(prefs, assignedStoreIds);
     if (storeIds.length === 0) continue;
@@ -218,6 +265,12 @@ export async function sendExpiryDigests(): Promise<{
       prefs.urgentEnabled ? prefs.urgentDays : 0,
     );
     if (maxDays <= 0) continue;
+
+    // Skip inventory load when neither tier is due right now.
+    const maybeDue = DIGEST_TIERS.some((tier) =>
+      shouldSendTierNow(prefs, tier, null, now),
+    );
+    if (!maybeDue) continue;
 
     const entries = await db.inventoryEntry.findMany({
       where: {
@@ -240,32 +293,21 @@ export async function sendExpiryDigests(): Promise<{
       }))
       .filter((item) => item.daysUntilExpiry <= maxDays);
 
-    const tiered = splitItemsByTier(items, prefs);
-    if (!tiered) continue;
-
-    const digestItems = tiered.items as ExpiryDigestItem[];
     let userSent = 0;
-
-    for (const subscription of user.pushSubscriptions) {
-      const payload = buildExpiryDigestPayload(
-        digestItems,
-        subscriptionLocale(subscription.locale),
-        { tier: tiered.tier, withinDays: tiered.withinDays },
-      );
-      if (!payload) continue;
-
-      const result = await sendPushToSubscription(subscription, payload);
-      if (result === "sent") {
-        userSent += 1;
-        totalSent += 1;
-      }
+    for (const tier of DIGEST_TIERS) {
+      userSent += await sendTierDigest({
+        userId: user.id,
+        subscriptions: user.pushSubscriptions,
+        prefs,
+        items,
+        tier,
+        now,
+      });
     }
 
     if (userSent > 0) {
       usersNotified += 1;
-      await db.pushNotificationLog.create({
-        data: { userId: user.id, kind: DIGEST_KIND },
-      });
+      totalSent += userSent;
     }
   }
 
