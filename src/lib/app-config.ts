@@ -1,13 +1,20 @@
 import { paymentAmount } from "@/lib/expiry";
 import { db } from "@/lib/db";
+import {
+  billingStartPeriod,
+  isPaymentAccessBlocked,
+  periodFromDate,
+  periodKey,
+} from "@/lib/payment-status";
 
 export function currentBillingPeriod(now = new Date()): { year: number; month: number } {
-  return { year: now.getFullYear(), month: now.getMonth() + 1 };
+  return periodFromDate(now);
 }
 
 /**
- * True when this client must have a Payment row for the current calendar month.
- * Households, clients with payments off, and zero/negative expected fee never require payment.
+ * True when this client is locked out for overdue payment.
+ * Requires payments ON, positive fee, and at least one unpaid month
+ * *before* the current calendar month (current month stays payable anytime).
  */
 export async function clientRequiresPayment(
   clientId: string,
@@ -19,27 +26,35 @@ export async function clientRequiresPayment(
       active: true,
       homeUser: true,
       paymentsRequired: true,
+      paymentsRequiredSince: true,
       monthlyFeePerStore: true,
+      createdAt: true,
       stores: { where: { active: true }, select: { id: true } },
+      payments: { select: { year: true, month: true } },
     },
   });
-  if (!client?.active || client.homeUser || !client.paymentsRequired) {
-    return false;
-  }
+  if (!client?.active) return false;
 
   const expectedAmount = paymentAmount(
     client.stores.length,
     client.monthlyFeePerStore,
     0,
   );
-  if (expectedAmount <= 0) return false;
-
-  const { year, month } = currentBillingPeriod(now);
-  const payment = await db.payment.findUnique({
-    where: {
-      clientId_year_month: { clientId, year, month },
-    },
-    select: { id: true },
+  const billingStart = billingStartPeriod({
+    paymentsRequired: client.paymentsRequired,
+    paymentsRequiredSince: client.paymentsRequiredSince,
+    createdAt: client.createdAt,
   });
-  return !payment;
+  const paidKeys = new Set(
+    client.payments.map((p) => periodKey(p.year, p.month)),
+  );
+
+  return isPaymentAccessBlocked({
+    homeUser: client.homeUser,
+    paymentsRequired: client.paymentsRequired,
+    expectedAmount,
+    billingStart,
+    current: periodFromDate(now),
+    paidKeys,
+  });
 }

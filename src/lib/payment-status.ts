@@ -20,6 +20,25 @@ export function periodFromDate(date: Date): BillingPeriod {
   return { year: date.getFullYear(), month: date.getMonth() + 1 };
 }
 
+/** Local calendar month start used when payments are turned on. */
+export function startOfBillingMonth(date = new Date()): Date {
+  return new Date(date.getFullYear(), date.getMonth(), 1);
+}
+
+/**
+ * First month that counts toward unpaid standing / overdue lock.
+ * Prefer paymentsRequiredSince; fall back to createdAt for legacy rows.
+ */
+export function billingStartPeriod(options: {
+  paymentsRequired: boolean;
+  paymentsRequiredSince: Date | null | undefined;
+  createdAt: Date;
+}): BillingPeriod | null {
+  if (!options.paymentsRequired) return null;
+  const since = options.paymentsRequiredSince ?? options.createdAt;
+  return periodFromDate(since);
+}
+
 /** Inclusive list of calendar months from start through end. */
 export function monthsInclusive(
   start: BillingPeriod,
@@ -36,8 +55,8 @@ export function monthsInclusive(
 }
 
 /**
- * Count months since billing start (client created month) through now
- * that have no payment. One payment covers the whole client (all locations).
+ * Count months since billing start through `through` that have no payment.
+ * One payment covers the whole client (all locations).
  */
 export function countUnpaidMonths(options: {
   billingStart: BillingPeriod;
@@ -52,6 +71,53 @@ export function countUnpaidMonths(options: {
     }
   }
   return unpaid;
+}
+
+/**
+ * True when any billed month *before* the current month is still unpaid.
+ * Current month may stay unpaid without locking (pay anytime this month).
+ * Example: payments on from Oct → lock starts Nov 1 if Oct is unpaid.
+ */
+export function hasOverdueUnpaidMonths(options: {
+  billingStart: BillingPeriod;
+  current: BillingPeriod;
+  paidKeys: ReadonlySet<string>;
+}): boolean {
+  const through = addMonths(options.current, -1);
+  if (comparePeriods(options.billingStart, through) > 0) {
+    return false;
+  }
+  return (
+    countUnpaidMonths({
+      billingStart: options.billingStart,
+      through,
+      paidKeys: options.paidKeys,
+    }) > 0
+  );
+}
+
+/** Pure access gate used by clientRequiresPayment. */
+export function isPaymentAccessBlocked(options: {
+  homeUser: boolean;
+  paymentsRequired: boolean;
+  expectedAmount: number;
+  billingStart: BillingPeriod | null;
+  current: BillingPeriod;
+  paidKeys: ReadonlySet<string>;
+}): boolean {
+  if (
+    options.homeUser ||
+    !options.paymentsRequired ||
+    options.expectedAmount <= 0 ||
+    !options.billingStart
+  ) {
+    return false;
+  }
+  return hasOverdueUnpaidMonths({
+    billingStart: options.billingStart,
+    current: options.current,
+    paidKeys: options.paidKeys,
+  });
 }
 
 export function paymentStandingFromUnpaid(

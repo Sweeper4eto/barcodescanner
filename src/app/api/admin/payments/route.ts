@@ -7,6 +7,7 @@ import { paymentAmount } from "@/lib/expiry";
 import { db } from "@/lib/db";
 import { apiT } from "@/i18n";
 import {
+  billingStartPeriod,
   countUnpaidMonths,
   paymentStandingFromUnpaid,
   periodFromDate,
@@ -67,13 +68,19 @@ export async function GET(request: Request) {
         !client.homeUser &&
         client.paymentsRequired &&
         expectedAmount > 0;
-      const unpaidMonths = tracksPayments
-        ? countUnpaidMonths({
-            billingStart: periodFromDate(client.createdAt),
-            through,
-            paidKeys,
-          })
-        : 0;
+      const start = billingStartPeriod({
+        paymentsRequired: client.paymentsRequired,
+        paymentsRequiredSince: client.paymentsRequiredSince,
+        createdAt: client.createdAt,
+      });
+      const unpaidMonths =
+        tracksPayments && start
+          ? countUnpaidMonths({
+              billingStart: start,
+              through,
+              paidKeys,
+            })
+          : 0;
       const standing = paymentStandingFromUnpaid(unpaidMonths, {
         homeUser: client.homeUser,
         paymentsRequired: client.paymentsRequired,
@@ -139,13 +146,19 @@ export async function GET(request: Request) {
       !client.homeUser &&
       client.paymentsRequired &&
       expectedAmount > 0;
-    const unpaidMonths = tracksPayments
-      ? countUnpaidMonths({
-          billingStart: periodFromDate(client.createdAt),
-          through,
-          paidKeys,
-        })
-      : 0;
+    const start = billingStartPeriod({
+      paymentsRequired: client.paymentsRequired,
+      paymentsRequiredSince: client.paymentsRequiredSince,
+      createdAt: client.createdAt,
+    });
+    const unpaidMonths =
+      tracksPayments && start
+        ? countUnpaidMonths({
+            billingStart: start,
+            through,
+            paidKeys,
+          })
+        : 0;
     const standing = paymentStandingFromUnpaid(unpaidMonths, {
       homeUser: client.homeUser,
       paymentsRequired: client.paymentsRequired,

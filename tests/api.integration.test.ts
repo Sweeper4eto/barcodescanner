@@ -1207,20 +1207,36 @@ test("payments calendar and mark paid APIs", async () => {
   assert.equal(markPaid.data.payment.amountPaid, 20);
 });
 
-test("payment enforcement blocks unpaid retail login when enabled", async () => {
+test("payment enforcement blocks unpaid retail login when overdue", async () => {
   const client = await seedClientWithStore(db);
   const user = await seedUserWithAccess(db, client.id, client.stores[0].id);
 
   await db.client.update({
     where: { id: client.id },
-    data: { paymentsRequired: false },
+    data: { paymentsRequired: false, paymentsRequiredSince: null },
   });
   const openLogin = await loginUser(user.username, "password123");
   assert.equal(openLogin.ok, true);
 
+  // Turn payments on this month — current month may stay unpaid (grace).
+  const now = new Date();
+  const since = new Date(now.getFullYear(), now.getMonth(), 1);
   await db.client.update({
     where: { id: client.id },
-    data: { paymentsRequired: true, monthlyFeePerStore: 20 },
+    data: {
+      paymentsRequired: true,
+      monthlyFeePerStore: 20,
+      paymentsRequiredSince: since,
+    },
+  });
+  const graceLogin = await loginUser(user.username, "password123");
+  assert.equal(graceLogin.ok, true);
+
+  // Simulate next month with previous month still unpaid → locked.
+  const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  await db.client.update({
+    where: { id: client.id },
+    data: { paymentsRequiredSince: prev },
   });
   const blocked = await loginUser(user.username, "password123");
   assert.equal(blocked.ok, false);
@@ -1228,7 +1244,6 @@ test("payment enforcement blocks unpaid retail login when enabled", async () => 
     assert.equal(blocked.code, "PAYMENT_REQUIRED");
   }
 
-  const now = new Date();
   const adminLogin = await loginUser("admin", "admin123");
   assert.equal(adminLogin.ok, true);
   if (!adminLogin.ok) return;
@@ -1239,8 +1254,8 @@ test("payment enforcement blocks unpaid retail login when enabled", async () => 
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       clientId: client.id,
-      year: now.getFullYear(),
-      month: now.getMonth() + 1,
+      year: prev.getFullYear(),
+      month: prev.getMonth() + 1,
       discount: 0,
     }),
   });

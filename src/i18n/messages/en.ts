@@ -753,7 +753,7 @@ export const en = {
       "Monthly total = active locations × this fee. If the total is 0 or less, the client stays green every month (no payment needed).",
     paymentsRequired: "Require monthly payments",
     paymentsRequiredHint:
-      "Off by default for testing. When on, this business client must pay each month (unless the fee total is 0).",
+      "Off by default. When on, billing starts this month. Access locks only if a previous billed month is still unpaid — the current month can be paid anytime.",
     paymentsRequiredOff: "Payments off",
     paymentStandingFree: "Free (fee ≤ 0)",
     editClient: "Edit client",
@@ -840,7 +840,7 @@ export const en = {
     paymentHistory: "Payment history",
     noPaymentsYet: "No payments recorded yet.",
     paymentStandingHint:
-      "Each row is one client (all locations). Turn on payments per client. Green = paid up / payments off / fee ≤ 0. Neutral = 1 month unpaid. Red = 2+ months unpaid. Households never pay.",
+      "Each row is one client (all locations). Turn on payments per client. Green = paid up / payments off / fee ≤ 0. Neutral = only the current month unpaid (still allowed). Red = 2+ months unpaid / past month overdue (access locked). Households never pay.",
     paymentStandingCurrent: "Paid up to date",
     paymentStandingBehind1: "1 month unpaid",
     paymentStandingBehind2plus: "2+ months unpaid",

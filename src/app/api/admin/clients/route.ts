@@ -5,6 +5,7 @@ import { auditClientCreated, auditClientDeleted, auditClientUpdated } from "@/li
 import { requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { clientDefaultsSchema, clientDefaultsToData } from "@/lib/expiry-notification-prefs";
+import { startOfBillingMonth } from "@/lib/payment-status";
 import { apiT } from "@/i18n";
 
 async function requireAdminResponse(request: Request) {
@@ -67,7 +68,14 @@ export async function POST(request: Request) {
     );
   }
 
-  const client = await db.client.create({ data: parsed.data });
+  const paymentsRequired = parsed.data.paymentsRequired ?? false;
+  const client = await db.client.create({
+    data: {
+      ...parsed.data,
+      paymentsRequired,
+      paymentsRequiredSince: paymentsRequired ? startOfBillingMonth() : null,
+    },
+  });
   await logAuditEvent(request, admin, "client_created", auditClientCreated(client));
   return NextResponse.json({ client }, { status: 201 });
 }
@@ -124,9 +132,20 @@ export async function PATCH(request: Request) {
       ? clientDefaultsToData(notificationDefaults)
       : {};
 
+  const paymentsSincePatch: {
+    paymentsRequiredSince?: Date | null;
+  } = {};
+  if (data.paymentsRequired !== undefined) {
+    if (data.paymentsRequired && !before.paymentsRequired) {
+      paymentsSincePatch.paymentsRequiredSince = startOfBillingMonth();
+    } else if (!data.paymentsRequired) {
+      paymentsSincePatch.paymentsRequiredSince = null;
+    }
+  }
+
   const client = await db.client.update({
     where: { id },
-    data: { ...data, ...defaultsPatch },
+    data: { ...data, ...defaultsPatch, ...paymentsSincePatch },
   });
   await logAuditEvent(request, admin, "client_updated", auditClientUpdated(before, client));
   return NextResponse.json({ client });

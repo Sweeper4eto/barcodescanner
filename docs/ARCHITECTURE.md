@@ -26,6 +26,8 @@
 ### Админ панел
 
 - **Акаунти (hub):** списък бизнес/домакинство в отделни секции; за всеки акаунт — Overview, Locations, People, Billing (такса, require payments, mark paid)
+- **Плащания / lock:** `Client.paymentsRequired` + `paymentsRequiredSince` (месецът, от който тече таксуването). Lock (`clientRequiresPayment`) само при **просрочен** неплатен месец *преди* текущия; текущият месец може да се плати по всяко време. Пример: включено от 1 окт. → lock от 1 ноем. ако окт. е неплатен. Household и fee ≤ 0 са освободени.
+- **Плащания (portfolio):** календар / standing по клиент
 - **Потребители:** глобално търсене като подтаб в Accounts
 - **Плащания:** portfolio „кой дължи“ + by-month; редакция на такса/обекти е в Account → Billing
 - **Audit log:** подтабове Business / Household; филтри по акаунт (само от текущия тип), потребител, обект, IP, период

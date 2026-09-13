@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import {
+  billingStartPeriod,
   countUnpaidMonths,
+  hasOverdueUnpaidMonths,
+  isPaymentAccessBlocked,
   monthsInclusive,
   paymentStandingFromUnpaid,
   periodKey,
@@ -85,5 +88,113 @@ describe("payment standing", () => {
     assert.ok(standingSortRank("behind2plus") < standingSortRank("behind1"));
     assert.ok(standingSortRank("behind1") < standingSortRank("current"));
     assert.ok(standingSortRank("current") < standingSortRank("exempt"));
+  });
+});
+
+describe("payment overdue lock", () => {
+  test("billingStartPeriod uses paymentsRequiredSince when set", () => {
+    const start = billingStartPeriod({
+      paymentsRequired: true,
+      paymentsRequiredSince: new Date(2026, 9, 1), // Oct
+      createdAt: new Date(2026, 0, 15),
+    });
+    assert.deepEqual(start, { year: 2026, month: 10 });
+  });
+
+  test("billingStartPeriod is null when payments off", () => {
+    assert.equal(
+      billingStartPeriod({
+        paymentsRequired: false,
+        paymentsRequiredSince: null,
+        createdAt: new Date(2026, 0, 1),
+      }),
+      null,
+    );
+  });
+
+  test("no overdue in the first billed month even if unpaid", () => {
+    assert.equal(
+      hasOverdueUnpaidMonths({
+        billingStart: { year: 2026, month: 10 },
+        current: { year: 2026, month: 10 },
+        paidKeys: new Set(),
+      }),
+      false,
+    );
+  });
+
+  test("overdue on the 1st of the following month if previous unpaid", () => {
+    assert.equal(
+      hasOverdueUnpaidMonths({
+        billingStart: { year: 2026, month: 10 },
+        current: { year: 2026, month: 11 },
+        paidKeys: new Set(),
+      }),
+      true,
+    );
+  });
+
+  test("no overdue next month once previous month is paid", () => {
+    assert.equal(
+      hasOverdueUnpaidMonths({
+        billingStart: { year: 2026, month: 10 },
+        current: { year: 2026, month: 11 },
+        paidKeys: new Set([periodKey(2026, 10)]),
+      }),
+      false,
+    );
+  });
+
+  test("access stays open for current-month-only unpaid", () => {
+    assert.equal(
+      isPaymentAccessBlocked({
+        homeUser: false,
+        paymentsRequired: true,
+        expectedAmount: 40,
+        billingStart: { year: 2026, month: 10 },
+        current: { year: 2026, month: 10 },
+        paidKeys: new Set(),
+      }),
+      false,
+    );
+  });
+
+  test("access blocks when a past billed month is unpaid", () => {
+    assert.equal(
+      isPaymentAccessBlocked({
+        homeUser: false,
+        paymentsRequired: true,
+        expectedAmount: 40,
+        billingStart: { year: 2026, month: 10 },
+        current: { year: 2026, month: 11 },
+        paidKeys: new Set(),
+      }),
+      true,
+    );
+  });
+
+  test("access ignores payments-off and zero fee", () => {
+    assert.equal(
+      isPaymentAccessBlocked({
+        homeUser: false,
+        paymentsRequired: false,
+        expectedAmount: 40,
+        billingStart: null,
+        current: { year: 2026, month: 11 },
+        paidKeys: new Set(),
+      }),
+      false,
+    );
+    assert.equal(
+      isPaymentAccessBlocked({
+        homeUser: false,
+        paymentsRequired: true,
+        expectedAmount: 0,
+        billingStart: { year: 2026, month: 10 },
+        current: { year: 2026, month: 11 },
+        paidKeys: new Set(),
+      }),
+      false,
+    );
   });
 });

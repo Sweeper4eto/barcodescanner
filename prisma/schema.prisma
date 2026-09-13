@@ -66,6 +66,11 @@ model Client {
   homeUser           Boolean   @default(false)
   /** When false (default), this client is not required to pay. */
   paymentsRequired   Boolean   @default(false)
+  /**
+   * First calendar month payments are billed from (set when paymentsRequired turns on).
+   * Access lock applies only after a billed month before the current month stays unpaid.
+   */
+  paymentsRequiredSince DateTime?
   monthlyFeePerStore Float     @default(20)
   /** Defaults copied for new users until they customize notification prefs. */
   expiryDefaultEarlyDays        Int?
