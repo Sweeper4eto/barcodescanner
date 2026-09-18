@@ -13,6 +13,13 @@ export type WhatsNewCatalogEntry = {
 
 export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
   {
+    key: "2026-09-push-follows-language",
+    titleEn:
+      "Expiry alert language follows your app language when you switch EN/BG.",
+    titleBg:
+      "Езикът на известията за годност следва езика на приложението при смяна EN/БГ.",
+  },
+  {
     key: "2026-09-camera-double-tap",
     titleEn:
       "Double-tap the live camera preview to take a photo on document scan and product pictures.",

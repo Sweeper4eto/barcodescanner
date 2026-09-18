@@ -8,6 +8,8 @@ import {
   type ExpiryNotificationPrefs,
 } from "@/lib/expiry-notification-prefs";
 import { isIosDevice, isPwaInstalled } from "@/lib/pwa-install";
+import { syncPushLocale } from "@/lib/sync-push-locale";
+import type { MobileLocale } from "@/lib/client-locale";
 
 type PushState =
   | "unsupported"
@@ -136,6 +138,14 @@ export function PushNotifications() {
       cancelled = true;
     };
   }, []);
+
+  // Keep push digests in the same language as the UI (also covers language
+  // changes made while already subscribed).
+  useEffect(() => {
+    if (state !== "enabled") return;
+    if (locale !== "en" && locale !== "bg") return;
+    syncPushLocale(locale as MobileLocale);
+  }, [state, locale]);
 
   async function enableNotifications() {
     setError("");

@@ -13,6 +13,7 @@ import {
   setClientLocale,
   type MobileLocale,
 } from "@/lib/client-locale";
+import { syncPushLocale } from "@/lib/sync-push-locale";
 
 type MobileLocaleContextValue = {
   locale: MobileLocale;
@@ -37,6 +38,7 @@ export function MobileI18nProvider({
   const setLocale = useCallback((next: MobileLocale) => {
     setClientLocale(next);
     setLocaleState(next);
+    syncPushLocale(next);
   }, []);
 
   return (
