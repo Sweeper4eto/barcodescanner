@@ -13,6 +13,28 @@ export type WhatsNewCatalogEntry = {
 
 export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
   {
+    key: "2026-09-camera-double-tap",
+    titleEn:
+      "Double-tap the live camera preview to take a photo on document scan and product pictures.",
+    titleBg:
+      "Докоснете два пъти камерата, за да снимате при документ и при снимка на продукт.",
+    href: "/app/add-document",
+  },
+  {
+    key: "2026-09-expiry-period-days",
+    titleEn: "Expiry filter is now 7 days, 14 days, 30 days, or All.",
+    titleBg: "Филтърът за годност вече е 7 дни, 14 дни, 30 дни или Всички.",
+    href: "/app/expiry",
+  },
+  {
+    key: "2026-09-document-preview-two-buttons",
+    titleEn:
+      "Document photo preview: Back retakes, Next continues — no extra Cancel or circle button.",
+    titleBg:
+      "Преглед на документ: Назад за нова снимка, Напред за продължаване — без Отказ и кръгъл бутон.",
+    href: "/app/add-document",
+  },
+  {
     key: "2026-08-legal-pages-redesign",
     titleEn:
       "Privacy and Terms pages match the app look, with a clear Back control.",

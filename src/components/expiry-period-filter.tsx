@@ -13,12 +13,12 @@ type Props = {
 
 function periodLabel(period: ExpiryPeriod, t: ReturnType<typeof useT>["t"]) {
   switch (period) {
-    case "2w":
-      return t("expiry.period2Weeks");
-    case "1m":
-      return t("expiry.period1Month");
-    case "3m":
-      return t("expiry.period3Months");
+    case "7d":
+      return t("expiry.period7Days");
+    case "14d":
+      return t("expiry.period14Days");
+    case "30d":
+      return t("expiry.period30Days");
     case "all":
       return t("expiry.periodAll");
   }

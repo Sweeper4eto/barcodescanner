@@ -709,14 +709,14 @@ test("inventory list filters expiry window, search, and pagination", async () =>
   assert.equal(list.data.pagination.totalPages, 1);
 
   const search = await jsonRequest(inventoryGet, {
-    url: `http://localhost/api/inventory?storeId=${store.id}&q=Milk&withinDays=90`,
+    url: `http://localhost/api/inventory?storeId=${store.id}&q=Milk&withinDays=30`,
   });
   assert.equal(search.response.status, 200);
   assert.equal(search.data.entries.length, 1);
   assert.equal(search.data.entries[0].product.name, "Milk");
 
   const caseSearch = await jsonRequest(inventoryGet, {
-    url: `http://localhost/api/inventory?storeId=${store.id}&q=milk&withinDays=90`,
+    url: `http://localhost/api/inventory?storeId=${store.id}&q=milk&withinDays=30`,
   });
   assert.equal(caseSearch.data.entries.length, 1);
 
@@ -727,7 +727,7 @@ test("inventory list filters expiry window, search, and pagination", async () =>
   assert.equal(barcodeSearch.data.entries[0].quantity, 3);
 
   const wideWindow = await jsonRequest(inventoryGet, {
-    url: `http://localhost/api/inventory?storeId=${store.id}&withinDays=90`,
+    url: `http://localhost/api/inventory?storeId=${store.id}&withinDays=30`,
   });
   assert.equal(wideWindow.response.status, 200);
   assert.equal(wideWindow.data.entries.length, 2);

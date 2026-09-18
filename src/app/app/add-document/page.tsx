@@ -398,7 +398,7 @@ function AddDocumentContent() {
         className={
           isReviewStep
             ? reviewPageShellClassName
-            : "mx-auto min-w-0 max-w-lg overflow-x-visible px-4 pb-3 pt-1"
+            : "mx-auto min-w-0 max-w-lg overflow-x-visible px-4 pb-5 pt-1"
         }
       >
         {!isReviewStep ? (

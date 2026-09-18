@@ -8,11 +8,10 @@ import { ForwardButton } from "@/components/forward-button";
 import {
   BackArrowIcon,
   CameraIcon,
-  CheckIcon,
 } from "@/components/app-nav-icons";
 import { useT } from "@/components/i18n-provider";
 import { ScannerViewfinderOverlay } from "@/components/scanner-viewfinder-overlay";
-import { appButtonPrimaryFull } from "@/lib/app-ui";
+import { appButtonCancelFull, appButtonPrimaryFull, appFooterButtonGrid } from "@/lib/app-ui";
 
 type Props = {
   onCapture: (dataUrl: string) => void;
@@ -37,7 +36,7 @@ type Props = {
   compact?: boolean;
   /**
    * Document scan layout: large viewfinder, Cancel + Upload as normal
-   * outline buttons with circular Capture in the center, multi-select Upload tip.
+   * outline buttons with circular Capture in the center.
    * Implies viewfinder corners when live.
    */
   variant?: "default" | "document";
@@ -49,7 +48,9 @@ type Props = {
    * Document scan always uses in-app camera so iOS does not re-prompt on every shot.
    */
   forceInAppCamera?: boolean;
-  /** Tap the live camera preview to take a photo. */
+  /**
+   * Double-tap the live camera preview to take a photo (default on).
+   */
   captureOnPreviewTap?: boolean;
   /**
    * Preview confirm button:
@@ -487,7 +488,7 @@ export function CameraCapture({
   variant = "default",
   showViewfinder = false,
   forceInAppCamera = false,
-  captureOnPreviewTap = false,
+  captureOnPreviewTap = true,
   confirmMode = "next",
   keepOldPicture = false,
 }: Props) {
@@ -504,8 +505,8 @@ export function CameraCapture({
   const [error, setError] = useState("");
   const [useNativeCapture, setUseNativeCapture] = useState(false);
   const [platformReady, setPlatformReady] = useState(false);
-  const [tipDismissed, setTipDismissed] = useState(false);
   const autoStartedRef = useRef(false);
+  const lastPreviewTapRef = useRef(0);
   const documentLayout = variant === "document";
   const showCorners = showViewfinder || documentLayout;
 
@@ -700,10 +701,10 @@ export function CameraCapture({
   }
 
   const previewFrameClass = documentLayout
-    ? "h-full w-full object-cover"
+    ? "pointer-events-none h-full w-full object-contain"
     : compact
-      ? "h-full w-full object-contain"
-      : "max-h-[min(52dvh,24rem)] w-full object-contain";
+      ? "pointer-events-none h-full w-full object-contain"
+      : "pointer-events-none max-h-[min(52dvh,24rem)] w-full object-contain";
 
   const previewShellClass = documentLayout
     ? "relative mx-auto flex aspect-[3/4] max-h-[min(58dvh,28rem)] w-full items-center justify-center overflow-hidden rounded-2xl border border-card-border bg-black"
@@ -736,6 +737,17 @@ export function CameraCapture({
     void takePhoto();
   }
 
+  function handlePreviewDoubleTap() {
+    if (!captureOnPreviewTap || !active || capturing || preview) return;
+    const now = Date.now();
+    if (now - lastPreviewTapRef.current < 350) {
+      lastPreviewTapRef.current = 0;
+      void takePhoto();
+      return;
+    }
+    lastPreviewTapRef.current = now;
+  }
+
   const fileInputs = (allowFileUpload || showNativePath) && (
     <>
       <input
@@ -758,7 +770,7 @@ export function CameraCapture({
   );
 
   const documentToolbar = documentLayout && !preview && (
-    <div className="flex items-center gap-2 pt-1">
+    <div className="flex items-center gap-2 pt-1 pb-3">
       <div className="min-w-0 flex-1">
         {onCancel ? (
           <CancelButton disabled={capturing} onClick={onCancel}>
@@ -806,38 +818,19 @@ export function CameraCapture({
   );
 
   const documentPreviewToolbar = documentLayout && preview ? (
-    <div className="flex items-center gap-2 pt-1">
-      <div className="min-w-0 flex-1">
-        {onCancel ? (
-          <CancelButton onClick={onCancel}>{t("common.cancel")}</CancelButton>
-        ) : null}
-      </div>
-
+    <div className={`${appFooterButtonGrid} pt-1 pb-3`}>
       <button
         type="button"
-        onClick={() => void uploadAndContinue()}
-        className="flex h-[4.4rem] w-[4.4rem] shrink-0 flex-col items-center rounded-full border-2 border-primary bg-background text-primary"
-        aria-label={t("common.next")}
+        onClick={handleNewDocument}
+        className={appButtonCancelFull}
+        aria-label={t("common.back")}
       >
-        <span className="flex h-full w-full flex-col items-center justify-center gap-0 px-1.5 pt-1 pb-2">
-          <CheckIcon className="size-10 shrink-0" />
-          <span className="-mt-0.5 text-[9px] font-medium leading-none">
-            {t("common.next")}
-          </span>
-        </span>
+        <BackArrowIcon className="size-4 shrink-0" />
+        {t("common.back")}
       </button>
-
-      <div className="min-w-0 flex-1">
-        <button
-          type="button"
-          onClick={handleNewDocument}
-          className={appButtonPrimaryFull}
-          aria-label={t("common.back")}
-        >
-          <BackArrowIcon className="size-4 shrink-0" />
-          {t("common.back")}
-        </button>
-      </div>
+      <ForwardButton onClick={() => void uploadAndContinue()}>
+        {t("common.next")}
+      </ForwardButton>
     </div>
   ) : null;
 
@@ -860,11 +853,7 @@ export function CameraCapture({
                     : "pointer-events-none absolute inset-0 opacity-0"
                 }
                 aria-hidden={!active}
-                onClick={() => {
-                  if (captureOnPreviewTap && active && !capturing) {
-                    void takePhoto();
-                  }
-                }}
+                onClick={handlePreviewDoubleTap}
               >
                 <video
                   ref={videoRef}
@@ -900,11 +889,7 @@ export function CameraCapture({
                   : "pointer-events-none absolute h-px w-px overflow-hidden opacity-0"
               }
               aria-hidden={!active}
-              onClick={() => {
-                if (captureOnPreviewTap && active && !capturing) {
-                  void takePhoto();
-                }
-              }}
+              onClick={handlePreviewDoubleTap}
             >
               <video
                 ref={videoRef}
@@ -925,35 +910,6 @@ export function CameraCapture({
             <>
               {documentToolbar}
               {fileInputs}
-              {allowMultipleFiles && !tipDismissed ? (
-                <div className="flex items-start gap-2 rounded-xl border border-primary/35 bg-primary/10 px-3 py-2.5 text-sm text-foreground">
-                  <svg
-                    viewBox="0 0 24 24"
-                    className="mt-0.5 h-5 w-5 shrink-0 text-primary"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.75"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden
-                  >
-                    <path d="M9 18h6" />
-                    <path d="M10 21h4" />
-                    <path d="M12 3a6 6 0 0 0-4 10.5V15h8v-1.5A6 6 0 0 0 12 3Z" />
-                  </svg>
-                  <p className="min-w-0 flex-1 leading-snug">
-                    {t("addDocument.multiTip")}
-                  </p>
-                  <button
-                    type="button"
-                    className="inline-flex shrink-0 items-center gap-1 rounded-lg px-2 py-0.5 text-xs font-semibold text-primary"
-                    onClick={() => setTipDismissed(true)}
-                  >
-                    <CheckIcon className="size-3.5 shrink-0" />
-                    {t("common.ok")}
-                  </button>
-                </div>
-              ) : null}
             </>
           ) : (
             <div className="flex flex-col gap-2">

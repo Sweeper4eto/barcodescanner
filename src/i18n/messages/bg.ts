@@ -488,6 +488,7 @@ export const bg = {
     periodToday: "Днес",
     period3Days: "3 дни",
     period7Days: "7 дни",
+    period14Days: "14 дни",
     period30Days: "30 дни",
     periodExpired: "Изтекли",
     period2Weeks: "2 седм.",
