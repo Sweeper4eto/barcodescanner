@@ -143,9 +143,10 @@ export function MenuSelect<T extends string>({
           id={listId}
           role="listbox"
           aria-label={label}
-          className={`absolute z-[100] max-h-72 min-w-full w-max max-w-[min(90vw,24rem)] overflow-y-auto overscroll-contain rounded-xl border border-input-border bg-zinc-950 py-1 shadow-lg shadow-black/50 ${
+          className={`absolute z-[100] max-h-72 min-w-full w-max max-w-[min(90vw,24rem)] overflow-y-auto overscroll-contain rounded-xl border border-input-border py-1 shadow-lg shadow-black/50 ${
             menuAbove ? "bottom-full mb-1" : "top-full mt-1"
           } ${menuAlign === "end" ? "right-0" : "left-0"}`}
+          style={{ backgroundColor: "var(--background)" }}
         >
           {options.length === 0 ? (
             <li className="px-3 py-2.5 text-sm text-muted">{placeholder ?? label}</li>
@@ -163,8 +164,11 @@ export function MenuSelect<T extends string>({
                     className={`flex w-full px-3 py-2.5 text-left text-sm whitespace-nowrap disabled:cursor-not-allowed disabled:opacity-40 ${
                       active
                         ? "bg-selected text-primary"
-                        : "bg-zinc-950 text-foreground hover:bg-zinc-900"
+                        : "text-foreground hover:bg-selected/40"
                     }`}
+                    style={
+                      active ? undefined : { backgroundColor: "var(--background)" }
+                    }
                     onClick={() => {
                       if (option.disabled) return;
                       onChange(option.value);

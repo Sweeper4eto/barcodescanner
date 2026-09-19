@@ -44,6 +44,11 @@ export async function GET(request: Request) {
     include: {
       _count: { select: { stores: true, users: true, referrals: true } },
       referredBy: { select: { id: true, name: true } },
+      referrals: {
+        where: { active: true },
+        select: { id: true, name: true },
+        orderBy: { name: "asc" },
+      },
     },
   });
 

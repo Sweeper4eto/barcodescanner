@@ -243,6 +243,11 @@ textarea {
   color-scheme: dark;
 }
 
+select option {
+  background-color: var(--input);
+  color: var(--foreground);
+}
+
 .urgency-critical {
   border-color: var(--urgency-critical-border);
   background: var(--urgency-critical-bg);

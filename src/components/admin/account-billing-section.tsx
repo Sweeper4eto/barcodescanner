@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AdminField, adminInputClass } from "@/components/admin/admin-ui";
 import { PrimaryButton } from "@/components/auth-forms";
 import { useT } from "@/components/i18n-provider";
+import { MenuSelect } from "@/components/menu-select";
 import type { PaymentStanding } from "@/lib/payment-status";
 
 type StoreFeeRow = {
@@ -266,17 +267,16 @@ export function AccountBillingSection({ clientId, onChanged }: Props) {
 
       <div className="grid gap-3 sm:grid-cols-2">
         <AdminField label={t("admin.billingMonth")}>
-          <select
-            className={adminInputClass}
-            value={markMonth}
-            onChange={(event) => setMarkMonth(Number(event.target.value))}
-          >
-            {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
-              <option key={m} value={m}>
-                {monthName(m)}
-              </option>
-            ))}
-          </select>
+          <MenuSelect
+            label={t("admin.billingMonth")}
+            value={String(markMonth)}
+            options={Array.from({ length: 12 }, (_, i) => {
+              const m = i + 1;
+              return { value: String(m), label: monthName(m) };
+            })}
+            onChange={(value) => setMarkMonth(Number(value))}
+            buttonClassName={`${adminInputClass} flex items-center justify-between gap-2 text-left`}
+          />
         </AdminField>
         <AdminField label={t("admin.billingYear")}>
           <input

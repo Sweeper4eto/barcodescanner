@@ -36,6 +36,7 @@ export type Client = {
   monthlyFeePerStore: number;
   referredByClientId?: string | null;
   referredBy?: { id: string; name: string } | null;
+  referrals?: { id: string; name: string }[];
   expiryDefaultEarlyDays: number | null;
   expiryDefaultUrgentDays: number | null;
   expiryDefaultTime1: string | null;
@@ -936,12 +937,28 @@ export function ClientsPanel({
                         />
                       ) : null}
 
-                      {!edit.homeUser && selectedClient?._count.referrals ? (
-                        <p className="text-sm text-muted">
-                          {t("admin.referralsCount", {
-                            count: selectedClient._count.referrals,
-                          })}
-                        </p>
+                      {!edit.homeUser ? (
+                        <div className="rounded-xl border border-card-border bg-selected/20 px-3 py-2">
+                          <p className="text-xs font-semibold text-foreground">
+                            {t("admin.referralsCount", {
+                              count:
+                                selectedClient?.referrals?.length ??
+                                selectedClient?._count.referrals ??
+                                0,
+                            })}
+                          </p>
+                          {(selectedClient?.referrals?.length ?? 0) === 0 ? (
+                            <p className="mt-1 text-xs text-muted">
+                              {t("admin.referralsEmpty")}
+                            </p>
+                          ) : (
+                            <ul className="mt-1 space-y-0.5 text-xs text-muted">
+                              {selectedClient!.referrals!.map((row) => (
+                                <li key={row.id}>{row.name}</li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
                       ) : null}
 
                       <div className="mt-4 space-y-3 rounded-xl border border-card-border p-3">
