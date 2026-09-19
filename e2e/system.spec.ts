@@ -37,11 +37,11 @@ test.describe("Cross-cutting public & admin", () => {
     await loginViaForm(page, "admin", "admin123");
     await expect(page).toHaveURL(/\/admin/);
     await expect(page.getByText("Admin panel")).toBeVisible();
-    await page.getByRole("tab", { name: "Clients", exact: true }).click();
-    await page.getByRole("tab", { name: "Users", exact: true }).click();
-    await page.getByRole("tab", { name: "Payments", exact: true }).click();
+    await page.getByRole("tab", { name: "Accounts", exact: true }).first().click();
+    await page.getByRole("button", { name: "Users", exact: true }).click();
+    await page.getByRole("tab", { name: "Payments", exact: true }).first().click();
     // Support tab name carries a "new requests" badge count (e.g. "Support 2").
-    await page.getByRole("tab", { name: /^Support/ }).click();
+    await page.getByRole("tab", { name: /^Support/ }).first().click();
     await assertNoNextJsOverlay(page);
   });
 

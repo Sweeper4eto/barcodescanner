@@ -3,9 +3,9 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import {
-  AdminPanel,
-  AdminPanelBody,
-  AdminTabBar,
+  AdminNavId,
+  AdminShell,
+  type AdminNavItem,
 } from "@/components/admin/admin-ui";
 import { AuditLogPanel } from "@/components/admin/audit-log-panel";
 import { ClientsPanel, type Client } from "@/components/admin/clients-panel";
@@ -24,15 +24,7 @@ type HubSection = "overview" | "locations" | "people" | "billing" | "newStore";
 export default function AdminPage() {
   const router = useRouter();
   const { t } = useT();
-  const [tab, setTab] = useState<
-    | "accounts"
-    | "payments"
-    | "items"
-    | "support"
-    | "whatsNew"
-    | "audit"
-    | "minimart"
-  >("accounts");
+  const [tab, setTab] = useState<AdminNavId>("accounts");
   const [clients, setClients] = useState<Client[]>([]);
   const [supportNewCount, setSupportNewCount] = useState(0);
   const [openClientId, setOpenClientId] = useState<string | null>(null);
@@ -83,20 +75,49 @@ export default function AdminPage() {
     router.refresh();
   }
 
-  function openAccountBilling(clientId: string) {
+  function openAccountBilling(clientId: string, homeUser?: boolean) {
+    const fromList = clients.find((client) => client.id === clientId);
+    const isHome = homeUser ?? fromList?.homeUser ?? false;
     setOpenClientId(clientId);
     setOpenSection("billing");
-    setTab("accounts");
+    setTab(isHome ? "household" : "accounts");
   }
+
+  const navItems: AdminNavItem[] = [
+    { id: "accounts", label: t("admin.accounts"), group: "primary" },
+    { id: "household", label: t("admin.householdNav"), group: "primary" },
+    { id: "payments", label: t("admin.payments"), group: "primary" },
+    {
+      id: "support",
+      label: t("support.navLabel"),
+      group: "primary",
+      badge: supportNewCount > 0 ? supportNewCount : undefined,
+    },
+    { id: "items", label: t("admin.items"), group: "secondary" },
+    { id: "whatsNew", label: t("admin.whatsNewTab"), group: "secondary" },
+    {
+      id: "minimart",
+      label: t("admin.minimartLocatorTab"),
+      group: "secondary",
+    },
+    { id: "audit", label: t("admin.auditLog"), group: "secondary" },
+  ];
+
+  const usersSlot = (
+    <UsersPanel clients={clients} onRefresh={() => void refreshClients()} />
+  );
 
   return (
     <div className="min-h-full bg-background">
-      <div className="mx-auto min-w-0 max-w-6xl overflow-x-visible px-4 pb-6 pt-[max(1.5rem,env(safe-area-inset-top,0px))] md:px-6">
-        <header className="mb-8 flex flex-wrap items-start justify-between gap-4">
-          <div className="min-w-0">
-            <AppHeaderLogo size={44} />
-            <p className="mt-2 text-sm text-muted">{t("admin.panel")}</p>
-            <h1 className="text-2xl font-semibold text-foreground">
+      <div className="mx-auto min-w-0 max-w-7xl overflow-x-visible px-3 pb-4 pt-[max(1rem,env(safe-area-inset-top,0px))] sm:px-4 md:px-6 md:pb-6 md:pt-[max(1.5rem,env(safe-area-inset-top,0px))]">
+        <header className="mb-4 flex flex-wrap items-start justify-between gap-3 lg:mb-6">
+          <div className="min-w-0 lg:hidden">
+            <AppHeaderLogo size={40} />
+            <p className="mt-1.5 text-sm text-muted">{t("admin.panel")}</p>
+          </div>
+          <div className="hidden min-w-0 lg:block">
+            <p className="text-sm text-muted">{t("admin.panel")}</p>
+            <h1 className="text-xl font-semibold text-foreground">
               {t("common.appName")}
             </h1>
           </div>
@@ -109,70 +130,47 @@ export default function AdminPage() {
           </button>
         </header>
 
-        <AdminPanel>
-          <AdminPanelBody className="pb-0">
-            <AdminTabBar
-              tabs={[
-                { id: "accounts" as const, label: t("admin.accounts") },
-                { id: "payments" as const, label: t("admin.payments") },
-                { id: "items" as const, label: t("admin.items") },
-                {
-                  id: "support" as const,
-                  label: (
-                    <span className="inline-flex items-center gap-1">
-                      <span>{t("support.navLabel")}</span>
-                      {supportNewCount > 0 ? (
-                        <span className="rounded-full bg-danger px-1.5 py-0.5 text-[10px] leading-none text-danger-fg">
-                          {supportNewCount}
-                        </span>
-                      ) : null}
-                    </span>
-                  ),
-                },
-                { id: "whatsNew" as const, label: t("admin.whatsNewTab") },
-                {
-                  id: "minimart" as const,
-                  label: t("admin.minimartLocatorTab"),
-                },
-                { id: "audit" as const, label: t("admin.auditLog") },
-              ]}
-              active={tab}
-              onChange={setTab}
+        <AdminShell
+          brand={
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted">
+                {t("admin.panel")}
+              </p>
+              <AppHeaderLogo size={36} />
+            </div>
+          }
+          signedInAs={t("admin.signedInAsAdmin")}
+          items={navItems}
+          active={tab}
+          onChange={setTab}
+        >
+          {tab === "accounts" || tab === "household" ? (
+            <ClientsPanel
+              accountKind={tab === "household" ? "household" : "business"}
+              supportNewCount={supportNewCount}
+              onRefresh={() => void refreshClients()}
+              openClientId={openClientId}
+              openSection={openSection}
+              onOpenConsumed={() => {
+                setOpenClientId(null);
+                setOpenSection(null);
+              }}
+              usersSlot={usersSlot}
             />
-          </AdminPanelBody>
-
-          <AdminPanelBody className="border-t border-card-border pt-6">
-            {tab === "accounts" ? (
-              <ClientsPanel
-                onRefresh={() => void refreshClients()}
-                openClientId={openClientId}
-                openSection={openSection}
-                onOpenConsumed={() => {
-                  setOpenClientId(null);
-                  setOpenSection(null);
-                }}
-                usersSlot={
-                  <UsersPanel
-                    clients={clients}
-                    onRefresh={() => void refreshClients()}
-                  />
-                }
-              />
-            ) : null}
-            {tab === "payments" ? (
-              <PaymentsPanel onOpenAccount={openAccountBilling} />
-            ) : null}
-            {tab === "items" ? <ItemsPanel /> : null}
-            {tab === "support" ? (
-              <SupportRequestsPanel
-                onCounts={(counts) => setSupportNewCount(counts.new)}
-              />
-            ) : null}
-            {tab === "whatsNew" ? <WhatsNewPanel /> : null}
-            {tab === "minimart" ? <MinimartLocatorPanel /> : null}
-            {tab === "audit" ? <AuditLogPanel /> : null}
-          </AdminPanelBody>
-        </AdminPanel>
+          ) : null}
+          {tab === "payments" ? (
+            <PaymentsPanel onOpenAccount={openAccountBilling} />
+          ) : null}
+          {tab === "items" ? <ItemsPanel /> : null}
+          {tab === "support" ? (
+            <SupportRequestsPanel
+              onCounts={(counts) => setSupportNewCount(counts.new)}
+            />
+          ) : null}
+          {tab === "whatsNew" ? <WhatsNewPanel /> : null}
+          {tab === "minimart" ? <MinimartLocatorPanel /> : null}
+          {tab === "audit" ? <AuditLogPanel /> : null}
+        </AdminShell>
       </div>
     </div>
   );

@@ -22,7 +22,7 @@ function suffix() {
 async function openAdmin(page: Page, tab: string) {
   await loginViaForm(page, "admin", "admin123");
   await expect(page).toHaveURL(/\/admin/);
-  await page.getByRole("tab", { name: tab, exact: true }).click();
+  await page.getByRole("tab", { name: tab, exact: true }).first().click();
 }
 
 test.describe("Admin panel", () => {
@@ -33,13 +33,13 @@ test.describe("Admin panel", () => {
     const clientName = `UI Client ${suffix()}`;
     const storeName = `UI Store ${suffix()}`;
 
-    await openAdmin(page, "Clients");
-    await page.getByRole("tab", { name: "New client", exact: true }).click();
+    await openAdmin(page, "Accounts");
+    await page.getByRole("button", { name: "+ New business", exact: true }).click();
     await page.getByLabel("Name", { exact: true }).fill(clientName);
     await page.getByLabel("Fee per location").fill("30");
     await page.getByRole("button", { name: "Create", exact: true }).click();
 
-    await page.getByRole("tab", { name: "Current clients", exact: true }).click();
+    await page.getByRole("button", { name: "Accounts", exact: true }).first().click();
     await page.getByRole("button", { name: clientName }).click();
     await page.getByRole("tab", { name: "New location", exact: true }).click();
     await page.getByLabel("Location name").fill(storeName);
@@ -79,7 +79,8 @@ test.describe("Admin panel", () => {
     });
     expect(client.id).toBeTruthy();
 
-    await openAdmin(page, "Users");
+    await openAdmin(page, "Accounts");
+    await page.getByRole("button", { name: "Users", exact: true }).click();
     await page
       .getByPlaceholder("Search by username, email, client, or location…")
       .fill(username);

@@ -6,9 +6,9 @@ test.describe("Admin UI", () => {
     await loginInBrowser(page, "admin", "admin123");
     await expect(page).toHaveURL(/\/admin/);
     await expect(page.getByText("Admin panel")).toBeVisible();
-    await expect(page.getByRole("tab", { name: "Clients", exact: true })).toBeVisible();
-    await expect(page.getByRole("tab", { name: "Users", exact: true })).toBeVisible();
-    await expect(page.getByRole("tab", { name: "Payments", exact: true })).toBeVisible();
+    await expect(page.getByRole("tab", { name: "Accounts", exact: true }).first()).toBeVisible();
+    await expect(page.getByRole("tab", { name: "Household", exact: true }).first()).toBeVisible();
+    await expect(page.getByRole("tab", { name: "Payments", exact: true }).first()).toBeVisible();
   });
 });
 

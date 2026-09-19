@@ -108,6 +108,9 @@ function editIsDirty(current: EditState, saved: EditState | null) {
 }
 
 type Props = {
+  /** Business accounts vs household — never mixed in one list. */
+  accountKind?: "business" | "household";
+  supportNewCount?: number;
   onRefresh: () => void;
   /** Deep-link from Payments portfolio into an account hub section. */
   openClientId?: string | null;
@@ -118,6 +121,8 @@ type Props = {
 };
 
 export function ClientsPanel({
+  accountKind = "business",
+  supportNewCount = 0,
   onRefresh,
   openClientId = null,
   openSection = null,
@@ -216,9 +221,19 @@ export function ClientsPanel({
   }, [loadClients, loadStanding]);
 
   useEffect(() => {
+    setSelectedId(null);
+    setStores([]);
+    setSubview("current");
+    setDetailTab("overview");
+    setSaveMessage("");
+  }, [accountKind]);
+
+  useEffect(() => {
     if (!openClientId) return;
     const client = clients.find((row) => row.id === openClientId);
     if (!client) return;
+    const matchesKind = accountKind === "household" ? client.homeUser : !client.homeUser;
+    if (!matchesKind) return;
     setSubview("current");
     setSelectedId(client.id);
     setDetailTab(openSection ?? "billing");
@@ -229,7 +244,14 @@ export function ClientsPanel({
     setSaveMessage("");
     void loadStores(client.id);
     onOpenConsumed?.();
-  }, [openClientId, openSection, clients, loadStores, onOpenConsumed]);
+  }, [
+    openClientId,
+    openSection,
+    clients,
+    loadStores,
+    onOpenConsumed,
+    accountKind,
+  ]);
 
   function selectClient(client: Client) {
     setSelectedId(client.id);
@@ -252,7 +274,10 @@ export function ClientsPanel({
           name: newClient.name,
           phone: newClient.phone || undefined,
           additionalInfo: newClient.additionalInfo || undefined,
-          monthlyFeePerStore: Number(newClient.monthlyFeePerStore),
+          monthlyFeePerStore:
+            accountKind === "household" ? 0 : Number(newClient.monthlyFeePerStore),
+          homeUser: accountKind === "household",
+          paymentsRequired: accountKind === "business",
         }),
       });
       if (!response.ok) {
@@ -440,8 +465,41 @@ export function ClientsPanel({
     );
   }
 
-  const businessClients = clients.filter((client) => !client.homeUser);
-  const householdClients = clients.filter((client) => client.homeUser);
+  function standingDot(client: Client) {
+    const info = standingByClient[client.id];
+    if (client.homeUser || info?.homeUser) {
+      return <span className="mt-1 size-2 shrink-0 rounded-full bg-zinc-500" title={t("admin.paymentsHomeExempt")} />;
+    }
+    if (!client.paymentsRequired && !info?.paymentsRequired) {
+      return <span className="mt-1 size-2 shrink-0 rounded-full bg-zinc-500" title={t("admin.paymentsRequiredOff")} />;
+    }
+    const standing = info?.standing ?? "current";
+    if (standing === "behind2plus") {
+      return <span className="mt-1 size-2 shrink-0 rounded-full bg-danger" title={t("admin.paymentStandingBehindN", { count: info?.unpaidMonths ?? 2 })} />;
+    }
+    if (standing === "behind1") {
+      return <span className="mt-1 size-2 shrink-0 rounded-full bg-warning-fg" title={t("admin.paymentStandingBehind1")} />;
+    }
+    return <span className="mt-1 size-2 shrink-0 rounded-full bg-primary" title={t("admin.paymentStandingCurrent")} />;
+  }
+
+  const visibleClients = clients.filter((client) =>
+    accountKind === "household" ? client.homeUser : !client.homeUser,
+  );
+
+  const liveLocations = visibleClients.reduce(
+    (sum, client) => sum + (client.active ? client._count.stores : 0),
+    0,
+  );
+  const overdueClients = visibleClients.filter((client) => {
+    const info = standingByClient[client.id];
+    if (!info || client.homeUser || !client.paymentsRequired) return false;
+    return info.standing === "behind1" || info.standing === "behind2plus";
+  });
+  const watchClients = visibleClients.filter((client) => {
+    const info = standingByClient[client.id];
+    return Boolean(info && !client.homeUser && client.paymentsRequired && info.standing === "behind1");
+  });
 
   function renderAccountCard(client: Client) {
     return (
@@ -455,53 +513,91 @@ export function ClientsPanel({
             : "border-card-border hover:bg-transparent"
         } ${!client.active ? "opacity-60" : ""}`}
       >
-        <div className="flex flex-wrap items-center gap-2">
-          <p className="font-medium text-foreground">{client.name}</p>
-          <span
-            className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${
-              client.homeUser
-                ? "border-primary/40 text-primary"
-                : "border-sky-400/40 text-sky-300"
-            }`}
-          >
-            {client.homeUser
-              ? t("admin.accountTypeHousehold")
-              : t("admin.accountTypeBusiness")}
-          </span>
-          {standingBadge(client)}
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            <p className="truncate font-medium text-foreground">{client.name}</p>
+            {client.phone ? (
+              <p className="mt-0.5 text-xs text-muted">{client.phone}</p>
+            ) : null}
+            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+              {standingBadge(client)}
+              <span className="text-xs text-muted">
+                {t("admin.storesCount", {
+                  stores: client._count.stores,
+                  users: client._count.users,
+                })}
+              </span>
+            </div>
+          </div>
+          {standingDot(client)}
         </div>
-        {client.phone ? (
-          <p className="mt-1 text-xs text-muted">{client.phone}</p>
-        ) : null}
-        <p className="mt-1 text-xs text-muted">
-          {t("admin.storesCount", {
-            stores: client._count.stores,
-            users: client._count.users,
-          })}
-        </p>
       </button>
     );
   }
 
   return (
     <div>
-      <div className="mb-6">
-        <AdminTabBar
-          tabs={[
-            { id: "current" as const, label: t("admin.accountsList") },
-            { id: "new" as const, label: t("admin.newAccount") },
-            { id: "users" as const, label: t("admin.users") },
-          ]}
-          active={subview}
-          onChange={setSubview}
-        />
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="text-xl font-semibold text-foreground">
+            {accountKind === "household"
+              ? t("admin.householdNav")
+              : t("admin.accounts")}
+          </h2>
+          <p className="mt-1 text-sm text-muted">
+            {accountKind === "household"
+              ? t("admin.householdListHint")
+              : t("admin.accountsBusinessOnlyHint")}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setSubview("users")}
+            className={`rounded-xl border px-3 py-2 text-sm font-semibold ${
+              subview === "users"
+                ? "border-primary text-primary"
+                : "border-card-border text-foreground"
+            }`}
+          >
+            {t("admin.users")}
+          </button>
+          <button
+            type="button"
+            onClick={() => setSubview("new")}
+            className={`rounded-xl border px-3 py-2 text-sm font-semibold ${
+              subview === "new"
+                ? "border-primary text-primary"
+                : "border-primary text-primary"
+            }`}
+          >
+            {accountKind === "household"
+              ? t("admin.newHousehold")
+              : t("admin.newBusiness")}
+          </button>
+          {subview !== "current" ? (
+            <button
+              type="button"
+              onClick={() => setSubview("current")}
+              className="rounded-xl border border-card-border px-3 py-2 text-sm font-semibold text-foreground"
+            >
+              {t("admin.accountsList")}
+            </button>
+          ) : null}
+        </div>
       </div>
 
       {subview === "users" ? usersSlot : null}
 
       {subview === "new" ? (
         <div className="mx-auto max-w-md">
-          <AdminSection title={t("admin.newClient")}>
+          <AdminSection
+            title={
+              accountKind === "household"
+                ? t("admin.newHousehold")
+                : t("admin.newBusiness")
+            }
+          >
             <form className="space-y-4" onSubmit={createClient}>
               <AdminField label={t("common.name")}>
                 <input
@@ -531,27 +627,95 @@ export function ClientsPanel({
                   }
                 />
               </AdminField>
-              <AdminField label={t("admin.feePerStore")}>
-                <input
-                  className={adminInputClass}
-                  inputMode="decimal"
-                  value={newClient.monthlyFeePerStore}
-                  onChange={(event) =>
-                    setNewClient({ ...newClient, monthlyFeePerStore: event.target.value })
-                  }
-                />
-              </AdminField>
+              {accountKind === "business" ? (
+                <AdminField label={t("admin.feePerStore")}>
+                  <input
+                    className={adminInputClass}
+                    inputMode="decimal"
+                    value={newClient.monthlyFeePerStore}
+                    onChange={(event) =>
+                      setNewClient({
+                        ...newClient,
+                        monthlyFeePerStore: event.target.value,
+                      })
+                    }
+                  />
+                </AdminField>
+              ) : null}
               <PrimaryButton type="submit">{t("common.create")}</PrimaryButton>
             </form>
           </AdminSection>
         </div>
       ) : subview === "current" ? (
-        <div className="grid min-w-0 gap-6 md:grid-cols-12">
-          <div className="min-w-0 md:col-span-4">
-            <AdminSection title={t("admin.accountsList")}>
-              <p className="-mt-2 mb-4 text-xs text-muted">
-                {t("admin.accountsListHint")}
-              </p>
+        <>
+          {accountKind === "business" ? (
+            <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <div className="rounded-xl border border-card-border px-3 py-2.5">
+                <p className="text-[11px] text-muted">{t("admin.statBusinessAccounts")}</p>
+                <p className="mt-1 text-xl font-semibold text-foreground">
+                  {visibleClients.length}
+                </p>
+              </div>
+              <div className="rounded-xl border border-card-border px-3 py-2.5">
+                <p className="text-[11px] text-muted">{t("admin.statLiveLocations")}</p>
+                <p className="mt-1 text-xl font-semibold text-primary">{liveLocations}</p>
+              </div>
+              <div className="rounded-xl border border-card-border px-3 py-2.5">
+                <p className="text-[11px] text-muted">{t("admin.statPaymentOverdue")}</p>
+                <p className="mt-1 text-xl font-semibold text-error">
+                  {overdueClients.length}
+                </p>
+              </div>
+              <div className="rounded-xl border border-card-border px-3 py-2.5">
+                <p className="text-[11px] text-muted">{t("admin.statOpenSupport")}</p>
+                <p className="mt-1 text-xl font-semibold text-warning-fg">
+                  {supportNewCount}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
+              <div className="rounded-xl border border-card-border px-3 py-2.5">
+                <p className="text-[11px] text-muted">{t("admin.statHouseholds")}</p>
+                <p className="mt-1 text-xl font-semibold text-foreground">
+                  {visibleClients.length}
+                </p>
+              </div>
+              <div className="rounded-xl border border-card-border px-3 py-2.5">
+                <p className="text-[11px] text-muted">{t("common.active")}</p>
+                <p className="mt-1 text-xl font-semibold text-primary">
+                  {visibleClients.filter((client) => client.active).length}
+                </p>
+              </div>
+              <div className="rounded-xl border border-card-border px-3 py-2.5">
+                <p className="text-[11px] text-muted">{t("admin.statInactive")}</p>
+                <p className="mt-1 text-xl font-semibold text-foreground">
+                  {visibleClients.filter((client) => !client.active).length}
+                </p>
+              </div>
+            </div>
+          )}
+
+          <div className="grid min-w-0 gap-6 lg:grid-cols-12">
+          <div className="min-w-0 lg:col-span-4">
+            <AdminSection
+              title={
+                accountKind === "household"
+                  ? t("admin.householdNav")
+                  : t("admin.accountsList")
+              }
+            >
+              <span
+                className={`mb-3 inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                  accountKind === "household"
+                    ? "border-primary/40 text-primary"
+                    : "border-sky-400/40 text-sky-300"
+                }`}
+              >
+                {accountKind === "household"
+                  ? t("admin.accountTypeHousehold")
+                  : t("admin.accountTypeBusiness")}
+              </span>
               <form
                 className="mb-4 flex gap-2"
                 onSubmit={(event) => {
@@ -572,40 +736,73 @@ export function ClientsPanel({
                   {t("common.search")}
                 </button>
               </form>
-              <div className="max-h-[28rem] space-y-4 overflow-y-auto">
-                {clients.length === 0 ? (
+              <div className="max-h-[28rem] space-y-2 overflow-y-auto">
+                {visibleClients.length === 0 ? (
                   <AdminEmptyState message={t("admin.noClientsFound")} />
                 ) : (
-                  <>
-                    {businessClients.length > 0 ? (
-                      <div className="space-y-2">
-                        <p className="sticky top-0 z-[1] bg-background px-0.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-sky-300">
-                          {t("admin.accountsBusinessSection", {
-                            count: businessClients.length,
-                          })}
-                        </p>
-                        {businessClients.map((client) => renderAccountCard(client))}
-                      </div>
-                    ) : null}
-                    {householdClients.length > 0 ? (
-                      <div className="space-y-2">
-                        <p className="sticky top-0 z-[1] bg-background px-0.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-primary">
-                          {t("admin.accountsHouseholdSection", {
-                            count: householdClients.length,
-                          })}
-                        </p>
-                        {householdClients.map((client) => renderAccountCard(client))}
-                      </div>
-                    ) : null}
-                  </>
+                  visibleClients.map((client) => renderAccountCard(client))
                 )}
               </div>
             </AdminSection>
           </div>
 
-          <div className="min-w-0 md:col-span-8">
+          <div className="min-w-0 lg:col-span-8">
             {!selectedId ? (
-              <AdminEmptyState message={t("admin.selectAccount")} />
+              <div className="rounded-2xl border border-card-border bg-background p-5">
+                <h3 className="text-base font-semibold text-foreground">
+                  {accountKind === "household"
+                    ? t("admin.selectHousehold")
+                    : t("admin.selectBusiness")}
+                </h3>
+                <p className="mt-1 text-sm text-muted">
+                  {accountKind === "household"
+                    ? t("admin.selectHouseholdHint")
+                    : t("admin.selectBusinessHint")}
+                </p>
+                {accountKind === "business" &&
+                (overdueClients.length > 0 ||
+                  watchClients.length > 0 ||
+                  supportNewCount > 0) ? (
+                  <div className="mt-4 overflow-hidden rounded-xl border border-card-border">
+                    <p className="border-b border-card-border px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-muted">
+                      {t("admin.needsAttention")}
+                    </p>
+                    <ul>
+                      {overdueClients.slice(0, 5).map((client) => (
+                        <li key={client.id}>
+                          <button
+                            type="button"
+                            className="flex w-full items-center justify-between gap-3 border-b border-card-border px-3 py-2.5 text-left text-sm last:border-b-0 hover:bg-selected/40"
+                            onClick={() => {
+                              selectClient(client);
+                              setDetailTab("billing");
+                            }}
+                          >
+                            <span className="min-w-0 truncate text-foreground">
+                              {client.name}
+                            </span>
+                            <span className="shrink-0 text-[11px] font-semibold text-error">
+                              {t("admin.hubBilling")}
+                            </span>
+                          </button>
+                        </li>
+                      ))}
+                      {supportNewCount > 0 ? (
+                        <li className="flex items-center justify-between gap-3 px-3 py-2.5 text-sm text-muted">
+                          <span>
+                            {t("admin.attentionSupport", {
+                              count: supportNewCount,
+                            })}
+                          </span>
+                          <span className="text-[11px] font-semibold text-error">
+                            {t("support.navLabel")}
+                          </span>
+                        </li>
+                      ) : null}
+                    </ul>
+                  </div>
+                ) : null}
+              </div>
             ) : (
               <div className="rounded-2xl border border-card-border bg-background p-5">
                 <p className="mb-4 text-lg font-semibold text-foreground">
@@ -911,6 +1108,7 @@ export function ClientsPanel({
             )}
           </div>
         </div>
+        </>
       ) : null}
     </div>
   );

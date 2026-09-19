@@ -364,6 +364,7 @@ const DEFAULT_OPENAI_MODEL = "gpt-4o-mini";
 /** Tried in order when the preferred model is busy / unavailable. */
 const GEMINI_MODEL_FALLBACKS = [
   "gemini-3-flash-preview",
+  "gemini-3.5-flash-lite",
   "gemini-3.1-flash-lite",
   "gemini-3.5-flash",
   "gemini-3.6-flash",

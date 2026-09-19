@@ -403,12 +403,142 @@
       color: #71717a;
       max-width: 1120px;
     }
+    .type-pill {
+      display: inline-flex;
+      align-items: center;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      color: var(--primary);
+      border: 1px solid var(--primary-border);
+      border-radius: 999px;
+      padding: 3px 8px;
+      margin-bottom: 8px;
+    }
+    .type-pill.home {
+      color: var(--blue);
+      border-color: rgba(147, 197, 253, 0.35);
+    }
+
+    /* —— Mobile phone frame —— */
+    .phones {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      align-items: flex-start;
+    }
+    .phone {
+      width: 320px;
+      border: 1px solid var(--border);
+      border-radius: 28px;
+      overflow: hidden;
+      background: var(--bg);
+      box-shadow: 0 18px 50px rgba(0,0,0,.45);
+    }
+    .phone-notch {
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #0a0a0b;
+      border-bottom: 1px solid var(--border);
+      font-size: 10px;
+      color: #71717a;
+    }
+    .phone-body {
+      min-height: 560px;
+      display: flex;
+      flex-direction: column;
+    }
+    .m-top {
+      padding: 12px 14px 10px;
+      border-bottom: 1px solid var(--border);
+    }
+    .m-top h2 { margin: 0; font-size: 1.15rem; letter-spacing: -0.02em; }
+    .m-top p { margin: 4px 0 0; font-size: 11px; color: var(--muted); }
+    .m-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      padding: 10px 12px;
+    }
+    .m-stats .stat { padding: 10px; }
+    .m-stats .stat .v { font-size: 18px; }
+    .m-scroll {
+      flex: 1;
+      overflow: auto;
+      padding: 0 12px 12px;
+    }
+    .m-actions {
+      display: flex;
+      gap: 8px;
+      padding: 0 12px 10px;
+    }
+    .m-actions .btn { flex: 1; justify-content: center; }
+    .m-bottom {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      border-top: 1px solid var(--border);
+      background: #0a0a0b;
+      padding: 6px 4px calc(8px + env(safe-area-inset-bottom, 0px));
+    }
+    .m-bottom span {
+      text-align: center;
+      font-size: 9px;
+      font-weight: 600;
+      color: var(--muted);
+      padding: 6px 2px;
+      line-height: 1.25;
+    }
+    .m-bottom span.on { color: var(--primary); }
+    .m-bottom .ico-line {
+      display: block;
+      font-size: 12px;
+      margin-bottom: 2px;
+    }
+    .m-back {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 12px;
+      color: var(--primary);
+      font-weight: 600;
+      margin-bottom: 8px;
+      border: 0;
+      background: transparent;
+      padding: 0;
+      cursor: default;
+    }
+    .m-detail { padding: 12px 14px 16px; }
+    .m-tabs {
+      display: flex;
+      gap: 2px;
+      overflow-x: auto;
+      border-bottom: 1px solid var(--border);
+      margin: 0 -14px 12px;
+      padding: 0 10px;
+    }
+    .m-tabs span {
+      flex: 0 0 auto;
+      padding: 8px 10px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--muted);
+      border-bottom: 2px solid transparent;
+      white-space: nowrap;
+    }
+    .m-tabs span.on {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+    }
 
     @media (max-width: 900px) {
       .shell { flex-direction: column; }
       .rail { width: 100%; border-right: 0; border-bottom: 1px solid var(--border); }
       .workspace { grid-template-columns: 1fr; }
       .stats { grid-template-columns: 1fr 1fr; }
+      .desktop { width: 100%; }
     }
   </style>
 </head>
@@ -416,25 +546,27 @@
   <span class="badge">Mockup · not live</span>
   <h1>Admin panel — cleaner workspace</h1>
   <p class="lead">
-    Same expire365 dark + mint language. Fixes the double “Accounts” tabs, the huge empty
-    “Select an account” void, and the flat card-only list with no portfolio context.
+    Business accounts stay on <strong>Accounts</strong>. Households live in a separate
+    <strong>Household</strong> section — never mixed in the same list. Desktop + mobile layouts below.
   </p>
 
   <div class="note">
     <strong>What this mockup changes (vs current)</strong>
     <ul>
-      <li><em>Left rail</em> for primary sections (Accounts, Payments, Items…) — one nav, not two stacked “Accounts”.</li>
-      <li><em>Portfolio strip</em> always visible: accounts, locations, overdue, open support.</li>
-      <li>List uses <em>Business | Household | Users</em> as a segment control; <em>New account</em> is a primary button.</li>
-      <li>Standing shown as a <em>color dot</em> (green / yellow / red / grey) instead of repeating text chips only.</li>
-      <li>When nothing is selected: <em>Needs attention</em> shortcuts instead of an empty dashed box.</li>
-      <li>When selected: Overview / Locations / People / Billing stay as in-panel tabs (same IA you already have).</li>
+      <li><em>Left rail</em> (desktop) / <em>bottom nav</em> (mobile) for primary sections.</li>
+      <li><em>Accounts = business only</em> — no Household toggle next to Business.</li>
+      <li><em>Household</em> is its own nav destination (simpler list: homes, not shops).</li>
+      <li><em>Portfolio strip</em> on Accounts: business counts, locations, overdue, support.</li>
+      <li>When nothing selected: <em>Needs attention</em> instead of an empty dashed box.</li>
+      <li>When selected: Overview / Locations / People / Billing (business hub).</li>
     </ul>
   </div>
 
   <div class="toggle">
-    <button type="button" class="on" id="btn-a" onclick="show('a')">A · Portfolio (nothing selected)</button>
-    <button type="button" id="btn-b" onclick="show('b')">B · Account selected</button>
+    <button type="button" class="on" id="btn-a" onclick="show('a')">A · Desktop · Business list</button>
+    <button type="button" id="btn-b" onclick="show('b')">B · Desktop · Account open</button>
+    <button type="button" id="btn-c" onclick="show('c')">C · Desktop · Household</button>
+    <button type="button" id="btn-m" onclick="show('m')">M · Mobile</button>
   </div>
 
   <!-- A -->
@@ -442,7 +574,7 @@
     <div class="desktop">
       <div class="chrome">
         <span class="dot"></span><span class="dot"></span><span class="dot"></span>
-        <span class="url">expire365.com/admin</span>
+        <span class="url">expire365.com/admin · Accounts</span>
       </div>
       <div class="shell">
         <aside class="rail">
@@ -451,6 +583,7 @@
             <div class="name">expire<span>365</span></div>
           </div>
           <div class="nav-item active"><span class="ico">◆</span> Accounts</div>
+          <div class="nav-item"><span class="ico">◇</span> Household</div>
           <div class="nav-item"><span class="ico">◇</span> Payments</div>
           <div class="nav-item"><span class="ico">◇</span> Items</div>
           <div class="nav-item"><span class="ico">◇</span> Support <span style="margin-left:auto;font-size:10px;color:var(--danger)">3</span></div>
@@ -464,11 +597,11 @@
           <div class="topbar">
             <div>
               <h2>Accounts</h2>
-              <p>Business and household clients · open one for locations, people, billing</p>
+              <p>Business clients only · open one for locations, people, billing</p>
             </div>
             <div class="actions">
               <button class="btn" type="button">All users</button>
-              <button class="btn primary" type="button">+ New account</button>
+              <button class="btn primary" type="button">+ New business</button>
             </div>
           </div>
           <div class="stats">
@@ -480,12 +613,9 @@
           <div class="workspace">
             <div class="list">
               <div class="list-tools">
-                <div class="seg">
-                  <span class="on">Business</span>
-                  <span>Household</span>
-                </div>
+                <span class="type-pill">Business</span>
                 <div class="search">
-                  <input placeholder="Search name, phone…" />
+                  <input placeholder="Search business name, phone…" />
                   <button class="btn primary" type="button">Search</button>
                 </div>
               </div>
@@ -536,8 +666,8 @@
             <div class="detail">
               <div class="empty-detail">
                 <div>
-                  <h3>Pick an account to manage</h3>
-                  <p>Or jump into what needs you today — overdue billing and support stay one click away.</p>
+                  <h3>Pick a business to manage</h3>
+                  <p>Households are under <em style="color:var(--blue);font-style:normal">Household</em> in the left rail — they never appear in this list.</p>
                 </div>
                 <div class="attention">
                   <h4>Needs attention</h4>
@@ -551,7 +681,7 @@
         </div>
       </div>
     </div>
-    <p class="caption">A — Default Accounts landing: portfolio stats + attention list instead of an empty panel.</p>
+    <p class="caption">A — Accounts = business only. No Household segment in this list.</p>
   </div>
 
   <!-- B -->
@@ -568,6 +698,7 @@
             <div class="name">expire<span>365</span></div>
           </div>
           <div class="nav-item active"><span class="ico">◆</span> Accounts</div>
+          <div class="nav-item"><span class="ico">◇</span> Household</div>
           <div class="nav-item"><span class="ico">◇</span> Payments</div>
           <div class="nav-item"><span class="ico">◇</span> Items</div>
           <div class="nav-item"><span class="ico">◇</span> Support</div>
@@ -580,11 +711,11 @@
           <div class="topbar">
             <div>
               <h2>Accounts</h2>
-              <p>Business and household clients · open one for locations, people, billing</p>
+              <p>Business clients only · open one for locations, people, billing</p>
             </div>
             <div class="actions">
               <button class="btn" type="button">All users</button>
-              <button class="btn primary" type="button">+ New account</button>
+              <button class="btn primary" type="button">+ New business</button>
             </div>
           </div>
           <div class="stats">
@@ -596,10 +727,7 @@
           <div class="workspace">
             <div class="list">
               <div class="list-tools">
-                <div class="seg">
-                  <span class="on">Business</span>
-                  <span>Household</span>
-                </div>
+                <span class="type-pill">Business</span>
                 <div class="search">
                   <input value="Gabriela" />
                   <button class="btn primary" type="button">Search</button>
@@ -675,7 +803,231 @@
         </div>
       </div>
     </div>
-    <p class="caption">B — Selected account: same master–detail pattern, clearer hierarchy, no redundant top tabs.</p>
+    <p class="caption">B — Selected business account. Household still not in this list.</p>
+  </div>
+
+  <!-- C Household -->
+  <div class="screen" id="screen-c">
+    <div class="desktop">
+      <div class="chrome">
+        <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+        <span class="url">expire365.com/admin · Household</span>
+      </div>
+      <div class="shell">
+        <aside class="rail">
+          <div class="brand">
+            <div class="eyebrow">Admin</div>
+            <div class="name">expire<span>365</span></div>
+          </div>
+          <div class="nav-item"><span class="ico">◇</span> Accounts</div>
+          <div class="nav-item active"><span class="ico">◆</span> Household</div>
+          <div class="nav-item"><span class="ico">◇</span> Payments</div>
+          <div class="nav-item"><span class="ico">◇</span> Items</div>
+          <div class="nav-item"><span class="ico">◇</span> Support</div>
+          <div class="nav-item"><span class="ico">◇</span> What’s new</div>
+          <div class="nav-sep"></div>
+          <div class="nav-item"><span class="ico">◇</span> Minimart</div>
+          <div class="nav-item"><span class="ico">◇</span> Audit log</div>
+        </aside>
+        <div class="main">
+          <div class="topbar">
+            <div>
+              <h2>Household</h2>
+              <p>Home accounts only · separate from business clients</p>
+            </div>
+            <div class="actions">
+              <button class="btn primary" type="button">+ New household</button>
+            </div>
+          </div>
+          <div class="stats" style="grid-template-columns: repeat(3, 1fr)">
+            <div class="stat"><div class="k">Households</div><div class="v">24</div></div>
+            <div class="stat"><div class="k">Active</div><div class="v ok">22</div></div>
+            <div class="stat"><div class="k">Inactive</div><div class="v">2</div></div>
+          </div>
+          <div class="workspace" style="grid-template-columns: 1fr">
+            <div class="list" style="border-right:0; max-width:560px">
+              <div class="list-tools">
+                <span class="type-pill home">Household</span>
+                <div class="search">
+                  <input placeholder="Search household name…" />
+                  <button class="btn primary" type="button">Search</button>
+                </div>
+              </div>
+              <div class="rows">
+                <div class="group">Household · 24</div>
+                <div class="acct">
+                  <div class="acct-top">
+                    <div class="acct-name">ivanova.home</div>
+                    <span class="standing green"></span>
+                  </div>
+                  <div class="meta"><span>1 space</span><span>2 users</span></div>
+                </div>
+                <div class="acct">
+                  <div class="acct-top">
+                    <div class="acct-name">petrov.family</div>
+                    <span class="standing green"></span>
+                  </div>
+                  <div class="meta"><span>1 space</span><span>1 user</span></div>
+                </div>
+                <div class="acct">
+                  <div class="acct-top">
+                    <div class="acct-name">demo.home</div>
+                    <span class="standing off"></span>
+                  </div>
+                  <div class="meta"><span class="chip">Inactive</span><span>1 space</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="caption">C — Household is a separate section. No business shops mixed in.</p>
+  </div>
+
+  <!-- M Mobile -->
+  <div class="screen" id="screen-m">
+    <div class="phones">
+      <div>
+        <div class="phone">
+          <div class="phone-notch">expire365 · admin</div>
+          <div class="phone-body">
+            <div class="m-top">
+              <h2>Accounts</h2>
+              <p>Business only</p>
+            </div>
+            <div class="m-stats">
+              <div class="stat"><div class="k">Business</div><div class="v">8</div></div>
+              <div class="stat"><div class="k">Overdue</div><div class="v bad">1</div></div>
+            </div>
+            <div class="m-actions">
+              <button class="btn primary" type="button">+ New business</button>
+            </div>
+            <div class="m-scroll">
+              <span class="type-pill">Business</span>
+              <div class="search" style="margin-bottom:10px">
+                <input placeholder="Search…" />
+              </div>
+              <div class="acct">
+                <div class="acct-top">
+                  <div class="acct-name">Gabriela MiniMart</div>
+                  <span class="standing off"></span>
+                </div>
+                <div class="meta"><span>2 loc</span><span>3 users</span></div>
+              </div>
+              <div class="acct">
+                <div class="acct-top">
+                  <div class="acct-name">dani</div>
+                  <span class="standing yellow"></span>
+                </div>
+                <div class="meta"><span>1 loc</span><span>unpaid</span></div>
+              </div>
+              <div class="acct">
+                <div class="acct-top">
+                  <div class="acct-name">viktor</div>
+                  <span class="standing red"></span>
+                </div>
+                <div class="meta"><span class="chip">Overdue</span></div>
+              </div>
+            </div>
+            <div class="m-bottom">
+              <span class="on"><span class="ico-line">◆</span>Accounts</span>
+              <span><span class="ico-line">⌂</span>Home</span>
+              <span><span class="ico-line">€</span>Pay</span>
+              <span><span class="ico-line">?</span>Support</span>
+              <span><span class="ico-line">⋯</span>More</span>
+            </div>
+          </div>
+        </div>
+        <p class="caption">M1 — Business list. Bottom nav: Household under “Home” / More, not in this list.</p>
+      </div>
+
+      <div>
+        <div class="phone">
+          <div class="phone-notch">expire365 · admin</div>
+          <div class="phone-body">
+            <div class="m-detail">
+              <button class="m-back" type="button">← Accounts</button>
+              <h2 style="margin:0;font-size:1.2rem">Gabriela MiniMart</h2>
+              <p style="margin:4px 0 0;font-size:11px;color:var(--muted)">Business · payments off</p>
+              <div class="m-tabs">
+                <span class="on">Overview</span>
+                <span>Locations</span>
+                <span>People</span>
+                <span>Billing</span>
+              </div>
+              <div class="grid2">
+                <div class="panel">
+                  <div class="label">Standing</div>
+                  <div class="value mint">Payments off</div>
+                </div>
+                <div class="panel">
+                  <div class="label">Locations</div>
+                  <div class="value">2</div>
+                </div>
+              </div>
+              <div class="panel" style="margin-top:10px">
+                <div class="label" style="margin-bottom:6px">Locations</div>
+                <div class="loc"><span>Store 1030</span><span class="chip">active</span></div>
+                <div class="loc"><span>Store Center</span><span class="chip">active</span></div>
+              </div>
+              <button class="btn primary" type="button" style="width:100%;margin-top:12px;justify-content:center">Edit account</button>
+            </div>
+            <div class="m-bottom" style="margin-top:auto">
+              <span class="on"><span class="ico-line">◆</span>Accounts</span>
+              <span><span class="ico-line">⌂</span>Home</span>
+              <span><span class="ico-line">€</span>Pay</span>
+              <span><span class="ico-line">?</span>Support</span>
+              <span><span class="ico-line">⋯</span>More</span>
+            </div>
+          </div>
+        </div>
+        <p class="caption">M2 — Account detail as a full-screen stack (list → detail), not side-by-side.</p>
+      </div>
+
+      <div>
+        <div class="phone">
+          <div class="phone-notch">expire365 · admin</div>
+          <div class="phone-body">
+            <div class="m-top">
+              <h2>Household</h2>
+              <p>Home accounts only</p>
+            </div>
+            <div class="m-actions">
+              <button class="btn primary" type="button">+ New household</button>
+            </div>
+            <div class="m-scroll">
+              <span class="type-pill home">Household</span>
+              <div class="search" style="margin-bottom:10px">
+                <input placeholder="Search…" />
+              </div>
+              <div class="acct">
+                <div class="acct-top">
+                  <div class="acct-name">ivanova.home</div>
+                  <span class="standing green"></span>
+                </div>
+                <div class="meta"><span>2 users</span></div>
+              </div>
+              <div class="acct">
+                <div class="acct-top">
+                  <div class="acct-name">petrov.family</div>
+                  <span class="standing green"></span>
+                </div>
+                <div class="meta"><span>1 user</span></div>
+              </div>
+            </div>
+            <div class="m-bottom">
+              <span><span class="ico-line">◆</span>Accounts</span>
+              <span class="on"><span class="ico-line">⌂</span>Home</span>
+              <span><span class="ico-line">€</span>Pay</span>
+              <span><span class="ico-line">?</span>Support</span>
+              <span><span class="ico-line">⋯</span>More</span>
+            </div>
+          </div>
+        </div>
+        <p class="caption">M3 — Household on its own mobile tab — never listed under Accounts.</p>
+      </div>
+    </div>
   </div>
 
   <div class="note" style="margin-top:28px">
@@ -683,16 +1035,16 @@
     <ul>
       <li>Collapse the stats strip once an account is open (more room for Billing).</li>
       <li>Sort Business list by standing (red first) — you already do this on Payments.</li>
-      <li>Keep horizontal top tabs if you prefer no left rail — but then drop the second “Accounts / New / Users” row and put New + Users in the page header only.</li>
+      <li>On mobile, “More” can hold Minimart, Audit, What’s new, Items.</li>
     </ul>
   </div>
 
   <script>
     function show(which) {
-      document.getElementById("screen-a").classList.toggle("show", which === "a");
-      document.getElementById("screen-b").classList.toggle("show", which === "b");
-      document.getElementById("btn-a").classList.toggle("on", which === "a");
-      document.getElementById("btn-b").classList.toggle("on", which === "b");
+      ["a", "b", "c", "m"].forEach(function (id) {
+        document.getElementById("screen-" + id).classList.toggle("show", which === id);
+        document.getElementById("btn-" + id).classList.toggle("on", which === id);
+      });
     }
   </script>
 </body>

@@ -81,7 +81,7 @@ function standingRowClass(standing: PaymentStanding, selected: boolean): string 
 export function PaymentsPanel({
   onOpenAccount,
 }: {
-  onOpenAccount?: (clientId: string) => void;
+  onOpenAccount?: (clientId: string, homeUser?: boolean) => void;
 } = {}) {
   const { t, monthName } = useT();
   const now = new Date();
@@ -447,7 +447,12 @@ export function PaymentsPanel({
                     <button
                       type="button"
                       className="mt-3 text-sm font-semibold text-primary"
-                      onClick={() => onOpenAccount(detail.client.id)}
+                      onClick={() =>
+                        onOpenAccount(
+                          detail.client.id,
+                          detail.client.homeUser,
+                        )
+                      }
                     >
                       {t("admin.openAccountBilling")}
                     </button>
