@@ -13,6 +13,14 @@ export type WhatsNewCatalogEntry = {
 
 export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
   {
+    key: "2026-09-team-sheet-wizard",
+    titleEn:
+      "Team: list people first, then add or edit in one compact sheet (account, role, stores).",
+    titleBg:
+      "Екип: първо списък с хора, после добавяне/редакция в един компактен лист (акаунт, роля, обекти).",
+    href: "/app/team",
+  },
+  {
     key: "2026-09-push-follows-language",
     titleEn:
       "Expiry alert language follows your app language when you switch EN/BG.",

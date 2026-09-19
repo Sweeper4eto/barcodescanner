@@ -1,17 +1,22 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { PrimaryButton } from "@/components/auth-forms";
 import { CancelButton } from "@/components/cancel-button";
-import { ConfirmButton } from "@/components/confirm-button";
-import { BackArrowIcon, RegisterIcon, TrashIcon } from "@/components/app-nav-icons";
 import { LoadingSpinner, LoadingSpinnerBlock } from "@/components/loading-spinner";
-import { appButtonCancelFull, appButtonDangerFull } from "@/lib/app-ui";
 import { MobilePageHeader } from "@/components/mobile-page-header";
-import { MenuSelect } from "@/components/menu-select";
+import { TrashIcon } from "@/components/app-nav-icons";
 import { useT } from "@/components/i18n-provider";
-import { navigateApp } from "@/lib/app-navigation";
-import { passwordsMatch } from "@/lib/register-validation";
+import { useViewportInsets } from "@/hooks/use-viewport-insets";
+import {
+  appButtonDangerFull,
+  appButtonNeutral,
+  appButtonPrimary,
+  appButtonPrimaryFull,
+  appChromeInset,
+  appFooterButtonGrid,
+  appListInset,
+  appPageShell,
+} from "@/lib/app-ui";
 
 type Store = { id: string; name: string; active: boolean };
 type TeamUser = {
@@ -22,6 +27,8 @@ type TeamUser = {
   clientRole: "OWNER" | "MEMBER" | null;
   stores: Store[];
 };
+
+type SheetMode = "create" | "edit";
 
 function initials(username: string): string {
   const parts = username.trim().split(/[\s._-]+/).filter(Boolean);
@@ -50,16 +57,6 @@ function EyeOffIcon({ className = "size-4" }: { className?: string }) {
   );
 }
 
-function PencilIcon({ className = "size-4" }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden>
-      <path d="M12 20h9" strokeLinecap="round" />
-      <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-/** Crown — owner */
 function OwnerRoleIcon({ className = "size-4" }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden>
@@ -69,7 +66,6 @@ function OwnerRoleIcon({ className = "size-4" }: { className?: string }) {
   );
 }
 
-/** Person — staff */
 function StaffRoleIcon({ className = "size-4" }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden>
@@ -79,8 +75,76 @@ function StaffRoleIcon({ className = "size-4" }: { className?: string }) {
   );
 }
 
+function ChevronIcon({ className = "size-4" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden>
+      <path d="M9 6l6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function PasswordField({
+  label,
+  value,
+  onChange,
+  placeholder,
+  show,
+  onToggleShow,
+  showLabel,
+  hideLabel,
+  error,
+  errorId,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+  show: boolean;
+  onToggleShow: () => void;
+  showLabel: string;
+  hideLabel: string;
+  error?: string;
+  errorId?: string;
+}) {
+  return (
+    <label className="block text-sm font-medium text-foreground">
+      {label}
+      <span className="relative mt-0.5 block">
+        <input
+          type={show ? "text" : "password"}
+          className={`w-full rounded-xl border bg-input px-3 py-2 pr-11 text-base text-foreground ${
+            error
+              ? "border-error focus:border-error focus:ring-1 focus:ring-error/40"
+              : "border-input-border outline-none focus:border-primary focus:ring-1 focus:ring-primary/40"
+          }`}
+          value={value}
+          placeholder={placeholder}
+          onChange={(event) => onChange(event.target.value)}
+          autoComplete="new-password"
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? errorId : undefined}
+        />
+        <button
+          type="button"
+          className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-muted hover:text-foreground"
+          aria-label={show ? hideLabel : showLabel}
+          onClick={onToggleShow}
+        >
+          {show ? <EyeIcon /> : <EyeOffIcon />}
+        </button>
+      </span>
+      {error ? (
+        <p id={errorId} className="mt-0.5 text-xs text-error">
+          {error}
+        </p>
+      ) : null}
+    </label>
+  );
+}
+
 export default function TeamPage() {
   const { t } = useT();
+  const { offsetTop, keyboardInset } = useViewportInsets();
   const usernameRef = useRef<HTMLInputElement>(null);
 
   const [users, setUsers] = useState<TeamUser[]>([]);
@@ -89,25 +153,17 @@ export default function TeamPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [sheetMode, setSheetMode] = useState<SheetMode>("create");
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
+
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [role, setRole] = useState<"OWNER" | "MEMBER">("MEMBER");
   const [storeIds, setStoreIds] = useState<string[]>([]);
-  const [storeSearch, setStoreSearch] = useState("");
-  const [storesOpen, setStoresOpen] = useState(true);
   const [saving, setSaving] = useState(false);
-
-  const [editingUserId, setEditingUserId] = useState<string | null>(null);
-  const [editUsername, setEditUsername] = useState("");
-  const [editPassword, setEditPassword] = useState("");
-  const [editConfirmPassword, setEditConfirmPassword] = useState("");
-  const [showEditPassword, setShowEditPassword] = useState(false);
-  const [showEditConfirmPassword, setShowEditConfirmPassword] = useState(false);
-  const [editStoreIds, setEditStoreIds] = useState<string[]>([]);
-  const [editSaving, setEditSaving] = useState(false);
 
   const [deleteTarget, setDeleteTarget] = useState<TeamUser | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -117,37 +173,14 @@ export default function TeamPage() {
     [stores],
   );
 
-  const filteredStores = useMemo(() => {
-    const q = storeSearch.trim().toLowerCase();
-    if (!q) return activeStores;
-    return activeStores.filter((store) => store.name.toLowerCase().includes(q));
-  }, [activeStores, storeSearch]);
+  const allStoresSelected =
+    activeStores.length > 0 && storeIds.length >= activeStores.length;
 
-  const addPasswordError = useMemo(() => {
+  const passwordError = useMemo(() => {
     if (!password) return "";
     if (password.length < 6) return t("auth.passwordTooShort");
     return "";
   }, [password, t]);
-
-  const addConfirmPasswordError = useMemo(() => {
-    if (!confirmPassword) return "";
-    if (!passwordsMatch(password, confirmPassword)) return t("auth.passwordMismatch");
-    return "";
-  }, [password, confirmPassword, t]);
-
-  const editPasswordError = useMemo(() => {
-    if (!editPassword) return "";
-    if (editPassword.length < 6) return t("auth.passwordTooShort");
-    return "";
-  }, [editPassword, t]);
-
-  const editConfirmPasswordError = useMemo(() => {
-    if (!editPassword && !editConfirmPassword) return "";
-    if (!passwordsMatch(editPassword, editConfirmPassword)) {
-      return t("auth.passwordMismatch");
-    }
-    return "";
-  }, [editPassword, editConfirmPassword, t]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -165,65 +198,93 @@ export default function TeamPage() {
     }
     setUsers(data.users ?? []);
     setStores(data.stores ?? []);
-    const activeStoreIds = (data.stores as Store[] | undefined)
-      ?.filter((store) => store.active)
-      .map((store) => store.id);
-    if (activeStoreIds?.length) {
-      setStoreIds((current) => (current.length ? current : [activeStoreIds[0]!]));
-    }
   }, [t]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
-  function storesLabel(userStores: Store[]): string {
-    if (activeStores.length > 0 && userStores.length >= activeStores.length) {
-      return t("team.allStores");
-    }
-    if (userStores.length === 1) return t("team.storeCountOne");
-    if (userStores.length === 0) return "—";
-    return t("team.storeCount", { count: String(userStores.length) });
+  useEffect(() => {
+    if (!sheetOpen) return;
+    const timer = window.setTimeout(() => usernameRef.current?.focus(), 50);
+    return () => window.clearTimeout(timer);
+  }, [sheetOpen, sheetMode]);
+
+  function hasAllStores(userStores: Store[]): boolean {
+    return activeStores.length > 0 && userStores.length >= activeStores.length;
   }
 
-  function storesTriggerLabel(): string {
-    if (storeIds.length === 0) return t("team.storesPlaceholder");
-    if (activeStores.length > 0 && storeIds.length >= activeStores.length) {
-      return t("team.allStores");
-    }
-    if (storeIds.length === 1) return t("team.storeCountOne");
-    return t("team.storeCount", { count: String(storeIds.length) });
+  function resetForm(defaults?: { storeIds?: string[] }) {
+    setUsername("");
+    setPassword("");
+    setShowPassword(false);
+    setRole("MEMBER");
+    setStoreIds(
+      defaults?.storeIds?.length
+        ? defaults.storeIds
+        : activeStores[0]
+          ? [activeStores[0].id]
+          : [],
+    );
+    setEditingUserId(null);
+  }
+
+  function openCreate() {
+    setSheetMode("create");
+    resetForm();
+    setError("");
+    setMessage("");
+    setSheetOpen(true);
   }
 
   function openEdit(user: TeamUser) {
+    setSheetMode("edit");
     setEditingUserId(user.id);
-    setEditUsername(user.username);
-    setEditPassword("");
-    setEditConfirmPassword("");
-    setShowEditPassword(false);
-    setShowEditConfirmPassword(false);
-    setEditStoreIds(user.stores.map((store) => store.id));
+    setUsername(user.username);
+    setPassword("");
+    setShowPassword(false);
+    setRole(user.clientRole === "OWNER" ? "OWNER" : "MEMBER");
+    setStoreIds(user.stores.map((store) => store.id));
     setError("");
     setMessage("");
+    setSheetOpen(true);
   }
 
-  function closeEdit() {
-    setEditingUserId(null);
-    setEditUsername("");
-    setEditPassword("");
-    setEditConfirmPassword("");
-    setEditStoreIds([]);
+  function closeSheet() {
+    if (saving) return;
+    setSheetOpen(false);
+    resetForm();
   }
 
-  async function createUser() {
-    setSaving(true);
-    setMessage("");
-    setError("");
-    if (password !== confirmPassword) {
-      setSaving(false);
-      setError(t("auth.passwordMismatch"));
+  function toggleStore(id: string) {
+    setStoreIds((current) =>
+      current.includes(id)
+        ? current.filter((storeId) => storeId !== id)
+        : [...current, id],
+    );
+  }
+
+  function toggleAllStores() {
+    if (allStoresSelected) {
+      setStoreIds([]);
       return;
     }
+    setStoreIds(activeStores.map((store) => store.id));
+  }
+
+  function formValid(): boolean {
+    if (username.trim().length < 3) return false;
+    if (passwordError) return false;
+    if (storeIds.length === 0) return false;
+    if (sheetMode === "create") return password.length >= 6;
+    if (password) return password.length >= 6;
+    return true;
+  }
+
+  async function submitCreate() {
+    setSaving(true);
+    setError("");
+    setMessage("");
     const response = await fetch("/api/team/users", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -240,68 +301,38 @@ export default function TeamPage() {
       setError(data?.error ?? t("team.createFailed"));
       return;
     }
-    setUsername("");
-    setPassword("");
-    setConfirmPassword("");
-    setRole("MEMBER");
     setMessage(t("team.created"));
+    setSheetOpen(false);
+    resetForm();
     await load();
   }
 
-  async function saveEdit() {
+  async function submitEdit() {
     if (!editingUserId) return;
-    setEditSaving(true);
+    setSaving(true);
     setError("");
     setMessage("");
-    if (editPassword || editConfirmPassword) {
-      if (editPassword !== editConfirmPassword) {
-        setEditSaving(false);
-        setError(t("auth.passwordMismatch"));
-        return;
-      }
-      if (editPassword.length < 6) {
-        setEditSaving(false);
-        setError(t("auth.passwordTooShort"));
-        return;
-      }
-    }
     const response = await fetch("/api/team/users", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         userId: editingUserId,
-        username: editUsername,
-        storeIds: editStoreIds,
-        ...(editPassword
-          ? { password: editPassword, confirmPassword: editConfirmPassword }
-          : {}),
+        username,
+        storeIds,
+        clientRole: role,
+        ...(password ? { password, confirmPassword: password } : {}),
       }),
     });
     const data = await response.json().catch(() => null);
-    setEditSaving(false);
+    setSaving(false);
     if (!response.ok) {
       setError(data?.error ?? t("team.saveFailed"));
       return;
     }
     setMessage(t("team.updated"));
-    closeEdit();
+    setSheetOpen(false);
+    resetForm();
     await load();
-  }
-
-  function toggleStore(id: string) {
-    setStoreIds((current) =>
-      current.includes(id)
-        ? current.filter((storeId) => storeId !== id)
-        : [...current, id],
-    );
-  }
-
-  function toggleEditStore(id: string) {
-    setEditStoreIds((current) =>
-      current.includes(id)
-        ? current.filter((storeId) => storeId !== id)
-        : [...current, id],
-    );
   }
 
   async function confirmDelete() {
@@ -322,13 +353,33 @@ export default function TeamPage() {
       return;
     }
     setMessage(t("team.deleted"));
-    if (editingUserId === deleteTarget.id) closeEdit();
+    if (editingUserId === deleteTarget.id) {
+      setSheetOpen(false);
+      resetForm();
+    }
     setDeleteTarget(null);
     await load();
   }
 
+  function submitSheet() {
+    if (!formValid()) return;
+    if (sheetMode === "edit") {
+      void submitEdit();
+      return;
+    }
+    void submitCreate();
+  }
+
+  const editingUser = editingUserId
+    ? users.find((user) => user.id === editingUserId) ?? null
+    : null;
+  const canDeleteEditing =
+    sheetMode === "edit" &&
+    editingUser &&
+    editingUser.id !== currentUserId;
+
   return (
-    <div className="relative mx-auto min-w-0 max-w-lg overflow-x-visible px-4 pb-4 pt-1">
+    <div className={`relative ${appPageShell} overflow-x-visible ${appChromeInset} pb-24 pt-1`}>
       <div
         aria-hidden
         className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-[radial-gradient(ellipse_at_70%_0%,rgb(52_211_153/0.14),transparent_55%)]"
@@ -338,8 +389,8 @@ export default function TeamPage() {
         <MobilePageHeader className="mb-3" />
       </div>
 
-      <div className="relative z-0 mb-4">
-        <h1 className="text-[1.55rem] font-semibold leading-tight tracking-tight text-foreground">
+      <div className={`relative z-0 mb-4 ${appListInset}`}>
+        <h1 className="text-2xl font-semibold leading-tight tracking-tight text-foreground">
           {t("team.title")}
         </h1>
         <p className="mt-1 text-sm leading-snug text-muted">{t("team.subtitle")}</p>
@@ -348,416 +399,312 @@ export default function TeamPage() {
       {loading ? (
         <LoadingSpinnerBlock wrapperClassName="mb-3 flex justify-center py-2" />
       ) : null}
-      {error ? <p className="mb-3 text-sm text-error">{error}</p> : null}
-      {message ? <p className="mb-3 text-sm text-success-fg">{message}</p> : null}
+      {error && !sheetOpen ? <p className={`mb-3 text-sm text-error ${appListInset}`}>{error}</p> : null}
+      {message && !sheetOpen ? (
+        <p className={`mb-3 text-sm text-success-fg ${appListInset}`}>{message}</p>
+      ) : null}
 
-      <section className="relative z-0 mb-4 overflow-hidden rounded-2xl border border-card-border bg-transparent">
+      <section className={`relative z-0 mb-4 ${appListInset}`}>
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">
+          {t("team.people")}
+        </p>
+
         {!loading && users.length === 0 ? (
-          <p className="px-3 py-4 text-sm text-muted">{t("team.empty")}</p>
+          <p className="rounded-2xl border border-card-border px-3 py-4 text-sm text-muted">
+            {t("team.empty")}
+          </p>
         ) : null}
 
-        <ul className="divide-y divide-card-border">
+        {!loading && users.length === 1 && users[0]?.id === currentUserId ? (
+          <p className="mb-2 text-sm text-muted">{t("team.aloneHint")}</p>
+        ) : null}
+
+        <ul className="space-y-2">
           {users.map((user) => {
             const isSelf = user.id === currentUserId;
             const isOwner = user.clientRole === "OWNER";
-            const editing = editingUserId === user.id;
+            const interactive = !isSelf;
+
+            const cardInner = (
+              <>
+                <span
+                  aria-hidden
+                  className="flex size-8 shrink-0 items-center justify-center rounded-full border border-primary/45 bg-selected text-[0.65rem] font-semibold text-primary"
+                >
+                  {initials(user.username)}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-foreground">
+                    {user.username}
+                    {isSelf ? (
+                      <span className="ml-1.5 text-xs font-normal text-muted">
+                        ({t("team.you")})
+                      </span>
+                    ) : null}
+                    {!user.active ? (
+                      <span className="ml-1.5 rounded-md border border-card-border px-1.5 py-0.5 text-[0.65rem] font-normal text-muted">
+                        {t("team.inactive")}
+                      </span>
+                    ) : null}
+                  </p>
+                  <div className="mt-0.5 flex min-w-0 flex-wrap gap-1">
+                    {hasAllStores(user.stores) ? (
+                      <span className="rounded-md border border-primary/40 px-1.5 py-0.5 text-[0.65rem] font-medium text-primary">
+                        {t("team.allStores")}
+                      </span>
+                    ) : user.stores.length === 0 ? (
+                      <span className="text-xs text-muted">—</span>
+                    ) : (
+                      user.stores.slice(0, 3).map((store) => (
+                        <span
+                          key={store.id}
+                          className="rounded-md border border-primary/35 px-1.5 py-0.5 text-[0.65rem] font-medium text-primary"
+                        >
+                          {store.name}
+                        </span>
+                      ))
+                    )}
+                    {!hasAllStores(user.stores) && user.stores.length > 3 ? (
+                      <span className="rounded-md border border-card-border px-1.5 py-0.5 text-[0.65rem] text-muted">
+                        +{user.stores.length - 3}
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+                <span
+                  className={`inline-flex shrink-0 items-center gap-1 text-xs font-medium ${
+                    isOwner ? "text-primary" : "text-muted"
+                  }`}
+                >
+                  {isOwner ? (
+                    <OwnerRoleIcon className="size-3.5" />
+                  ) : (
+                    <StaffRoleIcon className="size-3.5" />
+                  )}
+                  {isOwner ? t("team.owner") : t("team.member")}
+                </span>
+                {interactive ? (
+                  <ChevronIcon className="size-3.5 shrink-0 text-primary" />
+                ) : null}
+              </>
+            );
+
+            const cardClassName =
+              "flex w-full items-center gap-2.5 rounded-xl border border-card-border px-2.5 py-2 text-left";
 
             return (
-              <li key={user.id} className={`px-3 py-3 ${user.active ? "" : "opacity-55"}`}>
-                <div className="flex items-center gap-2.5">
-                  <span
-                    aria-hidden
-                    className="flex size-9 shrink-0 items-center justify-center rounded-full border border-primary/45 bg-selected text-xs font-semibold text-primary"
+              <li key={user.id} className={user.active ? "" : "opacity-60"}>
+                {interactive ? (
+                  <button
+                    type="button"
+                    onClick={() => openEdit(user)}
+                    className={`${cardClassName} bg-transparent transition-colors hover:border-primary/45`}
                   >
-                    {initials(user.username)}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold text-foreground">
-                      {user.username}
-                      {isSelf ? (
-                        <span className="ml-1.5 text-xs font-normal text-muted">
-                          ({t("team.you")})
-                        </span>
-                      ) : null}
-                    </p>
-                    <p className="truncate text-xs text-muted">{user.email || "—"}</p>
-                  </div>
-
-                  <span
-                    title={isOwner ? t("team.owner") : t("team.member")}
-                    aria-label={isOwner ? t("team.owner") : t("team.member")}
-                    className={`inline-flex size-8 shrink-0 items-center justify-center rounded-lg border ${
-                      isOwner
-                        ? "border-primary/50 bg-selected text-primary"
-                        : "border-card-border text-muted"
-                    }`}
-                  >
-                    {isOwner ? <OwnerRoleIcon /> : <StaffRoleIcon />}
-                  </span>
-
-                  <span className="hidden max-w-[5.5rem] truncate text-xs text-muted xs:inline sm:max-w-none sm:text-sm">
-                    {storesLabel(user.stores)}
-                  </span>
-
-                  {!isSelf ? (
-                    <div className="flex shrink-0 items-center gap-1.5">
-                      <button
-                        type="button"
-                        aria-label={t("team.editUser")}
-                        aria-expanded={editing}
-                        onClick={() => (editing ? closeEdit() : openEdit(user))}
-                        className={`inline-flex size-8 items-center justify-center rounded-lg border transition-colors ${
-                          editing
-                            ? "border-primary bg-selected text-primary"
-                            : "border-card-border text-foreground hover:border-primary/50 hover:text-primary"
-                        }`}
-                      >
-                        <PencilIcon />
-                      </button>
-                      <button
-                        type="button"
-                        aria-label={t("team.deleteUser")}
-                        onClick={() => setDeleteTarget(user)}
-                        className="inline-flex size-8 items-center justify-center rounded-lg border border-card-border text-foreground hover:border-danger/50 hover:text-danger"
-                      >
-                        <TrashIcon />
-                      </button>
-                    </div>
-                  ) : null}
-                </div>
-
-                <p className="mt-1.5 text-xs text-muted sm:hidden">{storesLabel(user.stores)}</p>
-
-                {editing ? (
-                  <div
-                    className="mt-3 space-y-3 rounded-xl border border-card-border bg-background/70 p-3"
-                    onMouseDown={(event) => event.stopPropagation()}
-                    onClick={(event) => event.stopPropagation()}
-                  >
-                    <label className="block text-sm font-medium text-foreground">
-                      {t("team.username")}
-                      <input
-                        className="mt-1 w-full rounded-xl border border-input-border bg-transparent px-3 py-2 text-base text-foreground outline-none placeholder:text-muted focus:border-primary focus:ring-1 focus:ring-primary/40"
-                        value={editUsername}
-                        onChange={(event) => setEditUsername(event.target.value)}
-                        autoComplete="off"
-                      />
-                    </label>
-
-                    <label className="block text-sm font-medium text-foreground">
-                      {t("team.newPassword")}
-                      <span className="relative mt-1 block">
-                        <input
-                          type={showEditPassword ? "text" : "password"}
-                          className={`w-full rounded-xl border bg-transparent py-2 pl-3 pr-11 text-base text-foreground outline-none placeholder:text-muted focus:ring-1 ${
-                            editPasswordError
-                              ? "border-error focus:border-error focus:ring-error/40"
-                              : "border-input-border focus:border-primary focus:ring-primary/40"
-                          }`}
-                          value={editPassword}
-                          placeholder={t("team.newPasswordPlaceholder")}
-                          onChange={(event) => setEditPassword(event.target.value)}
-                          autoComplete="new-password"
-                          aria-invalid={editPasswordError ? true : undefined}
-                          aria-describedby={
-                            editPasswordError ? "edit-password-error" : undefined
-                          }
-                        />
-                        <button
-                          type="button"
-                          className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-muted hover:text-foreground"
-                          aria-label={
-                            showEditPassword ? t("team.hidePassword") : t("team.showPassword")
-                          }
-                          onClick={() => setShowEditPassword((current) => !current)}
-                        >
-                          {showEditPassword ? <EyeIcon /> : <EyeOffIcon />}
-                        </button>
-                      </span>
-                      {editPasswordError ? (
-                        <p id="edit-password-error" className="mt-1 text-xs text-error">
-                          {editPasswordError}
-                        </p>
-                      ) : null}
-                    </label>
-
-                    <label className="block text-sm font-medium text-foreground">
-                      {t("team.confirmPassword")}
-                      <span className="relative mt-1 block">
-                        <input
-                          type={showEditConfirmPassword ? "text" : "password"}
-                          className={`w-full rounded-xl border bg-transparent py-2 pl-3 pr-11 text-base text-foreground outline-none placeholder:text-muted focus:ring-1 ${
-                            editConfirmPasswordError
-                              ? "border-error focus:border-error focus:ring-error/40"
-                              : "border-input-border focus:border-primary focus:ring-primary/40"
-                          }`}
-                          value={editConfirmPassword}
-                          placeholder={t("team.confirmPasswordPlaceholder")}
-                          onChange={(event) => setEditConfirmPassword(event.target.value)}
-                          autoComplete="new-password"
-                          aria-invalid={editConfirmPasswordError ? true : undefined}
-                          aria-describedby={
-                            editConfirmPasswordError ? "edit-confirm-password-error" : undefined
-                          }
-                        />
-                        <button
-                          type="button"
-                          className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-muted hover:text-foreground"
-                          aria-label={
-                            showEditConfirmPassword
-                              ? t("team.hidePassword")
-                              : t("team.showPassword")
-                          }
-                          onClick={() => setShowEditConfirmPassword((current) => !current)}
-                        >
-                          {showEditConfirmPassword ? <EyeIcon /> : <EyeOffIcon />}
-                        </button>
-                      </span>
-                      {editConfirmPasswordError ? (
-                        <p id="edit-confirm-password-error" className="mt-1 text-xs text-error">
-                          {editConfirmPasswordError}
-                        </p>
-                      ) : null}
-                    </label>
-
-                    <div>
-                      <p className="mb-1.5 text-sm font-medium text-foreground">{t("team.stores")}</p>
-                      <div className="max-h-40 space-y-1 overflow-y-auto rounded-xl border border-card-border p-2">
-                        {activeStores.map((store) => (
-                          <label
-                            key={store.id}
-                            className="flex items-center gap-2 rounded-lg px-1.5 py-1.5 text-sm text-foreground hover:bg-selected/40"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={editStoreIds.includes(store.id)}
-                              onChange={() => toggleEditStore(store.id)}
-                            />
-                            {store.name}
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="flex gap-2">
-                      <ConfirmButton
-                        fullWidth={false}
-                        className="min-w-0 flex-1 px-3 py-1.5"
-                        busy={editSaving}
-                        disabled={
-                          editSaving ||
-                          editUsername.trim().length < 3 ||
-                          editStoreIds.length === 0 ||
-                          Boolean(editPasswordError || editConfirmPasswordError)
-                        }
-                        onClick={() => void saveEdit()}
-                      >
-                        {t("team.saveChanges")}
-                      </ConfirmButton>
-                      <CancelButton
-                        fullWidth={false}
-                        className="min-w-0 flex-1 px-3 py-1.5"
-                        onClick={closeEdit}
-                      >
-                        {t("team.cancelEdit")}
-                      </CancelButton>
-                    </div>
-                  </div>
-                ) : null}
+                    {cardInner}
+                  </button>
+                ) : (
+                  <div className={cardClassName}>{cardInner}</div>
+                )}
               </li>
             );
           })}
         </ul>
+
+        {!loading && users.some((user) => user.id !== currentUserId) ? (
+          <p className="mt-3 text-center text-xs text-muted">{t("team.tapToEdit")}</p>
+        ) : null}
       </section>
 
-      <section className="relative z-0 space-y-3 rounded-2xl border border-card-border bg-transparent p-3">
-        <div>
-          <h2 className="text-base font-semibold text-foreground">{t("team.addMember")}</h2>
-          <p className="mt-0.5 text-xs text-muted">{t("team.addMemberHint")}</p>
+      {!sheetOpen ? (
+        <div
+          className="fixed inset-x-0 z-40 border-t border-card-border/60 bg-background/95 px-4 py-2 backdrop-blur-sm"
+          style={{
+            bottom:
+              "calc(var(--app-bottom-nav-height) + env(safe-area-inset-bottom, 0px))",
+          }}
+        >
+          <div className={`mx-auto max-w-lg ${appListInset}`}>
+            <button type="button" onClick={openCreate} className={appButtonPrimaryFull}>
+              {t("team.addMember")}
+            </button>
+          </div>
         </div>
+      ) : null}
 
-        <div className="grid gap-2.5 sm:grid-cols-2">
-          <label className="block text-sm font-medium text-foreground">
-            {t("team.username")}
-            <input
-              ref={usernameRef}
-              className="mt-1 w-full rounded-xl border border-input-border bg-transparent px-3 py-2 text-base text-foreground outline-none placeholder:text-muted focus:border-primary focus:ring-1 focus:ring-primary/40"
-              value={username}
-              placeholder={t("team.usernamePlaceholder")}
-              onChange={(event) => setUsername(event.target.value)}
-              autoComplete="off"
-            />
-          </label>
+      {sheetOpen ? (
+        <div
+          className="fixed inset-x-0 z-[60] flex flex-col justify-end bg-black/65"
+          style={{ top: offsetTop, bottom: keyboardInset }}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="team-sheet-title"
+          onClick={closeSheet}
+        >
+          <div
+            className="flex max-h-[min(92dvh,40rem)] w-full flex-col rounded-t-3xl border border-card-border bg-background shadow-[0_-12px_40px_rgba(0,0,0,0.35)]"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex justify-center pt-2.5" aria-hidden>
+              <span className="h-1 w-10 rounded-full bg-card-border" />
+            </div>
 
-          <label className="block text-sm font-medium text-foreground">
-            {t("team.password")}
-            <span className="relative mt-1 block">
-              <input
-                type={showPassword ? "text" : "password"}
-                className={`w-full rounded-xl border bg-transparent py-2 pl-3 pr-11 text-base text-foreground outline-none placeholder:text-muted focus:ring-1 ${
-                  addPasswordError
-                    ? "border-error focus:border-error focus:ring-error/40"
-                    : "border-input-border focus:border-primary focus:ring-primary/40"
-                }`}
-                value={password}
-                placeholder={t("team.passwordPlaceholder")}
-                onChange={(event) => setPassword(event.target.value)}
-                autoComplete="new-password"
-                aria-invalid={addPasswordError ? true : undefined}
-                aria-describedby={addPasswordError ? "add-password-error" : undefined}
-              />
+            <div className="px-4 pb-1.5 pt-1.5">
+              <h2
+                id="team-sheet-title"
+                className="text-base font-semibold text-foreground"
+              >
+                {sheetMode === "create" ? t("team.newUser") : t("team.editUser")}
+              </h2>
+            </div>
+
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-4 pb-2">
+              {error ? <p className="mb-2 text-sm text-error">{error}</p> : null}
+
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-foreground">
+                  {t("team.username")}
+                  <input
+                    ref={usernameRef}
+                    className="mt-0.5 w-full rounded-xl border border-input-border bg-input px-3 py-2 text-base text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary/40"
+                    value={username}
+                    placeholder={t("team.usernamePlaceholder")}
+                    onChange={(event) => setUsername(event.target.value)}
+                    autoComplete="off"
+                  />
+                </label>
+                <div>
+                  <PasswordField
+                    label={
+                      sheetMode === "edit" ? t("team.newPassword") : t("team.password")
+                    }
+                    value={password}
+                    onChange={setPassword}
+                    placeholder={
+                      sheetMode === "edit"
+                        ? t("team.newPasswordPlaceholder")
+                        : t("team.passwordPlaceholder")
+                    }
+                    show={showPassword}
+                    onToggleShow={() => setShowPassword((current) => !current)}
+                    showLabel={t("team.showPassword")}
+                    hideLabel={t("team.hidePassword")}
+                    error={passwordError}
+                    errorId="team-password-error"
+                  />
+                  {sheetMode === "edit" && !passwordError ? (
+                    <p className="mt-0.5 text-xs text-muted">{t("team.newPasswordHint")}</p>
+                  ) : null}
+                </div>
+              </div>
+
+              <div className="mt-2.5">
+                <p className="mb-1 text-sm font-medium text-foreground">{t("team.role")}</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setRole("OWNER")}
+                    className={`inline-flex items-center justify-center gap-1.5 rounded-xl border px-2 py-2 text-sm font-semibold transition-colors ${
+                      role === "OWNER"
+                        ? "border-primary bg-selected/50 text-primary"
+                        : "border-card-border text-foreground"
+                    }`}
+                  >
+                    <OwnerRoleIcon className="size-4 shrink-0" />
+                    {t("team.owner")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRole("MEMBER")}
+                    className={`inline-flex items-center justify-center gap-1.5 rounded-xl border px-2 py-2 text-sm font-semibold transition-colors ${
+                      role === "MEMBER"
+                        ? "border-primary bg-selected/50 text-primary"
+                        : "border-card-border text-foreground"
+                    }`}
+                  >
+                    <StaffRoleIcon className="size-4 shrink-0" />
+                    {t("team.member")}
+                  </button>
+                </div>
+              </div>
+
+              <div className="mt-2.5">
+                <p className="mb-1 text-sm font-medium text-foreground">{t("team.stores")}</p>
+                <div className="max-h-40 space-y-0.5 overflow-y-auto rounded-xl border border-card-border p-1.5">
+                  <label className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm font-semibold text-foreground hover:bg-selected/40">
+                    <input
+                      type="checkbox"
+                      checked={allStoresSelected}
+                      onChange={toggleAllStores}
+                      className="size-3.5 accent-[var(--primary)]"
+                    />
+                    {t("team.allStores")}
+                  </label>
+                  <div className="border-t border-card-border" />
+                  {activeStores.map((store) => (
+                    <label
+                      key={store.id}
+                      className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-foreground hover:bg-selected/40"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={storeIds.includes(store.id)}
+                        onChange={() => toggleStore(store.id)}
+                        className="size-3.5 accent-[var(--primary)]"
+                      />
+                      {store.name}
+                    </label>
+                  ))}
+                  {activeStores.length === 0 ? (
+                    <p className="px-2 py-1.5 text-xs text-muted">{t("support.noStores")}</p>
+                  ) : null}
+                </div>
+
+                {canDeleteEditing ? (
+                  <button
+                    type="button"
+                    className={`${appButtonDangerFull} mt-2.5 gap-1.5`}
+                    onClick={() => {
+                      if (editingUser) setDeleteTarget(editingUser);
+                    }}
+                  >
+                    <TrashIcon className="size-4 shrink-0" />
+                    {t("team.deleteUser")}
+                  </button>
+                ) : null}
+              </div>
+            </div>
+
+            <div className={`shrink-0 border-t border-card-border px-4 py-2.5 ${appFooterButtonGrid}`}>
               <button
                 type="button"
-                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-muted hover:text-foreground"
-                aria-label={showPassword ? t("team.hidePassword") : t("team.showPassword")}
-                onClick={() => setShowPassword((current) => !current)}
+                onClick={closeSheet}
+                disabled={saving}
+                className={appButtonNeutral}
               >
-                {showPassword ? <EyeIcon /> : <EyeOffIcon />}
+                {t("common.cancel")}
               </button>
-            </span>
-            {addPasswordError ? (
-              <p id="add-password-error" className="mt-1 text-xs text-error">
-                {addPasswordError}
-              </p>
-            ) : null}
-          </label>
-        </div>
-
-        <label className="block text-sm font-medium text-foreground">
-          {t("team.confirmPassword")}
-          <span className="relative mt-1 block">
-            <input
-              type={showConfirmPassword ? "text" : "password"}
-              className={`w-full rounded-xl border bg-transparent py-2 pl-3 pr-11 text-base text-foreground outline-none placeholder:text-muted focus:ring-1 ${
-                addConfirmPasswordError
-                  ? "border-error focus:border-error focus:ring-error/40"
-                  : "border-input-border focus:border-primary focus:ring-primary/40"
-              }`}
-              value={confirmPassword}
-              placeholder={t("team.confirmPasswordPlaceholder")}
-              onChange={(event) => setConfirmPassword(event.target.value)}
-              autoComplete="new-password"
-              aria-invalid={addConfirmPasswordError ? true : undefined}
-              aria-describedby={
-                addConfirmPasswordError ? "add-confirm-password-error" : undefined
-              }
-            />
-            <button
-              type="button"
-              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-muted hover:text-foreground"
-              aria-label={
-                showConfirmPassword ? t("team.hidePassword") : t("team.showPassword")
-              }
-              onClick={() => setShowConfirmPassword((current) => !current)}
-            >
-              {showConfirmPassword ? <EyeIcon /> : <EyeOffIcon />}
-            </button>
-          </span>
-          {addConfirmPasswordError ? (
-            <p id="add-confirm-password-error" className="mt-1 text-xs text-error">
-              {addConfirmPasswordError}
-            </p>
-          ) : null}
-        </label>
-
-        <div className="grid gap-2.5 sm:grid-cols-2">
-          <div>
-            <p className="mb-1 text-sm font-medium text-foreground">{t("team.role")}</p>
-            <MenuSelect
-              label={t("team.role")}
-              value={role}
-              options={[
-                { value: "MEMBER", label: t("team.member") },
-                { value: "OWNER", label: t("team.owner") },
-              ]}
-              onChange={setRole}
-            />
-          </div>
-
-          <div>
-            <p className="mb-1 text-sm font-medium text-foreground">{t("team.stores")}</p>
-            <button
-              type="button"
-              onClick={() => setStoresOpen((current) => !current)}
-              className="flex w-full items-center justify-between gap-2 rounded-xl border border-input-border bg-transparent px-3 py-2 text-left text-base text-foreground"
-            >
-              <span className={storeIds.length ? "text-foreground" : "text-muted"}>
-                {storesTriggerLabel()}
-              </span>
-              <span className="text-[0.65rem] text-muted" aria-hidden>
-                {storesOpen ? "▲" : "▼"}
-              </span>
-            </button>
-          </div>
-        </div>
-
-        {storesOpen ? (
-          <div className="rounded-xl border border-card-border p-2.5">
-            <p className="mb-2 text-xs font-medium text-muted">{t("team.searchStores")}</p>
-            <input
-              className="mb-2 w-full rounded-lg border border-input-border bg-transparent px-2.5 py-1.5 text-sm text-foreground outline-none placeholder:text-muted focus:border-primary"
-              value={storeSearch}
-              onChange={(event) => setStoreSearch(event.target.value)}
-              placeholder={t("team.searchStores")}
-            />
-            <div className="max-h-40 space-y-1 overflow-y-auto">
-              {filteredStores.map((store) => (
-                <label
-                  key={store.id}
-                  className="flex items-center gap-2 rounded-lg px-1.5 py-1 text-sm text-foreground hover:bg-selected/40"
-                >
-                  <input
-                    type="checkbox"
-                    checked={storeIds.includes(store.id)}
-                    onChange={() => toggleStore(store.id)}
-                  />
-                  {store.name}
-                </label>
-              ))}
-              {filteredStores.length === 0 ? (
-                <p className="px-1.5 py-1 text-xs text-muted">{t("support.noStores")}</p>
-              ) : null}
+              <button
+                type="button"
+                onClick={submitSheet}
+                disabled={saving || !formValid()}
+                className={appButtonPrimary}
+              >
+                {saving ? (
+                  <LoadingSpinner size="sm" className="mx-auto" />
+                ) : sheetMode === "edit" ? (
+                  t("team.saveChanges")
+                ) : (
+                  t("common.create")
+                )}
+              </button>
             </div>
           </div>
-        ) : null}
-
-        <div className="space-y-2 pt-1">
-          <PrimaryButton
-            onClick={() => void createUser()}
-            disabled={
-              saving ||
-              !username.trim() ||
-              password.length < 6 ||
-              password !== confirmPassword ||
-              storeIds.length === 0
-            }
-            icon={
-              saving ? undefined : (
-                <RegisterIcon className="size-4 shrink-0" />
-              )
-            }
-          >
-            {saving ? (
-              <LoadingSpinner size="sm" className="mx-auto" />
-            ) : (
-              t("team.create")
-            )}
-          </PrimaryButton>
-
-          <button
-            type="button"
-            onClick={() => navigateApp("/app")}
-            className={appButtonCancelFull}
-          >
-            <BackArrowIcon className="size-4 shrink-0" />
-            {t("common.back")}
-          </button>
         </div>
-      </section>
+      ) : null}
 
       {deleteTarget ? (
         <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/65 p-4 sm:items-center"
+          className="fixed inset-0 z-[70] flex items-end justify-center bg-black/65 p-4 sm:items-center"
           role="dialog"
           aria-modal="true"
           aria-labelledby="team-delete-title"

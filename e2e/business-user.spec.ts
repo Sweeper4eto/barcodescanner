@@ -13,18 +13,22 @@ async function fillTeamCreateForm(
   page: import("@playwright/test").Page,
   staffUsername: string,
 ) {
-  await page.getByPlaceholder("Enter username").fill(staffUsername);
-  await page.getByPlaceholder("Enter password", { exact: true }).fill("password123");
-  await page.getByPlaceholder("Re-enter password").fill("password123");
-  const addBtn = page.getByRole("button", { name: "Add User", exact: true });
-  if (await addBtn.isDisabled()) {
-    const storeCheckbox = page.locator('input[type="checkbox"]').first();
+  await page.getByRole("button", { name: "Add User", exact: true }).click();
+  const sheet = page.getByRole("dialog");
+  await expect(sheet.getByRole("heading", { name: "New user" })).toBeVisible();
+
+  await sheet.getByPlaceholder("Enter username").fill(staffUsername);
+  await sheet.getByPlaceholder("Enter password", { exact: true }).fill("password123");
+
+  const createBtn = sheet.getByRole("button", { name: "Create", exact: true });
+  if (await createBtn.isDisabled()) {
+    const storeCheckbox = sheet.locator('input[type="checkbox"]').nth(1);
     if (await storeCheckbox.count()) {
       await storeCheckbox.check();
     }
   }
-  await expect(addBtn).toBeEnabled();
-  await addBtn.click();
+  await expect(createBtn).toBeEnabled();
+  await createBtn.click();
 }
 
 test.describe("Business user end-to-end", () => {
