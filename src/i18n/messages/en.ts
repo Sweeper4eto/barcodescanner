@@ -779,9 +779,19 @@ export const en = {
     noStoresYet: "No locations yet. Add one below.",
     searchPlaceholder: "Search...",
     newClient: "New client",
-    feePerStore: "Fee per location",
+    feePerStore: "Location fee",
     feePerStoreHint:
-      "Monthly total = active locations × this fee. If the total is 0 or less, the client stays green every month (no payment needed).",
+      "Monthly total = sum of active location fees. Edit each location’s fee under Locations. First location defaults to 20 €, extra locations to 15 €. If the total is 0 or less, the client stays green every month (no payment needed).",
+    locationFee: "Monthly fee (€)",
+    locationFeeHint:
+      "First location defaults to 20 €; each additional location defaults to 15 €. You can change this anytime.",
+    referredBy: "Referred by",
+    referredBySearch: "Type to find a business account…",
+    referredByNone: "No referrer",
+    referredByHint:
+      "Business account that referred this client. Deleted referrers clear automatically.",
+    referralsCount: "Referrals ({count})",
+    referralsEmpty: "No referred clients yet.",
     paymentsRequired: "Require monthly payments",
     paymentsRequiredHint:
       "Off by default. When on, billing starts this month. Access locks only if a previous billed month is still unpaid — the current month can be paid anytime.",
@@ -843,13 +853,13 @@ export const en = {
     selectStoreForCart: "Select a location from Clients to view its cart list.",
     backToPanel: "← Back to admin",
     paymentFormula:
-      "Amount = active locations × monthly fee − discount",
+      "Amount = sum of active location fees − discount",
     activeCount: "{count} active · {amount} {currency}",
     paid: "Paid: {amount} {currency}",
     unpaid: "Unpaid",
     markPayment: "Record payment — {name}",
     expectedAmount:
-      "Expected amount: {amount} {currency} ({stores} locations × {fee} {currency})",
+      "Expected amount: {amount} {currency} ({stores} locations · fees {fee} {currency})",
     discountPlaceholder: "Discount ({currency})",
     notesPlaceholder: "Notes",
     finalAmount: "Final amount: {amount} {currency}",

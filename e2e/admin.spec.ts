@@ -36,13 +36,13 @@ test.describe("Admin panel", () => {
     await openAdmin(page, "Accounts");
     await page.getByRole("button", { name: "+ New business", exact: true }).click();
     await page.getByLabel("Name", { exact: true }).fill(clientName);
-    await page.getByLabel("Fee per location").fill("30");
     await page.getByRole("button", { name: "Create", exact: true }).click();
 
     await page.getByRole("button", { name: "Accounts", exact: true }).first().click();
     await page.getByRole("button", { name: clientName }).click();
     await page.getByRole("tab", { name: "New location", exact: true }).click();
     await page.getByLabel("Location name").fill(storeName);
+    await page.getByLabel("Monthly fee (€)").fill("30");
     await page.getByRole("button", { name: "Add location" }).click();
 
     await page.getByRole("tab", { name: "Client locations", exact: true }).click();

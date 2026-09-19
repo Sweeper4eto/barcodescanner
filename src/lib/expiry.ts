@@ -157,9 +157,8 @@ export function formatLocaleTime(input: Date | string, locale: string): string {
 }
 
 export function paymentAmount(
-  activeStoreCount: number,
-  feePerStore: number,
-  discount: number,
+  totalLocationFees: number,
+  discount = 0,
 ): number {
-  return Math.max(0, activeStoreCount * feePerStore - discount);
+  return Math.max(0, totalLocationFees - discount);
 }

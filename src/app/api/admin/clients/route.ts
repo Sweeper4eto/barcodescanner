@@ -25,20 +25,25 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
   const q = searchParams.get("q")?.trim();
+  const businessOnly = searchParams.get("businessOnly") === "1";
 
   const clients = await db.client.findMany({
-    where: q
-      ? {
-          OR: [
-            { name: { contains: q } },
-            { phone: { contains: q } },
-            { additionalInfo: { contains: q } },
-          ],
-        }
-      : undefined,
+    where: {
+      ...(businessOnly ? { homeUser: false } : {}),
+      ...(q
+        ? {
+            OR: [
+              { name: { contains: q } },
+              { phone: { contains: q } },
+              { additionalInfo: { contains: q } },
+            ],
+          }
+        : {}),
+    },
     orderBy: { name: "asc" },
     include: {
-      _count: { select: { stores: true, users: true } },
+      _count: { select: { stores: true, users: true, referrals: true } },
+      referredBy: { select: { id: true, name: true } },
     },
   });
 
@@ -53,6 +58,7 @@ const clientSchema = z.object({
   active: z.boolean().optional(),
   homeUser: z.boolean().optional(),
   paymentsRequired: z.boolean().optional(),
+  referredByClientId: z.string().min(1).nullable().optional(),
 });
 
 export async function POST(request: Request) {
@@ -68,10 +74,32 @@ export async function POST(request: Request) {
     );
   }
 
-  const paymentsRequired = parsed.data.paymentsRequired ?? false;
+  const { referredByClientId, ...rest } = parsed.data;
+  const homeUser = rest.homeUser ?? false;
+  if (referredByClientId && homeUser) {
+    return NextResponse.json(
+      { error: apiT(request, "errors.invalidData") },
+      { status: 400 },
+    );
+  }
+  if (referredByClientId) {
+    const referrer = await db.client.findUnique({
+      where: { id: referredByClientId },
+      select: { id: true, homeUser: true },
+    });
+    if (!referrer || referrer.homeUser) {
+      return NextResponse.json(
+        { error: apiT(request, "errors.invalidData") },
+        { status: 400 },
+      );
+    }
+  }
+
+  const paymentsRequired = rest.paymentsRequired ?? false;
   const client = await db.client.create({
     data: {
-      ...parsed.data,
+      ...rest,
+      referredByClientId: referredByClientId ?? null,
       paymentsRequired,
       paymentsRequiredSince: paymentsRequired ? startOfBillingMonth() : null,
     },
@@ -89,6 +117,7 @@ const patchSchema = z.object({
   active: z.boolean().optional(),
   homeUser: z.boolean().optional(),
   paymentsRequired: z.boolean().optional(),
+  referredByClientId: z.string().min(1).nullable().optional(),
   notificationDefaults: clientDefaultsSchema.optional(),
   clearNotificationDefaults: z.boolean().optional(),
 });
@@ -106,13 +135,48 @@ export async function PATCH(request: Request) {
     );
   }
 
-  const { id, notificationDefaults, clearNotificationDefaults, ...data } = parsed.data;
+  const {
+    id,
+    notificationDefaults,
+    clearNotificationDefaults,
+    referredByClientId,
+    ...data
+  } = parsed.data;
   const before = await db.client.findUnique({ where: { id } });
   if (!before) {
     return NextResponse.json(
       { error: apiT(request, "errors.clientNotFound") },
       { status: 404 },
     );
+  }
+
+  if (referredByClientId !== undefined) {
+    if (referredByClientId === id) {
+      return NextResponse.json(
+        { error: apiT(request, "errors.invalidData") },
+        { status: 400 },
+      );
+    }
+    const willBeHome =
+      data.homeUser !== undefined ? data.homeUser : before.homeUser;
+    if (referredByClientId && willBeHome) {
+      return NextResponse.json(
+        { error: apiT(request, "errors.invalidData") },
+        { status: 400 },
+      );
+    }
+    if (referredByClientId) {
+      const referrer = await db.client.findUnique({
+        where: { id: referredByClientId },
+        select: { id: true, homeUser: true },
+      });
+      if (!referrer || referrer.homeUser) {
+        return NextResponse.json(
+          { error: apiT(request, "errors.invalidData") },
+          { status: 400 },
+        );
+      }
+    }
   }
 
   const defaultsPatch = clearNotificationDefaults
@@ -143,9 +207,14 @@ export async function PATCH(request: Request) {
     }
   }
 
+  const referralPatch =
+    referredByClientId !== undefined
+      ? { referredByClientId }
+      : {};
+
   const client = await db.client.update({
     where: { id },
-    data: { ...data, ...defaultsPatch, ...paymentsSincePatch },
+    data: { ...data, ...defaultsPatch, ...paymentsSincePatch, ...referralPatch },
   });
   await logAuditEvent(request, admin, "client_updated", auditClientUpdated(before, client));
   return NextResponse.json({ client });

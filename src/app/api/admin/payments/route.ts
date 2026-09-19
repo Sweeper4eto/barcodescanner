@@ -5,6 +5,7 @@ import { logAuditEvent } from "@/lib/audit-log";
 import { requireAdmin } from "@/lib/auth";
 import { paymentAmount } from "@/lib/expiry";
 import { db } from "@/lib/db";
+import { sumLocationFees } from "@/lib/location-fees";
 import { apiT } from "@/i18n";
 import {
   billingStartPeriod,
@@ -48,19 +49,18 @@ export async function GET(request: Request) {
     const through = periodFromDate(new Date());
     const clients = await db.client.findMany({
       include: {
-        stores: { select: { id: true, active: true } },
+        stores: { select: { id: true, active: true, monthlyFee: true } },
         payments: { select: { year: true, month: true } },
+        _count: { select: { referrals: true } },
       },
       orderBy: { name: "asc" },
     });
 
     const rows = clients.map((client) => {
-      const activeStoreCount = client.stores.filter((s) => s.active).length;
-      const expectedAmount = paymentAmount(
-        activeStoreCount,
-        client.monthlyFeePerStore,
-        0,
-      );
+      const activeStores = client.stores.filter((s) => s.active);
+      const activeStoreCount = activeStores.length;
+      const locationsFeeTotal = sumLocationFees(activeStores);
+      const expectedAmount = paymentAmount(locationsFeeTotal, 0);
       const paidKeys = new Set(
         client.payments.map((p) => periodKey(p.year, p.month)),
       );
@@ -93,7 +93,8 @@ export async function GET(request: Request) {
           active: client.active,
           homeUser: client.homeUser,
           paymentsRequired: client.paymentsRequired,
-          monthlyFeePerStore: client.monthlyFeePerStore,
+          locationsFeeTotal,
+          referralCount: client._count.referrals,
           createdAt: client.createdAt.toISOString(),
         },
         activeStoreCount,
@@ -118,6 +119,12 @@ export async function GET(request: Request) {
       where: { id: clientId },
       include: {
         stores: { orderBy: { name: "asc" } },
+        referredBy: { select: { id: true, name: true, active: true } },
+        referrals: {
+          where: { active: true },
+          select: { id: true, name: true },
+          orderBy: { name: "asc" },
+        },
       },
     });
     if (!client) {
@@ -136,12 +143,10 @@ export async function GET(request: Request) {
       allPayments.map((p) => periodKey(p.year, p.month)),
     );
     const through = periodFromDate(new Date());
-    const activeStoreCount = client.stores.filter((s) => s.active).length;
-    const expectedAmount = paymentAmount(
-      activeStoreCount,
-      client.monthlyFeePerStore,
-      0,
-    );
+    const activeStores = client.stores.filter((s) => s.active);
+    const activeStoreCount = activeStores.length;
+    const locationsFeeTotal = sumLocationFees(activeStores);
+    const expectedAmount = paymentAmount(locationsFeeTotal, 0);
     const tracksPayments =
       !client.homeUser &&
       client.paymentsRequired &&
@@ -172,15 +177,20 @@ export async function GET(request: Request) {
         active: client.active,
         homeUser: client.homeUser,
         paymentsRequired: client.paymentsRequired,
-        monthlyFeePerStore: client.monthlyFeePerStore,
+        referredByClientId: client.referredByClientId,
+        locationsFeeTotal,
         createdAt: client.createdAt.toISOString(),
       },
+      referredBy: client.referredBy,
+      referrals: client.referrals,
       stores: client.stores.map((store) => ({
         id: store.id,
         name: store.name,
         active: store.active,
+        monthlyFee: store.monthlyFee,
       })),
       activeStoreCount,
+      locationsFeeTotal,
       expectedAmount,
       unpaidMonths,
       standing,
@@ -225,12 +235,8 @@ export async function POST(request: Request) {
   }
 
   const activeStoreCount = client.stores.length;
-  const feePerStore = client.monthlyFeePerStore;
-  const amountPaid = paymentAmount(
-    activeStoreCount,
-    feePerStore,
-    parsed.data.discount,
-  );
+  const locationsFeeTotal = sumLocationFees(client.stores);
+  const amountPaid = paymentAmount(locationsFeeTotal, parsed.data.discount);
 
   const payment = await db.payment.upsert({
     where: {
@@ -245,14 +251,14 @@ export async function POST(request: Request) {
       year: parsed.data.year,
       month: parsed.data.month,
       activeStoreCount,
-      feePerStore,
+      feePerStore: locationsFeeTotal,
       discount: parsed.data.discount,
       amountPaid,
       notes: parsed.data.notes,
     },
     update: {
       activeStoreCount,
-      feePerStore,
+      feePerStore: locationsFeeTotal,
       discount: parsed.data.discount,
       amountPaid,
       notes: parsed.data.notes,
@@ -269,7 +275,7 @@ export async function POST(request: Request) {
       year: parsed.data.year,
       month: parsed.data.month,
       activeStoreCount,
-      feePerStore,
+      feePerStore: locationsFeeTotal,
       discount: parsed.data.discount,
       amountPaid,
       notes: parsed.data.notes,

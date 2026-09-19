@@ -4,6 +4,7 @@ import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useState, type ReactNode } from "react";
 import { AccountBillingSection } from "@/components/admin/account-billing-section";
 import { AccountPeopleSection } from "@/components/admin/account-people-section";
+import { ReferredByPicker } from "@/components/admin/referred-by-picker";
 import {
   AdminEmptyState,
   AdminField,
@@ -18,6 +19,10 @@ import { PrimaryButton } from "@/components/auth-forms";
 import { CancelButton } from "@/components/cancel-button";
 import { SearchField } from "@/components/search-field";
 import { useT } from "@/components/i18n-provider";
+import {
+  DEFAULT_EXTRA_LOCATION_FEE,
+  DEFAULT_FIRST_LOCATION_FEE,
+} from "@/lib/location-fees";
 import type { PaymentStanding } from "@/lib/payment-status";
 
 export type Client = {
@@ -29,10 +34,12 @@ export type Client = {
   homeUser: boolean;
   paymentsRequired: boolean;
   monthlyFeePerStore: number;
+  referredByClientId?: string | null;
+  referredBy?: { id: string; name: string } | null;
   expiryDefaultEarlyDays: number | null;
   expiryDefaultUrgentDays: number | null;
   expiryDefaultTime1: string | null;
-  _count: { stores: number; users: number };
+  _count: { stores: number; users: number; referrals?: number };
 };
 
 type Store = {
@@ -42,6 +49,7 @@ type Store = {
   phone: string | null;
   additionalInfo: string | null;
   active: boolean;
+  monthlyFee: number;
 };
 
 type ClientsSubview = "current" | "new" | "users";
@@ -61,10 +69,10 @@ type EditState = {
   name: string;
   phone: string;
   additionalInfo: string;
-  monthlyFeePerStore: string;
   active: boolean;
   homeUser: boolean;
   paymentsRequired: boolean;
+  referredByClientId: string | null;
   notifyEarlyDays: string;
   notifyUrgentDays: string;
   notifyTime1: string;
@@ -75,10 +83,10 @@ function clientEditState(client: Client): EditState {
     name: client.name,
     phone: client.phone ?? "",
     additionalInfo: client.additionalInfo ?? "",
-    monthlyFeePerStore: String(client.monthlyFeePerStore),
     active: client.active,
     homeUser: client.homeUser,
     paymentsRequired: Boolean(client.paymentsRequired),
+    referredByClientId: client.referredByClientId ?? null,
     notifyEarlyDays:
       client.expiryDefaultEarlyDays != null
         ? String(client.expiryDefaultEarlyDays)
@@ -97,10 +105,10 @@ function editIsDirty(current: EditState, saved: EditState | null) {
     current.name !== saved.name ||
     current.phone !== saved.phone ||
     current.additionalInfo !== saved.additionalInfo ||
-    current.monthlyFeePerStore !== saved.monthlyFeePerStore ||
     current.active !== saved.active ||
     current.homeUser !== saved.homeUser ||
     current.paymentsRequired !== saved.paymentsRequired ||
+    current.referredByClientId !== saved.referredByClientId ||
     current.notifyEarlyDays !== saved.notifyEarlyDays ||
     current.notifyUrgentDays !== saved.notifyUrgentDays ||
     current.notifyTime1 !== saved.notifyTime1
@@ -144,10 +152,10 @@ export function ClientsPanel({
     name: "",
     phone: "",
     additionalInfo: "",
-    monthlyFeePerStore: "0",
     active: true,
     homeUser: false,
     paymentsRequired: false,
+    referredByClientId: null,
     notifyEarlyDays: "",
     notifyUrgentDays: "",
     notifyTime1: "",
@@ -159,13 +167,13 @@ export function ClientsPanel({
     name: "",
     phone: "",
     additionalInfo: "",
-    monthlyFeePerStore: "20",
   });
   const [newStore, setNewStore] = useState({
     name: "",
     address: "",
     phone: "",
     additionalInfo: "",
+    monthlyFee: String(DEFAULT_FIRST_LOCATION_FEE),
   });
 
   const loadClients = useCallback(async (search = query) => {
@@ -274,8 +282,6 @@ export function ClientsPanel({
           name: newClient.name,
           phone: newClient.phone || undefined,
           additionalInfo: newClient.additionalInfo || undefined,
-          monthlyFeePerStore:
-            accountKind === "household" ? 0 : Number(newClient.monthlyFeePerStore),
           homeUser: accountKind === "household",
           paymentsRequired: accountKind === "business",
         }),
@@ -284,7 +290,7 @@ export function ClientsPanel({
         setSaveMessage(t("errors.saveFailed"));
         return;
       }
-      setNewClient({ name: "", phone: "", additionalInfo: "", monthlyFeePerStore: "20" });
+      setNewClient({ name: "", phone: "", additionalInfo: "" });
       await loadClients();
       onRefresh();
       setSubview("current");
@@ -306,10 +312,10 @@ export function ClientsPanel({
           name: edit.name,
           phone: edit.phone || undefined,
           additionalInfo: edit.additionalInfo || undefined,
-          monthlyFeePerStore: Number(edit.monthlyFeePerStore),
           active: edit.active,
           homeUser: edit.homeUser,
           paymentsRequired: edit.paymentsRequired,
+          referredByClientId: edit.homeUser ? null : edit.referredByClientId,
           notificationDefaults: {
             earlyDays: edit.notifyEarlyDays.trim()
               ? Number(edit.notifyEarlyDays)
@@ -350,13 +356,30 @@ export function ClientsPanel({
       const response = await fetch("/api/admin/stores", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ clientId: selectedId, ...newStore }),
+        body: JSON.stringify({
+          clientId: selectedId,
+          name: newStore.name,
+          address: newStore.address || undefined,
+          phone: newStore.phone || undefined,
+          additionalInfo: newStore.additionalInfo || undefined,
+          monthlyFee: Number(newStore.monthlyFee) || DEFAULT_FIRST_LOCATION_FEE,
+        }),
       });
       if (!response.ok) {
         setSaveMessage(t("errors.saveFailed"));
         return;
       }
-      setNewStore({ name: "", address: "", phone: "", additionalInfo: "" });
+      setNewStore({
+        name: "",
+        address: "",
+        phone: "",
+        additionalInfo: "",
+        monthlyFee: String(
+          stores.length === 0
+            ? DEFAULT_FIRST_LOCATION_FEE
+            : DEFAULT_EXTRA_LOCATION_FEE,
+        ),
+      });
       const list = await loadStores(selectedId);
       await loadClients();
       onRefresh();
@@ -627,21 +650,6 @@ export function ClientsPanel({
                   }
                 />
               </AdminField>
-              {accountKind === "business" ? (
-                <AdminField label={t("admin.feePerStore")}>
-                  <input
-                    className={adminInputClass}
-                    inputMode="decimal"
-                    value={newClient.monthlyFeePerStore}
-                    onChange={(event) =>
-                      setNewClient({
-                        ...newClient,
-                        monthlyFeePerStore: event.target.value,
-                      })
-                    }
-                  />
-                </AdminField>
-              ) : null}
               <PrimaryButton type="submit">{t("common.create")}</PrimaryButton>
             </form>
           </AdminSection>
@@ -817,7 +825,19 @@ export function ClientsPanel({
                     { id: "newStore" as const, label: t("admin.newStore") },
                   ]}
                   active={detailTab}
-                  onChange={setDetailTab}
+                  onChange={(id) => {
+                    setDetailTab(id);
+                    if (id === "newStore") {
+                      setNewStore((prev) => ({
+                        ...prev,
+                        monthlyFee: String(
+                          stores.length === 0
+                            ? DEFAULT_FIRST_LOCATION_FEE
+                            : DEFAULT_EXTRA_LOCATION_FEE,
+                        ),
+                      }));
+                    }
+                  }}
                 />
 
                 <div className="mt-6">
@@ -904,6 +924,25 @@ export function ClientsPanel({
                         />
                         {t("admin.activeClient")}
                       </label>
+
+                      {!edit.homeUser && selectedId ? (
+                        <ReferredByPicker
+                          clientId={selectedId}
+                          value={edit.referredByClientId}
+                          onChange={(next) =>
+                            setEdit({ ...edit, referredByClientId: next })
+                          }
+                          disabled={saving}
+                        />
+                      ) : null}
+
+                      {!edit.homeUser && selectedClient?._count.referrals ? (
+                        <p className="text-sm text-muted">
+                          {t("admin.referralsCount", {
+                            count: selectedClient._count.referrals,
+                          })}
+                        </p>
+                      ) : null}
 
                       <div className="mt-4 space-y-3 rounded-xl border border-card-border p-3">
                         <div>
@@ -1100,6 +1139,22 @@ export function ClientsPanel({
                           }
                         />
                       </AdminField>
+                      <AdminField label={t("admin.locationFee")}>
+                        <input
+                          className={adminInputClass}
+                          inputMode="decimal"
+                          value={newStore.monthlyFee}
+                          onChange={(event) =>
+                            setNewStore({
+                              ...newStore,
+                              monthlyFee: event.target.value,
+                            })
+                          }
+                        />
+                        <p className="mt-1 text-xs text-muted">
+                          {t("admin.locationFeeHint")}
+                        </p>
+                      </AdminField>
                       <PrimaryButton type="submit">{t("admin.addStore")}</PrimaryButton>
                     </form>
                   ) : null}
@@ -1134,6 +1189,7 @@ function StoreCard({
     address: store.address ?? "",
     phone: store.phone ?? "",
     additionalInfo: store.additionalInfo ?? "",
+    monthlyFee: String(store.monthlyFee),
   });
   const [savedForm, setSavedForm] = useState(form);
   const [saving, setSaving] = useState(false);
@@ -1144,7 +1200,8 @@ function StoreCard({
     (form.name !== savedForm.name ||
       form.address !== savedForm.address ||
       form.phone !== savedForm.phone ||
-      form.additionalInfo !== savedForm.additionalInfo);
+      form.additionalInfo !== savedForm.additionalInfo ||
+      form.monthlyFee !== savedForm.monthlyFee);
 
   function openEdit() {
     const snapshot = {
@@ -1152,6 +1209,7 @@ function StoreCard({
       address: store.address ?? "",
       phone: store.phone ?? "",
       additionalInfo: store.additionalInfo ?? "",
+      monthlyFee: String(store.monthlyFee),
     };
     setForm(snapshot);
     setSavedForm(snapshot);
@@ -1178,6 +1236,7 @@ function StoreCard({
           address: form.address || undefined,
           phone: form.phone || undefined,
           additionalInfo: form.additionalInfo || undefined,
+          monthlyFee: Number(form.monthlyFee) || 0,
         }),
       });
       if (!response.ok) {
@@ -1224,6 +1283,15 @@ function StoreCard({
               setForm({ ...form, additionalInfo: event.target.value })
             }
           />
+          <input
+            className="w-full rounded-lg border border-input-border bg-transparent px-2 py-1 text-sm text-foreground"
+            inputMode="decimal"
+            placeholder={t("admin.locationFee")}
+            value={form.monthlyFee}
+            onChange={(event) =>
+              setForm({ ...form, monthlyFee: event.target.value })
+            }
+          />
           <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
@@ -1252,6 +1320,10 @@ function StoreCard({
           <p className="text-xs text-muted">{store.address}</p>
           <p className="text-xs text-muted">{store.phone}</p>
           <p className="text-xs text-muted">{store.additionalInfo}</p>
+          <p className="text-xs tabular-nums text-muted">
+            {t("admin.locationFee")}: {store.monthlyFee.toFixed(2)}{" "}
+            {t("common.currency")}
+          </p>
           {saveMessage ? (
             <p
               className={`mt-2 text-xs ${

@@ -48,7 +48,7 @@ export async function seedClientWithStore(db: PrismaClient) {
     data: {
       name: "Test Client",
       monthlyFeePerStore: 20,
-      stores: { create: { name: "Store A" } },
+      stores: { create: { name: "Store A", monthlyFee: 20 } },
     },
     include: { stores: true },
   });

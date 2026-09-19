@@ -41,16 +41,17 @@ type ClientLike = {
   monthlyFeePerStore: number;
   active: boolean;
   homeUser: boolean;
+  referredByClientId?: string | null;
 };
 
 export function auditClientCreated(client: ClientLike): string {
   return auditJoin([
     `client "${client.name}"`,
-    `fee ${client.monthlyFeePerStore} €/store`,
     client.phone ? `phone ${client.phone}` : null,
     client.additionalInfo ? `info: ${client.additionalInfo}` : null,
     formatAuditValue(client.active),
     client.homeUser ? "household" : null,
+    client.referredByClientId ? `referredBy ${client.referredByClientId}` : null,
   ]);
 }
 
@@ -59,12 +60,16 @@ export function auditClientUpdated(before: ClientLike, after: ClientLike): strin
     auditFieldChange("name", before.name, after.name),
     auditFieldChange("phone", before.phone, after.phone),
     auditFieldChange("info", before.additionalInfo, after.additionalInfo),
-    auditFieldChange("fee/store", before.monthlyFeePerStore, after.monthlyFeePerStore),
     auditFieldChange("status", before.active, after.active),
     auditFieldChange(
       "household",
       before.homeUser ? "yes" : "no",
       after.homeUser ? "yes" : "no",
+    ),
+    auditFieldChange(
+      "referredBy",
+      before.referredByClientId ?? "—",
+      after.referredByClientId ?? "—",
     ),
   ]);
 }
@@ -73,7 +78,6 @@ export function auditClientDeleted(client: ClientLike): string {
   return auditJoin([
     `client "${client.name}"`,
     client.phone ? `phone ${client.phone}` : null,
-    `fee ${client.monthlyFeePerStore} €/store`,
   ]);
 }
 
@@ -83,12 +87,14 @@ type StoreLike = {
   phone: string | null;
   additionalInfo: string | null;
   active: boolean;
+  monthlyFee?: number;
 };
 
 export function auditStoreCreated(store: StoreLike, clientName: string): string {
   return auditJoin([
     `store "${store.name}"`,
     `client "${clientName}"`,
+    store.monthlyFee !== undefined ? `fee ${store.monthlyFee} €` : null,
     store.address ? `address ${store.address}` : null,
     store.phone ? `phone ${store.phone}` : null,
     formatAuditValue(store.active),
@@ -105,6 +111,7 @@ export function auditStoreUpdated(
     auditFieldChange("address", before.address, after.address),
     auditFieldChange("phone", before.phone, after.phone),
     auditFieldChange("info", before.additionalInfo, after.additionalInfo),
+    auditFieldChange("fee", before.monthlyFee, after.monthlyFee),
     auditFieldChange("status", before.active, after.active),
   ]);
 }
@@ -131,7 +138,7 @@ export function auditPaymentRecorded(input: {
   return auditJoin([
     `client "${input.clientName}"`,
     `period ${period}`,
-    `${input.activeStoreCount} stores × ${input.feePerStore} €`,
+    `${input.activeStoreCount} locations · fees ${input.feePerStore} €`,
     input.discount > 0 ? `discount ${input.discount} €` : null,
     `paid ${input.amountPaid} €`,
     input.notes?.trim() ? `notes: ${input.notes.trim()}` : null,

@@ -8,8 +8,8 @@ import {
 } from "../src/lib/expiry";
 
 test("paymentAmount subtracts discount and floors at zero", () => {
-  assert.equal(paymentAmount(5, 10, 3), 47);
-  assert.equal(paymentAmount(2, 10, 25), 0);
+  assert.equal(paymentAmount(50, 3), 47);
+  assert.equal(paymentAmount(20, 25), 0);
 });
 
 test("expiryListVisible keeps all expired items and caps only the future horizon", () => {

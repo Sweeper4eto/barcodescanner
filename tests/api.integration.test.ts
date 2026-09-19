@@ -1268,6 +1268,10 @@ test("payment enforcement blocks unpaid retail login when overdue", async () => 
     where: { id: client.id },
     data: { paymentsRequired: true, monthlyFeePerStore: 0 },
   });
+  await db.store.updateMany({
+    where: { clientId: client.id },
+    data: { monthlyFee: 0 },
+  });
   const freeLogin = await loginUser(user.username, "password123");
   assert.equal(freeLogin.ok, true);
 });

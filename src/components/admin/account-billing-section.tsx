@@ -6,14 +6,25 @@ import { PrimaryButton } from "@/components/auth-forms";
 import { useT } from "@/components/i18n-provider";
 import type { PaymentStanding } from "@/lib/payment-status";
 
+type StoreFeeRow = {
+  id: string;
+  name: string;
+  active: boolean;
+  monthlyFee: number;
+};
+
+type ReferralRow = { id: string; name: string };
+
 type ClientDetail = {
   client: {
     id: string;
     name: string;
     homeUser: boolean;
     paymentsRequired: boolean;
-    monthlyFeePerStore: number;
+    locationsFeeTotal: number;
   };
+  stores: StoreFeeRow[];
+  referrals: ReferralRow[];
   activeStoreCount: number;
   expectedAmount: number;
   unpaidMonths: number;
@@ -40,7 +51,6 @@ export function AccountBillingSection({ clientId, onChanged }: Props) {
   const currency = t("common.currency");
   const now = new Date();
   const [detail, setDetail] = useState<ClientDetail | null>(null);
-  const [feePerStore, setFeePerStore] = useState("20");
   const [paymentsRequired, setPaymentsRequired] = useState(false);
   const [discount, setDiscount] = useState("0");
   const [notes, setNotes] = useState("");
@@ -62,7 +72,6 @@ export function AccountBillingSection({ clientId, onChanged }: Props) {
         return;
       }
       setDetail(data);
-      setFeePerStore(String(data.client.monthlyFeePerStore));
       setPaymentsRequired(Boolean(data.client.paymentsRequired));
     })();
     return () => {
@@ -92,7 +101,6 @@ export function AccountBillingSection({ clientId, onChanged }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           id: clientId,
-          monthlyFeePerStore: Number(feePerStore),
           paymentsRequired,
         }),
       });
@@ -192,9 +200,24 @@ export function AccountBillingSection({ clientId, onChanged }: Props) {
             amount: detail.expectedAmount.toFixed(2),
             currency,
             stores: detail.activeStoreCount,
-            fee: detail.client.monthlyFeePerStore,
+            fee: detail.client.locationsFeeTotal.toFixed(2),
           })}
         </p>
+        {!detail.client.homeUser && detail.stores.length > 0 ? (
+          <ul className="mt-2 space-y-1 text-xs text-muted">
+            {detail.stores.map((store) => (
+              <li key={store.id} className={!store.active ? "opacity-50" : ""}>
+                {store.name}
+                {!store.active ? ` (${t("admin.locationDisabled")})` : ""}
+                {": "}
+                <span className="tabular-nums text-foreground">
+                  {store.monthlyFee.toFixed(2)} {currency}
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        <p className="mt-1 text-xs text-muted">{t("admin.feePerStoreHint")}</p>
       </div>
 
       {detail.client.homeUser ? (
@@ -230,19 +253,9 @@ export function AccountBillingSection({ clientId, onChanged }: Props) {
               />
             </button>
           </label>
-          <AdminField label={t("admin.feePerStore")}>
-            <input
-              className={adminInputClass}
-              inputMode="decimal"
-              value={feePerStore}
-              onChange={(event) => setFeePerStore(event.target.value)}
-            />
-          </AdminField>
           <PrimaryButton
             disabled={
-              saving ||
-              (Number(feePerStore) === detail.client.monthlyFeePerStore &&
-                paymentsRequired === detail.client.paymentsRequired)
+              saving || paymentsRequired === detail.client.paymentsRequired
             }
             onClick={() => void saveBillingSettings()}
           >
@@ -278,12 +291,34 @@ export function AccountBillingSection({ clientId, onChanged }: Props) {
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <input
-          className={adminInputClass}
-          placeholder={t("admin.discountPlaceholder", { currency })}
-          value={discount}
-          onChange={(event) => setDiscount(event.target.value)}
-        />
+        <div className="space-y-2">
+          <input
+            className={adminInputClass}
+            placeholder={t("admin.discountPlaceholder", { currency })}
+            value={discount}
+            onChange={(event) => setDiscount(event.target.value)}
+          />
+          {!detail.client.homeUser ? (
+            <div className="rounded-xl border border-card-border bg-selected/20 px-3 py-2">
+              <p className="text-xs font-semibold text-foreground">
+                {t("admin.referralsCount", {
+                  count: detail.referrals.length,
+                })}
+              </p>
+              {detail.referrals.length === 0 ? (
+                <p className="mt-1 text-xs text-muted">
+                  {t("admin.referralsEmpty")}
+                </p>
+              ) : (
+                <ul className="mt-1 space-y-0.5 text-xs text-muted">
+                  {detail.referrals.map((row) => (
+                    <li key={row.id}>{row.name}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          ) : null}
+        </div>
         <input
           className={adminInputClass}
           placeholder={t("admin.notesPlaceholder")}

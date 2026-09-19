@@ -8,6 +8,7 @@ import {
 import { logAuditEvent } from "@/lib/audit-log";
 import { requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { defaultFeeForLocationIndex } from "@/lib/location-fees";
 import { apiT } from "@/i18n";
 
 async function requireAdminResponse(request: Request) {
@@ -49,6 +50,7 @@ const storeSchema = z.object({
   phone: z.string().optional(),
   additionalInfo: z.string().optional(),
   active: z.boolean().optional(),
+  monthlyFee: z.number().nonnegative().optional(),
 });
 
 export async function POST(request: Request) {
@@ -64,7 +66,16 @@ export async function POST(request: Request) {
     );
   }
 
-  const store = await db.store.create({ data: parsed.data });
+  const existingCount = await db.store.count({
+    where: { clientId: parsed.data.clientId },
+  });
+  const monthlyFee =
+    parsed.data.monthlyFee ?? defaultFeeForLocationIndex(existingCount);
+
+  const { monthlyFee: _ignored, ...rest } = parsed.data;
+  const store = await db.store.create({
+    data: { ...rest, monthlyFee },
+  });
 
   // Business owners register without a location — link all OWNERS when admin adds one.
   const owners = await db.user.findMany({
@@ -76,7 +87,6 @@ export async function POST(request: Request) {
     select: { id: true },
   });
   if (owners.length > 0) {
-    // New store id — no existing links; SQLite createMany has no skipDuplicates.
     await db.userStore.createMany({
       data: owners.map((owner) => ({
         userId: owner.id,
@@ -105,6 +115,7 @@ const patchSchema = z.object({
   phone: z.string().optional(),
   additionalInfo: z.string().optional(),
   active: z.boolean().optional(),
+  monthlyFee: z.number().nonnegative().optional(),
 });
 
 export async function PATCH(request: Request) {

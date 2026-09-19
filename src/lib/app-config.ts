@@ -1,5 +1,6 @@
 import { paymentAmount } from "@/lib/expiry";
 import { db } from "@/lib/db";
+import { sumLocationFees } from "@/lib/location-fees";
 import {
   billingStartPeriod,
   isPaymentAccessBlocked,
@@ -27,19 +28,14 @@ export async function clientRequiresPayment(
       homeUser: true,
       paymentsRequired: true,
       paymentsRequiredSince: true,
-      monthlyFeePerStore: true,
       createdAt: true,
-      stores: { where: { active: true }, select: { id: true } },
+      stores: { where: { active: true }, select: { monthlyFee: true } },
       payments: { select: { year: true, month: true } },
     },
   });
   if (!client?.active) return false;
 
-  const expectedAmount = paymentAmount(
-    client.stores.length,
-    client.monthlyFeePerStore,
-    0,
-  );
+  const expectedAmount = paymentAmount(sumLocationFees(client.stores), 0);
   const billingStart = billingStartPeriod({
     paymentsRequired: client.paymentsRequired,
     paymentsRequiredSince: client.paymentsRequiredSince,

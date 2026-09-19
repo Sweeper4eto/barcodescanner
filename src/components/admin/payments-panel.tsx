@@ -11,7 +11,7 @@ import { appButtonNeutral } from "@/lib/app-ui";
 import type { PaymentStanding } from "@/lib/payment-status";
 
 type CalendarRow = {
-  client: { id: string; name: string; monthlyFeePerStore: number };
+  client: { id: string; name: string; locationsFeeTotal: number };
   activeStoreCount: number;
   expectedAmount: number;
   paid: boolean;
@@ -30,7 +30,7 @@ type StatusRow = {
     active: boolean;
     homeUser: boolean;
     paymentsRequired: boolean;
-    monthlyFeePerStore: number;
+    locationsFeeTotal: number;
   };
   activeStoreCount: number;
   storeCount: number;
@@ -41,8 +41,9 @@ type StatusRow = {
 
 type ClientDetail = {
   client: StatusRow["client"] & { createdAt?: string };
-  stores: { id: string; name: string; active: boolean }[];
+  stores: { id: string; name: string; active: boolean; monthlyFee?: number }[];
   activeStoreCount: number;
+  locationsFeeTotal?: number;
   expectedAmount: number;
   unpaidMonths: number;
   standing: PaymentStanding;
@@ -437,7 +438,10 @@ export function PaymentsPanel({
                       amount: detail.expectedAmount.toFixed(2),
                       currency,
                       stores: detail.activeStoreCount,
-                      fee: detail.client.monthlyFeePerStore,
+                      fee: (
+                        detail.locationsFeeTotal ??
+                        detail.client.locationsFeeTotal
+                      ).toFixed(2),
                     })}
                   </p>
                   <p className="mt-1 text-xs text-muted">
@@ -622,7 +626,7 @@ export function PaymentsPanel({
                   amount: selectedMonthRow.expectedAmount.toFixed(2),
                   currency,
                   stores: selectedMonthRow.activeStoreCount,
-                  fee: selectedMonthRow.client.monthlyFeePerStore,
+                  fee: selectedMonthRow.client.locationsFeeTotal.toFixed(2),
                 })}
               </p>
               <div className="mt-3 grid gap-3 sm:grid-cols-2">

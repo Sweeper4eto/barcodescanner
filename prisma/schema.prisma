@@ -72,7 +72,15 @@ model Client {
    * Access lock applies only after a billed month before the current month stays unpaid.
    */
   paymentsRequiredSince DateTime?
+  /**
+   * @deprecated Fee is per location (`Store.monthlyFee`). Kept for legacy rows;
+   * billing uses the sum of active location fees.
+   */
   monthlyFeePerStore Float     @default(20)
+  /** Business client who referred this client (business → business only). */
+  referredByClientId String?
+  referredBy         Client?   @relation("ClientReferrals", fields: [referredByClientId], references: [id], onDelete: SetNull)
+  referrals          Client[]  @relation("ClientReferrals")
   /** Defaults copied for new users until they customize notification prefs. */
   expiryDefaultEarlyDays        Int?
   expiryDefaultUrgentDays       Int?
@@ -91,6 +99,8 @@ model Client {
   minimartLocatorStores MinimartLocatorStore[]
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
+
+  @@index([referredByClientId])
 }
 
 model Store {
@@ -102,6 +112,8 @@ model Store {
   phone          String?
   additionalInfo String?
   active         Boolean          @default(true)
+  /** Monthly fee for this location (€). Client total = sum of active location fees. */
+  monthlyFee     Float            @default(20)
   userLinks      UserStore[]
   inventory      InventoryEntry[]
   buyList        BuyListEntry[]
@@ -196,6 +208,7 @@ model Payment {
   year             Int
   month            Int
   activeStoreCount Int
+  /** Snapshot: sum of active location fees at payment time (not a per-store rate). */
   feePerStore      Float
   discount         Float    @default(0)
   amountPaid       Float

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
 import { paymentAmount } from "@/lib/expiry";
 import { db } from "@/lib/db";
+import { sumLocationFees } from "@/lib/location-fees";
 import { apiT } from "@/i18n";
 
 async function requireAdminResponse(request: Request) {
@@ -46,7 +47,12 @@ export async function GET(request: Request) {
   const [clients, payments] = await Promise.all([
     db.client.findMany({
       where: { active: true, homeUser: false },
-      include: { stores: { where: { active: true } } },
+      include: {
+        stores: {
+          where: { active: true },
+          select: { monthlyFee: true },
+        },
+      },
       orderBy: { name: "asc" },
     }),
     db.payment.findMany({ where: { year, month } }),
@@ -56,17 +62,14 @@ export async function GET(request: Request) {
 
   const rows = clients.map((client) => {
     const activeStoreCount = client.stores.length;
-    const expectedAmount = paymentAmount(
-      activeStoreCount,
-      client.monthlyFeePerStore,
-      0,
-    );
+    const locationsFeeTotal = sumLocationFees(client.stores);
+    const expectedAmount = paymentAmount(locationsFeeTotal, 0);
     const payment = paymentByClient.get(client.id);
     return {
       client: {
         id: client.id,
         name: client.name,
-        monthlyFeePerStore: client.monthlyFeePerStore,
+        locationsFeeTotal,
       },
       activeStoreCount,
       expectedAmount,
