@@ -9,6 +9,7 @@ import {
 } from "@/components/admin/admin-ui";
 import { AuditLogPanel } from "@/components/admin/audit-log-panel";
 import { ClientsPanel, type Client } from "@/components/admin/clients-panel";
+import { DocumentOcrUsagePanel } from "@/components/admin/document-ocr-usage-panel";
 import { ItemsPanel } from "@/components/admin/items-panel";
 import { MinimartLocatorPanel } from "@/components/admin/minimart-locator-panel";
 import { PaymentsPanel } from "@/components/admin/payments-panel";
@@ -100,6 +101,11 @@ export default function AdminPage() {
       label: t("admin.minimartLocatorTab"),
       group: "secondary",
     },
+    {
+      id: "ocrUsage",
+      label: t("admin.documentOcrUsageTab"),
+      group: "secondary",
+    },
     { id: "audit", label: t("admin.auditLog"), group: "secondary" },
   ];
 
@@ -169,6 +175,7 @@ export default function AdminPage() {
           ) : null}
           {tab === "whatsNew" ? <WhatsNewPanel /> : null}
           {tab === "minimart" ? <MinimartLocatorPanel /> : null}
+          {tab === "ocrUsage" ? <DocumentOcrUsagePanel /> : null}
           {tab === "audit" ? <AuditLogPanel /> : null}
         </AdminShell>
       </div>

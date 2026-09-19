@@ -11,6 +11,7 @@ export type AdminNavId =
   | "support"
   | "whatsNew"
   | "minimart"
+  | "ocrUsage"
   | "audit";
 
 export type AdminNavItem = {

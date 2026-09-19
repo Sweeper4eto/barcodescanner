@@ -198,6 +198,8 @@ export const en = {
       "Document scanning is not configured. Set GEMINI_API_KEY or OPENAI_API_KEY on the server.",
     documentParseFailed: "Could not read the document. Try a clearer photo.",
     documentNoItems: "No products were found on this document.",
+    documentScanRateLimited:
+      "Too many document scans. Please wait a few minutes and try again.",
     documentImportInvalidRows:
       "Some rows have an invalid quantity or expiry date. Fix highlighted rows and try again.",
     documentTooLarge:
@@ -882,6 +884,23 @@ export const en = {
     saving: "Saving…",
     items: "Items",
     auditLog: "Audit log",
+    documentOcrUsageTab: "OCR usage",
+    documentOcrUsage: "Document OCR usage",
+    documentOcrUsageHint:
+      "Scan totals by period and day, plus per-user counts in the selected range.",
+    documentOcrUsageSearch: "Search username or account…",
+    documentOcrUsageTotal: "{count} scans in selected range",
+    documentOcrUsageEmpty: "No document scans in this period.",
+    documentOcrUsageUser: "User",
+    documentOcrUsageClient: "Account",
+    documentOcrUsageScans: "Scans",
+    documentOcrUsageLast: "Last scan",
+    documentOcrUsagePeriod7: "Last 7 days",
+    documentOcrUsagePeriod14: "Last 2 weeks",
+    documentOcrUsagePeriod30: "Last 30 days",
+    documentOcrUsageDaily: "Scans per day",
+    documentOcrUsageDay: "Day",
+    documentOcrUsageByUser: "Scans by user",
     auditDescription:
       "Login, inventory, product, and admin actions with IP and device type.",
     eventType: "Event type",

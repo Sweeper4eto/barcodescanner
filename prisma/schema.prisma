@@ -32,6 +32,7 @@ model User {
   pushSubscriptions   PushSubscription[]
   pushNotificationLogs PushNotificationLog[]
   auditLogs           AuditLog[]
+  documentOcrScans    DocumentOcrScan[]
   supportRequests     SupportRequest[]
   priceReducedEntries InventoryEntry[]
   /** Expiry push notification preferences (phases 1–3). */
@@ -250,6 +251,20 @@ model AuditLog {
   @@index([occurredAt])
   @@index([event])
   @@index([username])
+}
+
+/** One row per document OCR parse attempt that was allowed past the rate limit. */
+model DocumentOcrScan {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  storeId   String
+  username  String
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([userId, createdAt])
+  @@index([storeId, createdAt])
 }
 
 model SupportRequest {

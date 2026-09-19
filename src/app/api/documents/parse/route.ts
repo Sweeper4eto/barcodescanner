@@ -15,6 +15,8 @@ import {
   mockDocumentOcrRows,
   shouldMockDocumentOcr,
 } from "@/lib/document-ocr-mock";
+import { takeDocumentOcrSlot } from "@/lib/document-ocr-rate-limit";
+import { recordDocumentOcrScan } from "@/lib/document-ocr-usage";
 import { deleteLocalUpload } from "@/lib/upload";
 import { apiT } from "@/i18n";
 
@@ -109,6 +111,23 @@ export async function POST(request: Request) {
         { status: 403 },
       );
     }
+
+    const retryAfterMs = takeDocumentOcrSlot(session.userId);
+    if (retryAfterMs !== null) {
+      return NextResponse.json(
+        { error: apiT(request, "errors.documentScanRateLimited") },
+        {
+          status: 429,
+          headers: { "Retry-After": String(Math.ceil(retryAfterMs / 1000)) },
+        },
+      );
+    }
+
+    void recordDocumentOcrScan({
+      userId: session.userId,
+      username: session.username,
+      storeId: parsed.data.storeId,
+    });
 
     try {
       const extractStart = Date.now();

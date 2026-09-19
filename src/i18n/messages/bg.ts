@@ -199,6 +199,8 @@ export const bg = {
       "Сканирането на документи не е конфигурирано. Задайте GEMINI_API_KEY или OPENAI_API_KEY на сървъра.",
     documentParseFailed: "Документът не може да се прочете. Опитайте с по-ясна снимка.",
     documentNoItems: "В документа не са намерени продукти.",
+    documentScanRateLimited:
+      "Твърде много сканирания на документи. Изчакайте няколко минути и опитайте отново.",
     documentImportInvalidRows:
       "Някои редове имат невалидно количество или годност. Поправете ги и опитайте отново.",
     documentTooLarge:
@@ -887,6 +889,23 @@ export const bg = {
     saving: "Записване…",
     items: "Артикули",
     auditLog: "Одит лог",
+    documentOcrUsageTab: "OCR употреба",
+    documentOcrUsage: "Употреба на OCR за документи",
+    documentOcrUsageHint:
+      "Общо сканирания по период и по ден, плюс брой по потребител в избрания диапазон.",
+    documentOcrUsageSearch: "Търсене по потребител или акаунт…",
+    documentOcrUsageTotal: "{count} сканирания в избрания период",
+    documentOcrUsageEmpty: "Няма сканирания на документи в този период.",
+    documentOcrUsageUser: "Потребител",
+    documentOcrUsageClient: "Акаунт",
+    documentOcrUsageScans: "Сканирания",
+    documentOcrUsageLast: "Последно",
+    documentOcrUsagePeriod7: "Последните 7 дни",
+    documentOcrUsagePeriod14: "Последните 2 седмици",
+    documentOcrUsagePeriod30: "Последните 30 дни",
+    documentOcrUsageDaily: "Сканирания по дни",
+    documentOcrUsageDay: "Ден",
+    documentOcrUsageByUser: "Сканирания по потребител",
     auditDescription:
       "Вход, инвентар, продукти и админ действия с IP и тип устройство.",
     eventType: "Тип събитие",
