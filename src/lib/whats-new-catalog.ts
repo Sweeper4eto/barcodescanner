@@ -13,6 +13,13 @@ export type WhatsNewCatalogEntry = {
 
 export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
   {
+    key: "2026-09-whats-new-per-user",
+    titleEn:
+      "“Got it” on What’s new is saved for your account, so it won’t show again on other devices.",
+    titleBg:
+      "„Разбрах“ при Новости се записва за акаунта ви и няма да се показва отново на други устройства.",
+  },
+  {
     key: "2026-09-team-sheet-keyboard",
     titleEn:
       "Team add/edit sheet stays fully visible when the keyboard opens on mobile.",

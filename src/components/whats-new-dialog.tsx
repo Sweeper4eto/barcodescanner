@@ -8,9 +8,10 @@ import { useT } from "@/components/i18n-provider";
 import { useViewportInsets } from "@/hooks/use-viewport-insets";
 import { markPwaInstallOffered, shouldOfferPwaInstall } from "@/lib/pwa-install";
 import {
+  dismissWhatsNewOnServer,
+  getLocalWhatsNewSeenIdsPendingMigration,
+  markLocalWhatsNewSeenMigrated,
   markWhatsNewSeen,
-  shouldShowWhatsNew,
-  unseenWhatsNewItems,
   type WhatsNewPublicItem,
 } from "@/lib/whats-new";
 
@@ -72,14 +73,19 @@ export function WhatsNewDialog({ ready = true }: Props) {
 
     async function load() {
       try {
+        const pendingLocal = getLocalWhatsNewSeenIdsPendingMigration();
+        if (pendingLocal.length > 0) {
+          const migrated = await dismissWhatsNewOnServer(pendingLocal);
+          if (migrated) markLocalWhatsNewSeenMigrated();
+        }
+
         const response = await fetch("/api/whats-new");
         if (!response.ok) return;
         const data = (await response.json()) as { items?: WhatsNewPublicItem[] };
         if (cancelled) return;
         const next = data.items ?? [];
-        const unseen = unseenWhatsNewItems(next);
-        setItems(unseen);
-        if (shouldShowWhatsNew(next)) setOpen(true);
+        setItems(next);
+        if (next.length > 0) setOpen(true);
         else if (shouldOfferPwaInstall()) markPwaInstallOffered();
       } catch {
         if (!cancelled && shouldOfferPwaInstall()) markPwaInstallOffered();
@@ -93,7 +99,11 @@ export function WhatsNewDialog({ ready = true }: Props) {
   }, [ready]);
 
   function dismiss() {
+    const ids = items.map((item) => item.id);
     markWhatsNewSeen(items);
+    void dismissWhatsNewOnServer(ids).then((ok) => {
+      if (ok) markLocalWhatsNewSeenMigrated();
+    });
     setOpen(false);
     if (shouldOfferPwaInstall()) markPwaInstallOffered();
   }

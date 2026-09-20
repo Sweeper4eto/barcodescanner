@@ -32,14 +32,14 @@ test("shouldShowWhatsNew is false with empty list", () => {
   assert.equal(shouldShowWhatsNew([]), false);
 });
 
-test("unseen filters acknowledged ids and keeps new ones", () => {
-  // jsdom-free unit path: exercise pure helpers with an injected seen set via mark in memory.
-  // markWhatsNewIdsSeen no-ops without window — simulate filter logic directly.
+test("unseen filters with explicit seen set", () => {
   const items = [{ id: "a" }, { id: "b" }, { id: "c" }];
-  const seen = new Set(["a", "b"]);
-  const unseen = items.filter((item) => !seen.has(item.id));
-  assert.deepEqual(unseen.map((i) => i.id), ["c"]);
-  assert.equal(unseen.length > 0, true);
+  const unseen = unseenWhatsNewItems(items, ["a", "b"]);
+  assert.deepEqual(
+    unseen.map((i) => i.id),
+    ["c"],
+  );
+  assert.equal(shouldShowWhatsNew(items, ["a", "b", "c"]), false);
 });
 
 test("whatsNewFingerprint still lists sorted ids", () => {
@@ -49,7 +49,6 @@ test("whatsNewFingerprint still lists sorted ids", () => {
 // Browser storage tests only when localStorage exists (Node test runner has none).
 test("mark + unseen round-trip when localStorage is available", () => {
   if (typeof globalThis.localStorage === "undefined") {
-    // Provide a minimal in-memory localStorage for this test.
     const store = new Map<string, string>();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (globalThis as any).localStorage = {
@@ -68,6 +67,7 @@ test("mark + unseen round-trip when localStorage is available", () => {
   const store = globalThis.localStorage;
   store.removeItem("expire365-whats-new-seen-ids");
   store.removeItem("expire365-whats-new-seen");
+  store.removeItem("expire365-whats-new-seen-migrated");
 
   const live = [{ id: "old-1" }, { id: "old-2" }];
   markWhatsNewIdsSeen(live.map((i) => i.id));

@@ -7,6 +7,8 @@ export type WhatsNewPublicItem = {
 const SEEN_IDS_KEY = "expire365-whats-new-seen-ids";
 /** Legacy full-set fingerprint (sorted ids joined with `|`). */
 const LEGACY_SEEN_KEY = "expire365-whats-new-seen";
+/** One-time flag: local seen ids were uploaded to the user account. */
+const MIGRATED_KEY = "expire365-whats-new-seen-migrated";
 
 /** Stable fingerprint of a set of ids (kept for tests / migration). */
 export function whatsNewFingerprint(items: { id: string }[]): string {
@@ -76,9 +78,35 @@ export function getSeenWhatsNewIds(): Set<string> {
   return readSeenIdSet();
 }
 
-/** Items the user has not acknowledged yet. */
-export function unseenWhatsNewItems<T extends { id: string }>(items: T[]): T[] {
-  const seen = readSeenIdSet();
+/**
+ * Local ids still stored from the old per-device dismiss flow.
+ * Used once to sync onto the logged-in user, then cleared via markLocalMigrated.
+ */
+export function getLocalWhatsNewSeenIdsPendingMigration(): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    if (window.localStorage.getItem(MIGRATED_KEY) === "1") return [];
+    return [...readSeenIdSet()];
+  } catch {
+    return [];
+  }
+}
+
+export function markLocalWhatsNewSeenMigrated(): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(MIGRATED_KEY, "1");
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Items the user has not acknowledged yet (client-side filter; prefer server filtering). */
+export function unseenWhatsNewItems<T extends { id: string }>(
+  items: T[],
+  seenIds?: Iterable<string>,
+): T[] {
+  const seen = seenIds ? new Set(seenIds) : readSeenIdSet();
   return items.filter((item) => !seen.has(item.id));
 }
 
@@ -90,13 +118,32 @@ export function markWhatsNewIdsSeen(ids: Iterable<string>): void {
   writeSeenIdSet(seen);
 }
 
-/** Mark the shown announcements as acknowledged (Got it). */
+/** Mark the shown announcements as acknowledged locally (optimistic / offline cache). */
 export function markWhatsNewSeen(items: { id: string }[]): void {
   markWhatsNewIdsSeen(items.map((item) => item.id));
 }
 
-export function shouldShowWhatsNew(items: { id: string }[]): boolean {
-  return unseenWhatsNewItems(items).length > 0;
+export function shouldShowWhatsNew(
+  items: { id: string }[],
+  seenIds?: Iterable<string>,
+): boolean {
+  return unseenWhatsNewItems(items, seenIds).length > 0;
+}
+
+/** Persist acknowledgement for the current user on the server. */
+export async function dismissWhatsNewOnServer(ids: string[]): Promise<boolean> {
+  const unique = [...new Set(ids.filter(Boolean))];
+  if (unique.length === 0) return true;
+  try {
+    const response = await fetch("/api/whats-new", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids: unique }),
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
 }
 
 /** @deprecated Prefer markWhatsNewSeen(items). Kept for older call sites. */
