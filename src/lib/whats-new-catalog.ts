@@ -13,6 +13,14 @@ export type WhatsNewCatalogEntry = {
 
 export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
   {
+    key: "2026-09-team-sheet-keyboard",
+    titleEn:
+      "Team add/edit sheet stays fully visible when the keyboard opens on mobile.",
+    titleBg:
+      "Листът за добавяне/редакция в Екип остава видим при отворена клавиатура на мобилен.",
+    href: "/app/team",
+  },
+  {
     key: "2026-09-team-sheet-wizard",
     titleEn:
       "Team: list people first, then add or edit in one compact sheet (account, role, stores).",

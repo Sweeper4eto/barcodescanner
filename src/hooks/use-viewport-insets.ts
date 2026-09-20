@@ -7,9 +7,11 @@ export type ViewportInsets = {
   offsetTop: number;
   /** Extra space in px currently covered by the on-screen keyboard (or similar UI) at the bottom. */
   keyboardInset: number;
+  /** Visible (visual) viewport height in px — use with `top` instead of `bottom` for fixed sheets. */
+  height: number;
 };
 
-const IDLE_INSETS: ViewportInsets = { offsetTop: 0, keyboardInset: 0 };
+const IDLE_INSETS: ViewportInsets = { offsetTop: 0, keyboardInset: 0, height: 0 };
 
 /**
  * Tracks how much of the layout viewport is currently obscured by the mobile
@@ -20,14 +22,22 @@ const IDLE_INSETS: ViewportInsets = { offsetTop: 0, keyboardInset: 0 };
  * viewport does). That leaves anything pinned near the bottom of a fixed
  * sheet (e.g. Save/Cancel buttons) rendered behind the keyboard with no way
  * to scroll it into view. Sheets can feed these insets back into inline
- * `top`/`bottom` styles so they stay within the actually-visible area.
+ * `top`/`height` (preferred) or `top`/`bottom` styles so they stay within
+ * the actually-visible area.
  */
 export function useViewportInsets(): ViewportInsets {
   const [insets, setInsets] = useState<ViewportInsets>(IDLE_INSETS);
 
   useEffect(() => {
     const viewport = window.visualViewport;
-    if (!viewport) return;
+    if (!viewport) {
+      setInsets({
+        offsetTop: 0,
+        keyboardInset: 0,
+        height: window.innerHeight,
+      });
+      return;
+    }
 
     function update() {
       const vv = window.visualViewport;
@@ -36,7 +46,11 @@ export function useViewportInsets(): ViewportInsets {
         0,
         window.innerHeight - vv.height - vv.offsetTop,
       );
-      setInsets({ offsetTop: vv.offsetTop, keyboardInset });
+      setInsets({
+        offsetTop: vv.offsetTop,
+        keyboardInset,
+        height: Math.max(0, Math.round(vv.height)),
+      });
     }
 
     update();

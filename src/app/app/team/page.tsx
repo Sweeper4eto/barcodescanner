@@ -144,7 +144,7 @@ function PasswordField({
 
 export default function TeamPage() {
   const { t } = useT();
-  const { offsetTop, keyboardInset } = useViewportInsets();
+  const { offsetTop, keyboardInset, height: viewportHeight } = useViewportInsets();
   const usernameRef = useRef<HTMLInputElement>(null);
 
   const [users, setUsers] = useState<TeamUser[]>([]);
@@ -533,22 +533,32 @@ export default function TeamPage() {
 
       {sheetOpen ? (
         <div
-          className="fixed inset-x-0 z-[60] flex flex-col justify-end bg-black/65"
-          style={{ top: offsetTop, bottom: keyboardInset }}
+          className="fixed inset-x-0 z-[60] flex flex-col justify-end overflow-hidden overscroll-none bg-black/65"
+          style={
+            viewportHeight > 0
+              ? { top: offsetTop, height: viewportHeight }
+              : { top: offsetTop, bottom: keyboardInset }
+          }
           role="dialog"
           aria-modal="true"
           aria-labelledby="team-sheet-title"
           onClick={closeSheet}
         >
           <div
-            className="flex max-h-[min(92dvh,40rem)] w-full flex-col rounded-t-3xl border border-card-border bg-background shadow-[0_-12px_40px_rgba(0,0,0,0.35)]"
+            className="flex max-h-full min-h-0 w-full flex-col rounded-t-3xl border border-card-border bg-background shadow-[0_-12px_40px_rgba(0,0,0,0.35)]"
+            style={{
+              maxHeight:
+                viewportHeight > 0
+                  ? `min(40rem, ${viewportHeight}px)`
+                  : "min(40rem, 100%)",
+            }}
             onClick={(event) => event.stopPropagation()}
           >
-            <div className="flex justify-center pt-2.5" aria-hidden>
+            <div className="flex shrink-0 justify-center pt-2.5" aria-hidden>
               <span className="h-1 w-10 rounded-full bg-card-border" />
             </div>
 
-            <div className="px-4 pb-1.5 pt-1.5">
+            <div className="shrink-0 px-4 pb-1.5 pt-1.5">
               <h2
                 id="team-sheet-title"
                 className="text-base font-semibold text-foreground"
