@@ -534,21 +534,23 @@ async function extractWithGeminiOnce(
 ): Promise<string> {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
 
-  // gemini-2.5 / 3.x are "thinking" models: reasoning tokens count against
-  // maxOutputTokens and add large latency (~2 min). For structured table OCR we
-  // don't need it â€” disabling thinking makes it fast AND stops the model from
-  // burning the token budget on thoughts (which truncated long tables).
-  const isThinkingModel = /gemini-(?:3|2\.5)/i.test(model);
+  // Gemini 2.5: disable thinking via budget 0 (faster OCR, more JSON room).
+  // Gemini 3.x: rejects thinkingBudget (incl. 0) with INVALID_ARGUMENT; use
+  // thinkingLevel instead, and leave temperature at the model default.
+  const isGemini3 = /gemini-3/i.test(model);
+  const isGemini25 = /gemini-2\.5/i.test(model);
 
   const generationConfig: Record<string, unknown> = {
-    temperature: 0,
     maxOutputTokens: 65536,
-    // With thinking off there are no "thought" parts, so forcing JSON is safe
-    // and more reliable than parsing free text.
     responseMimeType: "application/json",
   };
-  if (isThinkingModel) {
+  if (isGemini25) {
+    generationConfig.temperature = 0;
     generationConfig.thinkingConfig = { thinkingBudget: 0 };
+  } else if (isGemini3) {
+    generationConfig.thinkingConfig = { thinkingLevel: "minimal" };
+  } else {
+    generationConfig.temperature = 0;
   }
 
   const response = await fetch(url, {
@@ -611,6 +613,16 @@ function isUnavailableModelError(message: string): boolean {
   );
 }
 
+/** Bad request for this model/config — try the next model in the cascade. */
+function isInvalidArgumentError(message: string): boolean {
+  const lower = message.toLowerCase();
+  return (
+    /^OCR_PROVIDER:400:/.test(message) ||
+    lower.includes("invalid_argument") ||
+    lower.includes("invalid argument")
+  );
+}
+
 async function extractWithGemini(
   apiKey: string,
   preferredModel: string,
@@ -643,6 +655,7 @@ async function extractWithGemini(
       lastError = error instanceof Error ? error : new Error(message);
       if (
         isUnavailableModelError(message) ||
+        isInvalidArgumentError(message) ||
         message.startsWith("OCR_EMPTY:") ||
         isRetryableProviderError(message)
       ) {
