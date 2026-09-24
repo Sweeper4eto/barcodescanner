@@ -236,4 +236,28 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Намалена цена показва кой последно е задал отстъпката и кога (обновява се при промяна от друг).",
     href: "/app/expiry",
   },
+  {
+    key: "2026-09-action-flash-above-nav",
+    titleEn:
+      "Cart and expiry success messages stay pinned above the bottom menu so the list does not jump.",
+    titleBg:
+      "Съобщенията за успех в количката и годността остават над долното меню, за да не подскача списъкът.",
+    href: "/app/buy-list",
+  },
+  {
+    key: "2026-09-retail-default-main-location",
+    titleEn:
+      "New business accounts start with a Main location again — ready to scan right after signup (rename anytime).",
+    titleBg:
+      "Новите бизнес акаунти отново започват с обект Main — готови за скен веднага след регистрация (преименувайте когато искате).",
+    href: "/app",
+  },
+  {
+    key: "2026-09-expiry-bulk-remove",
+    titleEn:
+      "Expiry list: long-press an item to select several, then remove them together.",
+    titleBg:
+      "Списък с годност: задръжте артикул, за да изберете няколко и да ги премахнете заедно.",
+    href: "/app/expiry",
+  },
 ];

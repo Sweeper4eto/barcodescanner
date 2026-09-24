@@ -113,19 +113,15 @@ export async function registerUser(
       },
     });
 
-    // Home accounts get a default "Home" location. Retail/business owners
-    // start with no locations until an admin assigns one — app features stay locked.
-    let storeId: string | null = null;
-    if (homeUser) {
-      const store = await tx.store.create({
-        data: {
-          clientId: client.id,
-          name: defaultLocationName("home"),
-          active: true,
-        },
-      });
-      storeId = store.id;
-    }
+    // Every new account gets a default location (Home / Main) so the owner can
+    // use the app immediately; they can rename it later in admin or settings.
+    const store = await tx.store.create({
+      data: {
+        clientId: client.id,
+        name: defaultLocationName(options.accountType),
+        active: true,
+      },
+    });
 
     return tx.user.create({
       data: {
@@ -135,9 +131,7 @@ export async function registerUser(
         role: "USER",
         clientRole: "OWNER",
         clientId: client.id,
-        ...(storeId
-          ? { storeLinks: { create: [{ storeId }] } }
-          : {}),
+        storeLinks: { create: [{ storeId: store.id }] },
       },
       select: {
         id: true,

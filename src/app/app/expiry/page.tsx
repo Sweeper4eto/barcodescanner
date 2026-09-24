@@ -35,6 +35,8 @@ import { CancelButton } from "@/components/cancel-button";
 import { ConfirmButton } from "@/components/confirm-button";
 import { DangerRemoveButton } from "@/components/danger-remove-button";
 import {
+  appButtonDangerFull,
+  appButtonNeutral,
   appFooterButtonGrid,
 } from "@/lib/app-ui";
 import { resolveEntryImagePath } from "@/lib/inventory-entry-display";
@@ -91,6 +93,10 @@ function ExpiryList() {
   >({});
   const [flashMessage, setFlashMessage] = useState<string | null>(null);
   const [flashTone, setFlashTone] = useState<"success" | "error">("success");
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Record<string, true>>({});
+  const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false);
+  const [bulkRemoving, setBulkRemoving] = useState(false);
   const [loading, setLoading] = useState(() => Boolean(storeId));
   const [period, setPeriod] = useState<ExpiryPeriod>(DEFAULT_EXPIRY_PERIOD);
   const loadMoreRef = useRef<HTMLDivElement>(null);
@@ -132,6 +138,20 @@ function ExpiryList() {
       close: () => {
         setMoveToOrdersEntry(null);
         setMoveOrdersQty("1");
+      },
+    },
+    {
+      id: "bulk-confirm",
+      open: bulkConfirmOpen,
+      close: () => setBulkConfirmOpen(false),
+    },
+    {
+      id: "selection",
+      open: selectionMode,
+      close: () => {
+        setSelectionMode(false);
+        setSelectedIds({});
+        setBulkConfirmOpen(false);
       },
     },
   ]);
@@ -186,7 +206,16 @@ function ExpiryList() {
   function onPeriodChange(next: ExpiryPeriod) {
     setPeriod(next);
     setStoredExpiryPeriod(next);
+    setSelectionMode(false);
+    setSelectedIds({});
+    setBulkConfirmOpen(false);
   }
+
+  useEffect(() => {
+    setSelectionMode(false);
+    setSelectedIds({});
+    setBulkConfirmOpen(false);
+  }, [storeId]);
 
   const loadEntries = useCallback(
     async (targetPage: number, append: boolean) => {
@@ -286,6 +315,70 @@ function ExpiryList() {
     } catch {
       setFlashTone("error");
       setFlashMessage(t("errors.networkError"));
+    }
+  }
+
+  function exitSelectionMode() {
+    setSelectionMode(false);
+    setSelectedIds({});
+    setBulkConfirmOpen(false);
+  }
+
+  function enterSelectionWith(entryId: string) {
+    setDetailEntry(null);
+    setConfirmId(null);
+    setShowScanner(false);
+    setSelectionMode(true);
+    setSelectedIds({ [entryId]: true });
+  }
+
+  function toggleSelected(entryId: string) {
+    setSelectedIds((current) => {
+      const next = { ...current };
+      if (next[entryId]) delete next[entryId];
+      else next[entryId] = true;
+      return next;
+    });
+  }
+
+  async function bulkRemoveSelected() {
+    const ids = Object.keys(selectedIds);
+    if (ids.length === 0 || bulkRemoving) return;
+    setBulkRemoving(true);
+    try {
+      const response = await fetch("/api/inventory/bulk-remove", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ storeId, entryIds: ids }),
+      });
+      const data = (await response.json()) as {
+        removed?: number;
+        removedIds?: string[];
+        error?: string;
+      };
+      if (!response.ok) {
+        setFlashTone("error");
+        setFlashMessage(data.error ?? t("errors.networkError"));
+        return;
+      }
+      const removedSet = new Set(data.removedIds ?? ids);
+      setEntries((current) =>
+        current.filter((entry) => !removedSet.has(entry.id)),
+      );
+      setDetailEntry((current) =>
+        current && removedSet.has(current.id) ? null : current,
+      );
+      exitSelectionMode();
+      setFlashTone("success");
+      setFlashMessage(
+        t("expiry.bulkRemoved", { count: data.removed ?? removedSet.size }),
+      );
+      clearSearchIfActive();
+    } catch {
+      setFlashTone("error");
+      setFlashMessage(t("errors.networkError"));
+    } finally {
+      setBulkRemoving(false);
     }
   }
 
@@ -478,6 +571,7 @@ function ExpiryList() {
   const isSearching = debouncedSearch.length > 0;
   const emptyMessage = isSearching ? t("expiry.noResults") : t("expiry.empty");
   const isHomeUser = homeUser === true;
+  const selectedCount = Object.keys(selectedIds).length;
   const confirmEntry = confirmId
     ? (entries.find((entry) => entry.id === confirmId) ?? null)
     : null;
@@ -490,8 +584,25 @@ function ExpiryList() {
     <div className="mx-auto flex h-[calc(100dvh-var(--app-bottom-nav-height)-env(safe-area-inset-bottom,0px))] min-h-0 w-full max-w-lg flex-col overflow-x-visible pt-1">
       <div className={`${listPageChromeClassName} px-4`}>
         <MobilePageHeader
-          title={homeUser === true ? t("expiry.title") : t("expiry.storeTitle")}
+          title={
+            selectionMode
+              ? t("expiry.selectedCount", { count: selectedCount })
+              : homeUser === true
+                ? t("expiry.title")
+                : t("expiry.storeTitle")
+          }
           className="mb-0"
+          action={
+            selectionMode ? (
+              <button
+                type="button"
+                className={`${appButtonNeutral} px-2.5 py-1.5 text-xs`}
+                onClick={exitSelectionMode}
+              >
+                {t("expiry.confirmCancel")}
+              </button>
+            ) : undefined
+          }
         />
 
         <ActionFlash
@@ -575,6 +686,8 @@ function ExpiryList() {
             discountPercent={entry.priceDiscountPercent}
             homeUser={isHomeUser}
             favourite={Boolean(favouriteProductIds[entry.product.id])}
+            selectionMode={selectionMode}
+            selected={Boolean(selectedIds[entry.id])}
             onOpen={() => setDetailEntry(entry)}
             onRemove={() => setConfirmId(entry.id)}
             onReducePrice={() => {
@@ -592,6 +705,8 @@ function ExpiryList() {
                 ? () => void toggleFavourite(entry.product.id)
                 : undefined
             }
+            onLongPressSelect={() => enterSelectionWith(entry.id)}
+            onToggleSelected={() => toggleSelected(entry.id)}
           />
         ))}
 
@@ -604,6 +719,10 @@ function ExpiryList() {
             size="sm"
             wrapperClassName="flex justify-center py-2"
           />
+        ) : null}
+
+        {selectionMode ? (
+          <div className="h-16 shrink-0" aria-hidden />
         ) : null}
       </div>
 
@@ -633,6 +752,50 @@ function ExpiryList() {
           onCancel={() => setConfirmId(null)}
           onConfirm={() => void removeEntry(confirmId)}
         />
+      ) : null}
+
+      {bulkConfirmOpen ? (
+        <RemoveConfirmDialog
+          title={t("expiry.bulkConfirmTitle")}
+          message={t("expiry.bulkConfirmMessage")}
+          itemLabel={t("expiry.bulkConfirmItems", { count: selectedCount })}
+          cancelLabel={t("expiry.confirmCancel")}
+          removeLabel={t("expiry.bulkRemove", { count: selectedCount })}
+          busy={bulkRemoving}
+          onCancel={() => setBulkConfirmOpen(false)}
+          onConfirm={() => void bulkRemoveSelected()}
+        />
+      ) : null}
+
+      {selectionMode ? (
+        <div
+          className="fixed inset-x-0 z-50 mx-auto w-full max-w-lg border-t border-card-border bg-background/95 px-3 pb-2 pt-2 backdrop-blur-sm supports-[backdrop-filter]:bg-background/90"
+          style={{
+            bottom:
+              "calc(var(--app-bottom-nav-height) + env(safe-area-inset-bottom, 0px))",
+          }}
+        >
+          <div className={appFooterButtonGrid}>
+            <button
+              type="button"
+              className={appButtonNeutral}
+              onClick={exitSelectionMode}
+              disabled={bulkRemoving}
+            >
+              {t("expiry.confirmCancel")}
+            </button>
+            <button
+              type="button"
+              className={appButtonDangerFull}
+              disabled={selectedCount === 0 || bulkRemoving}
+              onClick={() => setBulkConfirmOpen(true)}
+            >
+              {bulkRemoving
+                ? t("expiry.bulkRemoving")
+                : t("expiry.bulkRemove", { count: selectedCount })}
+            </button>
+          </div>
+        </div>
       ) : null}
 
       {priceReduceConfirmId ? (

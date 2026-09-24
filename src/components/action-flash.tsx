@@ -9,6 +9,10 @@ type Props = {
   durationMs?: number;
 };
 
+/**
+ * Success/error flash pinned just above the app bottom nav so it does not
+ * push page content and flicker the layout.
+ */
 export function ActionFlash({
   message,
   tone = "success",
@@ -31,7 +35,11 @@ export function ActionFlash({
   return (
     <p
       role={tone === "error" ? "alert" : "status"}
-      className={`mb-3 rounded-xl border px-3 py-2 text-sm ${toneClass}`}
+      className={`pointer-events-none fixed inset-x-0 z-50 mx-auto w-[calc(100%-1.5rem)] max-w-lg rounded-xl border px-3 py-2.5 text-center text-sm font-medium backdrop-blur-sm ${toneClass}`}
+      style={{
+        bottom:
+          "calc(var(--app-bottom-nav-height) + env(safe-area-inset-bottom, 0px) + 0.5rem)",
+      }}
     >
       {message}
     </p>

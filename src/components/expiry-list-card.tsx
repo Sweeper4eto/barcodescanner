@@ -1,5 +1,7 @@
 "use client";
 
+import { useRef } from "react";
+import type { PointerEvent as ReactPointerEvent } from "react";
 import { useT } from "@/components/i18n-provider";
 import { ProductImage } from "@/components/product-image";
 import {
@@ -13,6 +15,8 @@ import {
   expiryUrgencyStripeClass,
   formatLocaleDay,
 } from "@/lib/expiry";
+
+const LONG_PRESS_MS = 450;
 
 type Props = {
   name: string;
@@ -28,11 +32,15 @@ type Props = {
   favourite?: boolean;
   /** View-only cards hide action chips (used in admin store expiry). */
   mode?: "full" | "view";
+  selectionMode?: boolean;
+  selected?: boolean;
   onOpen: () => void;
   onRemove: () => void;
   onReducePrice: () => void;
   onMoveToOrders?: () => void;
   onToggleFavourite?: () => void;
+  onLongPressSelect?: () => void;
+  onToggleSelected?: () => void;
 };
 
 export function ExpiryListCard({
@@ -47,11 +55,15 @@ export function ExpiryListCard({
   homeUser = false,
   favourite = false,
   mode = "full",
+  selectionMode = false,
+  selected = false,
   onOpen,
   onRemove,
   onReducePrice,
   onMoveToOrders,
   onToggleFavourite,
+  onLongPressSelect,
+  onToggleSelected,
 }: Props) {
   const { t, dateLocale } = useT();
   const expiry = new Date(expiryDate);
@@ -65,16 +77,89 @@ export function ExpiryListCard({
         ? t("expiry.day")
         : t("expiry.days");
   const viewOnly = mode === "view";
+  const longPressTimer = useRef<number | null>(null);
+  const longPressTriggered = useRef(false);
+  const pointerStart = useRef<{ x: number; y: number } | null>(null);
+
+  function clearLongPress() {
+    if (longPressTimer.current !== null) {
+      window.clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  }
+
+  function handlePointerDown(event: ReactPointerEvent) {
+    if (viewOnly || selectionMode || !onLongPressSelect) return;
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    longPressTriggered.current = false;
+    pointerStart.current = { x: event.clientX, y: event.clientY };
+    clearLongPress();
+    longPressTimer.current = window.setTimeout(() => {
+      longPressTriggered.current = true;
+      longPressTimer.current = null;
+      onLongPressSelect();
+    }, LONG_PRESS_MS);
+  }
+
+  function handlePointerMove(event: ReactPointerEvent) {
+    if (!pointerStart.current || longPressTimer.current === null) return;
+    const dx = Math.abs(event.clientX - pointerStart.current.x);
+    const dy = Math.abs(event.clientY - pointerStart.current.y);
+    if (dx > 10 || dy > 10) clearLongPress();
+  }
+
+  function handlePointerEnd() {
+    clearLongPress();
+    pointerStart.current = null;
+  }
+
+  function handleMainClick() {
+    if (longPressTriggered.current) {
+      longPressTriggered.current = false;
+      return;
+    }
+    if (selectionMode) {
+      onToggleSelected?.();
+      return;
+    }
+    onOpen();
+  }
 
   return (
-    <article className="flex w-full overflow-hidden rounded-xl border border-card-border bg-transparent">
+    <article
+      className={`flex w-full overflow-hidden rounded-xl border transition-colors ${
+        selected
+          ? "border-primary bg-selected"
+          : "border-card-border bg-transparent"
+      } ${selectionMode ? "cursor-pointer" : ""}`}
+      aria-pressed={selectionMode ? selected : undefined}
+      onClick={
+        selectionMode
+          ? () => {
+              if (longPressTriggered.current) {
+                longPressTriggered.current = false;
+                return;
+              }
+              onToggleSelected?.();
+            }
+          : undefined
+      }
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerEnd}
+      onPointerCancel={handlePointerEnd}
+      onPointerLeave={handlePointerEnd}
+      onContextMenu={(event) => {
+        if (!viewOnly && onLongPressSelect) event.preventDefault();
+      }}
+    >
       <div
         className={`w-1 shrink-0 self-stretch ${expiryUrgencyStripeClass(expiry)}`}
         aria-hidden
       />
 
       <div className="flex min-w-0 flex-1 items-start gap-1 px-1 py-1">
-        {!viewOnly && homeUser ? (
+        {!selectionMode && !viewOnly && homeUser ? (
           <button
             type="button"
             aria-label={t("expiry.moveToOrders")}
@@ -89,7 +174,7 @@ export function ExpiryListCard({
           </button>
         ) : null}
 
-        {!homeUser && priceReduced ? (
+        {!selectionMode && !homeUser && priceReduced ? (
           viewOnly ? (
             <span
               className="mt-0.5 shrink-0 text-[10px] font-bold leading-none tabular-nums text-primary"
@@ -112,7 +197,7 @@ export function ExpiryListCard({
               −{discountPercent ?? 25}%
             </button>
           )
-        ) : !viewOnly && !homeUser ? (
+        ) : !selectionMode && !viewOnly && !homeUser ? (
           <button
             type="button"
             aria-label={t("expiry.reducePrice")}
@@ -135,7 +220,7 @@ export function ExpiryListCard({
               className="size-12 rounded-lg object-cover"
               placeholderClassName="size-12 rounded-lg text-[9px]"
             />
-            {!viewOnly && homeUser && onToggleFavourite ? (
+            {!selectionMode && !viewOnly && homeUser && onToggleFavourite ? (
               <button
                 type="button"
                 aria-label={favourite ? t("favourites.remove") : t("favourites.add")}
@@ -155,10 +240,19 @@ export function ExpiryListCard({
 
           <button
             type="button"
-            aria-label={t("expiry.viewEntry")}
+            aria-label={
+              selectionMode ? t("expiry.selectItem") : t("expiry.viewEntry")
+            }
             className="flex min-w-0 flex-1 basis-0 items-start gap-1.5 overflow-hidden text-left"
-            onClick={onOpen}
-            disabled={viewOnly}
+            onClick={(event) => {
+              if (selectionMode) {
+                event.stopPropagation();
+                handleMainClick();
+                return;
+              }
+              handleMainClick();
+            }}
+            disabled={viewOnly && !selectionMode}
           >
             <div className="min-w-0 flex-1 overflow-hidden">
               <p
@@ -210,7 +304,7 @@ export function ExpiryListCard({
           </button>
         </div>
 
-        {!viewOnly ? (
+        {!selectionMode && !viewOnly ? (
           <button
             type="button"
             aria-label={t("expiry.remove")}
