@@ -34,7 +34,8 @@ model User {
   auditLogs           AuditLog[]
   documentOcrScans    DocumentOcrScan[]
   supportRequests     SupportRequest[]
-  priceReducedEntries InventoryEntry[]
+  priceReducedEntries InventoryEntry[] @relation("InventoryPriceReducedBy")
+  addedInventoryEntries InventoryEntry[] @relation("InventoryAddedBy")
   whatsNewSeen        WhatsNewSeen[]
   /** Expiry push notification preferences (phases 1–3). */
   expiryNotifyEarlyEnabled     Boolean @default(true)
@@ -167,12 +168,16 @@ model InventoryEntry {
   priceDiscountPercent Int?
   /** Last user who enabled or changed the discount (cleared when price is restored). */
   priceReducedByUserId String?
-  priceReducedByUser   User?     @relation(fields: [priceReducedByUserId], references: [id], onDelete: SetNull)
+  priceReducedByUser   User?     @relation("InventoryPriceReducedBy", fields: [priceReducedByUserId], references: [id], onDelete: SetNull)
+  /** User who first added / imported this expiry row (null on legacy rows). */
+  addedByUserId String?
+  addedByUser   User?     @relation("InventoryAddedBy", fields: [addedByUserId], references: [id], onDelete: SetNull)
   deletedAt  DateTime?
 
   @@index([storeId, expiryDate])
   @@index([storeId, removedAt, deletedAt])
   @@index([priceReducedByUserId])
+  @@index([addedByUserId])
 }
 
 model FavouriteProduct {

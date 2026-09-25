@@ -22,6 +22,7 @@ export const activeInventoryWhere = {
 export const inventoryEntryInclude = {
   product: true,
   priceReducedByUser: { select: { id: true, username: true } },
+  addedByUser: { select: { id: true, username: true } },
 } as const;
 
 /** Last-editor semantics: who + when whenever discount is set or changed. */

@@ -13,6 +13,22 @@ export type WhatsNewCatalogEntry = {
 
 export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
   {
+    key: "2026-09-expiry-added-by",
+    titleEn:
+      "Expiry item details show who added or imported the entry (Added by).",
+    titleBg:
+      "В детайлите на артикул от Годност се вижда кой го е добавил или импортирал (Добавил).",
+    href: "/app/expiry",
+  },
+  {
+    key: "2026-09-expiry-search-dates",
+    titleEn:
+      "Expiry search also finds items by expiry or added date — full or partial (25/09/2026, 25.09, 25…).",
+    titleBg:
+      "Търсенето в Годност намира и по дата на годност или добавяне — пълна или частична (25.09.2026, 25.09, 25…).",
+    href: "/app/expiry",
+  },
+  {
     key: "2026-09-whats-new-per-user",
     titleEn:
       "“Got it” on What’s new is saved for your account, so it won’t show again on other devices.",

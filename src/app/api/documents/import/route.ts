@@ -161,6 +161,7 @@ export async function POST(request: Request) {
         imagePath: null,
         quantity: item.quantity,
         expiryDate,
+        addedByUserId: session.userId,
       },
       include: { product: true },
     });

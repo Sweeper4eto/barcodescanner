@@ -148,6 +148,7 @@ export async function POST(request: Request) {
       imagePath: entryImagePath,
       quantity: parsed.data.quantity,
       expiryDate,
+      addedByUserId: session.userId,
     },
     include: inventoryEntryInclude,
   });

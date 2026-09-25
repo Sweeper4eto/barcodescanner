@@ -54,6 +54,7 @@ type Entry = {
   priceReducedAt: string | null;
   priceDiscountPercent: number | null;
   priceReducedByUser?: { id: string; username: string } | null;
+  addedByUser?: { id: string; username: string } | null;
   product: { id: string; name: string; imagePath: string | null };
 };
 
@@ -519,6 +520,7 @@ function ExpiryList() {
               priceReducedAt: updated.priceReducedAt,
               priceDiscountPercent: updated.priceDiscountPercent ?? null,
               priceReducedByUser: updated.priceReducedByUser ?? null,
+              addedByUser: updated.addedByUser ?? entry.addedByUser ?? null,
               product: updated.product,
             };
           }
@@ -542,11 +544,12 @@ function ExpiryList() {
             articul: updated.articul ?? null,
             imagePath: updated.imagePath ?? null,
             quantity: updated.quantity,
-            enteredAt: new Date().toISOString(),
+            enteredAt: updated.enteredAt ?? new Date().toISOString(),
             expiryDate: updated.expiryDate,
             priceReducedAt: updated.priceReducedAt,
             priceDiscountPercent: updated.priceDiscountPercent ?? null,
             priceReducedByUser: updated.priceReducedByUser ?? null,
+            addedByUser: updated.addedByUser ?? null,
             product: updated.product,
           },
         ];

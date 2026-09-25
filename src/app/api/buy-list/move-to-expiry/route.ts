@@ -112,6 +112,7 @@ export async function POST(request: Request) {
         quantity: orderEntry.quantity,
         expiryDate,
         imagePath: orderEntry.product.imagePath,
+        addedByUserId: session.userId,
       },
       include: { product: true },
     });
