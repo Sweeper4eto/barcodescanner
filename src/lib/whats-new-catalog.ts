@@ -13,6 +13,22 @@ export type WhatsNewCatalogEntry = {
 
 export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
   {
+    key: "2026-09-owner-billing-page",
+    titleEn:
+      "Owners can open Billing on Home to see payment status and a scrollable month history.",
+    titleBg:
+      "Собствениците отварят „Плащания“ от Начало за статус и история по месеци (с превъртане).",
+    href: "/app/billing",
+  },
+  {
+    key: "2026-09-document-ai-admin-push",
+    titleEn:
+      "Admins get a push alert when document scan AI (Gemini) fails — rate-limited so it won’t spam.",
+    titleBg:
+      "Админите получават push при срив на AI за сканиране на документи (Gemini) — с лимит, за да няма спам.",
+    href: "/admin",
+  },
+  {
     key: "2026-09-expiry-added-by",
     titleEn:
       "Expiry item details show who added or imported the entry (Added by).",

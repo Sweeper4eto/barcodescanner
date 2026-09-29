@@ -90,6 +90,25 @@ function TeamIcon({ className = "size-7" }: { className?: string }) {
   );
 }
 
+function BillingHomeIcon({ className = "size-7" }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <rect x="3" y="6" width="18" height="12" rx="2" />
+      <path d="M3 10h18" />
+      <path d="M7 15h4" />
+    </svg>
+  );
+}
+
 function HomeLinkCard({
   href,
   title,
@@ -134,6 +153,7 @@ export default function AppHomePage() {
   const [stores, setStores] = useState<Store[]>([]);
   const [username, setUsername] = useState("");
   const [isOwner, setIsOwner] = useState(false);
+  const [billingEnabled, setBillingEnabled] = useState(false);
   const [bootstrapped, setBootstrapped] = useState(false);
   const [sessionMissing, setSessionMissing] = useState(false);
 
@@ -184,7 +204,23 @@ export default function AppHomePage() {
 
       setSessionMissing(false);
       setUsername(data.user.username);
-      setIsOwner(data.user.clientRole === "OWNER");
+      const owner = data.user.clientRole === "OWNER";
+      setIsOwner(owner);
+      setBillingEnabled(false);
+      if (owner) {
+        try {
+          const billingRes = await fetch("/api/billing", {
+            credentials: "same-origin",
+            cache: "no-store",
+          });
+          if (!cancelled && billingRes.ok) {
+            const billing = (await billingRes.json()) as { enabled?: boolean };
+            setBillingEnabled(Boolean(billing.enabled));
+          }
+        } catch {
+          /* ignore — home still works without billing card */
+        }
+      }
       const list: Store[] = data.user.stores ?? [];
       setStores(list);
       const stored = getStoredStoreId();
@@ -264,6 +300,15 @@ export default function AppHomePage() {
             title={t("app.team")}
             hint={t("app.teamHint")}
             icon={<TeamIcon />}
+          />
+        ) : null}
+
+        {isOwner && billingEnabled && !sessionMissing ? (
+          <HomeLinkCard
+            href="/app/billing"
+            title={t("app.billing")}
+            hint={t("app.billingHint")}
+            icon={<BillingHomeIcon />}
           />
         ) : null}
 

@@ -150,6 +150,14 @@ export default function ContactSupportPage() {
   const [stores, setStores] = useState<Store[]>([]);
   const [storeId, setStoreId] = useState("");
   const [topic, setTopic] = useState<Topic>("bug");
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const raw = new URLSearchParams(window.location.search).get("topic");
+    if (raw === "bug" || raw === "ocr" || raw === "billing" || raw === "other") {
+      setTopic(raw);
+    }
+  }, []);
   const [contact, setContact] = useState("");
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);

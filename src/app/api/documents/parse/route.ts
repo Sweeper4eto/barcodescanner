@@ -17,6 +17,7 @@ import {
 } from "@/lib/document-ocr-mock";
 import { takeDocumentOcrSlot } from "@/lib/document-ocr-rate-limit";
 import { recordDocumentOcrScan } from "@/lib/document-ocr-usage";
+import { notifyAdminsDocumentAiFailure } from "@/lib/document-ai-admin-alert";
 import { deleteLocalUpload } from "@/lib/upload";
 import { apiT } from "@/i18n";
 
@@ -179,6 +180,7 @@ export async function POST(request: Request) {
         model: status.model,
         error,
       });
+      void notifyAdminsDocumentAiFailure(message);
       return NextResponse.json(
         { error: publicOcrError(request, message) },
         { status: 502 },

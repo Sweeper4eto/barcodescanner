@@ -7,10 +7,13 @@ import { useAppSession } from "@/components/app-session-provider";
 import { registerAppSoftNavigate } from "@/lib/app-navigation";
 import { clearStoredStoreId } from "@/lib/store-selection";
 
-/** Routes available with zero assigned locations (homepage + support). */
+/** Routes available with zero assigned locations (homepage + support + billing). */
 function isAllowedWithoutStore(pathname: string): boolean {
   if (pathname === "/app" || pathname === "/app/") return true;
   if (pathname === "/app/contact" || pathname.startsWith("/app/contact/")) {
+    return true;
+  }
+  if (pathname === "/app/billing" || pathname.startsWith("/app/billing/")) {
     return true;
   }
   return false;
