@@ -126,16 +126,16 @@ function TopicButton({
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`inline-flex min-h-9 min-w-0 items-center justify-center gap-1 rounded-xl border px-1 py-1.5 text-[0.7rem] font-semibold leading-none transition-colors ${
+      className={`inline-flex min-h-9 min-w-0 items-center justify-center gap-0.5 rounded-xl border px-1.5 py-1.5 text-[0.65rem] font-semibold leading-none transition-colors ${
         active
           ? "border-primary bg-selected text-primary"
           : "border-card-border bg-transparent text-muted hover:border-primary/40 hover:text-foreground"
       }`}
     >
-      <span aria-hidden className="inline-flex shrink-0 [&_svg]:size-5">
+      <span aria-hidden className="inline-flex shrink-0 [&_svg]:size-3.5">
         {icon}
       </span>
-      <span className="whitespace-nowrap">{label}</span>
+      <span className="min-w-0 truncate">{label}</span>
     </button>
   );
 }

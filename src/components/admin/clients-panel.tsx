@@ -177,13 +177,14 @@ export function ClientsPanel({
     monthlyFee: String(DEFAULT_FIRST_LOCATION_FEE),
   });
 
-  const loadClients = useCallback(async (search = query) => {
+  const loadClients = useCallback(async (search = "") => {
+    const needle = search.trim();
     const response = await fetch(
-      `/api/admin/clients${search ? `?q=${encodeURIComponent(search)}` : ""}`,
+      `/api/admin/clients${needle ? `?q=${encodeURIComponent(needle)}` : ""}`,
     );
     const data = await response.json();
     setClients(data.clients ?? []);
-  }, [query]);
+  }, []);
 
   const loadStanding = useCallback(async () => {
     try {
@@ -225,9 +226,16 @@ export function ClientsPanel({
   }, []);
 
   useEffect(() => {
-    void loadClients("");
     void loadStanding();
-  }, [loadClients, loadStanding]);
+  }, [loadStanding]);
+
+  useEffect(() => {
+    const delayMs = query.trim() ? 250 : 0;
+    const timer = window.setTimeout(() => {
+      void loadClients(query);
+    }, delayMs);
+    return () => window.clearTimeout(timer);
+  }, [query, loadClients]);
 
   useEffect(() => {
     setSelectedId(null);
@@ -292,7 +300,7 @@ export function ClientsPanel({
         return;
       }
       setNewClient({ name: "", phone: "", additionalInfo: "" });
-      await loadClients();
+      await loadClients(query);
       onRefresh();
       setSubview("current");
     } catch {
@@ -335,7 +343,7 @@ export function ClientsPanel({
       const snapshot = { ...edit };
       setSavedEdit(snapshot);
       setSaveMessage(t("admin.saveSuccess"));
-      await loadClients();
+      await loadClients(query);
       onRefresh();
     } finally {
       setSaving(false);
@@ -346,7 +354,7 @@ export function ClientsPanel({
     if (!selectedId || !confirm(t("admin.confirmDeleteClient"))) return;
     await fetch(`/api/admin/clients?id=${selectedId}`, { method: "DELETE" });
     setSelectedId(null);
-    await loadClients();
+    await loadClients(query);
     onRefresh();
   }
 
@@ -382,7 +390,7 @@ export function ClientsPanel({
         ),
       });
       const list = await loadStores(selectedId);
-      await loadClients();
+      await loadClients(query);
       onRefresh();
       setDetailTab("locations");
       setStorePage(Math.max(1, Math.ceil(list.length / STORES_PER_PAGE)));
@@ -421,7 +429,7 @@ export function ClientsPanel({
         return;
       }
       if (selectedId) await loadStores(selectedId);
-      await loadClients();
+      await loadClients(query);
       onRefresh();
     } catch {
       setSaveMessage(t("errors.networkError"));
@@ -725,26 +733,14 @@ export function ClientsPanel({
                   ? t("admin.accountTypeHousehold")
                   : t("admin.accountTypeBusiness")}
               </span>
-              <form
-                className="mb-4 flex gap-2"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  void loadClients();
-                }}
-              >
+              <div className="mb-4">
                 <SearchField
                   value={query}
                   onChange={setQuery}
                   placeholder={t("admin.searchPlaceholder")}
-                  inputClassName={`${adminInputClass} min-w-0 flex-1`}
+                  inputClassName={`${adminInputClass} min-w-0 w-full`}
                 />
-                <button
-                  type="submit"
-                  className="shrink-0 rounded-xl border border-primary bg-transparent px-4 py-2 text-sm font-medium text-primary"
-                >
-                  {t("common.search")}
-                </button>
-              </form>
+              </div>
               <div className="max-h-[28rem] space-y-2 overflow-y-auto">
                 {visibleClients.length === 0 ? (
                   <AdminEmptyState message={t("admin.noClientsFound")} />
@@ -1097,7 +1093,7 @@ export function ClientsPanel({
                       clientId={selectedId}
                       stores={stores}
                       onChanged={() => {
-                        void loadClients();
+                        void loadClients(query);
                         onRefresh();
                       }}
                     />
@@ -1107,7 +1103,7 @@ export function ClientsPanel({
                     <AccountBillingSection
                       clientId={selectedId}
                       onChanged={() => {
-                        void loadClients();
+                        void loadClients(query);
                         void loadStanding();
                         onRefresh();
                       }}

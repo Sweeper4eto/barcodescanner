@@ -268,7 +268,7 @@ export const bg = {
     topicOther: "Друго",
     topicBugShort: "Бъг",
     topicOcrShort: "OCR",
-    topicBillingShort: "Плащане",
+    topicBillingShort: "Плащ.",
     topicOtherShort: "Друго",
     store: "Обект",
     storePlaceholder: "Изберете обект",
