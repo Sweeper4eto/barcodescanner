@@ -292,4 +292,12 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Списък с годност: задръжте артикул, за да изберете няколко и да ги премахнете заедно.",
     href: "/app/expiry",
   },
+  {
+    key: "2026-10-home-menu-compact",
+    titleEn:
+      "Home menu is more compact — Team, Billing, Support, and alerts show title only.",
+    titleBg:
+      "Началните менюта са по-компактни — Екип, Плащания, Поддръжка и известия са само със заглавие.",
+    href: "/app",
+  },
 ];

@@ -3,10 +3,6 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useT } from "@/components/i18n-provider";
-import {
-  formatPrefsSummary,
-  type ExpiryNotificationPrefs,
-} from "@/lib/expiry-notification-prefs";
 import { isIosDevice, isPwaInstalled } from "@/lib/pwa-install";
 import { syncPushLocale } from "@/lib/sync-push-locale";
 import type { MobileLocale } from "@/lib/client-locale";
@@ -52,39 +48,6 @@ export function PushNotifications() {
   const { t, locale } = useT();
   const [state, setState] = useState<PushState>("loading");
   const [error, setError] = useState("");
-  const [summary, setSummary] = useState("");
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadSummary() {
-      try {
-        const response = await fetch("/api/push/notification-settings");
-        if (!response.ok) return;
-        const data = (await response.json()) as {
-          settings?: ExpiryNotificationPrefs;
-        };
-        if (cancelled || !data.settings) return;
-        setSummary(
-          formatPrefsSummary(data.settings, {
-            urgentDays: (days) => t("push.summaryUrgent", { days }),
-            earlyDays: (days) => t("push.summaryEarly", { days }),
-            time: (time) => t("push.summaryTime", { time }),
-            allStores: t("push.summaryAllStores"),
-            storeCount: (count) => t("push.summaryStoreCount", { count }),
-            off: t("push.summaryOff"),
-          }),
-        );
-      } catch {
-        /* optional */
-      }
-    }
-
-    void loadSummary();
-    return () => {
-      cancelled = true;
-    };
-  }, [t]);
 
   useEffect(() => {
     let cancelled = false;
@@ -233,20 +196,17 @@ export function PushNotifications() {
 
   if (state === "loading") {
     return (
-      <section className="mb-3 flex items-center gap-3 rounded-2xl border border-card-border bg-transparent px-4 py-3.5 opacity-60">
+      <section className="mb-2 flex items-center gap-3 rounded-2xl border border-card-border bg-transparent px-3 py-2.5 opacity-60">
         <span
           aria-hidden
-          className="flex size-11 shrink-0 items-center justify-center rounded-full border border-primary/45 text-primary"
+          className="flex size-9 shrink-0 items-center justify-center rounded-full border border-primary/45 text-primary"
         >
-          <BellIcon />
+          <BellIcon className="size-5" />
         </span>
         <div className="min-w-0 flex-1">
-          <h2 className="text-[0.95rem] font-semibold text-foreground">
+          <h2 className="text-sm font-semibold text-foreground">
             {t("push.title")}
           </h2>
-          <p className="mt-0.5 text-xs leading-snug text-muted">
-            {t("push.description")}
-          </p>
         </div>
         <span
           aria-hidden
@@ -267,24 +227,21 @@ export function PushNotifications() {
     state !== "unconfigured";
 
   return (
-    <section className="mb-3 flex items-center gap-3 rounded-2xl border border-card-border bg-transparent px-4 py-3.5">
+    <section className="mb-2 flex items-center gap-3 rounded-2xl border border-card-border bg-transparent px-3 py-2.5">
       <span
         aria-hidden
-        className="flex size-11 shrink-0 items-center justify-center rounded-full border border-primary/45 text-primary"
+        className="flex size-9 shrink-0 items-center justify-center rounded-full border border-primary/45 text-primary"
       >
-        <BellIcon />
+        <BellIcon className="size-5" />
       </span>
       <div className="min-w-0 flex-1">
-        <h2 className="text-[0.95rem] font-semibold leading-snug text-foreground">
+        <h2 className="text-sm font-semibold leading-snug text-foreground">
           {t("push.title")}
         </h2>
-        <p className="mt-0.5 text-xs font-normal leading-snug text-muted">
-          {summary || t("push.description")}
-        </p>
 
         <Link
           href="/app/settings/notifications"
-          className="mt-1.5 inline-block text-xs font-semibold text-primary"
+          className="mt-0.5 inline-block text-xs font-semibold text-primary"
         >
           {t("push.customize")} →
         </Link>
