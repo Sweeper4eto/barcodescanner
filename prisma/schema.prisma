@@ -37,6 +37,9 @@ model User {
   priceReducedEntries InventoryEntry[] @relation("InventoryPriceReducedBy")
   addedInventoryEntries InventoryEntry[] @relation("InventoryAddedBy")
   whatsNewSeen        WhatsNewSeen[]
+  schedulePreferences SchedulePreference[]
+  scheduleShifts      ScheduleShift[]
+  finalizedScheduleWeeks StoreScheduleWeek[] @relation("ScheduleFinalizedBy")
   /** Expiry push notification preferences (phases 1–3). */
   expiryNotifyEarlyEnabled     Boolean @default(true)
   expiryNotifyEarlyDays        Int     @default(14)
@@ -121,10 +124,68 @@ model Store {
   buyList        BuyListEntry[]
   favourites     FavouriteProduct[]
   supportRequests SupportRequest[]
+  scheduleWeeks  StoreScheduleWeek[]
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
 
   @@index([clientId])
+}
+
+enum ScheduleWeekStatus {
+  DRAFT
+  FINALIZED
+}
+
+/** One store’s roster week (Mon–Sun). Hours stored as minutes from midnight. */
+model StoreScheduleWeek {
+  id                String             @id @default(cuid())
+  storeId           String
+  store             Store              @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  /** Monday YYYY-MM-DD (UTC calendar day). */
+  weekStart         String
+  /** auto | manual */
+  mode              String             @default("auto")
+  status            ScheduleWeekStatus @default(DRAFT)
+  finalizedAt       DateTime?
+  finalizedByUserId String?
+  finalizedByUser   User?              @relation("ScheduleFinalizedBy", fields: [finalizedByUserId], references: [id], onDelete: SetNull)
+  preferences       SchedulePreference[]
+  shifts            ScheduleShift[]
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  @@unique([storeId, weekStart])
+  @@index([storeId])
+}
+
+model SchedulePreference {
+  id        String            @id @default(cuid())
+  weekId    String
+  week      StoreScheduleWeek @relation(fields: [weekId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /** 0 = Monday … 6 = Sunday */
+  dayIndex  Int
+  startMin  Int
+  endMin    Int
+  updatedAt DateTime          @updatedAt
+
+  @@unique([weekId, userId, dayIndex])
+  @@index([userId])
+}
+
+model ScheduleShift {
+  id       String            @id @default(cuid())
+  weekId   String
+  week     StoreScheduleWeek @relation(fields: [weekId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dayIndex Int
+  startMin Int
+  endMin   Int
+
+  @@index([weekId, dayIndex])
+  @@index([userId])
 }
 
 model UserStore {

@@ -90,6 +90,28 @@ function TeamIcon({ className = "size-7" }: { className?: string }) {
   );
 }
 
+function ScheduleHomeIcon({ className = "size-7" }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <rect x="3" y="5" width="18" height="16" rx="2" />
+      <path d="M3 10h18" />
+      <path d="M8 3v4" />
+      <path d="M16 3v4" />
+      <path d="M8 14h3" />
+      <path d="M14 14h2" />
+    </svg>
+  );
+}
+
 function BillingHomeIcon({ className = "size-7" }: { className?: string }) {
   return (
     <svg
@@ -292,6 +314,14 @@ export default function AppHomePage() {
             href="/app/team"
             title={t("app.team")}
             icon={<TeamIcon className="size-5" />}
+          />
+        ) : null}
+
+        {!sessionMissing && stores.length > 0 ? (
+          <HomeLinkCard
+            href="/app/schedule"
+            title={t("app.schedule")}
+            icon={<ScheduleHomeIcon className="size-5" />}
           />
         ) : null}
 

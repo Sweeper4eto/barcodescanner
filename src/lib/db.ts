@@ -8,7 +8,7 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 /** Bump when the Prisma schema changes so the hot-reload cache does not keep a stale client. */
-const PRISMA_CLIENT_REV = "expiry-notification-prefs-v1";
+const PRISMA_CLIENT_REV = "store-schedule-v1";
 
 function createClient() {
   const configured = process.env.DATABASE_URL;

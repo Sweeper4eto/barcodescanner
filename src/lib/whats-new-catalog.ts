@@ -300,4 +300,12 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Началните менюта са по-компактни — Екип, Плащания, Поддръжка и известия са само със заглавие.",
     href: "/app",
   },
+  {
+    key: "2026-10-store-schedule-mvp",
+    titleEn:
+      "Schedule (per location): staff set desired hours; owners run auto or manual and finalize the week.",
+    titleBg:
+      "График (по обект): екипът задава желани часове; собственикът пуска авто или ръчно и финализира седмицата.",
+    href: "/app/schedule",
+  },
 ];
