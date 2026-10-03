@@ -33,7 +33,13 @@
   --urgency-warning-bg: #422006;
   --urgency-soon-border: #34d399;
   --urgency-soon-bg: rgb(16 185 129 / 0.14);
+  /* Row min-height only (icons + labels). */
   --app-bottom-nav-height: 3.25rem;
+  /*
+   * Full fixed nav block: row + pt-1 + pb 0.35rem (safe-area is added separately
+   * where padding uses env(safe-area-inset-bottom)).
+   */
+  --app-bottom-nav-frame: 3.85rem;
   --nav-border: rgb(255 255 255 / 0.18);
 }
 
@@ -65,34 +71,23 @@
   --font-mono: var(--font-geist-mono);
 }
 
-html,
-body {
+/*
+ * Do NOT set overflow-x on html/body. Per CSS, a non-visible overflow-x
+ * forces overflow-y to compute to auto, and Android Chrome then paints a
+ * persistent scrollbar thumb even when the page barely fits.
+ * Clip horizontal overflow on inner app shells instead.
+ */
+html {
   max-width: 100%;
-  overflow-x: hidden;
-  /* Keep document scroll so Android pull-to-refresh / browser reload work. */
-  overflow-y: auto;
-  overscroll-behavior-y: auto;
-  /*
-   * Prefer small viewport for min-height math elsewhere (svh).
-   * Do NOT lock height:100svh + overflow:hidden — that trapped the PWA.
-   */
   min-height: 100%;
-  min-height: 100svh;
 }
 
 body {
+  max-width: 100%;
+  min-height: 100%;
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
-  /* Soft-hide document scrollbar; scroll + pull-to-refresh still work. */
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-
-body::-webkit-scrollbar {
-  width: 0;
-  height: 0;
-  display: none;
 }
 
 .barcode-scanner-view {

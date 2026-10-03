@@ -280,9 +280,7 @@ export default function AppHomePage() {
   const [greetingBefore, greetingAfter = ""] = greetingTemplate.split("\u0000");
 
   return (
-    <div
-      className={`${appPageClassName} flex min-h-[calc(100svh-var(--app-bottom-nav-height)-env(safe-area-inset-bottom,0px))] flex-col`}
-    >
+    <div className={`${appPageClassName} flex flex-col`}>
       <MobilePageHeader className="mb-1" />
 
       <div className="mb-6 flex items-start justify-between gap-3">
@@ -307,7 +305,7 @@ export default function AppHomePage() {
         </button>
       </div>
 
-      <div className="min-h-0 flex-1">
+      <div>
         {!bootstrapped ? (
           <LoadingSpinnerBlock wrapperClassName="flex justify-center py-6" />
         ) : sessionMissing ? (

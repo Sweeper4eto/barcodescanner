@@ -456,8 +456,9 @@ function drawScheduleWeekPng(args: ScheduleWeekPrintArgs): HTMLCanvasElement {
   const canvas = document.createElement("canvas");
   canvas.width = Math.ceil(width * PNG_SCALE);
   canvas.height = Math.ceil(height * PNG_SCALE);
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("no-2d-context");
+  const maybeCtx = canvas.getContext("2d");
+  if (!maybeCtx) throw new Error("no-2d-context");
+  const ctx: CanvasRenderingContext2D = maybeCtx;
 
   ctx.scale(PNG_SCALE, PNG_SCALE);
   ctx.fillStyle = "#ffffff";

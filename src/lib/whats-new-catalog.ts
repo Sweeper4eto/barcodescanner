@@ -444,5 +444,13 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "График: след запис на седмицата като PDF или Снимка се показва кратко „Готово“.",
     href: "/app/schedule",
   },
+  {
+    key: "2026-10-android-no-phantom-scrollbar",
+    titleEn:
+      "Android: removed the grey side scrollbar on short screens (Home and similar).",
+    titleBg:
+      "Android: премахнат е сивият страничен скролер на къси екрани (Начало и подобни).",
+    href: "/app",
+  },
 ];
 
