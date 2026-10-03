@@ -63,14 +63,14 @@ export function MobilePageHeader({
 
 /** Full-height page shell: pinned top chrome, scrollable card list only. */
 export const listPageShellClassName =
-  "mx-auto flex h-full min-h-0 w-full max-w-lg flex-col overflow-x-hidden px-4 pt-1";
+  "mx-auto flex h-[calc(100svh-var(--app-bottom-nav-height)-env(safe-area-inset-bottom,0px))] min-h-0 w-full max-w-lg flex-col overflow-x-visible px-4 pt-1";
 
 export const listPageChromeClassName =
   "shrink-0 space-y-2 overflow-visible border-b border-card-border bg-background pb-2";
 
 /** Padding keeps corner action chips (half outside cards) inside the scrollport. */
 export const listPageScrollClassName =
-  "min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-3.5 pb-3.5 pt-3.5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden";
+  "min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-3.5 pb-3.5 pt-3.5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:w-0 [&::-webkit-scrollbar]:h-0";
 
 /** Standard non-list app page wrapper (safe-area comes from MobilePageHeader). */
 export const appPageClassName =

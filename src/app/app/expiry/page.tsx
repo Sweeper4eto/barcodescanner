@@ -584,7 +584,7 @@ function ExpiryList() {
   const isEditingDiscount = Boolean(priceReduceEntry?.priceReducedAt);
 
   return (
-    <div className="mx-auto flex h-full min-h-0 w-full max-w-lg flex-col overflow-x-hidden pt-1">
+    <div className="mx-auto flex h-[calc(100svh-var(--app-bottom-nav-height)-env(safe-area-inset-bottom,0px))] min-h-0 w-full max-w-lg flex-col overflow-x-visible pt-1">
       <div className={`${listPageChromeClassName} px-4`}>
         <MobilePageHeader
           title={
@@ -655,7 +655,7 @@ function ExpiryList() {
         ) : null}
       </div>
 
-      <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto overscroll-y-contain px-1.5 pb-3.5 pt-3 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+      <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto overscroll-y-contain px-1.5 pb-3.5 pt-3 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:w-0 [&::-webkit-scrollbar]:h-0">
         {loading && page === 1 && entries.length === 0 ? (
           isSearching ? (
             <p className="rounded-xl bg-transparent p-4 text-center text-sm text-muted">

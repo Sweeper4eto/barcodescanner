@@ -987,7 +987,7 @@ function SchedulePageInner() {
   }
 
   return (
-    <div className={`${appPageShell} flex h-full min-h-0 flex-col overflow-x-hidden overflow-y-auto overscroll-y-contain pb-4 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden`}>
+    <div className={`${appPageShell} flex min-h-0 flex-col pb-4`}>
       <div className={appChromeInset}>
         <MobilePageHeader title={t("schedule.title")} />
       </div>

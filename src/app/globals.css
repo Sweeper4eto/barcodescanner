@@ -65,46 +65,34 @@
   --font-mono: var(--font-geist-mono);
 }
 
-/*
- * Use the *small* viewport height (svh), not dvh.
- * On phones, 100dvh is taller than the visible area while the browser chrome
- * is showing — that leftover pixels create a barely-movable scrollbar on every page.
- */
-html {
-  height: 100%;
-  height: 100svh;
-  overflow: hidden;
+html,
+body {
   max-width: 100%;
+  overflow-x: hidden;
+  /* Keep document scroll so Android pull-to-refresh / browser reload work. */
+  overflow-y: auto;
+  overscroll-behavior-y: auto;
+  /*
+   * Prefer small viewport for min-height math elsewhere (svh).
+   * Do NOT lock height:100svh + overflow:hidden — that trapped the PWA.
+   */
+  min-height: 100%;
+  min-height: 100svh;
 }
 
 body {
-  height: 100%;
-  height: 100svh;
-  max-width: 100%;
-  overflow: hidden;
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  /* Soft-hide document scrollbar; scroll + pull-to-refresh still work. */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
-/*
- * Always hide scrollbars (mobile-first). Finger/wheel scroll still works.
- * Previous media-query hide was ignored on some phone browsers.
- */
-*,
-*::before,
-*::after {
-  scrollbar-width: none !important;
-  -ms-overflow-style: none !important;
-}
-
-*::-webkit-scrollbar,
-*::-webkit-scrollbar-thumb,
-*::-webkit-scrollbar-track {
-  width: 0 !important;
-  height: 0 !important;
-  display: none !important;
-  background: transparent !important;
+body::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
 }
 
 .barcode-scanner-view {

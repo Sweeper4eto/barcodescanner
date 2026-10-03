@@ -57,9 +57,9 @@ type Pagination = {
 };
 
 const buyListShellClassName =
-  "mx-auto flex h-full min-h-0 w-full max-w-lg flex-col overflow-x-hidden pt-1";
+  "mx-auto flex h-[calc(100svh-var(--app-bottom-nav-height)-env(safe-area-inset-bottom,0px))] min-h-0 w-full max-w-lg flex-col overflow-x-visible pt-1";
 
-const buyListScrollClassName = `min-h-0 flex-1 space-y-1.5 overflow-y-auto overscroll-y-contain pb-3.5 pt-3 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden ${appListInset}`;
+const buyListScrollClassName = `min-h-0 flex-1 space-y-1.5 overflow-y-auto overscroll-y-contain pb-3.5 pt-3 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:w-0 [&::-webkit-scrollbar]:h-0 ${appListInset}`;
 
 function BuyListContent() {
   const { t } = useT();

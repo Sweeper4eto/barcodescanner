@@ -281,7 +281,7 @@ export default function AppHomePage() {
 
   return (
     <div
-      className={`${appPageClassName} flex h-full min-h-0 flex-col overflow-x-hidden overflow-y-auto overscroll-y-contain [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden`}
+      className={`${appPageClassName} flex min-h-[calc(100svh-var(--app-bottom-nav-height)-env(safe-area-inset-bottom,0px))] flex-col`}
     >
       <MobilePageHeader className="mb-1" />
 

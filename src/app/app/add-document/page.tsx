@@ -40,7 +40,7 @@ import {
 
 /** Full-height review shell — no horizontal pad (content uses appListInset). */
 const reviewPageShellClassName =
-  "mx-auto flex h-full min-h-0 w-full max-w-lg flex-col overflow-x-hidden pt-1";
+  "mx-auto flex h-[calc(100svh-var(--app-bottom-nav-height)-env(safe-area-inset-bottom,0px))] min-h-0 w-full max-w-lg flex-col overflow-x-visible pt-1";
 
 type Step = "camera" | "processing" | "review" | "done";
 
@@ -449,7 +449,7 @@ function AddDocumentContent() {
             <MobilePageHeader className="mb-0 border-0 pb-0" />
           </div>
 
-          <div className={`min-h-0 flex-1 overflow-y-auto overscroll-y-contain ${appListInset} pb-3 pt-3 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden`}>
+          <div className={`min-h-0 flex-1 overflow-y-auto overscroll-y-contain ${appListInset} pb-3 pt-3 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:w-0 [&::-webkit-scrollbar]:h-0`}>
             <div className="space-y-3">
               <div className="flex items-start gap-2">
                 <div className="min-w-0 flex-1">

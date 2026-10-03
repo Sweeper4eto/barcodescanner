@@ -430,7 +430,7 @@ export function ScanFlow() {
 
       {step === "date" ? (
         <div className="flex min-h-0 flex-1 flex-col">
-          <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-y-contain pb-2 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+          <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-y-contain pb-2 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:w-0 [&::-webkit-scrollbar]:h-0">
             <div className="flex items-center gap-3 rounded-2xl border border-card-border p-2.5">
               <ProductImage
                 src={previewImage}
