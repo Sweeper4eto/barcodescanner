@@ -80,8 +80,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [router]);
 
   return (
-    <div className="flex min-h-full min-w-0 flex-col overflow-x-hidden">
-      <div className="min-w-0 flex-1 overflow-x-hidden pb-[calc(var(--app-bottom-nav-height)+env(safe-area-inset-bottom,0px))] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    <div className="flex h-[100dvh] max-h-[100dvh] min-h-0 min-w-0 flex-col overflow-hidden">
+      <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain pb-[calc(var(--app-bottom-nav-height)+env(safe-area-inset-bottom,0px))] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
         <RequireLocationGuard>{children}</RequireLocationGuard>
       </div>
       <AppBottomNav />

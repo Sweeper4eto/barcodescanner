@@ -449,7 +449,7 @@ function AddDocumentContent() {
             <MobilePageHeader className="mb-0 border-0 pb-0" />
           </div>
 
-          <div className={`min-h-0 flex-1 overflow-y-auto overscroll-y-contain ${appListInset} pb-3 pt-3 [scrollbar-width:thin]`}>
+          <div className={`min-h-0 flex-1 overflow-y-auto overscroll-y-contain ${appListInset} pb-3 pt-3 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden`}>
             <div className="space-y-3">
               <div className="flex items-start gap-2">
                 <div className="min-w-0 flex-1">

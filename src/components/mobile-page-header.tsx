@@ -70,7 +70,7 @@ export const listPageChromeClassName =
 
 /** Padding keeps corner action chips (half outside cards) inside the scrollport. */
 export const listPageScrollClassName =
-  "min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-3.5 pb-3.5 pt-3.5 [scrollbar-width:thin]";
+  "min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-3.5 pb-3.5 pt-3.5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden";
 
 /** Standard non-list app page wrapper (safe-area comes from MobilePageHeader). */
 export const appPageClassName =

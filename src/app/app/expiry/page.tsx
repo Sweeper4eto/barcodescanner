@@ -655,7 +655,7 @@ function ExpiryList() {
         ) : null}
       </div>
 
-      <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto overscroll-y-contain px-1.5 pb-3.5 pt-3 [scrollbar-width:thin]">
+      <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto overscroll-y-contain px-1.5 pb-3.5 pt-3 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
         {loading && page === 1 && entries.length === 0 ? (
           isSearching ? (
             <p className="rounded-xl bg-transparent p-4 text-center text-sm text-muted">
