@@ -30,14 +30,12 @@ export default async function LoginPage({
 
   return (
     <MobileI18nProvider>
-      <div className="pt-[max(0.5rem,env(safe-area-inset-top,0px))]">
-        <AuthShell
-          title={t("auth.loginSubtitle", undefined, locale)}
-          showLanguageSwitch
-        >
-          <LoginForm initialError={initialError} />
-        </AuthShell>
-      </div>
+      <AuthShell
+        title={t("auth.loginSubtitle", undefined, locale)}
+        showLanguageSwitch
+      >
+        <LoginForm initialError={initialError} />
+      </AuthShell>
     </MobileI18nProvider>
   );
 }

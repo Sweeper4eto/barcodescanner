@@ -24,7 +24,7 @@ function LegalDocumentContent({
   const doc = documentByLocale[locale] ?? documentByLocale.en;
 
   return (
-    <div className="relative mx-auto flex min-h-full w-full min-w-0 max-w-lg flex-col px-4 pb-10 pt-[max(1rem,env(safe-area-inset-top,0px))]">
+    <div className="relative mx-auto flex min-h-svh w-full min-w-0 max-w-lg flex-col px-4 pb-10 pt-[max(1rem,env(safe-area-inset-top,0px))]">
       <div
         aria-hidden
         className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-[radial-gradient(ellipse_at_70%_0%,rgb(52_211_153/0.12),transparent_55%)]"

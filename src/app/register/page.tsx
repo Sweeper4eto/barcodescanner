@@ -11,7 +11,7 @@ function RegisterPageContent() {
   const { t } = useT();
 
   return (
-    <div className="relative mx-auto flex min-h-full w-full min-w-0 max-w-md flex-col px-4 pb-6 pt-[max(0.85rem,env(safe-area-inset-top,0px))]">
+    <div className="relative mx-auto flex min-h-svh w-full min-w-0 max-w-md flex-col px-4 pb-6 pt-[max(0.85rem,env(safe-area-inset-top,0px))]">
       <div
         aria-hidden
         className="pointer-events-none absolute inset-x-0 top-0 h-52 bg-[radial-gradient(ellipse_at_70%_0%,rgb(52_211_153/0.18),transparent_55%)]"

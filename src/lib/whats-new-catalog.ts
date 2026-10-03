@@ -452,5 +452,13 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Android: премахнат е сивият страничен скролер на къси екрани (Начало и подобни).",
     href: "/app",
   },
+  {
+    key: "2026-10-android-viewport-height-scrollbar",
+    titleEn:
+      "Android: short pages (login, home) no longer show a side scrollbar when nothing needs scrolling.",
+    titleBg:
+      "Android: късите екрани (вход, начало) вече не показват страничен скролер, когато няма какво да се скролва.",
+    href: "/app",
+  },
 ];
 

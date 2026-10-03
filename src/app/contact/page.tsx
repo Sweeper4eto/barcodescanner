@@ -67,7 +67,7 @@ function ContactPageContent() {
   }
 
   return (
-    <div className="mx-auto flex min-h-full w-full min-w-0 max-w-lg flex-col px-4 pb-10 pt-[max(1rem,env(safe-area-inset-top,0px))]">
+    <div className="mx-auto flex min-h-svh w-full min-w-0 max-w-lg flex-col px-4 pb-10 pt-[max(1rem,env(safe-area-inset-top,0px))]">
       <div className="mb-6 flex items-center justify-between gap-3">
         <Link href="/" className="inline-flex items-center gap-2">
           {/* eslint-disable-next-line @next/next/no-img-element */}

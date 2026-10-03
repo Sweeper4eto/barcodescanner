@@ -74,7 +74,7 @@ function HomePageContent() {
   ] as const;
 
   return (
-    <div className="relative mx-auto flex min-h-full min-w-0 max-w-lg flex-col px-4 pb-10 pt-[max(0.85rem,env(safe-area-inset-top,0px))] sm:px-6">
+    <div className="relative mx-auto flex min-h-svh min-w-0 max-w-lg flex-col px-4 pb-10 pt-[max(0.85rem,env(safe-area-inset-top,0px))] sm:px-6">
       <div
         aria-hidden
         className="pointer-events-none absolute inset-x-0 top-0 h-80 bg-[radial-gradient(ellipse_at_50%_0%,rgb(52_211_153/0.16),transparent_60%)]"

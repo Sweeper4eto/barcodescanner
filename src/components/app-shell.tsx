@@ -81,7 +81,12 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <>
-      <div className="min-w-0 max-w-[100vw] pb-[calc(var(--app-bottom-nav-frame)+env(safe-area-inset-bottom,0px))]">
+      {/*
+        min-h-svh + border-box so bottom-nav padding sits inside the viewport
+        height. Plain pb-* on a content-sized shell made short pages scrollable
+        by ~4rem and painted Android's scrollbar thumb on every /app screen.
+      */}
+      <div className="box-border min-h-svh min-w-0 max-w-[100vw] pb-[calc(var(--app-bottom-nav-frame)+env(safe-area-inset-bottom,0px))]">
         <RequireLocationGuard>{children}</RequireLocationGuard>
       </div>
       <AppBottomNav />

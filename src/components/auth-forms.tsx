@@ -170,7 +170,7 @@ export function AuthShell({
   const { t } = useT();
 
   return (
-    <div className="mx-auto flex min-h-full w-full min-w-0 max-w-md flex-col justify-center px-4 py-6">
+    <div className="mx-auto flex min-h-svh w-full min-w-0 max-w-md flex-col justify-center px-4 pb-6 pt-[max(1.5rem,env(safe-area-inset-top,0px))]">
       <div className="relative rounded-2xl border border-card-border bg-transparent p-5 pt-12 shadow-[0_0_40px_rgb(16_185_129/0.08)]">
         {showLanguageSwitch ? (
           <div className="absolute right-4 top-4 z-40">
