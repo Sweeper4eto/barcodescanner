@@ -310,6 +310,7 @@ export const en = {
     saveWeekAsPdf: "PDF",
     saveWeekAsPicture: "Picture",
     saveWeekPictureFailed: "Could not save the picture. Try again.",
+    saveWeekSaved: "Saved",
   },
   billing: {
     title: "Billing",

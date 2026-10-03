@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
+import { ActionFlash } from "@/components/action-flash";
 import { LoadingSpinnerBlock } from "@/components/loading-spinner";
 import { MobilePageHeader } from "@/components/mobile-page-header";
 import { ChevronRightIcon, SaveDiskIcon } from "@/components/app-nav-icons";
@@ -589,10 +590,12 @@ function SchedulePageInner() {
   const [desireConfirm, setDesireConfirm] = useState(false);
   const [saveFormatOpen, setSaveFormatOpen] = useState(false);
   const [savingExport, setSavingExport] = useState(false);
+  const [flashMessage, setFlashMessage] = useState<string | null>(null);
   const [liveHoursByUser, setLiveHoursByUser] = useState<
     Record<string, { startMin: number; endMin: number }>
   >({});
   const { offsetTop, keyboardInset } = useViewportInsets();
+  const clearFlash = useCallback(() => setFlashMessage(null), []);
 
   /** Always land on the current week when opening the scheduler. */
   useEffect(() => {
@@ -903,6 +906,7 @@ function SchedulePageInner() {
   function exportWeekAsPdf() {
     if (!data) return;
     setSaveFormatOpen(false);
+    setFlashMessage(null);
     const opened = openScheduleWeekPrint({
       weekStart,
       storeName,
@@ -913,13 +917,17 @@ function SchedulePageInner() {
     });
     if (!opened) {
       setError(t("schedule.saveWeekPopupBlocked"));
+      return;
     }
+    setError(null);
+    setFlashMessage(t("schedule.saveWeekSaved"));
   }
 
   async function exportWeekAsPicture() {
     if (!storeId || savingExport) return;
     setSavingExport(true);
     setError(null);
+    setFlashMessage(null);
     try {
       // Always re-fetch so a second save includes edits made after the first PNG.
       const res = await fetch(
@@ -944,7 +952,9 @@ function SchedulePageInner() {
       setSaveFormatOpen(false);
       if (!ok) {
         setError(t("schedule.saveWeekPictureFailed"));
+        return;
       }
+      setFlashMessage(t("schedule.saveWeekSaved"));
     } catch {
       setSaveFormatOpen(false);
       setError(t("schedule.saveWeekPictureFailed"));
@@ -977,7 +987,7 @@ function SchedulePageInner() {
   }
 
   return (
-    <div className={`${appPageShell} flex min-h-0 flex-1 flex-col pb-8`}>
+    <div className={`${appPageShell} flex min-h-0 flex-1 flex-col pb-4`}>
       <div className={appChromeInset}>
         <MobilePageHeader title={t("schedule.title")} />
       </div>
@@ -1148,6 +1158,12 @@ function SchedulePageInner() {
             {error}
           </p>
         ) : null}
+
+        <ActionFlash
+          message={flashMessage}
+          durationMs={2000}
+          onClear={clearFlash}
+        />
 
         {loading || !data ? (
           <LoadingSpinnerBlock wrapperClassName="flex justify-center py-8" />

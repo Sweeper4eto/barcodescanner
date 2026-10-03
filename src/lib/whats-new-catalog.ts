@@ -436,5 +436,13 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Запис на график: изберете PDF (печат) или Снимка (PNG) за седмичната таблица.",
     href: "/app/schedule",
   },
+  {
+    key: "2026-10-schedule-save-flash",
+    titleEn:
+      "Schedule: after saving the week as PDF or Picture, a short Saved confirmation appears.",
+    titleBg:
+      "График: след запис на седмицата като PDF или Снимка се показва кратко „Готово“.",
+    href: "/app/schedule",
+  },
 ];
 

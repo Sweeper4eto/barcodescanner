@@ -41,7 +41,7 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
       style={{ colorScheme: "dark" }}
     >
-      <body className="flex min-h-full min-w-0 flex-col overflow-x-clip bg-background text-foreground">
+      <body className="flex min-h-full min-w-0 flex-col overflow-x-clip overflow-y-auto bg-background text-foreground [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <I18nProvider locale={defaultLocale}>{children}</I18nProvider>
         <KeepKeyboardFocusVisible />
         <PwaRegister />

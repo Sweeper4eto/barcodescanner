@@ -311,6 +311,7 @@ export const bg = {
     saveWeekAsPdf: "PDF",
     saveWeekAsPicture: "Снимка",
     saveWeekPictureFailed: "Снимката не можа да се запише. Опитайте отново.",
+    saveWeekSaved: "Готово",
   },
   billing: {
     title: "Плащания",
