@@ -20,6 +20,8 @@ enum ClientRole {
 model User {
   id                  String      @id @default(cuid())
   username            String      @unique
+  /** Optional personal / display name (shown in team & schedule when set). */
+  displayName         String?
   email               String?
   passwordHash        String
   role                Role        @default(USER)
@@ -39,6 +41,7 @@ model User {
   whatsNewSeen        WhatsNewSeen[]
   schedulePreferences SchedulePreference[]
   scheduleShifts      ScheduleShift[]
+  scheduleDayExclusions ScheduleDayExclusion[]
   finalizedScheduleWeeks StoreScheduleWeek[] @relation("ScheduleFinalizedBy")
   /** Expiry push notification preferences (phases 1–3). */
   expiryNotifyEarlyEnabled     Boolean @default(true)
@@ -70,6 +73,16 @@ model Client {
   additionalInfo     String?
   active             Boolean   @default(true)
   homeUser           Boolean   @default(false)
+  /**
+   * Admin master switch: when false, schedule is unavailable for this account
+   * (Team/Home/API). New accounts default to on.
+   */
+  scheduleEnabled    Boolean   @default(true)
+  /**
+   * Staff schedule visibility for this account (only when scheduleEnabled):
+   * disabled | private (owner only via Team) | public (everyone, home entry).
+   */
+  scheduleAccess     String    @default("private")
   /** When false (default), this client is not required to pay. */
   paymentsRequired   Boolean   @default(false)
   /**
@@ -141,21 +154,41 @@ model StoreScheduleWeek {
   id                String             @id @default(cuid())
   storeId           String
   store             Store              @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  /** Monday YYYY-MM-DD (UTC calendar day). */
+  /** Monday YYYY-MM-DD (local calendar day). */
   weekStart         String
-  /** auto | manual */
+  /** @deprecated Prefer StoreScheduleDay — kept for older rows. */
   mode              String             @default("auto")
+  /** @deprecated Prefer StoreScheduleDay. */
   status            ScheduleWeekStatus @default(DRAFT)
   finalizedAt       DateTime?
   finalizedByUserId String?
   finalizedByUser   User?              @relation("ScheduleFinalizedBy", fields: [finalizedByUserId], references: [id], onDelete: SetNull)
+  days              StoreScheduleDay[]
   preferences       SchedulePreference[]
   shifts            ScheduleShift[]
+  dayExclusions     ScheduleDayExclusion[]
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
 
   @@unique([storeId, weekStart])
   @@index([storeId])
+}
+
+/** Per-day mode + finalize state within a week. */
+model StoreScheduleDay {
+  id          String             @id @default(cuid())
+  weekId      String
+  week        StoreScheduleWeek  @relation(fields: [weekId], references: [id], onDelete: Cascade)
+  /** 0 = Monday … 6 = Sunday */
+  dayIndex    Int
+  /** auto | manual */
+  mode        String             @default("auto")
+  status      ScheduleWeekStatus @default(DRAFT)
+  finalizedAt DateTime?
+  updatedAt   DateTime           @updatedAt
+
+  @@unique([weekId, dayIndex])
+  @@index([weekId])
 }
 
 model SchedulePreference {
@@ -184,6 +217,21 @@ model ScheduleShift {
   startMin Int
   endMin   Int
 
+  @@index([weekId, dayIndex])
+  @@index([userId])
+}
+
+/** Owner excluded this user from the schedule for one day (not in auto-fill). */
+model ScheduleDayExclusion {
+  id       String            @id @default(cuid())
+  weekId   String
+  week     StoreScheduleWeek @relation(fields: [weekId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /** 0 = Monday … 6 = Sunday */
+  dayIndex Int
+
+  @@unique([weekId, userId, dayIndex])
   @@index([weekId, dayIndex])
   @@index([userId])
 }

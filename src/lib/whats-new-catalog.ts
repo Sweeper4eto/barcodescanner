@@ -303,9 +303,138 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
   {
     key: "2026-10-store-schedule-mvp",
     titleEn:
-      "Schedule (per location): staff set desired hours; owners run auto or manual and finalize the week.",
+      "Schedule (per location): open from Team — staff set desired hours; owners run auto or manual and finalize.",
     titleBg:
-      "График (по обект): екипът задава желани часове; собственикът пуска авто или ръчно и финализира седмицата.",
+      "График (по обект): от Екип — персоналът задава желани часове; собственикът пуска авто или ръчно и финализира.",
+    href: "/app/team",
+  },
+  {
+    key: "2026-10-schedule-access-toggle",
+    titleEn:
+      "Team → Schedule: Off, Private (owner only), or Everyone (shows on Home for staff).",
+    titleBg:
+      "Екип → График: Изкл., Само аз (само собственик) или Всички (на Начало за служители).",
+    href: "/app/team",
+  },
+  {
+    key: "2026-10-schedule-week-label-live-hours",
+    titleEn:
+      "Schedule: week shows start–end dates; hours update live while you drag shifts.",
+    titleBg:
+      "График: седмицата показва начална–крайна дата; часовете се обновяват наживо при плъзгане.",
+    href: "/app/schedule",
+  },
+  {
+    key: "2026-10-schedule-ui-tidy",
+    titleEn:
+      "Schedule: tighter week controls, slimmer shift sliders, and clearer save confirmation for desired hours.",
+    titleBg:
+      "График: по-компактна седмица, по-тънки плъзгачи и ясно потвърждение при запазване на желани часове.",
+    href: "/app/schedule",
+  },
+  {
+    key: "2026-10-schedule-duration-hm",
+    titleEn:
+      "Schedule durations show as hours and minutes (e.g. 3h 15m), not decimals.",
+    titleBg:
+      "Продължителността в графика е в часове и минути (напр. 3ч 15мин), без десетични.",
+    href: "/app/schedule",
+  },
+  {
+    key: "2026-10-schedule-day-coverage",
+    titleEn:
+      "Schedule shows day coverage at the top — whether 07:00–22:00 is fully filled by staff shifts.",
+    titleBg:
+      "Графикът показва покритие на деня отгоре — дали 07:00–22:00 е напълно запълнен от смените.",
+    href: "/app/schedule",
+  },
+  {
+    key: "2026-10-schedule-auto-stays-manual",
+    titleEn:
+      "Schedule: Automatic schedule fills the day, then stays Manual so you can adjust.",
+    titleBg:
+      "График: Автоматичен график запълва деня и остава Ръчно, за да можете да го коригирате.",
+    href: "/app/schedule",
+  },
+  {
+    key: "2026-10-schedule-auto-all-staff",
+    titleEn:
+      "Automatic schedule uses desired hours; if two desires overlap, fewer hours this month wins that slot.",
+    titleBg:
+      "Автоматичният график ползва желаните часове; при застъпване печели този с по-малко часове за месеца.",
+    href: "/app/schedule",
+  },
+  {
+    key: "2026-10-schedule-coverage-hint",
+    titleEn:
+      "Schedule day coverage is clearer, and hints when someone still needs a shift.",
+    titleBg:
+      "Покритието на деня в графика е по-ясно и подсказва когато някой още няма смяна.",
+    href: "/app/schedule",
+  },
+  {
+    key: "2026-10-schedule-selected-day-header",
+    titleEn:
+      "Schedule header shows the selected weekday and date on the left; week arrows stay on the right.",
+    titleBg:
+      "В заглавието на графика вляво са избраният ден и датата; стрелките за седмицата са вдясно.",
+    href: "/app/schedule",
+  },
+  {
+    key: "2026-10-team-display-name",
+    titleEn:
+      "Team: optional Name field for each person — shown in the team list and schedule.",
+    titleBg:
+      "Екип: по желание поле Име за всеки — показва се в списъка и в графика.",
+    href: "/app/team",
+  },
+  {
+    key: "2026-10-schedule-week-save-print",
+    titleEn:
+      "Schedule: save icon next to the week switches — print or save the week as PDF (table per day).",
+    titleBg:
+      "График: икона за запис до седмицата — печат или PDF на седмицата (таблица по дни).",
+    href: "/app/schedule",
+  },
+  {
+    key: "2026-10-schedule-finalize-edit",
+    titleEn:
+      "Schedule: Finalize locks the day; tap Edit to reopen and change shifts again.",
+    titleBg:
+      "График: Финализирай заключва деня; Редактирай го отваря отново за промени.",
+    href: "/app/schedule",
+  },
+  {
+    key: "2026-10-schedule-all-team-staff",
+    titleEn:
+      "Schedule (owners): see and assign every team member, not only staff linked to that location.",
+    titleBg:
+      "График (собственик): виждате и назначавате целия екип, не само служителите за обекта.",
+    href: "/app/schedule",
+  },
+  {
+    key: "2026-10-schedule-participant-toggle",
+    titleEn:
+      "Schedule: owners can tick people in or out per day; auto-fill skips those marked out that day.",
+    titleBg:
+      "График: собственикът включва/изключва хора по ден; авто ги пропуска за маркирания ден.",
+    href: "/app/schedule",
+  },
+  {
+    key: "2026-10-team-hours-this-month",
+    titleEn:
+      "Team → edit employee: see hours worked this month from the schedule (1st through yesterday).",
+    titleBg:
+      "Екип → редакция на служител: отработени часове за месеца от графика (от 1-во до вчера).",
+    href: "/app/team",
+  },
+  {
+    key: "2026-10-schedule-save-pdf-or-picture",
+    titleEn:
+      "Schedule save: choose PDF (print dialog) or Picture (PNG download) for the week table.",
+    titleBg:
+      "Запис на график: изберете PDF (печат) или Снимка (PNG) за седмичната таблица.",
     href: "/app/schedule",
   },
 ];
+

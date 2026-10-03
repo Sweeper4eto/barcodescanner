@@ -2,7 +2,19 @@
 export const SCHEDULE_OPEN_MIN = 7 * 60;
 export const SCHEDULE_CLOSE_MIN = 22 * 60;
 export const SCHEDULE_SPAN_MIN = SCHEDULE_CLOSE_MIN - SCHEDULE_OPEN_MIN;
-export const SCHEDULE_STEP_MIN = 30;
+export const SCHEDULE_STEP_MIN = 15;
+
+export const SCHEDULE_ACCESS_OPTIONS = ["disabled", "private", "public"] as const;
+export type ScheduleAccess = (typeof SCHEDULE_ACCESS_OPTIONS)[number];
+
+export function parseScheduleAccess(
+  value: string | null | undefined,
+): ScheduleAccess {
+  if (value && (SCHEDULE_ACCESS_OPTIONS as readonly string[]).includes(value)) {
+    return value as ScheduleAccess;
+  }
+  return "private";
+}
 
 export type ScheduleMode = "auto" | "manual";
 export type ScheduleStatus = "DRAFT" | "FINALIZED";
@@ -65,6 +77,46 @@ export function formatMinutesAsClock(min: number): string {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
+/** Local calendar YYYY-MM-DD for the first day of the month containing `date`. */
+export function monthStartYmd(date = new Date()): string {
+  return formatYmd(new Date(date.getFullYear(), date.getMonth(), 1));
+}
+
+/**
+ * Sum shift lengths (minutes) whose calendar day is in
+ * `[fromYmd, toYmdExclusive)` (local dates as YYYY-MM-DD).
+ */
+export function sumShiftMinutesInRange(
+  shifts: {
+    weekStart: string;
+    dayIndex: number;
+    startMin: number;
+    endMin: number;
+  }[],
+  fromYmd: string,
+  toYmdExclusive: string,
+): number {
+  let total = 0;
+  for (const shift of shifts) {
+    const ymd = addDaysYmd(shift.weekStart, shift.dayIndex);
+    if (ymd < fromYmd || ymd >= toYmdExclusive) continue;
+    total += Math.max(0, shift.endMin - shift.startMin);
+  }
+  return total;
+}
+
+/** Human duration from total minutes, always hours + zero-padded minutes. */
+export function formatDurationMinutes(
+  totalMin: number,
+  hoursUnit: string,
+  minutesUnit: string,
+): string {
+  const safe = Math.max(0, Math.round(totalMin));
+  const hours = Math.floor(safe / 60);
+  const minutes = String(safe % 60).padStart(2, "0");
+  return `${hours}${hoursUnit} ${minutes}${minutesUnit}`;
+}
+
 export function parseClockToMinutes(value: string): number | null {
   const match = /^(\d{1,2}):(\d{2})$/.exec(value.trim());
   if (!match) return null;
@@ -86,8 +138,11 @@ export function validateWindow(startMin: number, endMin: number): boolean {
   );
 }
 
-/** Shifts must not overlap and must stay inside the open window. */
-export function validateDayShifts(shifts: ShiftDraft[]): {
+/** Shifts must stay inside the open window. Overlaps optional (manual only). */
+export function validateDayShifts(
+  shifts: ShiftDraft[],
+  options?: { allowOverlap?: boolean },
+): {
   ok: boolean;
   reason?: "overlap" | "bounds" | "empty";
 } {
@@ -98,49 +153,31 @@ export function validateDayShifts(shifts: ShiftDraft[]): {
       return { ok: false, reason: "bounds" };
     }
   }
-  for (let i = 1; i < sorted.length; i++) {
-    if (sorted[i]!.startMin < sorted[i - 1]!.endMin) {
-      return { ok: false, reason: "overlap" };
+  if (!options?.allowOverlap) {
+    for (let i = 1; i < sorted.length; i++) {
+      if (sorted[i]!.startMin < sorted[i - 1]!.endMin) {
+        return { ok: false, reason: "overlap" };
+      }
     }
   }
   return { ok: true };
 }
 
-/**
- * Auto-fill one day: contiguous non-overlapping blocks covering 07:00–22:00,
- * hours as even as possible, ordered by preference midpoints when present.
- */
-export function autoFillDay(args: {
-  dayIndex: number;
-  staffUserIds: string[];
-  preferences: PreferenceInput[];
-}): ShiftDraft[] {
-  const { dayIndex, staffUserIds, preferences } = args;
-  if (staffUserIds.length === 0) return [];
+type MinuteInterval = { startMin: number; endMin: number };
 
-  const prefsByUser = new Map(
-    preferences
-      .filter((p) => p.dayIndex === dayIndex && staffUserIds.includes(p.userId))
-      .map((p) => [p.userId, p] as const),
-  );
-
-  // Prefer people who submitted a desire; otherwise use all staff.
-  const withPref = staffUserIds.filter((id) => prefsByUser.has(id));
-  const pool = withPref.length > 0 ? withPref : staffUserIds;
-
-  const ordered = [...pool].sort((a, b) => {
-    const pa = prefsByUser.get(a);
-    const pb = prefsByUser.get(b);
-    const midA = pa ? (pa.startMin + pa.endMin) / 2 : SCHEDULE_OPEN_MIN + SCHEDULE_SPAN_MIN / 2;
-    const midB = pb ? (pb.startMin + pb.endMin) / 2 : SCHEDULE_OPEN_MIN + SCHEDULE_SPAN_MIN / 2;
-    return midA - midB;
-  });
-
-  const n = ordered.length;
-  const base = Math.floor(SCHEDULE_SPAN_MIN / n / SCHEDULE_STEP_MIN) * SCHEDULE_STEP_MIN;
-  let remainder =
-    SCHEDULE_SPAN_MIN - base * n;
-  // Distribute leftover in 30-min chunks.
+/** Equal contiguous blocks over [startMin, endMin), 15‑minute steps. */
+function equalSplitBlocks(
+  dayIndex: number,
+  userIds: string[],
+  startMin: number,
+  endMin: number,
+): ShiftDraft[] {
+  if (userIds.length === 0 || endMin - startMin < SCHEDULE_STEP_MIN) return [];
+  const span = endMin - startMin;
+  const n = userIds.length;
+  const base =
+    Math.floor(span / n / SCHEDULE_STEP_MIN) * SCHEDULE_STEP_MIN;
+  let remainder = span - base * n;
   const extras = Array.from({ length: n }, () => 0);
   let i = 0;
   while (remainder >= SCHEDULE_STEP_MIN) {
@@ -148,29 +185,228 @@ export function autoFillDay(args: {
     remainder -= SCHEDULE_STEP_MIN;
     i += 1;
   }
-
   const shifts: ShiftDraft[] = [];
-  let cursor = SCHEDULE_OPEN_MIN;
+  let cursor = startMin;
   for (let idx = 0; idx < n; idx++) {
     const len = base + extras[idx]!;
-    const startMin = cursor;
-    const endMin = Math.min(SCHEDULE_CLOSE_MIN, cursor + len);
-    if (endMin - startMin >= SCHEDULE_STEP_MIN) {
+    const blockEnd = Math.min(endMin, cursor + len);
+    if (blockEnd - cursor >= SCHEDULE_STEP_MIN) {
       shifts.push({
-        userId: ordered[idx]!,
+        userId: userIds[idx]!,
         dayIndex,
-        startMin,
-        endMin,
+        startMin: cursor,
+        endMin: blockEnd,
       });
     }
-    cursor = endMin;
+    cursor = blockEnd;
   }
   return shifts;
+}
+
+/** Parts of `window` not covered by any `blocked` interval. */
+function freePartsWithin(
+  window: MinuteInterval,
+  blocked: MinuteInterval[],
+): MinuteInterval[] {
+  let parts: MinuteInterval[] = [
+    { startMin: window.startMin, endMin: window.endMin },
+  ];
+  const sorted = [...blocked].sort((a, b) => a.startMin - b.startMin);
+  for (const b of sorted) {
+    const next: MinuteInterval[] = [];
+    for (const p of parts) {
+      if (b.endMin <= p.startMin || b.startMin >= p.endMin) {
+        next.push(p);
+        continue;
+      }
+      if (b.startMin > p.startMin) {
+        next.push({ startMin: p.startMin, endMin: Math.min(b.startMin, p.endMin) });
+      }
+      if (b.endMin < p.endMin) {
+        next.push({ startMin: Math.max(b.endMin, p.startMin), endMin: p.endMin });
+      }
+    }
+    parts = next.filter((p) => p.endMin - p.startMin >= SCHEDULE_STEP_MIN);
+  }
+  return parts;
+}
+
+/**
+ * Place each filler into free gaps as one contiguous block (~equal minutes).
+ * One shift per user (DB unique on week/user/day).
+ */
+function placeFillersInGaps(
+  dayIndex: number,
+  fillers: string[],
+  gaps: MinuteInterval[],
+): ShiftDraft[] {
+  if (fillers.length === 0) return [];
+  const free = gaps
+    .map((g) => ({ ...g }))
+    .filter((g) => g.endMin - g.startMin >= SCHEDULE_STEP_MIN)
+    .sort((a, b) => a.startMin - b.startMin);
+  if (free.length === 0) return [];
+
+  const total = free.reduce((s, g) => s + (g.endMin - g.startMin), 0);
+  const n = fillers.length;
+  const base =
+    Math.floor(total / n / SCHEDULE_STEP_MIN) * SCHEDULE_STEP_MIN;
+  let remainder = total - base * n;
+  const targets = Array.from({ length: n }, () => base);
+  let r = 0;
+  while (remainder >= SCHEDULE_STEP_MIN) {
+    targets[r % n]! += SCHEDULE_STEP_MIN;
+    remainder -= SCHEDULE_STEP_MIN;
+    r += 1;
+  }
+
+  const shifts: ShiftDraft[] = [];
+  for (let fi = 0; fi < n; fi++) {
+    const need = targets[fi]!;
+    if (need < SCHEDULE_STEP_MIN) continue;
+    // Prefer a gap that can fit the whole target; else the largest gap left.
+    let bestIdx = -1;
+    let bestScore = -1;
+    for (let gi = 0; gi < free.length; gi++) {
+      const room = free[gi]!.endMin - free[gi]!.startMin;
+      if (room < SCHEDULE_STEP_MIN) continue;
+      const score = room >= need ? 1_000_000 + room : room;
+      if (score > bestScore) {
+        bestScore = score;
+        bestIdx = gi;
+      }
+    }
+    if (bestIdx < 0) break;
+    const gap = free[bestIdx]!;
+    const take =
+      Math.floor(Math.min(need, gap.endMin - gap.startMin) / SCHEDULE_STEP_MIN) *
+      SCHEDULE_STEP_MIN;
+    if (take < SCHEDULE_STEP_MIN) break;
+    shifts.push({
+      userId: fillers[fi]!,
+      dayIndex,
+      startMin: gap.startMin,
+      endMin: gap.startMin + take,
+    });
+    gap.startMin += take;
+  }
+  return shifts;
+}
+
+/** Extend neighboring shifts into leftover gaps so the day stays covered. */
+function absorbGapsIntoShifts(shifts: ShiftDraft[]): ShiftDraft[] {
+  if (shifts.length === 0) return shifts;
+  const sorted = [...shifts].sort((a, b) => a.startMin - b.startMin);
+  if (sorted[0]!.startMin > SCHEDULE_OPEN_MIN) {
+    sorted[0]!.startMin = SCHEDULE_OPEN_MIN;
+  }
+  for (let i = 0; i < sorted.length - 1; i++) {
+    const cur = sorted[i]!;
+    const next = sorted[i + 1]!;
+    if (cur.endMin < next.startMin) {
+      const mid =
+        Math.round((cur.endMin + next.startMin) / 2 / SCHEDULE_STEP_MIN) *
+        SCHEDULE_STEP_MIN;
+      cur.endMin = mid;
+      next.startMin = mid;
+    }
+  }
+  const last = sorted[sorted.length - 1]!;
+  if (last.endMin < SCHEDULE_CLOSE_MIN) {
+    last.endMin = SCHEDULE_CLOSE_MIN;
+  }
+  return sorted;
+}
+
+/**
+ * Auto-fill one day covering 07:00–22:00.
+ *
+ * - No desires → equal contiguous split among everyone included.
+ * - Desires → place each desire (fewest hours this month first). On overlap,
+ *   earlier placer keeps the contested time; later keeps the longest free
+ *   piece of their desire.
+ * - Remaining gaps → one block each for people still without a shift.
+ */
+export function autoFillDay(args: {
+  dayIndex: number;
+  staffUserIds: string[];
+  preferences: PreferenceInput[];
+  /** Minutes already worked this month (1st → yesterday). Lower wins overlaps. */
+  hoursThisMonthMin?: Record<string, number>;
+}): ShiftDraft[] {
+  const { dayIndex, staffUserIds, preferences } = args;
+  if (staffUserIds.length === 0) return [];
+
+  const hours = args.hoursThisMonthMin ?? {};
+  const hourOf = (id: string) => hours[id] ?? 0;
+
+  const prefsByUser = new Map(
+    preferences
+      .filter((p) => p.dayIndex === dayIndex && staffUserIds.includes(p.userId))
+      .map((p) => [p.userId, p] as const),
+  );
+
+  const withDesire = staffUserIds.filter((id) => prefsByUser.has(id));
+  if (withDesire.length === 0) {
+    const ordered = [...staffUserIds].sort((a, b) => {
+      const d = hourOf(a) - hourOf(b);
+      return d !== 0 ? d : a.localeCompare(b);
+    });
+    return equalSplitBlocks(
+      dayIndex,
+      ordered,
+      SCHEDULE_OPEN_MIN,
+      SCHEDULE_CLOSE_MIN,
+    );
+  }
+
+  // Fewest month-hours first → they claim overlapping desire time.
+  const desireOrder = [...withDesire].sort((a, b) => {
+    const d = hourOf(a) - hourOf(b);
+    return d !== 0 ? d : a.localeCompare(b);
+  });
+
+  const placed: ShiftDraft[] = [];
+  for (const userId of desireOrder) {
+    const pref = prefsByUser.get(userId)!;
+    const free = freePartsWithin(
+      { startMin: pref.startMin, endMin: pref.endMin },
+      placed.map((p) => ({ startMin: p.startMin, endMin: p.endMin })),
+    );
+    free.sort(
+      (a, b) => b.endMin - b.startMin - (a.endMin - a.startMin),
+    );
+    const best = free[0];
+    if (best && best.endMin - best.startMin >= SCHEDULE_STEP_MIN) {
+      placed.push({
+        userId,
+        dayIndex,
+        startMin: best.startMin,
+        endMin: best.endMin,
+      });
+    }
+  }
+
+  const gaps = freePartsWithin(
+    { startMin: SCHEDULE_OPEN_MIN, endMin: SCHEDULE_CLOSE_MIN },
+    placed.map((p) => ({ startMin: p.startMin, endMin: p.endMin })),
+  );
+  const taken = new Set(placed.map((p) => p.userId));
+  const fillers = staffUserIds
+    .filter((id) => !taken.has(id))
+    .sort((a, b) => {
+      const d = hourOf(a) - hourOf(b);
+      return d !== 0 ? d : a.localeCompare(b);
+    });
+
+  placed.push(...placeFillersInGaps(dayIndex, fillers, gaps));
+  return absorbGapsIntoShifts(placed);
 }
 
 export function autoFillWeek(args: {
   staffUserIds: string[];
   preferences: PreferenceInput[];
+  hoursThisMonthMin?: Record<string, number>;
 }): ShiftDraft[] {
   const out: ShiftDraft[] = [];
   for (let dayIndex = 0; dayIndex < 7; dayIndex++) {
@@ -179,6 +415,7 @@ export function autoFillWeek(args: {
         dayIndex,
         staffUserIds: args.staffUserIds,
         preferences: args.preferences,
+        hoursThisMonthMin: args.hoursThisMonthMin,
       }),
     );
   }

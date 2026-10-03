@@ -169,6 +169,7 @@ export default function AppHomePage() {
   const [username, setUsername] = useState("");
   const [isOwner, setIsOwner] = useState(false);
   const [billingEnabled, setBillingEnabled] = useState(false);
+  const [schedulePublic, setSchedulePublic] = useState(false);
   const [bootstrapped, setBootstrapped] = useState(false);
   const [sessionMissing, setSessionMissing] = useState(false);
 
@@ -192,11 +193,16 @@ export default function AppHomePage() {
       }
 
       async function fetchMe() {
-        const response = await fetch("/api/auth/me", {
-          credentials: "same-origin",
-          cache: "no-store",
-        });
-        return response.json().catch(() => ({}));
+        try {
+          const response = await fetch("/api/auth/me", {
+            credentials: "same-origin",
+            cache: "no-store",
+            signal: AbortSignal.timeout(12_000),
+          });
+          return await response.json().catch(() => ({}));
+        } catch {
+          return {};
+        }
       }
 
       let data = await fetchMe();
@@ -221,21 +227,11 @@ export default function AppHomePage() {
       setUsername(data.user.username);
       const owner = data.user.clientRole === "OWNER";
       setIsOwner(owner);
+      setSchedulePublic(data.user.scheduleAccess === "public");
       setBillingEnabled(false);
-      if (owner) {
-        try {
-          const billingRes = await fetch("/api/billing", {
-            credentials: "same-origin",
-            cache: "no-store",
-          });
-          if (!cancelled && billingRes.ok) {
-            const billing = (await billingRes.json()) as { enabled?: boolean };
-            setBillingEnabled(Boolean(billing.enabled));
-          }
-        } catch {
-          /* ignore — home still works without billing card */
-        }
-      }
+
+      // Paint home immediately from /me — never block on billing or session refresh
+      // (slow/hanging LAN fetches left owners on spinner + Contact only).
       const list: Store[] = data.user.stores ?? [];
       setStores(list);
       const stored = getStoredStoreId();
@@ -246,8 +242,26 @@ export default function AppHomePage() {
       } else {
         clearStoredStoreId();
       }
-      await refreshSession();
       setBootstrapped(true);
+
+      void refreshSession();
+
+      if (owner) {
+        void (async () => {
+          try {
+            const billingRes = await fetch("/api/billing", {
+              credentials: "same-origin",
+              cache: "no-store",
+            });
+            if (!cancelled && billingRes.ok) {
+              const billing = (await billingRes.json()) as { enabled?: boolean };
+              setBillingEnabled(Boolean(billing.enabled));
+            }
+          } catch {
+            /* ignore — home still works without billing card */
+          }
+        })();
+      }
     }
 
     void load();
@@ -309,7 +323,7 @@ export default function AppHomePage() {
           </p>
         ) : null}
 
-        {isOwner && !sessionMissing && stores.length > 0 ? (
+        {bootstrapped && isOwner && !sessionMissing && stores.length > 0 ? (
           <HomeLinkCard
             href="/app/team"
             title={t("app.team")}
@@ -317,7 +331,10 @@ export default function AppHomePage() {
           />
         ) : null}
 
-        {!sessionMissing && stores.length > 0 ? (
+        {bootstrapped &&
+        schedulePublic &&
+        !sessionMissing &&
+        stores.length > 0 ? (
           <HomeLinkCard
             href="/app/schedule"
             title={t("app.schedule")}
@@ -325,7 +342,7 @@ export default function AppHomePage() {
           />
         ) : null}
 
-        {isOwner && billingEnabled && !sessionMissing ? (
+        {bootstrapped && isOwner && billingEnabled && !sessionMissing ? (
           <HomeLinkCard
             href="/app/billing"
             title={t("app.billing")}
@@ -333,7 +350,7 @@ export default function AppHomePage() {
           />
         ) : null}
 
-        {!sessionMissing ? (
+        {bootstrapped && !sessionMissing ? (
           <HomeLinkCard
             href="/app/contact"
             title={t("app.contact")}

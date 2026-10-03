@@ -8,7 +8,14 @@ import { apiT } from "@/i18n";
 async function ownerOrForbidden(request: Request) {
   try {
     return await requireClientOwner();
-  } catch {
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "";
+    if (message === "UNAUTHORIZED" || message === "PAYMENT_REQUIRED") {
+      return NextResponse.json(
+        { error: apiT(request, "errors.unauthorized") },
+        { status: 401 },
+      );
+    }
     return NextResponse.json(
       { error: apiT(request, "errors.forbidden") },
       { status: 403 },
@@ -26,6 +33,7 @@ export async function GET(request: Request) {
     select: {
       id: true,
       username: true,
+      displayName: true,
       email: true,
       active: true,
       clientRole: true,
@@ -47,6 +55,7 @@ export async function GET(request: Request) {
     users: users.map((user) => ({
       id: user.id,
       username: user.username,
+      displayName: user.displayName,
       email: user.email,
       active: user.active,
       clientRole: user.clientRole,
@@ -56,8 +65,14 @@ export async function GET(request: Request) {
   });
 }
 
+function normalizeDisplayName(value: string | null | undefined): string | null {
+  const trimmed = value?.trim() ?? "";
+  return trimmed.length > 0 ? trimmed.slice(0, 80) : null;
+}
+
 const createSchema = z.object({
   username: z.string().min(1),
+  displayName: z.string().max(80).optional().nullable(),
   password: z.string().min(1),
   storeIds: z.array(z.string().min(1)).default([]),
   clientRole: z.enum(["OWNER", "MEMBER"]).optional(),
@@ -117,6 +132,7 @@ export async function POST(request: Request) {
   const user = await db.user.create({
     data: {
       username,
+      displayName: normalizeDisplayName(parsed.data.displayName),
       passwordHash: await hashPassword(parsed.data.password),
       role: "USER",
       clientRole: parsed.data.clientRole === "OWNER" ? "OWNER" : "MEMBER",
@@ -128,6 +144,7 @@ export async function POST(request: Request) {
     select: {
       id: true,
       username: true,
+      displayName: true,
       active: true,
       clientRole: true,
       storeLinks: {
@@ -140,6 +157,7 @@ export async function POST(request: Request) {
     user: {
       id: user.id,
       username: user.username,
+      displayName: user.displayName,
       active: user.active,
       clientRole: user.clientRole,
       stores: user.storeLinks.map((link) => link.store),
@@ -150,6 +168,7 @@ export async function POST(request: Request) {
 const patchSchema = z.object({
   userId: z.string().min(1),
   username: z.string().min(1).optional(),
+  displayName: z.string().max(80).optional().nullable(),
   password: z.string().min(1).optional(),
   confirmPassword: z.string().optional(),
   active: z.boolean().optional(),
@@ -275,12 +294,16 @@ export async function PATCH(request: Request) {
 
   const updateData: {
     username?: string;
+    displayName?: string | null;
     passwordHash?: string;
     mustChangePassword?: boolean;
     active?: boolean;
     clientRole?: "OWNER" | "MEMBER";
   } = {};
   if (nextUsername !== undefined) updateData.username = nextUsername;
+  if (parsed.data.displayName !== undefined) {
+    updateData.displayName = normalizeDisplayName(parsed.data.displayName);
+  }
   if (nextPasswordHash !== undefined) {
     updateData.passwordHash = nextPasswordHash;
     updateData.mustChangePassword = true;
@@ -300,6 +323,7 @@ export async function PATCH(request: Request) {
     select: {
       id: true,
       username: true,
+      displayName: true,
       email: true,
       active: true,
       clientRole: true,
@@ -313,6 +337,7 @@ export async function PATCH(request: Request) {
     user: {
       id: updated.id,
       username: updated.username,
+      displayName: updated.displayName,
       email: updated.email,
       active: updated.active,
       clientRole: updated.clientRole,

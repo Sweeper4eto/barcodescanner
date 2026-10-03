@@ -1,16 +1,17 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
 import { LoadingSpinnerBlock } from "@/components/loading-spinner";
 import { MobilePageHeader } from "@/components/mobile-page-header";
+import { ChevronRightIcon, SaveDiskIcon } from "@/components/app-nav-icons";
+import { useAppSession } from "@/components/app-session-provider";
 import { useT } from "@/components/i18n-provider";
 import { useAppStoreId } from "@/hooks/use-app-store-id";
+import { CancelButton } from "@/components/cancel-button";
 import {
-  appButtonNeutral,
-  appButtonPrimary,
+  appButtonNeutralFull,
   appButtonPrimaryFull,
   appChromeInset,
-  appFooterButtonGrid,
   appListInset,
   appPageShell,
 } from "@/lib/app-ui";
@@ -20,12 +21,25 @@ import {
   SCHEDULE_SPAN_MIN,
   SCHEDULE_STEP_MIN,
   addDaysYmd,
+  clampScheduleMinutes,
+  formatDurationMinutes,
   formatMinutesAsClock,
   mondayOfWeek,
   parseYmd,
 } from "@/lib/schedule";
+import {
+  downloadScheduleWeekPng,
+  openScheduleWeekPrint,
+  type ScheduleWeekPrintLabels,
+} from "@/lib/schedule-week-print";
+import { useViewportInsets } from "@/hooks/use-viewport-insets";
 
-type Staff = { id: string; username: string; clientRole: string | null };
+type Staff = {
+  id: string;
+  username: string;
+  displayName?: string | null;
+  clientRole: string | null;
+};
 type Pref = {
   id: string;
   userId: string;
@@ -40,15 +54,20 @@ type Shift = {
   startMin: number;
   endMin: number;
 };
+type DayState = {
+  dayIndex: number;
+  mode: "auto" | "manual";
+  status: "DRAFT" | "FINALIZED";
+  finalizedAt: string | null;
+  excludedUserIds: string[];
+};
 type WeekPayload = {
   week: {
     id: string;
     storeId: string;
     weekStart: string;
-    mode: "auto" | "manual";
-    status: "DRAFT" | "FINALIZED";
-    finalizedAt: string | null;
   };
+  days: DayState[];
   staff: Staff[];
   preferences: Pref[];
   shifts: Shift[];
@@ -63,6 +82,16 @@ const DAY_LABELS = [
   "schedule.dayFri",
   "schedule.daySat",
   "schedule.daySun",
+] as const;
+
+const DAY_FULL_LABELS = [
+  "schedule.dayMonFull",
+  "schedule.dayTueFull",
+  "schedule.dayWedFull",
+  "schedule.dayThuFull",
+  "schedule.dayFriFull",
+  "schedule.daySatFull",
+  "schedule.daySunFull",
 ] as const;
 
 
@@ -82,65 +111,466 @@ function widthPct(startMin: number, endMin: number): number {
   return ((endMin - startMin) / SCHEDULE_SPAN_MIN) * 100;
 }
 
-function RangeSlider({
+function mergeCoverageRanges(
+  ranges: { startMin: number; endMin: number }[],
+): { startMin: number; endMin: number }[] {
+  const sorted = [...ranges]
+    .filter((r) => r.endMin > r.startMin)
+    .sort((a, b) => a.startMin - b.startMin);
+  const merged: { startMin: number; endMin: number }[] = [];
+  for (const range of sorted) {
+    const last = merged[merged.length - 1];
+    if (!last || range.startMin > last.endMin) {
+      merged.push({ ...range });
+    } else {
+      last.endMin = Math.max(last.endMin, range.endMin);
+    }
+  }
+  return merged;
+}
+
+function coveredMinutes(
+  ranges: { startMin: number; endMin: number }[],
+): number {
+  return ranges.reduce((sum, r) => sum + (r.endMin - r.startMin), 0);
+}
+
+function DayCoverageBar({
+  ranges,
+  hoursUnit,
+  minutesUnit,
+  labelFull,
+  labelPartial,
+  labelEmpty,
+}: {
+  ranges: { startMin: number; endMin: number }[];
+  hoursUnit: string;
+  minutesUnit: string;
+  labelFull: string;
+  labelPartial: string;
+  labelEmpty: string;
+}) {
+  const merged = mergeCoverageRanges(ranges);
+  const covered = coveredMinutes(merged);
+  const full = covered >= SCHEDULE_SPAN_MIN;
+  const empty = covered <= 0;
+  const coveredLabel = formatDurationLabel(covered, hoursUnit, minutesUnit);
+  const totalLabel = formatDurationLabel(
+    SCHEDULE_SPAN_MIN,
+    hoursUnit,
+    minutesUnit,
+  );
+  const status = full
+    ? labelFull
+    : empty
+      ? labelEmpty
+      : labelPartial
+          .replace("{covered}", coveredLabel)
+          .replace("{total}", totalLabel);
+
+  return (
+    <div className="mb-2">
+      <div className="mb-1 flex items-center justify-between gap-2">
+        <p
+          className={`min-w-0 text-xs font-semibold ${
+            full ? "text-primary" : "text-muted"
+          }`}
+        >
+          {status}
+        </p>
+        <p className="shrink-0 text-[0.65rem] tabular-nums text-muted">
+          {formatMinutesAsClock(SCHEDULE_OPEN_MIN)}–
+          {formatMinutesAsClock(SCHEDULE_CLOSE_MIN)}
+        </p>
+      </div>
+      <div className="relative h-3 overflow-hidden rounded-full border border-card-border bg-card-border/25">
+        {merged.map((range) => (
+          <div
+            key={`${range.startMin}-${range.endMin}`}
+            aria-hidden
+            className={`absolute top-0 bottom-0 ${
+              full ? "bg-primary" : "bg-primary/75"
+            }`}
+            style={{
+              left: `${leftPct(range.startMin)}%`,
+              width: `${widthPct(range.startMin, range.endMin)}%`,
+            }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function minutesFromClientX(
+  track: HTMLDivElement | null,
+  clientX: number,
+): number {
+  if (!track) return SCHEDULE_OPEN_MIN;
+  const rect = track.getBoundingClientRect();
+  const pct = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+  return clampScheduleMinutes(SCHEDULE_OPEN_MIN + pct * SCHEDULE_SPAN_MIN);
+}
+
+function formatDurationLabel(
+  totalMin: number,
+  hoursUnit: string,
+  minutesUnit: string,
+): string {
+  return formatDurationMinutes(totalMin, hoursUnit, minutesUnit);
+}
+
+/** Dual-handle range for desired hours (my preference). */
+function DualRangeSlider({
   startMin,
   endMin,
   disabled,
   onChange,
+  hoursUnit,
+  minutesUnit,
 }: {
   startMin: number;
   endMin: number;
   disabled?: boolean;
   onChange: (start: number, end: number) => void;
+  hoursUnit: string;
+  minutesUnit: string;
 }) {
-  const min = SCHEDULE_OPEN_MIN;
-  const max = SCHEDULE_CLOSE_MIN;
-  const step = SCHEDULE_STEP_MIN;
+  const trackRef = useRef<HTMLDivElement>(null);
+  const dragWhich = useRef<"start" | "end" | null>(null);
+  const valuesRef = useRef({ startMin, endMin });
+  const onChangeRef = useRef(onChange);
+
+  useEffect(() => {
+    valuesRef.current = { startMin, endMin };
+  }, [startMin, endMin]);
+
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
+
+  function applyDrag(which: "start" | "end", clientX: number) {
+    const minutes = minutesFromClientX(trackRef.current, clientX);
+    const { startMin: start, endMin: end } = valuesRef.current;
+    if (which === "start") {
+      onChangeRef.current(Math.min(minutes, end - SCHEDULE_STEP_MIN), end);
+    } else {
+      onChangeRef.current(start, Math.max(minutes, start + SCHEDULE_STEP_MIN));
+    }
+  }
+
+  function handlePointerMove(event: PointerEvent<HTMLButtonElement>) {
+    const which = dragWhich.current;
+    if (!which || disabled) return;
+    applyDrag(which, event.clientX);
+  }
+
+  function handlePointerUp(event: PointerEvent<HTMLButtonElement>) {
+    dragWhich.current = null;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+  }
+
+  function handleStartDown(event: PointerEvent<HTMLButtonElement>) {
+    if (disabled) return;
+    event.preventDefault();
+    dragWhich.current = "start";
+    event.currentTarget.setPointerCapture(event.pointerId);
+    applyDrag("start", event.clientX);
+  }
+
+  function handleEndDown(event: PointerEvent<HTMLButtonElement>) {
+    if (disabled) return;
+    event.preventDefault();
+    dragWhich.current = "end";
+    event.currentTarget.setPointerCapture(event.pointerId);
+    applyDrag("end", event.clientX);
+  }
+
+  const startPct = leftPct(startMin);
+  const endPct = leftPct(endMin);
+  const duration = formatDurationLabel(
+    endMin - startMin,
+    hoursUnit,
+    minutesUnit,
+  );
 
   return (
-    <div className="space-y-3">
-      <p className="text-center text-lg font-semibold tabular-nums text-foreground">
+    <div className="space-y-1.5">
+      <p className="text-center text-sm font-semibold tabular-nums text-foreground">
         {formatMinutesAsClock(startMin)} – {formatMinutesAsClock(endMin)}
+        <span className="ml-1.5 text-xs font-semibold text-muted">
+          · {duration}
+        </span>
       </p>
-      <label className="block text-xs text-muted">
-        {formatMinutesAsClock(min)} → {formatMinutesAsClock(max)}
-        <input
-          type="range"
-          min={min}
-          max={max - step}
-          step={step}
-          value={startMin}
-          disabled={disabled}
-          onChange={(e) => {
-            const next = Number(e.target.value);
-            onChange(next, Math.max(next + step, endMin));
-          }}
-          className="mt-2 w-full accent-primary"
-        />
-      </label>
-      <label className="block text-xs text-muted">
-        End
-        <input
-          type="range"
-          min={min + step}
-          max={max}
-          step={step}
-          value={endMin}
-          disabled={disabled}
-          onChange={(e) => {
-            const next = Number(e.target.value);
-            onChange(Math.min(startMin, next - step), next);
-          }}
-          className="mt-2 w-full accent-primary"
-        />
-      </label>
+      <div className="px-0.5">
+        <div ref={trackRef} className="relative h-6 touch-none select-none">
+          <div
+            aria-hidden
+            className="absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 rounded-full bg-card-border"
+          />
+          <div
+            aria-hidden
+            className="absolute top-1/2 h-1 -translate-y-1/2 rounded-full bg-primary/70"
+            style={{
+              left: `${startPct}%`,
+              width: `${Math.max(0, endPct - startPct)}%`,
+            }}
+          />
+          <button
+            type="button"
+            disabled={disabled}
+            aria-label="Start"
+            className="absolute top-1/2 z-[2] size-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-primary bg-background disabled:opacity-50"
+            style={{ left: `${startPct}%` }}
+            onPointerDown={handleStartDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerUp}
+          />
+          <button
+            type="button"
+            disabled={disabled}
+            aria-label="End"
+            className="absolute top-1/2 z-[2] size-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-primary bg-background disabled:opacity-50"
+            style={{ left: `${endPct}%` }}
+            onPointerDown={handleEndDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerUp}
+          />
+        </div>
+        <div className="mt-0.5 flex justify-between text-[0.65rem] tabular-nums text-muted">
+          <span>{formatMinutesAsClock(SCHEDULE_OPEN_MIN)}</span>
+          <span>{formatMinutesAsClock(SCHEDULE_CLOSE_MIN)}</span>
+        </div>
+      </div>
     </div>
   );
 }
 
+/**
+ * Per-member day bar: yellow = employee desire (under), green = assigned shift
+ * (on top, owner can drag when editable).
+ */
+function MemberShiftBar({
+  desire,
+  assigned,
+  editable,
+  disabled,
+  onCommit,
+  onLiveChange,
+}: {
+  desire: { startMin: number; endMin: number } | null;
+  assigned: { startMin: number; endMin: number } | null;
+  editable: boolean;
+  disabled?: boolean;
+  onCommit: (startMin: number, endMin: number) => void;
+  onLiveChange?: (startMin: number, endMin: number) => void;
+}) {
+  const trackRef = useRef<HTMLDivElement>(null);
+  const dragWhich = useRef<"start" | "end" | null>(null);
+  const [draft, setDraft] = useState(assigned);
+  const draftRef = useRef(draft);
+  const desireRef = useRef(desire);
+  const liveCb = useRef(onLiveChange);
+  const onCommitRef = useRef(onCommit);
+
+  useEffect(() => {
+    draftRef.current = draft;
+  }, [draft]);
+
+  useEffect(() => {
+    desireRef.current = desire;
+  }, [desire]);
+
+  useEffect(() => {
+    liveCb.current = onLiveChange;
+  }, [onLiveChange]);
+
+  useEffect(() => {
+    onCommitRef.current = onCommit;
+  }, [onCommit]);
+
+  const assignedStart = assigned?.startMin;
+  const assignedEnd = assigned?.endMin;
+  useEffect(() => {
+    setDraft(
+      assignedStart != null && assignedEnd != null
+        ? { startMin: assignedStart, endMin: assignedEnd }
+        : null,
+    );
+  }, [assignedStart, assignedEnd]);
+
+  function applyDrag(which: "start" | "end", clientX: number) {
+    const minutes = minutesFromClientX(trackRef.current, clientX);
+    const current =
+      draftRef.current ??
+      desireRef.current ?? { startMin: 10 * 60, endMin: 16 * 60 };
+    const next =
+      which === "start"
+        ? {
+            startMin: Math.min(minutes, current.endMin - SCHEDULE_STEP_MIN),
+            endMin: current.endMin,
+          }
+        : {
+            startMin: current.startMin,
+            endMin: Math.max(minutes, current.startMin + SCHEDULE_STEP_MIN),
+          };
+    draftRef.current = next;
+    setDraft(next);
+    liveCb.current?.(next.startMin, next.endMin);
+  }
+
+  function handlePointerMove(event: PointerEvent<HTMLButtonElement>) {
+    const which = dragWhich.current;
+    if (!which || !editable || disabled) return;
+    applyDrag(which, event.clientX);
+  }
+
+  function handlePointerUp(event: PointerEvent<HTMLButtonElement>) {
+    const which = dragWhich.current;
+    dragWhich.current = null;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    if (which && draftRef.current) {
+      onCommitRef.current(draftRef.current.startMin, draftRef.current.endMin);
+    }
+  }
+
+  function handleStartDown(event: PointerEvent<HTMLButtonElement>) {
+    if (!editable || disabled) return;
+    event.preventDefault();
+    dragWhich.current = "start";
+    event.currentTarget.setPointerCapture(event.pointerId);
+    applyDrag("start", event.clientX);
+  }
+
+  function handleEndDown(event: PointerEvent<HTMLButtonElement>) {
+    if (!editable || disabled) return;
+    event.preventDefault();
+    dragWhich.current = "end";
+    event.currentTarget.setPointerCapture(event.pointerId);
+    applyDrag("end", event.clientX);
+  }
+
+  const show =
+    draft ?? assigned ?? (editable ? desire ?? { startMin: 10 * 60, endMin: 16 * 60 } : null);
+  /** Green block is only a suggestion until a shift is saved / draft dragged. */
+  const provisional = Boolean(editable && !assigned && !draft && show);
+
+  return (
+    <div ref={trackRef} className="relative h-6 touch-none select-none rounded-md border border-card-border/70 bg-transparent">
+      {desire ? (
+        <div
+          aria-hidden
+          className="absolute top-1 bottom-1 rounded-sm bg-[var(--urgency-warning-border)]/55"
+          style={{
+            left: `${leftPct(desire.startMin)}%`,
+            width: `${widthPct(desire.startMin, desire.endMin)}%`,
+          }}
+        />
+      ) : null}
+      {show ? (
+        <div
+          aria-hidden
+          className={`absolute top-0.5 bottom-0.5 z-[1] rounded-sm border border-primary ${
+            provisional
+              ? "border-dashed bg-primary/15"
+              : "bg-primary/35"
+          }`}
+          style={{
+            left: `${leftPct(show.startMin)}%`,
+            width: `${widthPct(show.startMin, show.endMin)}%`,
+          }}
+        />
+      ) : null}
+      {editable && show ? (
+        <>
+          <button
+            type="button"
+            disabled={disabled}
+            aria-label="Start"
+            className="absolute top-1/2 z-[3] size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-primary bg-background disabled:opacity-50"
+            style={{ left: `${leftPct(show.startMin)}%` }}
+            onPointerDown={handleStartDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerUp}
+          />
+          <button
+            type="button"
+            disabled={disabled}
+            aria-label="End"
+            className="absolute top-1/2 z-[3] size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-primary bg-background disabled:opacity-50"
+            style={{ left: `${leftPct(show.endMin)}%` }}
+            onPointerDown={handleEndDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerUp}
+          />
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+function formatShiftSummary(
+  range: { startMin: number; endMin: number },
+  hoursUnit: string,
+  minutesUnit: string,
+): string {
+  const duration = formatDurationLabel(
+    range.endMin - range.startMin,
+    hoursUnit,
+    minutesUnit,
+  );
+  return `${formatMinutesAsClock(range.startMin)}–${formatMinutesAsClock(range.endMin)} · ${duration}`;
+}
+
+function MemberHoursLabel({
+  personId,
+  assigned,
+  desire,
+  liveByUser,
+  hoursUnit,
+  minutesUnit,
+}: {
+  personId: string;
+  assigned: { startMin: number; endMin: number } | null;
+  desire: { startMin: number; endMin: number } | null;
+  liveByUser: Record<string, { startMin: number; endMin: number }>;
+  hoursUnit: string;
+  minutesUnit: string;
+}) {
+  const live = liveByUser[personId];
+  const range = live ?? assigned;
+  if (range) {
+    return (
+      <span className="shrink-0 text-right text-xs tabular-nums text-muted">
+        {formatShiftSummary(range, hoursUnit, minutesUnit)}
+      </span>
+    );
+  }
+  if (desire) {
+    return (
+      <span className="shrink-0 text-right text-xs tabular-nums text-muted">
+        {formatMinutesAsClock(desire.startMin)}–
+        {formatMinutesAsClock(desire.endMin)}
+      </span>
+    );
+  }
+  return (
+    <span className="shrink-0 text-right text-xs tabular-nums text-muted">—</span>
+  );
+}
+
 function SchedulePageInner() {
-  const { t, locale } = useT();
+  const { t } = useT();
   const { storeId, ready: storeReady } = useAppStoreId();
+  const { user: sessionUser } = useAppSession();
   const [weekStart, setWeekStart] = useState(() => mondayOfWeek());
   const [dayIndex, setDayIndex] = useState(() => {
     const d = new Date().getDay();
@@ -152,6 +582,29 @@ function SchedulePageInner() {
   const [error, setError] = useState<string | null>(null);
   const [desireStart, setDesireStart] = useState(10 * 60);
   const [desireEnd, setDesireEnd] = useState(16 * 60);
+  const [savedDesire, setSavedDesire] = useState<{
+    startMin: number;
+    endMin: number;
+  } | null>(null);
+  const [desireConfirm, setDesireConfirm] = useState(false);
+  const [saveFormatOpen, setSaveFormatOpen] = useState(false);
+  const [savingExport, setSavingExport] = useState(false);
+  const [liveHoursByUser, setLiveHoursByUser] = useState<
+    Record<string, { startMin: number; endMin: number }>
+  >({});
+  const { offsetTop, keyboardInset } = useViewportInsets();
+
+  /** Always land on the current week when opening the scheduler. */
+  useEffect(() => {
+    setWeekStart(mondayOfWeek());
+    const d = new Date().getDay();
+    setDayIndex(d === 0 ? 6 : d - 1);
+  }, []);
+
+  useEffect(() => {
+    setLiveHoursByUser({});
+    setDesireConfirm(false);
+  }, [weekStart, dayIndex]);
 
   const load = useCallback(async () => {
     if (!storeId) return;
@@ -168,12 +621,16 @@ function SchedulePageInner() {
         return;
       }
       setData(json);
+      setLiveHoursByUser({});
       const mine = json.preferences.find(
         (p) => p.userId === json.me.userId && p.dayIndex === dayIndex,
       );
       if (mine) {
         setDesireStart(mine.startMin);
         setDesireEnd(mine.endMin);
+        setSavedDesire({ startMin: mine.startMin, endMin: mine.endMin });
+      } else {
+        setSavedDesire(null);
       }
     } catch {
       setError(t("schedule.loadFailed"));
@@ -196,9 +653,11 @@ function SchedulePageInner() {
     if (mine) {
       setDesireStart(mine.startMin);
       setDesireEnd(mine.endMin);
+      setSavedDesire({ startMin: mine.startMin, endMin: mine.endMin });
     } else {
       setDesireStart(10 * 60);
       setDesireEnd(16 * 60);
+      setSavedDesire(null);
     }
   }, [data, dayIndex]);
 
@@ -210,12 +669,86 @@ function SchedulePageInner() {
     [data, dayIndex],
   );
 
-  const locked = data?.week.status === "FINALIZED";
+  const dayState = useMemo(() => {
+    return (
+      data?.days.find((d) => d.dayIndex === dayIndex) ?? {
+        dayIndex,
+        mode: "auto" as const,
+        status: "DRAFT" as const,
+        finalizedAt: null,
+        excludedUserIds: [] as string[],
+      }
+    );
+  }, [data, dayIndex]);
+
+  const excludedToday = useMemo(
+    () => new Set(dayState.excludedUserIds ?? []),
+    [dayState.excludedUserIds],
+  );
+
+  const memberRows = useMemo(() => {
+    if (!data) return [];
+    const people = data.me.isOwner
+      ? data.staff
+      : data.staff.filter((p) => !excludedToday.has(p.id));
+    return people.map((person) => {
+      const shift = dayShifts.find((s) => s.userId === person.id) ?? null;
+      const pref =
+        data.preferences.find(
+          (p) => p.userId === person.id && p.dayIndex === dayIndex,
+        ) ?? null;
+      return { person, shift, pref };
+    });
+  }, [data, dayShifts, dayIndex, excludedToday]);
+
+  const isFinalized = dayState.status === "FINALIZED";
   const isOwner = Boolean(data?.me.isOwner);
+  /** Finalized day is locked for everyone until the owner taps Edit. */
+  const readOnly = isFinalized;
+  const ownerCanEditShifts = Boolean(isOwner && !readOnly);
+
+  /**
+   * Coverage follows who’s included today and the same ranges as the green
+   * bars (saved / live / editable desire or 10–16 placeholder).
+   */
+  const dayCoverageRanges = useMemo(() => {
+    const ranges: { startMin: number; endMin: number }[] = [];
+    for (const { person, shift, pref } of memberRows) {
+      if (excludedToday.has(person.id)) continue;
+      const live = liveHoursByUser[person.id];
+      const assigned = shift
+        ? { startMin: shift.startMin, endMin: shift.endMin }
+        : null;
+      const desire = pref
+        ? { startMin: pref.startMin, endMin: pref.endMin }
+        : null;
+      const effective =
+        live ??
+        assigned ??
+        (ownerCanEditShifts
+          ? (desire ?? { startMin: 10 * 60, endMin: 16 * 60 })
+          : null);
+      if (effective && effective.endMin > effective.startMin) {
+        ranges.push(effective);
+      }
+    }
+    return ranges;
+  }, [memberRows, excludedToday, liveHoursByUser, ownerCanEditShifts]);
+
+  const missingShiftCount = useMemo(() => {
+    if (!ownerCanEditShifts) return 0;
+    return memberRows.filter(
+      ({ person, shift }) =>
+        !excludedToday.has(person.id) &&
+        !shift &&
+        !liveHoursByUser[person.id],
+    ).length;
+  }, [memberRows, excludedToday, liveHoursByUser, ownerCanEditShifts]);
 
   async function ownerAction(
-    action: "setMode" | "runAuto" | "finalize" | "reopen",
+    action: "setMode" | "runAuto" | "finalize" | "reopen" | "setParticipant",
     mode?: "auto" | "manual",
+    extra?: { userId: string; scheduleParticipant: boolean },
   ) {
     if (!storeId || !data) return;
     setSaving(true);
@@ -224,7 +757,14 @@ function SchedulePageInner() {
       const res = await fetch("/api/schedule", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ storeId, weekStart, action, mode }),
+        body: JSON.stringify({
+          storeId,
+          weekStart,
+          dayIndex,
+          action,
+          mode,
+          ...extra,
+        }),
       });
       const json = (await res.json()) as WeekPayload & { error?: string };
       if (!res.ok) {
@@ -232,6 +772,7 @@ function SchedulePageInner() {
         return;
       }
       setData(json);
+      setLiveHoursByUser({});
     } catch {
       setError(t("schedule.saveFailed"));
     } finally {
@@ -240,9 +781,10 @@ function SchedulePageInner() {
   }
 
   async function saveDesire() {
-    if (!storeId || !data || locked) return;
+    if (!storeId || !data || readOnly) return;
     setSaving(true);
     setError(null);
+    setDesireConfirm(false);
     try {
       const res = await fetch("/api/schedule", {
         method: "PUT",
@@ -261,6 +803,9 @@ function SchedulePageInner() {
         return;
       }
       setData(json);
+      setLiveHoursByUser({});
+      setSavedDesire({ startMin: desireStart, endMin: desireEnd });
+      setDesireConfirm(true);
     } catch {
       setError(t("schedule.saveFailed"));
     } finally {
@@ -268,27 +813,24 @@ function SchedulePageInner() {
     }
   }
 
-  async function nudgeShift(shift: Shift, edge: "start" | "end", delta: number) {
-    if (!storeId || !data || !isOwner || locked) return;
-    const next = data.shifts.map((s) => {
-      if (s.id !== shift.id) return s;
-      if (edge === "start") {
-        return {
-          ...s,
-          startMin: Math.min(
-            s.endMin - SCHEDULE_STEP_MIN,
-            Math.max(SCHEDULE_OPEN_MIN, s.startMin + delta),
-          ),
-        };
-      }
-      return {
-        ...s,
-        endMin: Math.max(
-          s.startMin + SCHEDULE_STEP_MIN,
-          Math.min(SCHEDULE_CLOSE_MIN, s.endMin + delta),
-        ),
-      };
-    });
+  async function saveMemberShift(
+    userId: string,
+    startMin: number,
+    endMin: number,
+  ) {
+    if (!storeId || !data || !ownerCanEditShifts) return;
+    const others = data.shifts
+      .filter((s) => s.dayIndex === dayIndex && s.userId !== userId)
+      .map((s) => ({
+        userId: s.userId,
+        dayIndex: s.dayIndex,
+        startMin: s.startMin,
+        endMin: s.endMin,
+      }));
+    const next = [
+      ...others,
+      { userId, dayIndex, startMin, endMin },
+    ];
     setSaving(true);
     setError(null);
     try {
@@ -298,21 +840,18 @@ function SchedulePageInner() {
         body: JSON.stringify({
           storeId,
           weekStart,
+          dayIndex,
           action: "setShifts",
-          shifts: next.map(({ userId, dayIndex: d, startMin, endMin }) => ({
-            userId,
-            dayIndex: d,
-            startMin,
-            endMin,
-          })),
+          shifts: next,
         }),
       });
       const json = (await res.json()) as WeekPayload & { error?: string };
       if (!res.ok) {
-        setError(json.error ?? t("schedule.overlapOrBounds"));
+        setError(json.error ?? t("schedule.invalidBounds"));
         return;
       }
       setData(json);
+      setLiveHoursByUser({});
     } catch {
       setError(t("schedule.saveFailed"));
     } finally {
@@ -321,14 +860,108 @@ function SchedulePageInner() {
   }
 
   const weekLabel = useMemo(() => {
+    const pad = (n: number) => String(n).padStart(2, "0");
     const start = parseYmd(weekStart);
     const end = parseYmd(addDaysYmd(weekStart, 6));
-    const fmt = new Intl.DateTimeFormat(locale === "bg" ? "bg-BG" : "en-GB", {
-      day: "numeric",
-      month: "short",
+    return `${pad(start.getDate())}.${pad(start.getMonth() + 1)} – ${pad(end.getDate())}.${pad(end.getMonth() + 1)}`;
+  }, [weekStart]);
+
+  const selectedDayLabel = useMemo(() => {
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const date = parseYmd(addDaysYmd(weekStart, dayIndex));
+    const dateLabel = `${pad(date.getDate())}.${pad(date.getMonth() + 1)}.${date.getFullYear()}`;
+    return {
+      name: t(DAY_FULL_LABELS[dayIndex]!),
+      dateLabel,
+    };
+  }, [weekStart, dayIndex, t]);
+
+  const storeName = useMemo(
+    () =>
+      sessionUser?.stores.find((store) => store.id === storeId)?.name ?? "",
+    [sessionUser?.stores, storeId],
+  );
+
+  function weekPrintLabels(): ScheduleWeekPrintLabels {
+    return {
+      title: t("schedule.saveWeekPrintTitle"),
+      storeLabel: t("schedule.saveWeekStore"),
+      weekLabel: t("schedule.saveWeekRange"),
+      personColumn: t("schedule.saveWeekPerson"),
+      fromColumn: t("schedule.saveWeekFrom"),
+      toColumn: t("schedule.saveWeekTo"),
+      durationColumn: t("schedule.saveWeekDuration"),
+      noShifts: t("schedule.saveWeekNoShifts"),
+      noSchedule: t("schedule.saveWeekNoSchedule"),
+      dayNames: DAY_FULL_LABELS.map((key) => t(key)),
+      hoursUnit: t("schedule.hoursShort"),
+      minutesUnit: t("schedule.minutesShort"),
+      printHint: t("schedule.saveWeekPrintHint"),
+    };
+  }
+
+  function exportWeekAsPdf() {
+    if (!data) return;
+    setSaveFormatOpen(false);
+    const opened = openScheduleWeekPrint({
+      weekStart,
+      storeName,
+      staff: data.staff,
+      shifts: data.shifts,
+      days: data.days,
+      labels: weekPrintLabels(),
     });
-    return `${fmt.format(start)} – ${fmt.format(end)}`;
-  }, [weekStart, locale]);
+    if (!opened) {
+      setError(t("schedule.saveWeekPopupBlocked"));
+    }
+  }
+
+  async function exportWeekAsPicture() {
+    if (!storeId || savingExport) return;
+    setSavingExport(true);
+    setError(null);
+    try {
+      // Always re-fetch so a second save includes edits made after the first PNG.
+      const res = await fetch(
+        `/api/schedule?storeId=${encodeURIComponent(storeId)}&weekStart=${encodeURIComponent(weekStart)}`,
+        { credentials: "same-origin", cache: "no-store" },
+      );
+      const json = (await res.json()) as WeekPayload & { error?: string };
+      if (!res.ok || !json.staff) {
+        setError(json.error ?? t("schedule.loadFailed"));
+        return;
+      }
+      setData(json);
+
+      const ok = await downloadScheduleWeekPng({
+        weekStart,
+        storeName,
+        staff: json.staff,
+        shifts: json.shifts,
+        days: json.days,
+        labels: weekPrintLabels(),
+      });
+      setSaveFormatOpen(false);
+      if (!ok) {
+        setError(t("schedule.saveWeekPictureFailed"));
+      }
+    } catch {
+      setSaveFormatOpen(false);
+      setError(t("schedule.saveWeekPictureFailed"));
+    } finally {
+      setSavingExport(false);
+    }
+  }
+
+  const desireDirty =
+    !savedDesire ||
+    savedDesire.startMin !== desireStart ||
+    savedDesire.endMin !== desireEnd;
+  const desireButtonLabel = !desireDirty
+    ? t("schedule.desireSaved")
+    : savedDesire
+      ? t("schedule.saveNewDesire")
+      : t("schedule.saveDesire");
 
   if (!storeReady) {
     return <LoadingSpinnerBlock wrapperClassName="flex justify-center py-10" />;
@@ -347,87 +980,166 @@ function SchedulePageInner() {
     <div className={`${appPageShell} flex min-h-0 flex-1 flex-col pb-8`}>
       <div className={appChromeInset}>
         <MobilePageHeader title={t("schedule.title")} />
-        <p className="mt-1 text-sm text-muted">
-          {t("schedule.hoursHint")} · {weekLabel}
-        </p>
       </div>
 
       <div className={`${appListInset} mt-3 space-y-3`}>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            className={appButtonNeutral}
-            onClick={() => setWeekStart(addDaysYmd(weekStart, -7))}
-          >
-            ‹
-          </button>
-          <button
-            type="button"
-            className={`${appButtonNeutral} flex-1`}
-            onClick={() => setWeekStart(mondayOfWeek())}
-          >
-            {t("schedule.thisWeek")}
-          </button>
-          <button
-            type="button"
-            className={appButtonNeutral}
-            onClick={() => setWeekStart(addDaysYmd(weekStart, 7))}
-          >
-            ›
-          </button>
+        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold text-foreground">
+              {selectedDayLabel.name}
+            </p>
+            <p className="text-xs tabular-nums text-muted">
+              {selectedDayLabel.dateLabel}
+            </p>
+          </div>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              className="inline-flex size-8 items-center justify-center rounded-full border border-primary/45 text-primary disabled:opacity-50"
+              aria-label="Previous week"
+              onClick={() => setWeekStart(addDaysYmd(weekStart, -7))}
+            >
+              <ChevronRightIcon className="size-4 rotate-180" />
+            </button>
+            <p className="px-1 text-sm font-semibold tabular-nums text-foreground">
+              {weekLabel}
+            </p>
+            <button
+              type="button"
+              className="inline-flex size-8 items-center justify-center rounded-full border border-primary/45 text-primary disabled:opacity-50"
+              aria-label="Next week"
+              onClick={() => setWeekStart(addDaysYmd(weekStart, 7))}
+            >
+              <ChevronRightIcon className="size-4" />
+            </button>
+          </div>
+          <div className="flex justify-end">
+            <button
+              type="button"
+              className="inline-flex size-8 items-center justify-center rounded-full border border-primary/45 text-primary disabled:opacity-50"
+              aria-label={t("schedule.saveWeek")}
+              title={t("schedule.saveWeek")}
+              disabled={!data || loading || savingExport}
+              onClick={() => setSaveFormatOpen(true)}
+            >
+              <SaveDiskIcon className="size-4" />
+            </button>
+          </div>
         </div>
 
-        <div className="flex gap-1.5 overflow-x-auto pb-1">
+        {saveFormatOpen ? (
+          <div
+            className="fixed inset-x-0 z-[70] flex items-center justify-center bg-black/60 px-5"
+            style={{ top: offsetTop, bottom: keyboardInset }}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="schedule-save-format-title"
+            onClick={() => {
+              if (!savingExport) setSaveFormatOpen(false);
+            }}
+          >
+            <div
+              className="w-full max-w-[22rem] rounded-2xl border border-card-border bg-background px-5 pb-5 pt-6 shadow-[0_20px_50px_rgba(0,0,0,0.5)]"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <h2
+                id="schedule-save-format-title"
+                className="text-center text-[1.35rem] font-semibold leading-tight text-foreground"
+              >
+                {t("schedule.saveWeekFormatTitle")}
+              </h2>
+              <div className="mt-6 flex flex-col gap-2">
+                <button
+                  type="button"
+                  disabled={savingExport}
+                  className={appButtonPrimaryFull}
+                  onClick={() => exportWeekAsPdf()}
+                >
+                  {t("schedule.saveWeekAsPdf")}
+                </button>
+                <button
+                  type="button"
+                  disabled={savingExport}
+                  className={appButtonNeutralFull}
+                  onClick={() => void exportWeekAsPicture()}
+                >
+                  {t("schedule.saveWeekAsPicture")}
+                </button>
+                <CancelButton
+                  disabled={savingExport}
+                  onClick={() => setSaveFormatOpen(false)}
+                >
+                  {t("common.cancel")}
+                </CancelButton>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        <div className="grid grid-cols-7 gap-1">
           {DAY_LABELS.map((key, idx) => {
             const active = idx === dayIndex;
+            const day = data?.days.find((d) => d.dayIndex === idx);
+            const dayDone = day?.status === "FINALIZED";
             return (
               <button
                 key={key}
                 type="button"
                 onClick={() => setDayIndex(idx)}
-                className={`shrink-0 rounded-xl border px-2.5 py-1.5 text-xs font-semibold ${
+                className={`flex min-w-0 flex-col items-center justify-start gap-0.5 rounded-lg border px-0.5 py-1 text-[0.65rem] font-semibold leading-tight ${
                   active
                     ? "border-primary bg-selected text-primary"
                     : "border-card-border text-muted"
                 }`}
               >
-                {t(key)}
+                <span className="min-w-0 truncate">{t(key)}</span>
+                <span
+                  className="inline-flex h-2.5 w-full shrink-0 items-center justify-center text-[9px] leading-none text-primary"
+                  aria-hidden={!dayDone}
+                >
+                  {dayDone ? "✓" : null}
+                </span>
               </button>
             );
           })}
         </div>
 
         {isOwner ? (
-          <div className="flex flex-wrap gap-2">
+          <div
+            role="group"
+            aria-label={t("schedule.title")}
+            className="grid grid-cols-2 gap-0.5 rounded-xl border border-card-border p-0.5"
+          >
             <button
               type="button"
-              disabled={saving || locked}
-              className={`${appButtonNeutral} ${
-                data?.week.mode === "auto" ? "border-primary text-primary" : ""
+              disabled={saving || !isFinalized}
+              className={`rounded-lg px-2 py-2 text-center text-[0.7rem] font-semibold ${
+                !isFinalized
+                  ? "bg-selected text-primary"
+                  : "bg-transparent text-muted"
               }`}
-              onClick={() => void ownerAction("setMode", "auto")}
+              onClick={() => {
+                if (isFinalized) void ownerAction("reopen");
+              }}
             >
-              {t("schedule.modeAuto")}
+              {isFinalized
+                ? t("schedule.edit")
+                : t("schedule.modeManual")}
             </button>
             <button
               type="button"
-              disabled={saving || locked}
-              className={`${appButtonNeutral} ${
-                data?.week.mode === "manual" ? "border-primary text-primary" : ""
+              disabled={saving || isFinalized}
+              className={`rounded-lg px-2 py-2 text-center text-[0.7rem] font-semibold ${
+                isFinalized
+                  ? "bg-selected text-primary"
+                  : "bg-transparent text-muted"
               }`}
-              onClick={() => void ownerAction("setMode", "manual")}
+              onClick={() => void ownerAction("finalize")}
             >
-              {t("schedule.modeManual")}
+              {isFinalized
+                ? t("schedule.finalized")
+                : t("schedule.finalize")}
             </button>
-            <span
-              className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${
-                locked
-                  ? "border-primary/45 text-primary"
-                  : "border-card-border text-muted"
-              }`}
-            >
-              {locked ? t("schedule.finalized") : t("schedule.draft")}
-            </span>
           </div>
         ) : null}
 
@@ -442,72 +1154,116 @@ function SchedulePageInner() {
         ) : (
           <>
             <div className="rounded-2xl border border-card-border p-3">
-              <div className="mb-2 flex justify-between text-[10px] tabular-nums text-muted">
-                <span>7</span>
-                <span>12</span>
-                <span>17</span>
-                <span>22</span>
-              </div>
-              {dayShifts.length === 0 ? (
+              <DayCoverageBar
+                ranges={dayCoverageRanges}
+                hoursUnit={t("schedule.hoursShort")}
+                minutesUnit={t("schedule.minutesShort")}
+                labelFull={t("schedule.coverageFull")}
+                labelPartial={t("schedule.coveragePartial")}
+                labelEmpty={t("schedule.coverageEmpty")}
+              />
+              {missingShiftCount > 0 ? (
+                <p className="mb-2 text-[0.65rem] text-muted">
+                  {t("schedule.coverageHintAuto")}
+                </p>
+              ) : null}
+              {isOwner ? (
+                <p className="mb-2 text-[0.65rem] text-muted">
+                  <span className="mr-2 inline-block size-2 rounded-sm bg-[var(--urgency-warning-border)]/80 align-middle" />
+                  {t("schedule.legendDesire")}
+                  <span className="ml-3 mr-2 inline-block size-2 rounded-sm bg-primary/70 align-middle" />
+                  {t("schedule.legendAssigned")}
+                </p>
+              ) : null}
+              {memberRows.length === 0 ? (
                 <p className="py-4 text-center text-sm text-muted">
                   {t("schedule.noShifts")}
                 </p>
               ) : (
                 <ul className="space-y-3">
-                  {dayShifts.map((shift) => {
-                    const person = data.staff.find((s) => s.id === shift.userId);
-                    const name = person?.username ?? "?";
-                    const hours =
-                      Math.round(((shift.endMin - shift.startMin) / 60) * 10) /
-                      10;
+                  {memberRows.map(({ person, shift, pref }) => {
+                    const name =
+                      person.displayName?.trim() || person.username;
+                    const inSchedule = !excludedToday.has(person.id);
+                    const assigned = shift
+                      ? { startMin: shift.startMin, endMin: shift.endMin }
+                      : null;
+                    const desire = pref
+                      ? { startMin: pref.startMin, endMin: pref.endMin }
+                      : null;
                     return (
-                      <li key={shift.id}>
-                        <div className="mb-1 flex items-center gap-2">
+                      <li
+                        key={person.id}
+                        className={inSchedule ? undefined : "opacity-45"}
+                      >
+                        <div className="mb-1 grid grid-cols-[1.25rem_1.75rem_minmax(0,1fr)_auto] items-center gap-x-2">
+                          {isOwner ? (
+                            <label className="flex size-5 items-center justify-center">
+                              <input
+                                type="checkbox"
+                                className="size-3.5 accent-[var(--primary)]"
+                                checked={inSchedule}
+                                disabled={saving || readOnly}
+                                aria-label={t("schedule.includePerson", {
+                                  name,
+                                })}
+                                onChange={(event) =>
+                                  void ownerAction("setParticipant", undefined, {
+                                    userId: person.id,
+                                    scheduleParticipant: event.target.checked,
+                                  })
+                                }
+                              />
+                            </label>
+                          ) : (
+                            <span
+                              className="flex size-5 items-center justify-center"
+                              aria-hidden={!desire}
+                              title={
+                                desire ? t("schedule.legendDesire") : undefined
+                              }
+                            >
+                              {desire ? (
+                                <span className="size-2.5 rounded-sm bg-[var(--urgency-warning-border)]" />
+                              ) : null}
+                            </span>
+                          )}
                           <span className="flex size-7 items-center justify-center rounded-full border border-primary/45 text-[10px] font-bold text-primary">
                             {initials(name)}
                           </span>
-                          <span className="text-sm font-semibold text-foreground">
+                          <span className="min-w-0 truncate text-sm font-semibold text-foreground">
                             {name}
                           </span>
-                          <span className="ml-auto text-xs tabular-nums text-muted">
-                            {formatMinutesAsClock(shift.startMin)}–
-                            {formatMinutesAsClock(shift.endMin)} · {hours}
-                            {t("schedule.hoursShort")}
-                          </span>
-                        </div>
-                        <div className="relative h-8 rounded-lg border border-card-border bg-transparent">
-                          <div
-                            className="absolute top-1 bottom-1 rounded-md border border-primary bg-selected"
-                            style={{
-                              left: `${leftPct(shift.startMin)}%`,
-                              width: `${widthPct(shift.startMin, shift.endMin)}%`,
-                            }}
+                          <MemberHoursLabel
+                            personId={person.id}
+                            assigned={assigned}
+                            desire={desire}
+                            liveByUser={liveHoursByUser}
+                            hoursUnit={t("schedule.hoursShort")}
+                            minutesUnit={t("schedule.minutesShort")}
                           />
                         </div>
-                        {isOwner && !locked && data.week.mode === "manual" ? (
-                          <div className="mt-1.5 flex gap-2">
-                            <button
-                              type="button"
-                              className={`${appButtonNeutral} flex-1 py-1.5 text-xs`}
-                              disabled={saving}
-                              onClick={() =>
-                                void nudgeShift(shift, "start", -SCHEDULE_STEP_MIN)
-                              }
-                            >
-                              {t("schedule.earlier")}
-                            </button>
-                            <button
-                              type="button"
-                              className={`${appButtonNeutral} flex-1 py-1.5 text-xs`}
-                              disabled={saving}
-                              onClick={() =>
-                                void nudgeShift(shift, "end", SCHEDULE_STEP_MIN)
-                              }
-                            >
-                              {t("schedule.later")}
-                            </button>
-                          </div>
-                        ) : null}
+                        {inSchedule ? (
+                          <MemberShiftBar
+                            desire={desire}
+                            assigned={assigned}
+                            editable={ownerCanEditShifts}
+                            disabled={saving}
+                            onLiveChange={(startMin, endMin) =>
+                              setLiveHoursByUser((prev) => ({
+                                ...prev,
+                                [person.id]: { startMin, endMin },
+                              }))
+                            }
+                            onCommit={(startMin, endMin) =>
+                              void saveMemberShift(person.id, startMin, endMin)
+                            }
+                          />
+                        ) : (
+                          <p className="text-[0.65rem] text-muted">
+                            {t("schedule.excludedFromSchedule")}
+                          </p>
+                        )}
                       </li>
                     );
                   })}
@@ -515,32 +1271,37 @@ function SchedulePageInner() {
               )}
             </div>
 
-            {!locked ? (
+            {!readOnly ? (
               <div className="rounded-2xl border border-card-border p-3">
                 <p className="text-sm font-semibold text-foreground">
                   {t("schedule.myDesire")}
                 </p>
-                <p className="mt-0.5 text-xs text-muted">
-                  {t("schedule.myDesireHint")}
-                </p>
                 <div className="mt-3">
-                  <RangeSlider
+                  <DualRangeSlider
                     startMin={desireStart}
                     endMin={desireEnd}
                     disabled={saving}
+                    hoursUnit={t("schedule.hoursShort")}
+                    minutesUnit={t("schedule.minutesShort")}
                     onChange={(s, e) => {
                       setDesireStart(s);
                       setDesireEnd(e);
+                      setDesireConfirm(false);
                     }}
                   />
                 </div>
+                {desireConfirm ? (
+                  <p className="mt-2 text-center text-sm text-primary">
+                    {t("schedule.desireSaveConfirm")}
+                  </p>
+                ) : null}
                 <button
                   type="button"
                   className={`${appButtonPrimaryFull} mt-3`}
-                  disabled={saving}
+                  disabled={saving || !desireDirty}
                   onClick={() => void saveDesire()}
                 >
-                  {t("schedule.saveDesire")}
+                  {desireButtonLabel}
                 </button>
               </div>
             ) : (
@@ -550,36 +1311,18 @@ function SchedulePageInner() {
             )}
 
             {isOwner ? (
-              <div className={`${appFooterButtonGrid} pt-1`}>
-                {locked ? (
-                  <button
-                    type="button"
-                    className={appButtonPrimary}
-                    disabled={saving}
-                    onClick={() => void ownerAction("reopen")}
-                  >
-                    {t("schedule.reopen")}
-                  </button>
-                ) : (
-                  <>
-                    <button
-                      type="button"
-                      className={appButtonPrimary}
-                      disabled={saving}
-                      onClick={() => void ownerAction("finalize")}
-                    >
-                      {t("schedule.finalize")}
-                    </button>
-                    <button
-                      type="button"
-                      className={appButtonNeutral}
-                      disabled={saving}
-                      onClick={() => void ownerAction("runAuto")}
-                    >
-                      {t("schedule.runAuto")}
-                    </button>
-                  </>
-                )}
+              <div className="pt-1">
+                <button
+                  type="button"
+                  className={appButtonPrimaryFull}
+                  disabled={saving || readOnly}
+                  onClick={() => void ownerAction("runAuto")}
+                >
+                  {t("schedule.runAuto")}
+                </button>
+                <p className="mt-1.5 text-center text-[0.65rem] text-muted">
+                  {t("schedule.runAutoHint")}
+                </p>
               </div>
             ) : null}
           </>

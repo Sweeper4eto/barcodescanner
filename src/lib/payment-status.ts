@@ -129,9 +129,9 @@ export function paymentStandingFromUnpaid(
   },
 ): PaymentStanding {
   if (options.homeUser) return "exempt";
-  // Payments off, or fee × locations ≤ 0 → always green.
+  // Payments off, or nothing to collect → yellow (exempt), not paid-up green.
   if (!options.paymentsRequired || options.expectedAmount <= 0) {
-    return "current";
+    return "exempt";
   }
   if (unpaidMonths <= 0) return "current";
   if (unpaidMonths === 1) return "behind1";

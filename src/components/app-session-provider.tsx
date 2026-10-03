@@ -70,6 +70,8 @@ export function AppSessionProvider({ children }: { children: ReactNode }) {
       const response = await fetch("/api/auth/me", {
         credentials: "same-origin",
         cache: "no-store",
+        // Phone/LAN: never leave the header store chip on a skeleton forever.
+        signal: AbortSignal.timeout(12_000),
       });
       const data = await response.json();
 

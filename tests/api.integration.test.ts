@@ -708,15 +708,22 @@ test("inventory list filters expiry window, search, and pagination", async () =>
   assert.equal(list.data.pagination.total, 1);
   assert.equal(list.data.pagination.totalPages, 1);
 
-  const search = await jsonRequest(inventoryGet, {
+  // Milk expires in 60 days — outside the 30-day window.
+  const searchOutsideWindow = await jsonRequest(inventoryGet, {
     url: `http://localhost/api/inventory?storeId=${store.id}&q=Milk&withinDays=30`,
+  });
+  assert.equal(searchOutsideWindow.response.status, 200);
+  assert.equal(searchOutsideWindow.data.entries.length, 0);
+
+  const search = await jsonRequest(inventoryGet, {
+    url: `http://localhost/api/inventory?storeId=${store.id}&q=Milk&withinDays=all`,
   });
   assert.equal(search.response.status, 200);
   assert.equal(search.data.entries.length, 1);
   assert.equal(search.data.entries[0].product.name, "Milk");
 
   const caseSearch = await jsonRequest(inventoryGet, {
-    url: `http://localhost/api/inventory?storeId=${store.id}&q=milk&withinDays=30`,
+    url: `http://localhost/api/inventory?storeId=${store.id}&q=milk&withinDays=all`,
   });
   assert.equal(caseSearch.data.entries.length, 1);
 
@@ -726,11 +733,11 @@ test("inventory list filters expiry window, search, and pagination", async () =>
   assert.equal(barcodeSearch.data.entries.length, 1);
   assert.equal(barcodeSearch.data.entries[0].quantity, 3);
 
-  const wideWindow = await jsonRequest(inventoryGet, {
+  const narrowWindow = await jsonRequest(inventoryGet, {
     url: `http://localhost/api/inventory?storeId=${store.id}&withinDays=30`,
   });
-  assert.equal(wideWindow.response.status, 200);
-  assert.equal(wideWindow.data.entries.length, 2);
+  assert.equal(narrowWindow.response.status, 200);
+  assert.equal(narrowWindow.data.entries.length, 1);
 
   const allWindow = await jsonRequest(inventoryGet, {
     url: `http://localhost/api/inventory?storeId=${store.id}&withinDays=all`,

@@ -16,7 +16,10 @@ const nextConfig: NextConfig = {
   allowedDevOrigins: [
     "127.0.0.1",
     "localhost",
+    "192.168.1.112",
     "192.168.1.211",
+    // Any host on the home LAN (phone testing over Wi‑Fi).
+    "192.168.1.*",
     ...fromEnv,
   ],
   webpack: (config, { isServer }) => {

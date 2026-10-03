@@ -538,6 +538,26 @@ export function ChevronRightIcon({ className = "h-4 w-4" }: { className?: string
   );
 }
 
+/** Classic floppy / save-to-device icon. */
+export function SaveDiskIcon({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <path d="M4 4h12l4 4v12a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V4z" />
+      <path d="M8 4v5h8V4" />
+      <path d="M8 20v-6h8v6" />
+    </svg>
+  );
+}
+
 export function NewItemsStatIcon({ className = "h-4 w-4" }: { className?: string }) {
   return (
     <svg

@@ -62,6 +62,7 @@ const clientSchema = z.object({
   monthlyFeePerStore: z.number().nonnegative().optional(),
   active: z.boolean().optional(),
   homeUser: z.boolean().optional(),
+  scheduleEnabled: z.boolean().optional(),
   paymentsRequired: z.boolean().optional(),
   referredByClientId: z.string().min(1).nullable().optional(),
 });
@@ -105,6 +106,7 @@ export async function POST(request: Request) {
     data: {
       ...rest,
       referredByClientId: referredByClientId ?? null,
+      scheduleEnabled: rest.scheduleEnabled ?? true,
       paymentsRequired,
       paymentsRequiredSince: paymentsRequired ? startOfBillingMonth() : null,
     },
@@ -121,6 +123,7 @@ const patchSchema = z.object({
   monthlyFeePerStore: z.number().nonnegative().optional(),
   active: z.boolean().optional(),
   homeUser: z.boolean().optional(),
+  scheduleEnabled: z.boolean().optional(),
   paymentsRequired: z.boolean().optional(),
   referredByClientId: z.string().min(1).nullable().optional(),
   notificationDefaults: clientDefaultsSchema.optional(),

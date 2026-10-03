@@ -70,6 +70,7 @@ export async function GET(request: Request) {
         id: client.id,
         name: client.name,
         locationsFeeTotal,
+        paymentsRequired: client.paymentsRequired,
       },
       activeStoreCount,
       expectedAmount,

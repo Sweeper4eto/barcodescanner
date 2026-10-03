@@ -72,7 +72,7 @@ describe("payment standing", () => {
         paymentsRequired: false,
         expectedAmount: 40,
       }),
-      "current",
+      "exempt",
     );
     assert.equal(
       paymentStandingFromUnpaid(5, {
@@ -80,7 +80,7 @@ describe("payment standing", () => {
         paymentsRequired: true,
         expectedAmount: 0,
       }),
-      "current",
+      "exempt",
     );
   });
 

@@ -32,6 +32,7 @@ export type Client = {
   additionalInfo: string | null;
   active: boolean;
   homeUser: boolean;
+  scheduleEnabled?: boolean;
   paymentsRequired: boolean;
   monthlyFeePerStore: number;
   referredByClientId?: string | null;
@@ -72,6 +73,7 @@ type EditState = {
   additionalInfo: string;
   active: boolean;
   homeUser: boolean;
+  scheduleEnabled: boolean;
   paymentsRequired: boolean;
   referredByClientId: string | null;
   notifyEarlyDays: string;
@@ -86,6 +88,7 @@ function clientEditState(client: Client): EditState {
     additionalInfo: client.additionalInfo ?? "",
     active: client.active,
     homeUser: client.homeUser,
+    scheduleEnabled: client.scheduleEnabled !== false,
     paymentsRequired: Boolean(client.paymentsRequired),
     referredByClientId: client.referredByClientId ?? null,
     notifyEarlyDays:
@@ -108,6 +111,7 @@ function editIsDirty(current: EditState, saved: EditState | null) {
     current.additionalInfo !== saved.additionalInfo ||
     current.active !== saved.active ||
     current.homeUser !== saved.homeUser ||
+    current.scheduleEnabled !== saved.scheduleEnabled ||
     current.paymentsRequired !== saved.paymentsRequired ||
     current.referredByClientId !== saved.referredByClientId ||
     current.notifyEarlyDays !== saved.notifyEarlyDays ||
@@ -155,6 +159,7 @@ export function ClientsPanel({
     additionalInfo: "",
     active: true,
     homeUser: false,
+    scheduleEnabled: true,
     paymentsRequired: false,
     referredByClientId: null,
     notifyEarlyDays: "",
@@ -323,6 +328,7 @@ export function ClientsPanel({
           additionalInfo: edit.additionalInfo || undefined,
           active: edit.active,
           homeUser: edit.homeUser,
+          scheduleEnabled: edit.scheduleEnabled,
           paymentsRequired: edit.paymentsRequired,
           referredByClientId: edit.homeUser ? null : edit.referredByClientId,
           notificationDefaults: {
@@ -468,7 +474,7 @@ export function ClientsPanel({
     }
     if (!client.paymentsRequired && !info?.paymentsRequired) {
       return (
-        <span className="rounded-full border border-card-border px-2 py-0.5 text-[10px] text-muted">
+        <span className="rounded-full border border-[var(--urgency-warning-border)] bg-warning-bg px-2 py-0.5 text-[10px] text-warning-fg">
           {t("admin.paymentsRequiredOff")}
         </span>
       );
@@ -490,6 +496,16 @@ export function ClientsPanel({
         </span>
       );
     }
+    if (
+      standing === "exempt" ||
+      (info != null && info.expectedAmount <= 0)
+    ) {
+      return (
+        <span className="rounded-full border border-[var(--urgency-warning-border)] bg-warning-bg px-2 py-0.5 text-[10px] text-warning-fg">
+          {t("admin.paymentStandingFree")}
+        </span>
+      );
+    }
     return (
       <span className="rounded-full border border-primary/35 bg-primary/10 px-2 py-0.5 text-[10px] text-primary">
         {t("admin.paymentStandingCurrent")}
@@ -500,10 +516,10 @@ export function ClientsPanel({
   function standingDot(client: Client) {
     const info = standingByClient[client.id];
     if (client.homeUser || info?.homeUser) {
-      return <span className="mt-1 size-2 shrink-0 rounded-full bg-zinc-500" title={t("admin.paymentsHomeExempt")} />;
+      return <span className="mt-1 size-2 shrink-0 rounded-full bg-warning-fg" title={t("admin.paymentsHomeExempt")} />;
     }
     if (!client.paymentsRequired && !info?.paymentsRequired) {
-      return <span className="mt-1 size-2 shrink-0 rounded-full bg-zinc-500" title={t("admin.paymentsRequiredOff")} />;
+      return <span className="mt-1 size-2 shrink-0 rounded-full bg-warning-fg" title={t("admin.paymentsRequiredOff")} />;
     }
     const standing = info?.standing ?? "current";
     if (standing === "behind2plus") {
@@ -511,6 +527,9 @@ export function ClientsPanel({
     }
     if (standing === "behind1") {
       return <span className="mt-1 size-2 shrink-0 rounded-full bg-warning-fg" title={t("admin.paymentStandingBehind1")} />;
+    }
+    if (standing === "exempt" || (info != null && info.expectedAmount <= 0)) {
+      return <span className="mt-1 size-2 shrink-0 rounded-full bg-warning-fg" title={t("admin.paymentStandingFree")} />;
     }
     return <span className="mt-1 size-2 shrink-0 rounded-full bg-primary" title={t("admin.paymentStandingCurrent")} />;
   }
@@ -921,6 +940,43 @@ export function ClientsPanel({
                         />
                         {t("admin.activeClient")}
                       </label>
+
+                      {!edit.homeUser ? (
+                        <label className="flex items-center justify-between gap-3 rounded-xl border border-card-border px-3 py-2 text-sm">
+                          <span>
+                            <span className="block font-semibold text-foreground">
+                              {t("admin.scheduleEnabled")}
+                            </span>
+                            <span className="mt-0.5 block text-xs text-muted">
+                              {t("admin.scheduleEnabledHint")}
+                            </span>
+                          </span>
+                          <button
+                            type="button"
+                            role="switch"
+                            aria-checked={edit.scheduleEnabled}
+                            disabled={saving}
+                            onClick={() =>
+                              setEdit({
+                                ...edit,
+                                scheduleEnabled: !edit.scheduleEnabled,
+                              })
+                            }
+                            className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${
+                              edit.scheduleEnabled
+                                ? "bg-primary"
+                                : "border border-card-border bg-transparent"
+                            }`}
+                          >
+                            <span
+                              aria-hidden
+                              className={`absolute top-0.5 size-6 rounded-full bg-white transition-transform ${
+                                edit.scheduleEnabled ? "left-5" : "left-0.5"
+                              }`}
+                            />
+                          </button>
+                        </label>
+                      ) : null}
 
                       {!edit.homeUser && selectedId ? (
                         <ReferredByPicker

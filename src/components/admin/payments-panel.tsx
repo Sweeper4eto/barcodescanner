@@ -12,7 +12,12 @@ import { appButtonNeutral } from "@/lib/app-ui";
 import type { PaymentStanding } from "@/lib/payment-status";
 
 type CalendarRow = {
-  client: { id: string; name: string; locationsFeeTotal: number };
+  client: {
+    id: string;
+    name: string;
+    locationsFeeTotal: number;
+    paymentsRequired?: boolean;
+  };
   activeStoreCount: number;
   expectedAmount: number;
   paid: boolean;
@@ -66,8 +71,43 @@ function periodKey(year: number, month: number) {
   return `${year}-${month}`;
 }
 
-function standingRowClass(standing: PaymentStanding, selected: boolean): string {
+const PAYMENT_ZERO_CARD =
+  "border-[var(--urgency-warning-border)] bg-warning-bg";
+
+function nothingToPay(options: {
+  expectedAmount: number;
+  paymentsRequired?: boolean;
+  homeUser?: boolean;
+  activeStoreCount?: number;
+}): boolean {
+  if (options.homeUser) return true;
+  if (options.paymentsRequired === false) return true;
+  if ((options.activeStoreCount ?? 1) <= 0) return true;
+  return options.expectedAmount <= 0;
+}
+
+function standingRowClass(
+  standing: PaymentStanding,
+  selected: boolean,
+  options?: {
+    expectedAmount: number;
+    paymentsRequired: boolean;
+    homeUser: boolean;
+    activeStoreCount: number;
+  },
+): string {
   const ring = selected ? "ring-2 ring-primary" : "";
+  if (
+    options &&
+    nothingToPay({
+      expectedAmount: options.expectedAmount,
+      paymentsRequired: options.paymentsRequired,
+      homeUser: options.homeUser,
+      activeStoreCount: options.activeStoreCount,
+    })
+  ) {
+    return `${PAYMENT_ZERO_CARD} ${ring}`;
+  }
   switch (standing) {
     case "current":
       return `border-success-border bg-success-bg ${ring}`;
@@ -76,8 +116,25 @@ function standingRowClass(standing: PaymentStanding, selected: boolean): string 
     case "behind2plus":
       return `border-danger-border bg-red-950/40 ${ring}`;
     case "exempt":
-      return `border-card-border bg-transparent opacity-80 ${ring}`;
+      return `${PAYMENT_ZERO_CARD} ${ring}`;
   }
+}
+
+function monthCardClass(row: CalendarRow, selected: boolean): string {
+  const ring = selected ? "ring-2 ring-primary" : "";
+  if (
+    nothingToPay({
+      expectedAmount: row.expectedAmount,
+      paymentsRequired: row.client.paymentsRequired,
+      activeStoreCount: row.activeStoreCount,
+    })
+  ) {
+    return `${PAYMENT_ZERO_CARD} ${ring}`;
+  }
+  if (row.paid) {
+    return `border-success-border bg-success-bg ${ring}`;
+  }
+  return `border-card-border ${ring}`;
 }
 
 export function PaymentsPanel({
@@ -384,6 +441,12 @@ export function PaymentsPanel({
                     className={`flex w-full items-center justify-between gap-3 rounded-xl border px-3 py-2.5 text-left text-sm ${standingRowClass(
                       row.standing,
                       selectedClientId === row.client.id,
+                      {
+                        expectedAmount: row.expectedAmount,
+                        paymentsRequired: row.client.paymentsRequired,
+                        homeUser: row.client.homeUser,
+                        activeStoreCount: row.activeStoreCount,
+                      },
                     )} ${!row.client.active ? "opacity-60" : ""}`}
                   >
                     <span className="min-w-0">
@@ -591,7 +654,10 @@ export function PaymentsPanel({
                   key={row.client.id}
                   type="button"
                   onClick={() => selectMonthClient(row.client.id)}
-                  className={`rounded-xl border p-3 text-left ${row.paid ? "border-success-border bg-success-bg" : "border-card-border"} ${selectedClientId === row.client.id ? "ring-2 ring-primary" : ""}`}
+                  className={`rounded-xl border p-3 text-left ${monthCardClass(
+                    row,
+                    selectedClientId === row.client.id,
+                  )}`}
                 >
                   <p className="font-medium">{row.client.name}</p>
                   <p className="text-xs text-muted">

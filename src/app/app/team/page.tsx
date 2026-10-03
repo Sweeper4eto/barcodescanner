@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CancelButton } from "@/components/cancel-button";
 import { LoadingSpinner, LoadingSpinnerBlock } from "@/components/loading-spinner";
@@ -17,15 +18,22 @@ import {
   appListInset,
   appPageShell,
 } from "@/lib/app-ui";
+import {
+  formatDurationMinutes,
+  type ScheduleAccess,
+} from "@/lib/schedule";
 
 type Store = { id: string; name: string; active: boolean };
 type TeamUser = {
   id: string;
   username: string;
+  displayName?: string | null;
   email: string | null;
   active: boolean;
   clientRole: "OWNER" | "MEMBER" | null;
   stores: Store[];
+  /** Scheduled minutes from the 1st of this month through yesterday. */
+  hoursThisMonthMin?: number;
 };
 
 type SheetMode = "create" | "edit";
@@ -79,6 +87,71 @@ function ChevronIcon({ className = "size-4" }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden>
       <path d="M9 6l6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function ScheduleAccessControl({
+  value,
+  disabled,
+  onChange,
+  labels,
+  ariaLabel,
+}: {
+  value: ScheduleAccess;
+  disabled?: boolean;
+  onChange: (next: ScheduleAccess) => void;
+  labels: { disabled: string; private: string; public: string };
+  ariaLabel: string;
+}) {
+  const order = ["disabled", "private", "public"] as const;
+
+  return (
+    <div
+      role="radiogroup"
+      aria-label={ariaLabel}
+      className="inline-flex shrink-0 rounded-lg border border-card-border p-0.5"
+    >
+      {order.map((mode) => {
+        const active = mode === value;
+        return (
+          <button
+            key={mode}
+            type="button"
+            role="radio"
+            aria-checked={active}
+            disabled={disabled}
+            onClick={() => onChange(mode)}
+            className={`rounded-md px-2 py-1 text-[0.65rem] font-semibold transition-colors ${
+              active
+                ? "bg-selected text-primary"
+                : "bg-transparent text-muted hover:text-foreground"
+            }`}
+          >
+            {labels[mode]}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function ScheduleIcon({ className = "size-4" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      aria-hidden
+    >
+      <rect x="3" y="5" width="18" height="16" rx="2" />
+      <path d="M3 10h18" strokeLinecap="round" />
+      <path d="M8 3v4" strokeLinecap="round" />
+      <path d="M16 3v4" strokeLinecap="round" />
+      <path d="M8 14h3" strokeLinecap="round" />
+      <path d="M14 14h2" strokeLinecap="round" />
     </svg>
   );
 }
@@ -158,6 +231,7 @@ export default function TeamPage() {
   const [sheetMode, setSheetMode] = useState<SheetMode>("create");
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
 
+  const [displayName, setDisplayName] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -167,6 +241,11 @@ export default function TeamPage() {
 
   const [deleteTarget, setDeleteTarget] = useState<TeamUser | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [editingHoursMin, setEditingHoursMin] = useState(0);
+  const [scheduleEnabled, setScheduleEnabled] = useState(false);
+  const [scheduleAccess, setScheduleAccess] =
+    useState<ScheduleAccess>("private");
+  const [scheduleSaving, setScheduleSaving] = useState(false);
 
   const activeStores = useMemo(
     () => stores.filter((store) => store.active),
@@ -185,20 +264,73 @@ export default function TeamPage() {
   const load = useCallback(async () => {
     setLoading(true);
     setError("");
-    const meResponse = await fetch("/api/auth/me");
-    const meData = await meResponse.json().catch(() => null);
-    if (meData?.user?.id) setCurrentUserId(meData.user.id);
+    try {
+      const [meResponse, response, accessRes] = await Promise.all([
+        fetch("/api/auth/me"),
+        fetch("/api/team/users"),
+        fetch("/api/team/schedule-access"),
+      ]);
+      const meData = await meResponse.json().catch(() => null);
+      if (meData?.user?.id) setCurrentUserId(meData.user.id);
 
-    const response = await fetch("/api/team/users");
-    const data = await response.json().catch(() => null);
-    setLoading(false);
-    if (!response.ok) {
-      setError(data?.error ?? t("errors.forbidden"));
-      return;
+      const data = await response.json().catch(() => null);
+      if (!response.ok) {
+        if (response.status === 401) {
+          setError(data?.error ?? t("errors.unauthorized"));
+        } else {
+          setError(data?.error ?? t("errors.forbidden"));
+        }
+        setUsers([]);
+        setStores([]);
+        setScheduleEnabled(false);
+        return;
+      }
+      setUsers(data.users ?? []);
+      setStores(data.stores ?? []);
+
+      const accessData = await accessRes.json().catch(() => null);
+      if (accessRes.ok) {
+        setScheduleEnabled(Boolean(accessData?.scheduleEnabled));
+        if (accessData?.scheduleAccess) {
+          setScheduleAccess(accessData.scheduleAccess as ScheduleAccess);
+        }
+      } else {
+        setScheduleEnabled(false);
+      }
+    } catch {
+      setError(t("team.loadFailed"));
+      setUsers([]);
+      setStores([]);
+      setScheduleEnabled(false);
+    } finally {
+      setLoading(false);
     }
-    setUsers(data.users ?? []);
-    setStores(data.stores ?? []);
   }, [t]);
+
+  async function setScheduleAccessMode(next: ScheduleAccess) {
+    if (next === scheduleAccess || scheduleSaving) return;
+    setScheduleSaving(true);
+    setError("");
+    try {
+      const response = await fetch("/api/team/schedule-access", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scheduleAccess: next }),
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) {
+        setError(data?.error ?? t("team.scheduleAccessFailed"));
+        return;
+      }
+      setScheduleAccess(
+        (data?.scheduleAccess as ScheduleAccess) ?? next,
+      );
+    } catch {
+      setError(t("team.scheduleAccessFailed"));
+    } finally {
+      setScheduleSaving(false);
+    }
+  }
 
   useEffect(() => {
     void load();
@@ -215,6 +347,7 @@ export default function TeamPage() {
   }
 
   function resetForm(defaults?: { storeIds?: string[] }) {
+    setDisplayName("");
     setUsername("");
     setPassword("");
     setShowPassword(false);
@@ -240,14 +373,28 @@ export default function TeamPage() {
   function openEdit(user: TeamUser) {
     setSheetMode("edit");
     setEditingUserId(user.id);
+    setDisplayName(user.displayName ?? "");
     setUsername(user.username);
     setPassword("");
     setShowPassword(false);
     setRole(user.clientRole === "OWNER" ? "OWNER" : "MEMBER");
     setStoreIds(user.stores.map((store) => store.id));
+    setEditingHoursMin(0);
     setError("");
     setMessage("");
     setSheetOpen(true);
+    void fetch(
+      `/api/team/users/hours?userId=${encodeURIComponent(user.id)}`,
+    )
+      .then((res) => res.json().then((body) => ({ ok: res.ok, body })))
+      .then(({ ok, body }) => {
+        if (!ok) return;
+        const minutes = Number(body?.hoursThisMonthMin);
+        if (Number.isFinite(minutes)) setEditingHoursMin(minutes);
+      })
+      .catch(() => {
+        /* keep 0 */
+      });
   }
 
   function closeSheet() {
@@ -290,6 +437,7 @@ export default function TeamPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         username,
+        displayName: displayName.trim() || null,
         password,
         storeIds,
         clientRole: role,
@@ -318,6 +466,7 @@ export default function TeamPage() {
       body: JSON.stringify({
         userId: editingUserId,
         username,
+        displayName: displayName.trim() || null,
         storeIds,
         clientRole: role,
         ...(password ? { password, confirmPassword: password } : {}),
@@ -396,6 +545,51 @@ export default function TeamPage() {
         <p className="mt-1 text-sm leading-snug text-muted">{t("team.subtitle")}</p>
       </div>
 
+      {scheduleEnabled ? (
+      <div className={`relative z-0 mb-4 ${appListInset}`}>
+        <div className="flex items-center justify-between gap-2">
+          <p className="shrink-0 text-sm font-semibold text-foreground">
+            {t("app.schedule")}
+          </p>
+          <ScheduleAccessControl
+            value={scheduleAccess}
+            disabled={scheduleSaving}
+            onChange={(next) => void setScheduleAccessMode(next)}
+            ariaLabel={t("app.schedule")}
+            labels={{
+              disabled: t("team.scheduleDisabled"),
+              private: t("team.schedulePrivate"),
+              public: t("team.schedulePublic"),
+            }}
+          />
+        </div>
+        <p className="mt-1 truncate text-xs leading-snug text-muted whitespace-nowrap">
+          {scheduleAccess === "disabled"
+            ? t("team.scheduleDisabledHint")
+            : scheduleAccess === "private"
+              ? t("team.schedulePrivateHint")
+              : t("team.schedulePublicHint")}
+        </p>
+        {scheduleAccess !== "disabled" ? (
+          <Link
+            href="/app/schedule"
+            className="mt-2 flex items-center gap-2.5 rounded-xl border border-card-border px-2.5 py-2 transition-colors hover:border-primary/45"
+          >
+            <span
+              aria-hidden
+              className="flex size-8 shrink-0 items-center justify-center rounded-full border border-primary/45 text-primary"
+            >
+              <ScheduleIcon className="size-4" />
+            </span>
+            <span className="min-w-0 flex-1 text-sm font-semibold text-foreground">
+              {t("team.openSchedule")}
+            </span>
+            <ChevronIcon className="size-3.5 shrink-0 text-primary" />
+          </Link>
+        ) : null}
+      </div>
+      ) : null}
+
       {loading ? (
         <LoadingSpinnerBlock wrapperClassName="mb-3 flex justify-center py-2" />
       ) : null}
@@ -431,11 +625,11 @@ export default function TeamPage() {
                   aria-hidden
                   className="flex size-8 shrink-0 items-center justify-center rounded-full border border-primary/45 bg-selected text-[0.65rem] font-semibold text-primary"
                 >
-                  {initials(user.username)}
+                  {initials(user.displayName?.trim() || user.username)}
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold text-foreground">
-                    {user.username}
+                    {user.displayName?.trim() || user.username}
                     {isSelf ? (
                       <span className="ml-1.5 text-xs font-normal text-muted">
                         ({t("team.you")})
@@ -447,6 +641,9 @@ export default function TeamPage() {
                       </span>
                     ) : null}
                   </p>
+                  {user.displayName?.trim() ? (
+                    <p className="truncate text-xs text-muted">{user.username}</p>
+                  ) : null}
                   <div className="mt-0.5 flex min-w-0 flex-wrap gap-1">
                     {hasAllStores(user.stores) ? (
                       <span className="rounded-md border border-primary/40 px-1.5 py-0.5 text-[0.65rem] font-medium text-primary">
@@ -541,7 +738,9 @@ export default function TeamPage() {
           }
           role="dialog"
           aria-modal="true"
-          aria-labelledby="team-sheet-title"
+          aria-label={
+            sheetMode === "create" ? t("team.newUser") : t("team.editUser")
+          }
           onClick={closeSheet}
         >
           <div
@@ -558,19 +757,22 @@ export default function TeamPage() {
               <span className="h-1 w-10 rounded-full bg-card-border" />
             </div>
 
-            <div className="shrink-0 px-4 pb-1.5 pt-1.5">
-              <h2
-                id="team-sheet-title"
-                className="text-base font-semibold text-foreground"
-              >
-                {sheetMode === "create" ? t("team.newUser") : t("team.editUser")}
-              </h2>
-            </div>
-
-            <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-4 pb-2">
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-4 pb-2 pt-2">
               {error ? <p className="mb-2 text-sm text-error">{error}</p> : null}
 
               <div className="space-y-2">
+                <label className="block text-sm font-medium text-foreground">
+                  {t("team.displayName")}
+                  <input
+                    className="mt-0.5 w-full rounded-xl border border-input-border bg-input px-3 py-2 text-base text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary/40"
+                    value={displayName}
+                    placeholder={t("team.displayNamePlaceholder")}
+                    onChange={(event) => setDisplayName(event.target.value)}
+                    autoComplete="name"
+                    maxLength={80}
+                  />
+                  <p className="mt-0.5 text-xs text-muted">{t("team.displayNameHint")}</p>
+                </label>
                 <label className="block text-sm font-medium text-foreground">
                   {t("team.username")}
                   <input
@@ -668,6 +870,24 @@ export default function TeamPage() {
                     <p className="px-2 py-1.5 text-xs text-muted">{t("support.noStores")}</p>
                   ) : null}
                 </div>
+
+                {sheetMode === "edit" ? (
+                  <div className="mt-2.5">
+                    <p className="text-sm font-medium text-foreground">
+                      {t("team.hoursThisMonth")}
+                    </p>
+                    <p className="mt-0.5 rounded-xl border border-card-border px-3 py-2 text-sm tabular-nums text-foreground">
+                      {formatDurationMinutes(
+                        editingHoursMin,
+                        t("schedule.hoursShort"),
+                        t("schedule.minutesShort"),
+                      )}
+                    </p>
+                    <p className="mt-0.5 text-xs text-muted">
+                      {t("team.hoursThisMonthHint")}
+                    </p>
+                  </div>
+                ) : null}
 
                 {canDeleteEditing ? (
                   <button
