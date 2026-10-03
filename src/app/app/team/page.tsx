@@ -528,7 +528,7 @@ export default function TeamPage() {
     editingUser.id !== currentUserId;
 
   return (
-    <div className={`relative ${appPageShell} overflow-x-visible ${appChromeInset} pb-24 pt-1`}>
+    <div className={`relative ${appPageShell} min-h-full overflow-x-hidden ${appChromeInset} pb-24 pt-1`}>
       <div
         aria-hidden
         className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-[radial-gradient(ellipse_at_70%_0%,rgb(52_211_153/0.14),transparent_55%)]"

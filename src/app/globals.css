@@ -65,14 +65,21 @@
   --font-mono: var(--font-geist-mono);
 }
 
+/*
+ * Use the *small* viewport height (svh), not dvh.
+ * On phones, 100dvh is taller than the visible area while the browser chrome
+ * is showing — that leftover pixels create a barely-movable scrollbar on every page.
+ */
 html {
   height: 100%;
+  height: 100svh;
   overflow: hidden;
   max-width: 100%;
 }
 
 body {
   height: 100%;
+  height: 100svh;
   max-width: 100%;
   overflow: hidden;
   background: var(--background);

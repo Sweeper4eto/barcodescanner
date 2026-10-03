@@ -584,7 +584,7 @@ function ExpiryList() {
   const isEditingDiscount = Boolean(priceReduceEntry?.priceReducedAt);
 
   return (
-    <div className="mx-auto flex h-[calc(100dvh-var(--app-bottom-nav-height)-env(safe-area-inset-bottom,0px))] min-h-0 w-full max-w-lg flex-col overflow-x-visible pt-1">
+    <div className="mx-auto flex h-full min-h-0 w-full max-w-lg flex-col overflow-x-hidden pt-1">
       <div className={`${listPageChromeClassName} px-4`}>
         <MobilePageHeader
           title={

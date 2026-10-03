@@ -80,7 +80,12 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [router]);
 
   return (
-    <div className="flex h-[100dvh] max-h-[100dvh] min-h-0 min-w-0 flex-col overflow-hidden">
+    <div className="flex h-full max-h-full min-h-0 min-w-0 flex-col overflow-hidden">
+      {/*
+        Fill layout height (html/body use 100svh — not 100dvh).
+        100dvh is taller than the visible phone area while browser chrome shows,
+        which created a junk scrollbar thumb on every page.
+      */}
       <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain pb-[calc(var(--app-bottom-nav-height)+env(safe-area-inset-bottom,0px))] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
         <RequireLocationGuard>{children}</RequireLocationGuard>
       </div>

@@ -233,7 +233,7 @@ export default function ContactSupportPage() {
 
   if (sent) {
     return (
-      <div className="relative mx-auto flex min-h-[calc(100dvh-var(--app-bottom-nav-height)-env(safe-area-inset-bottom,0px))] min-w-0 max-w-lg flex-col overflow-x-visible px-4 pb-6 pt-1">
+      <div className="relative mx-auto flex min-h-full min-w-0 max-w-lg flex-col overflow-x-hidden px-4 pb-6 pt-1">
         <div
           aria-hidden
           className="pointer-events-none absolute inset-x-0 top-0 h-48 bg-[radial-gradient(ellipse_at_50%_0%,rgb(52_211_153/0.2),transparent_60%)]"
