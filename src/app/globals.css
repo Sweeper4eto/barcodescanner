@@ -72,10 +72,10 @@
 }
 
 /*
- * Do NOT set overflow-x on html/body. Per CSS, a non-visible overflow-x
- * forces overflow-y to compute to auto, and Android Chrome then paints a
- * persistent scrollbar thumb even when the page barely fits.
- * Clip horizontal overflow on inner app shells instead.
+ * Do NOT set overflow-x on html/body OR full-page app shells. Per CSS, a
+ * non-visible overflow-x forces overflow-y to compute to auto, and Android
+ * Chrome then paints a persistent scrollbar thumb even when content fits.
+ * Only use overflow-x on small horizontal strips (chip rows, tables).
  */
 html {
   max-width: 100%;
