@@ -3,7 +3,9 @@ import { describe, it } from "node:test";
 import {
   isLikelyInvalidBarcode,
   isLikelyNameFragment,
+  isWrappedNameContinuation,
   looksLikeEan,
+  mergeWrappedNameContinuations,
   repairFragmentRowAlignment,
   sanitizeDocumentRow,
   sanitizeDocumentRows,
@@ -88,7 +90,7 @@ describe("repairFragmentRowAlignment", () => {
     );
   });
 
-  it("drops a leftover above a real product without touching that product's fields", () => {
+  it("drops a leftover above a real product and returns stolen date/qty to it", () => {
     const repaired = repairFragmentRowAlignment([
       {
         name: "Праскова",
@@ -115,9 +117,121 @@ describe("repairFragmentRowAlignment", () => {
 
     assert.equal(repaired.length, 2);
     assert.equal(repaired[0].name, "Бъбъл чай SIMPATICO праскова 320мл");
-    assert.equal(repaired[0].quantity, 1);
-    assert.equal(repaired[0].expiryYmd, null);
+    assert.equal(repaired[0].quantity, 24);
+    assert.equal(repaired[0].expiryYmd, "2026-08-12");
     assert.equal(repaired[1].expiryYmd, "2026-09-01");
+  });
+
+  it("merges a wrapped two-line product name and keeps the Godnost on the first line", () => {
+    const rows = sanitizeDocumentRows([
+      {
+        name: "АЕА КРАНЦХ Krekeri пълнозърнести зехтин и",
+        barcode: null,
+        articul: "55102",
+        expiryYmd: "2027-03-15",
+        quantity: 6,
+      },
+      {
+        name: "сусам, 160г",
+        barcode: null,
+        articul: null,
+        expiryYmd: null,
+        quantity: 1,
+      },
+      {
+        name: "Other product",
+        barcode: null,
+        articul: "1002",
+        expiryYmd: "2027-04-01",
+        quantity: 2,
+      },
+    ]);
+    assert.equal(rows.length, 2);
+    assert.equal(
+      rows[0].name,
+      "АЕА КРАНЦХ Krekeri пълнозърнести зехтин и сусам, 160г",
+    );
+    assert.equal(rows[0].expiryYmd, "2027-03-15");
+    assert.equal(rows[0].quantity, 6);
+    assert.equal(rows[0].articul, "55102");
+    assert.equal(rows[1].name, "Other product");
+  });
+
+  it("detects lowercase wrap lines as name continuations", () => {
+    assert.equal(
+      isWrappedNameContinuation(
+        {
+          name: "АЕА КРАНЦХ Krekeri пълнозърнести зехтин и",
+          barcode: null,
+          articul: "1",
+          expiryYmd: "2027-01-01",
+          quantity: 3,
+        },
+        {
+          name: "сусам, 160г",
+          barcode: null,
+          articul: null,
+          expiryYmd: null,
+          quantity: 1,
+        },
+      ),
+      true,
+    );
+    assert.deepEqual(
+      mergeWrappedNameContinuations([
+        {
+          name: "АЕА КРАНЦХ Krekeri пълнозърнести зехтин и",
+          barcode: null,
+          articul: null,
+          expiryYmd: "2027-01-01",
+          quantity: 3,
+        },
+        {
+          name: "сусам, 160г",
+          barcode: null,
+          articul: null,
+          expiryYmd: null,
+          quantity: 1,
+        },
+      ])[0].name,
+      "АЕА КРАНЦХ Krekeri пълнозърнести зехтин и сусам, 160г",
+    );
+  });
+
+  it("keeps a short two-word product and its date even when the next row shares Godnost", () => {
+    const rows = sanitizeDocumentRows([
+      {
+        name: "AEA KRANCH",
+        barcode: null,
+        articul: null,
+        expiryYmd: "2027-03-15",
+        quantity: 3,
+      },
+      {
+        name: "Other chips",
+        barcode: null,
+        articul: "1002",
+        expiryYmd: "2027-03-15",
+        quantity: 10,
+      },
+    ]);
+    assert.equal(rows.length, 2);
+    assert.equal(rows[0].name, "AEA KRANCH");
+    assert.equal(rows[0].expiryYmd, "2027-03-15");
+    assert.equal(rows[1].expiryYmd, "2027-03-15");
+  });
+
+  it("does not treat two-word brand names as name fragments", () => {
+    assert.equal(
+      isLikelyNameFragment({
+        name: "AEA KRANCH",
+        barcode: null,
+        articul: null,
+        expiryYmd: null,
+        quantity: 1,
+      }),
+      false,
+    );
   });
 
   it("never moves qty or expiry between neighboring real products", () => {
@@ -165,24 +279,24 @@ describe("repairFragmentRowAlignment", () => {
     assert.deepEqual(repairFragmentRowAlignment(input), input);
   });
 
-  it("clears a page-leading date duplicated from the next row", () => {
+  it("keeps identical Godnost on neighboring rows (same batch is common)", () => {
     const rows = sanitizeDocumentRows([
       {
-        name: "Product without printed Godnost",
+        name: "Product A",
         barcode: null,
         articul: "1001",
         expiryYmd: "2027-03-15",
         quantity: 3,
       },
       {
-        name: "Product with printed Godnost",
+        name: "Product B",
         barcode: null,
         articul: "1002",
         expiryYmd: "2027-03-15",
         quantity: 10,
       },
     ]);
-    assert.equal(rows[0].expiryYmd, null);
+    assert.equal(rows[0].expiryYmd, "2027-03-15");
     assert.equal(rows[0].quantity, 3);
     assert.equal(rows[1].expiryYmd, "2027-03-15");
     assert.equal(rows[1].quantity, 10);
@@ -288,6 +402,35 @@ describe("repairFragmentRowAlignment", () => {
     assert.equal(rows[1].expiryYmd, "2027-01-01");
     assert.equal(rows[2].expiryYmd, null);
     assert.equal(rows[3].expiryYmd, "2027-06-01");
+  });
+
+  it("does not strip a complete first product's date when only the last line is blank", () => {
+    const rows = sanitizeDocumentRows([
+      {
+        name: "АЕА КРАНЦХ Krekeri пълнозърнести зехтин и сусам, 160г",
+        barcode: null,
+        articul: "55102",
+        expiryYmd: "2027-03-15",
+        quantity: 6,
+      },
+      {
+        name: "Other product",
+        barcode: null,
+        articul: "1002",
+        expiryYmd: "2027-04-01",
+        quantity: 2,
+      },
+      {
+        name: "x",
+        barcode: null,
+        articul: null,
+        expiryYmd: null,
+        quantity: 1,
+      },
+    ]);
+    assert.equal(rows[0].expiryYmd, "2027-03-15");
+    assert.equal(rows[0].name.includes("АЕА КРАНЦХ"), true);
+    assert.equal(rows[1].expiryYmd, "2027-04-01");
   });
 
   it("does not shift when the last row correctly has a date", () => {

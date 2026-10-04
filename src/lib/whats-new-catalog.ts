@@ -460,5 +460,37 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Android: късите екрани (вход, начало) вече не показват страничен скролер, когато няма какво да се скролва.",
     href: "/app",
   },
+  {
+    key: "2026-10-document-preview-red-within-3-days",
+    titleEn:
+      "Document import: lines expiring in 3 days or less (including already expired) show in red in the review list.",
+    titleBg:
+      "Импорт на документ: редове със срок до 3 дни или по-малко (вкл. вече изтекли) са в червено в прегледа.",
+    href: "/app/add-document",
+  },
+  {
+    key: "2026-10-document-keep-shared-godnost",
+    titleEn:
+      "Document import: short product names keep their expiry date even when the next line has the same date.",
+    titleBg:
+      "Импорт на документ: кратките имена на продукти запазват срока си, дори когато следващият ред има същата дата.",
+    href: "/app/add-document",
+  },
+  {
+    key: "2026-10-document-merge-wrapped-names",
+    titleEn:
+      "Document import: long product names that wrap onto two lines stay one item with their expiry date.",
+    titleBg:
+      "Импорт на документ: дългите имена на два реда остават един продукт със своя срок на годност.",
+    href: "/app/add-document",
+  },
+  {
+    key: "2026-10-document-keep-first-row-godnost",
+    titleEn:
+      "Document import: a full first product no longer loses its expiry when a later line on the page has no date.",
+    titleBg:
+      "Импорт на документ: пълният първи продукт вече не губи срока си, когато по-долу на страницата има ред без дата.",
+    href: "/app/add-document",
+  },
 ];
 

@@ -41,7 +41,8 @@ export function DocumentDraftListCard({
     ? new Date(`${item.expiryYmd}T00:00:00.000Z`)
     : null;
   const days = expiry ? daysUntilExpiry(expiry) : null;
-  const isExpired = days !== null && days <= 0;
+  // Document review only: red when expired or within 3 days. Expiry list keeps ≤7 etc.
+  const isRedPreview = days !== null && days <= 3;
   const absDays = days === null ? 0 : Math.abs(days);
   const daysLabel =
     days === 0
@@ -52,13 +53,13 @@ export function DocumentDraftListCard({
 
   const stripeClass = missingExpiry
     ? "bg-[var(--urgency-warning-border)]"
-    : isExpired
+    : isRedPreview
       ? "bg-[var(--urgency-critical-border)]"
       : "bg-card-border";
 
   const daysBadgeClass = missingExpiry
     ? missingExpiryBadgeClass
-    : isExpired
+    : isRedPreview
       ? expiredBadgeClass
       : neutralDaysBadgeClass;
 
@@ -95,7 +96,7 @@ export function DocumentDraftListCard({
                 <WarningIcon className="size-3 shrink-0" />
                 <span className="truncate">{t("addDocument.missingExpiry")}</span>
               </p>
-            ) : isExpired ? (
+            ) : isRedPreview ? (
               <p
                 className={`mt-0.5 inline-flex max-w-full items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-semibold leading-tight ${expiredBadgeClass}`}
               >
@@ -143,7 +144,7 @@ export function DocumentDraftListCard({
                   </p>
                   <p
                     className={`max-w-full truncate text-[10px] font-semibold leading-none ${
-                      isExpired ? "" : "text-muted"
+                      isRedPreview ? "" : "text-muted"
                     }`}
                   >
                     {daysLabel}

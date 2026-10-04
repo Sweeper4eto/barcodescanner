@@ -308,9 +308,16 @@ DATE RULES (critical - ALWAYS day.month.year, never US month/day):
 - Re-read each digit carefully (6 vs 8, and year last digit). Prefer the printed cell over guessing.
 
 ROW ALIGNMENT (critical - a single blank cell must never shift the rows below it):
-- Process the table ONE COMPLETE PHYSICAL ROW AT A TIME: for each row, read its name AND its own barcode/articul/quantity/Godnost together, as one unit, output that row's JSON object, then move to the next row.
+- Process the table ONE COMPLETE PRODUCT AT A TIME (not every visual text line). Read name + barcode/articul/quantity/Godnost for that product as one unit, output one JSON object, then move to the next product.
 - NEVER extract by column (e.g. reading every name top-to-bottom first, then every date top-to-bottom, then zipping them together afterward). If any single cell is blank, faded, or accidentally skipped that way, every value below it silently shifts onto the wrong row — this is the most common and most serious mistake, avoid it at all costs.
-- A row that visibly has ONLY a name and no other cells filled in (blank quantity/date/barcode/articul on that same line) is still a normal, complete row — output it with quantity 1 and the other fields null, and do not let it change how you read any other row. The row immediately below it still keeps its own separate printed values, never the values of the row above or two rows above.
+- WRAPPED PRODUCT NAMES (very common): long names often print on TWO lines inside the same table row, e.g.
+    "АЕА КРАНЦХ Krekeri пълнозърнести зехтин и"
+    "сусам, 160г"          ← this is NOT a second product
+  with Articul/Qty/Godnost aligned to that one product (usually beside the first name line).
+  CORRECT: ONE item, name = both lines joined: "АЕА КРАНЦХ Krekeri пълнозърнести зехтин и сусам, 160г", with that product's own quantity and expiryPrinted.
+  WRONG: two items where the second is only "сусам, 160г" with null date (or the first has null date).
+  Clues a line is a wrap continuation (merge into previous product, do not emit separately): it has no articul/barcode/qty/Godnost of its own; it starts mid-phrase / lowercase; previous name ends with "и" / "с" / "," / "-"; or it is only the pack weight end ("160г", "330мл").
+- A visual line that is ONLY a name with blank qty/date is often a wrap continuation of the product above (or below) — merge it into that product. Only emit a separate name-only item when it is clearly a different product row, not a wrapped second line.
 - NEVER fill a blank Godnost by copying the date from the row above or below. Blank stays null. Wrong date is worse than missing date.
 - Especially at the first row of a new page photo: if that line has no printed Godnost, expiryPrinted must be null even when the next row on the page has a clear date.
 - PAGE-START EXAMPLE (very common bug — never do this):
