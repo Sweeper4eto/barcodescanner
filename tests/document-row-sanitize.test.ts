@@ -199,6 +199,52 @@ describe("repairFragmentRowAlignment", () => {
     );
   });
 
+  it("keeps two consecutive same-name products as separate rows", () => {
+    const rows = sanitizeDocumentRows([
+      {
+        name: "Maggi 3 Минути Пилешка крем супа с фиде, 12гр",
+        barcode: null,
+        articul: "900001261",
+        expiryYmd: null,
+        quantity: 21,
+      },
+      {
+        name: "Maggi 3 Минути Пилешка крем супа с фиде, 12гр",
+        barcode: null,
+        articul: "900001261",
+        expiryYmd: "2027-06-15",
+        quantity: 1,
+      },
+    ]);
+    assert.equal(rows.length, 2);
+    assert.equal(rows[0].quantity, 21);
+    assert.equal(rows[0].expiryYmd, null);
+    assert.equal(rows[1].quantity, 1);
+    assert.equal(rows[1].expiryYmd, "2027-06-15");
+  });
+
+  it("does not treat identical names as a wrapped-name continuation", () => {
+    assert.equal(
+      isWrappedNameContinuation(
+        {
+          name: "Maggi soup 12гр",
+          barcode: null,
+          articul: null,
+          expiryYmd: null,
+          quantity: 21,
+        },
+        {
+          name: "Maggi soup 12гр",
+          barcode: null,
+          articul: null,
+          expiryYmd: null,
+          quantity: 1,
+        },
+      ),
+      false,
+    );
+  });
+
   it("keeps a short two-word product and its date even when the next row shares Godnost", () => {
     const rows = sanitizeDocumentRows([
       {

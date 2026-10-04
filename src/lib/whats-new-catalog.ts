@@ -500,5 +500,13 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Импорт на документ: по-ясно разчитане на количество и срок по редове (по-малко разместени или липсващи дати).",
     href: "/app/add-document",
   },
+  {
+    key: "2026-10-document-duplicate-names-ok",
+    titleEn:
+      "Document import: the same product name on consecutive rows is kept as separate lines (own qty and date).",
+    titleBg:
+      "Импорт на документ: едно и също име на няколко реда остава отделни редове (собствено к-во и срок).",
+    href: "/app/add-document",
+  },
 ];
 

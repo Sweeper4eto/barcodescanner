@@ -169,11 +169,18 @@ function hasPackWeightSuffix(name: string): boolean {
  * True when `curr` is the second printed line of `prev`'s wrapped product name
  * (qty/Godnost usually sit on the first line; the wrap line is name-only).
  */
+function namesEqualIgnoreCase(a: string, b: string): boolean {
+  return a.trim().toLowerCase() === b.trim().toLowerCase();
+}
+
 export function isWrappedNameContinuation(
   prev: DocumentOcrRow,
   curr: DocumentOcrRow,
 ): boolean {
   if (curr.barcode || curr.articul) return false;
+  // Same full name twice = two real table rows (e.g. Maggi qty 21 + Maggi qty 1),
+  // not a wrapped single product. Never merge those.
+  if (namesEqualIgnoreCase(prev.name, curr.name)) return false;
 
   const currBare = !curr.expiryYmd && curr.quantity === 1;
   const wrapHint =

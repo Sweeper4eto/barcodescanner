@@ -307,6 +307,12 @@ WRAPPED NAMES (one product, two text lines):
 → ONE item: name joins both lines; qty/Godnost from that product's column cells (usually on the first name line).
 Do not emit "сусам, 160г" as its own product.
 
+DUPLICATE NAMES (normal on warehouse lists — do NOT "fix"):
+- The SAME product name (and often the same articul) can appear on TWO OR MORE consecutive table rows — different quantity and/or Godnost batches.
+- Example: two lines both "Maggi 3 Минути … 12гр" / articul 900001261 — emit TWO items; each keeps its own quantity and expiryPrinted from its own band.
+- Never merge those into one item. Never copy the second row's date onto the first (or vice versa). Never invent a phantom third copy.
+- Same name + blank Godnost on row A and a real date on row B is valid — output both as printed.
+
 DATES:
 - Godnost is always DD.MM.YYYY (day first). Copy expiryPrinted exactly as printed (lot text after the date is OK).
 - expiryDate must always be null (server converts).
