@@ -508,5 +508,13 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Импорт на документ: едно и също име на няколко реда остава отделни редове (собствено к-во и срок).",
     href: "/app/add-document",
   },
+  {
+    key: "2026-10-document-ocr-row-separator-lines",
+    titleEn:
+      "Document import: when a page has horizontal lines between products, those lines keep each row’s qty and expiry separate.",
+    titleBg:
+      "Импорт на документ: когато има хоризонтални линии между продуктите, те държат к-во и срок на правилния ред.",
+    href: "/app/add-document",
+  },
 ];
 
