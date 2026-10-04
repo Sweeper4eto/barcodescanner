@@ -293,9 +293,8 @@ export function sanitizeDocumentRows(rows: DocumentOcrRow[]): DocumentOcrRow[] {
   // "… зехтин и" + "сусам, 160г" becomes one dated product.
   const mergedWraps = mergeWrappedNameContinuations(cleaned);
   const withoutFragments = repairFragmentRowAlignment(mergedWraps);
-  const withoutOrphans = dropOrphanNameFragments(withoutFragments);
-  // Do not clear a leading date just because it matches the next row —
-  // warehouse lists often print the same Godnost on neighboring products.
-  // Stolen blank→next dates are handled by repairUpwardExpiryColumnShift.
-  return repairUpwardExpiryColumnShift(withoutOrphans);
+  // Do not auto-shift the Godnost column — guessing "upward shift" often
+  // moves correct dates onto the wrong products or blanks a real first row.
+  // Alignment must come from the model; we only merge wraps / drop crumbs.
+  return dropOrphanNameFragments(withoutFragments);
 }

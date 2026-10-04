@@ -492,5 +492,13 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Импорт на документ: пълният първи продукт вече не губи срока си, когато по-долу на страницата има ред без дата.",
     href: "/app/add-document",
   },
+  {
+    key: "2026-10-document-ocr-alignment-pass",
+    titleEn:
+      "Document import: clearer OCR reading of each row’s own quantity and expiry (fewer shifted or missing dates).",
+    titleBg:
+      "Импорт на документ: по-ясно разчитане на количество и срок по редове (по-малко разместени или липсващи дати).",
+    href: "/app/add-document",
+  },
 ];
 

@@ -286,96 +286,52 @@ function toRows(payload: unknown): DocumentOcrRow[] {
   return sanitized;
 }
 
-const SYSTEM_PROMPT = `You extract product rows from a photo of a store document / invoice / delivery note / warehouse write-off (izpisvane) / expiry list.
-Documents may be in Bulgarian. Common columns:
-- Articul / SKU (NOT an EAN barcode) -> "articul"
-- Product name -> "name" (keep Cyrillic as-is)
-- Quantity / pieces -> "quantity"
-- Godnost / best-before -> expiryPrinted only
-- Barcode / EAN -> "barcode" if present
+const SYSTEM_PROMPT = `Extract product lines from a photo of a Bulgarian store document (delivery note / izpisvane / expiry list / invoice).
 
-Return ONLY compact valid JSON (no markdown, no extra spaces) with this shape:
+Return ONLY compact JSON:
 {"items":[{"name":"...","barcode":null,"articul":"...","expiryPrinted":"DD.MM.YYYY","expiryDate":null,"quantity":1}]}
 
-DATE RULES (critical - ALWAYS day.month.year, never US month/day):
-- Warehouse / delivery Godnost on these documents is ALWAYS DD.MM.YYYY (day first), even if product names are in English or the operator language is English.
-- Never reinterpret dates as MM/DD/YYYY. Never swap day and month.
-- expiryPrinted = COPY the Godnost cell EXACTLY as printed characters, e.g. "01.12.2027" or "23.06.2027 L268623". Do not reorder digits.
-- expiryDate must ALWAYS be null. The server converts DD.MM.YYYY to ISO. Never invent YYYY-MM-DD yourself.
-- Example: printed 01.12.2027 -> expiryPrinted "01.12.2027", expiryDate null (means 1 December 2027 on the server — NOT 12 January).
-- Example: printed 12.01.2026 -> expiryPrinted "12.01.2026", expiryDate null (means 12 January 2026).
-- When day and month are both <= 12, still copy day-first order as printed. Do not swap.
-- Re-read each digit carefully (6 vs 8, and year last digit). Prefer the printed cell over guessing.
+#1 FAILURE TO AVOID — COLUMN ZIP / ROW SHIFT (most common):
+Never read a whole column of names, then a whole column of dates, then zip them.
+For EACH product, look at ONE horizontal band of the table and copy ONLY the cells that belong to that band:
+  name + articul + quantity + Godnost (+ barcode if present) → one JSON object → next product.
+If Godnost on a band is blank/unreadable → expiryPrinted null for THAT item only. Do not borrow the date from the band above or below.
+Whole-column shift symptom (never do this): every item gets the NEXT row's date and the last item has null.
 
-ROW ALIGNMENT (critical - a single blank cell must never shift the rows below it):
-- Process the table ONE COMPLETE PRODUCT AT A TIME (not every visual text line). Read name + barcode/articul/quantity/Godnost for that product as one unit, output one JSON object, then move to the next product.
-- NEVER extract by column (e.g. reading every name top-to-bottom first, then every date top-to-bottom, then zipping them together afterward). If any single cell is blank, faded, or accidentally skipped that way, every value below it silently shifts onto the wrong row — this is the most common and most serious mistake, avoid it at all costs.
-- WRAPPED PRODUCT NAMES (very common): long names often print on TWO lines inside the same table row, e.g.
-    "АЕА КРАНЦХ Krekeri пълнозърнести зехтин и"
-    "сусам, 160г"          ← this is NOT a second product
-  with Articul/Qty/Godnost aligned to that one product (usually beside the first name line).
-  CORRECT: ONE item, name = both lines joined: "АЕА КРАНЦХ Krekeri пълнозърнести зехтин и сусам, 160г", with that product's own quantity and expiryPrinted.
-  WRONG: two items where the second is only "сусам, 160г" with null date (or the first has null date).
-  Clues a line is a wrap continuation (merge into previous product, do not emit separately): it has no articul/barcode/qty/Godnost of its own; it starts mid-phrase / lowercase; previous name ends with "и" / "с" / "," / "-"; or it is only the pack weight end ("160г", "330мл").
-- A visual line that is ONLY a name with blank qty/date is often a wrap continuation of the product above (or below) — merge it into that product. Only emit a separate name-only item when it is clearly a different product row, not a wrapped second line.
-- NEVER fill a blank Godnost by copying the date from the row above or below. Blank stays null. Wrong date is worse than missing date.
-- Especially at the first row of a new page photo: if that line has no printed Godnost, expiryPrinted must be null even when the next row on the page has a clear date.
-- PAGE-START EXAMPLE (very common bug — never do this):
-  Physical page starts with:
-    Row 1: "Product A"   Qty 3    Godnost blank
-    Row 2: "Product B"   Qty 10   Godnost 15.03.2027
-  WRONG: Row 1 gets expiryPrinted "15.03.2027" (stolen from Row 2).
-  CORRECT: Row 1 expiryPrinted null; Row 2 expiryPrinted "15.03.2027".
-  Quantity being different does not matter — never use another row's date.
-- WHOLE-COLUMN SHIFT (critical): never assign every name the Godnost from the row BELOW it. If you do that, the last row is left with null and every earlier row is wrong. Each expiryPrinted must come from the same physical line as that item's name.
-- Before finalizing, verify row-by-row (not column-by-column) that each name in your JSON output is still lined up with the quantity/date/barcode that was printed on that exact same physical line, especially around any row with missing cells.
+WRAPPED NAMES (one product, two text lines):
+  "АЕА КРАНЦХ Krekeri пълнозърнести зехтин и"
+  "сусам, 160г"
+→ ONE item: name joins both lines; qty/Godnost from that product's column cells (usually on the first name line).
+Do not emit "сусам, 160г" as its own product.
 
-CONCRETE EXAMPLE OF THE MISTAKE TO NEVER MAKE:
-Suppose the physical rows printed on the page are:
-  Row 1: "Праскова"            (name only, nothing else printed on this line)
-  Row 2: "Бъбъл чай SIMPATICO праскова 320мл"   Qty 24   Godnost 12.08.2026
-WRONG output (never do this — row 2's own numbers got copied onto row 1, and/or row 1's fragment got merged into row 2's slot):
-  {"name":"Праскова","quantity":24,"expiryPrinted":"12.08.2026", ...}
-  {"name":"Бъбъл чай SIMPATICO праскова 320мл","quantity":24,"expiryPrinted":"12.08.2026", ...}
-CORRECT output (row 1 keeps its own — empty — cells; row 2 keeps its own printed numbers; nothing is duplicated or shifted):
-  {"name":"Праскова","quantity":1,"expiryPrinted":null, ...}
-  {"name":"Бъбъл чай SIMPATICO праскова 320мл","quantity":24,"expiryPrinted":"12.08.2026", ...}
-Two different items must never end up with the identical quantity+date pair unless that exact pair is truly, independently printed on each of their own rows.
+DATES:
+- Godnost is always DD.MM.YYYY (day first). Copy expiryPrinted exactly as printed (lot text after the date is OK).
+- expiryDate must always be null (server converts).
+- Never invent a date. Never swap day/month.
+- Same Godnost on two neighboring products is allowed when both cells really show that date.
 
-Other rules:
-- Extract EVERY product row (do not stop early). Keep each object short.
-- name = product name (keep original language / Cyrillic).
-- barcode = EAN/UPC digits only if a real barcode column exists; else null. Never put Articul into barcode.
-- articul = Articul / SKU if present, else null.
-- Never copy a date from the row above or below. Never invent a date.
-- Every field (barcode, articul, expiryPrinted, quantity) must come ONLY from that item's own printed row. Never borrow, reuse, or "fill in" a value that is actually printed on a different row, even if that row is empty or looks incomplete.
-- If Godnost is blank, "1", or unreadable, set expiryPrinted to null and expiryDate to null.
-- After finishing, re-check the LAST 3 rows: each name keeps its own printed date string.
-- quantity = pieces if present, else 1. Ignore difference columns.
-- Ignore headers, client address, totals, signatures, batch/lot unless needed for clarity.
-- If a field is missing or unreadable, use null (quantity defaults to 1).
+OTHER:
+- Extract every real product on the page. Keep Cyrillic names.
+- articul = SKU; barcode = EAN only; never swap them.
+- quantity = pieces if printed, else 1.
+- Ignore headers, addresses, totals, signatures.
+- Page-edge cut-off crumbs (1–2 words with no columns): omit; do not attach a neighbor's qty/date.
+- Final check: for the last 3 items, confirm each name still matches the Godnost printed on its own band.`;
 
-LEFTOVER / CUT-OFF TEXT (important, this is a common photo-of-a-page mistake):
-- This photo may be one page of a multi-page document. Text that is truncated at the very TOP or very BOTTOM edge of the photo (a name with no visible barcode/articul/quantity/date next to it, or only 1-2 words with no table columns at all) is usually the tail end of a row that continues on a different page you cannot see.
-- Do NOT turn such a cut-off fragment into its own item, and do NOT pair it with the quantity/date/barcode of the nearest full row above or below it — that data belongs to a different product.
-- If you genuinely cannot tell whether a top/bottom edge line is a real, complete row, leave it out entirely rather than guessing or inventing its missing fields from a neighboring row.
-- Output must be complete closable JSON even if the page is long.`;
-
-
-
-
-
-const DEFAULT_GEMINI_MODEL = "gemini-3-flash-preview";
+const DEFAULT_GEMINI_MODEL = "gemini-3.5-flash";
 const DEFAULT_OPENAI_MODEL = "gpt-4o-mini";
 
-/** Tried in order when the preferred model is busy / unavailable. */
+/**
+ * Tried in order when the preferred model is busy / unavailable.
+ * Prefer full Flash models before lite — lite causes many row/date shifts.
+ */
 const GEMINI_MODEL_FALLBACKS = [
+  "gemini-3.5-flash",
+  "gemini-3.8-flash",
+  "gemini-3.6-flash",
   "gemini-3-flash-preview",
   "gemini-3.5-flash-lite",
-  "gemini-3.8-flash",
   "gemini-3.1-flash-lite",
-  "gemini-3.5-flash",
-  "gemini-3.6-flash",
 ];
 
 function resolveModel(
@@ -542,22 +498,20 @@ async function extractWithGeminiOnce(
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
 
   // Gemini 2.5: disable thinking via budget 0 (faster OCR, more JSON room).
-  // Gemini 3.x: rejects thinkingBudget (incl. 0) with INVALID_ARGUMENT; use
-  // thinkingLevel instead, and leave temperature at the model default.
+  // Gemini 3.x: rejects thinkingBudget; use thinkingLevel. Prefer "low" over
+  // "minimal" — table row/date alignment needs a bit more reasoning.
   const isGemini3 = /gemini-3/i.test(model);
   const isGemini25 = /gemini-2\.5/i.test(model);
 
   const generationConfig: Record<string, unknown> = {
     maxOutputTokens: 65536,
     responseMimeType: "application/json",
+    temperature: 0,
   };
   if (isGemini25) {
-    generationConfig.temperature = 0;
     generationConfig.thinkingConfig = { thinkingBudget: 0 };
   } else if (isGemini3) {
-    generationConfig.thinkingConfig = { thinkingLevel: "minimal" };
-  } else {
-    generationConfig.temperature = 0;
+    generationConfig.thinkingConfig = { thinkingLevel: "low" };
   }
 
   const response = await fetch(url, {

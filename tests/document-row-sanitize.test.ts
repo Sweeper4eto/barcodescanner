@@ -7,6 +7,7 @@ import {
   looksLikeEan,
   mergeWrappedNameContinuations,
   repairFragmentRowAlignment,
+  repairUpwardExpiryColumnShift,
   sanitizeDocumentRow,
   sanitizeDocumentRows,
 } from "../src/lib/document-row-sanitize";
@@ -302,9 +303,9 @@ describe("repairFragmentRowAlignment", () => {
     assert.equal(rows[1].quantity, 10);
   });
 
-  it("shifts a whole upward-shifted Godnost column back down", () => {
-    // OCR paired every name with the NEXT row's date; last left blank.
-    const rows = sanitizeDocumentRows([
+  it("repairUpwardExpiryColumnShift can still fix a clear whole-column zip", () => {
+    // Kept as a helper; sanitizeDocumentRows no longer applies it automatically.
+    const rows = repairUpwardExpiryColumnShift([
       {
         name: "A blank Godnost",
         barcode: null,
@@ -335,16 +336,12 @@ describe("repairFragmentRowAlignment", () => {
       },
     ]);
     assert.equal(rows[0].expiryYmd, null);
-    assert.equal(rows[0].quantity, 3);
     assert.equal(rows[1].expiryYmd, "2027-02-02");
-    assert.equal(rows[1].quantity, 10);
     assert.equal(rows[2].expiryYmd, "2027-03-03");
-    assert.equal(rows[2].quantity, 7);
     assert.equal(rows[3].expiryYmd, "2027-04-04");
-    assert.equal(rows[3].quantity, 1);
   });
 
-  it("moves a page-leading shifted date down onto the blank next row", () => {
+  it("sanitizeDocumentRows does not auto-shift Godnost between rows", () => {
     const rows = sanitizeDocumentRows([
       {
         name: "Product without printed Godnost",
@@ -361,10 +358,9 @@ describe("repairFragmentRowAlignment", () => {
         quantity: 10,
       },
     ]);
-    assert.equal(rows[0].expiryYmd, null);
-    assert.equal(rows[0].quantity, 3);
-    assert.equal(rows[1].expiryYmd, "2027-03-15");
-    assert.equal(rows[1].quantity, 10);
+    // Leave model output as-is — guessing a shift often makes alignment worse.
+    assert.equal(rows[0].expiryYmd, "2027-03-15");
+    assert.equal(rows[1].expiryYmd, null);
   });
 
   it("does not move mid-page dates between neighbors", () => {

@@ -292,13 +292,14 @@ function cropAndDeskew(
 }
 
 export async function prepareDocumentImage(dataUrl: string): Promise<string> {
-  const TARGET_BYTES = 2_400_000;
+  // Keep enough resolution for small Godnost digits; avoid crushing to 1280.
+  const TARGET_BYTES = 3_200_000;
   const STEPS = [
     { maxEdge: 3200, quality: 0.92 },
+    { maxEdge: 2880, quality: 0.9 },
     { maxEdge: 2560, quality: 0.88 },
+    { maxEdge: 2200, quality: 0.86 },
     { maxEdge: 2048, quality: 0.84 },
-    { maxEdge: 1600, quality: 0.78 },
-    { maxEdge: 1280, quality: 0.72 },
   ];
 
   const blob = await fetch(dataUrl).then((response) => response.blob());
