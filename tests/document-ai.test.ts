@@ -1,11 +1,27 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  isGeminiFreeTierQuotaError,
   parseDocumentExpiry,
   parsePrintedExpiry,
   repairTruncatedItemsJson,
   resolveDocumentExpiry,
 } from "../src/lib/document-ai";
+
+describe("isGeminiFreeTierQuotaError", () => {
+  it("detects free-tier quota 429s that need hours, not seconds", () => {
+    assert.equal(
+      isGeminiFreeTierQuotaError(
+        "OCR_PROVIDER:429:Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-3.5-flash Please retry in 2h24m9s.",
+      ),
+      true,
+    );
+    assert.equal(
+      isGeminiFreeTierQuotaError("OCR_PROVIDER:503:high demand"),
+      false,
+    );
+  });
+});
 
 describe("parseDocumentExpiry", () => {
   it("parses ISO dates", () => {

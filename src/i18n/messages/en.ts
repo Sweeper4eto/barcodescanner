@@ -200,6 +200,9 @@ export const en = {
     documentNoItems: "No products were found on this document.",
     documentScanRateLimited:
       "Too many document scans. Please wait a few minutes and try again.",
+    documentAiQuotaExceeded:
+      "Document AI free quota is used up for now. Try again in a couple of hours, or add billing on the Gemini API key.",
+
     documentImportInvalidRows:
       "Some rows have an invalid quantity or expiry date. Fix highlighted rows and try again.",
     documentTooLarge:

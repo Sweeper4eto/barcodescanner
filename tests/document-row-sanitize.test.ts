@@ -358,7 +358,6 @@ describe("repairFragmentRowAlignment", () => {
         quantity: 10,
       },
     ]);
-    // Leave model output as-is — guessing a shift often makes alignment worse.
     assert.equal(rows[0].expiryYmd, "2027-03-15");
     assert.equal(rows[1].expiryYmd, null);
   });

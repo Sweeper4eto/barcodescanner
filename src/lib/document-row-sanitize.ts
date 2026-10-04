@@ -250,13 +250,7 @@ function rowLooksLikeCompleteProduct(row: DocumentOcrRow): boolean {
  *   OCR:   [D2,   D3, D4, null]
  * Repair: shift dates down by one (quantities untouched).
  *
- * Detected only when exactly one row lacks a date and it is the last row,
- * and the first row still has a date (the stolen one).
- *
- * Skip when the first row looks like a real product and the last row looks
- * sparse — that pattern is usually "last Godnost unread", not a column shift.
- * Otherwise a long first product (e.g. АЕА КРАНЦХ … 160г) loses its date
- * every scan whenever the final line on the page has no date.
+ * Kept as a helper; not applied automatically (too many false positives).
  */
 export function repairUpwardExpiryColumnShift(
   rows: DocumentOcrRow[],
@@ -293,8 +287,7 @@ export function sanitizeDocumentRows(rows: DocumentOcrRow[]): DocumentOcrRow[] {
   // "… зехтин и" + "сусам, 160г" becomes one dated product.
   const mergedWraps = mergeWrappedNameContinuations(cleaned);
   const withoutFragments = repairFragmentRowAlignment(mergedWraps);
-  // Do not auto-shift the Godnost column — guessing "upward shift" often
-  // moves correct dates onto the wrong products or blanks a real first row.
-  // Alignment must come from the model; we only merge wraps / drop crumbs.
+  // Do not auto-shift the Godnost column — guessing shift direction moves
+  // correct dates onto the wrong products. Alignment must come from the model.
   return dropOrphanNameFragments(withoutFragments);
 }

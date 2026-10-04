@@ -296,7 +296,10 @@ Never read a whole column of names, then a whole column of dates, then zip them.
 For EACH product, look at ONE horizontal band of the table and copy ONLY the cells that belong to that band:
   name + articul + quantity + Godnost (+ barcode if present) → one JSON object → next product.
 If Godnost on a band is blank/unreadable → expiryPrinted null for THAT item only. Do not borrow the date from the band above or below.
-Whole-column shift symptom (never do this): every item gets the NEXT row's date and the last item has null.
+A lone "1" in/near the Godnost column is NOT a date — use expiryPrinted null (never "1").
+Whole-column shift symptoms (never do this):
+- every item gets the NEXT row's date and the last item has null (dates too high), or
+- a product's real DD.MM.YYYY is written on the row BELOW it and that product has null (dates too low).
 
 WRAPPED NAMES (one product, two text lines):
   "АЕА КРАНЦХ Krekeri пълнозърнести зехтин и"
@@ -431,9 +434,25 @@ function isHighDemandError(message: string): boolean {
   );
 }
 
+/**
+ * Gemini free-tier daily/minute caps (e.g. 20 req) — waiting a few seconds and
+ * retrying the same model never helps; the API asks for hours. Skip sleeps and
+ * fall through to the next model (often *-lite) immediately.
+ */
+export function isGeminiFreeTierQuotaError(message: string): boolean {
+  const lower = message.toLowerCase();
+  return (
+    lower.includes("free_tier") ||
+    lower.includes("generate_content_free_tier") ||
+    /please retry in \d+h/i.test(message)
+  );
+}
+
 function isRetryableProviderError(message: string): boolean {
   if (isUnavailableModelError(message)) return false;
   if (message.startsWith("OCR_EMPTY:")) return false;
+  // Free-tier exhausted: do not burn 1.5s+4s per model (client/proxy timeout).
+  if (isGeminiFreeTierQuotaError(message)) return false;
 
   const statusMatch = /^OCR_PROVIDER:(\d{3}):/.exec(message);
   if (statusMatch) {
@@ -614,6 +633,12 @@ async function extractWithGemini(
       );
       const message = error instanceof Error ? error.message : String(error);
       lastError = error instanceof Error ? error : new Error(message);
+      if (isGeminiFreeTierQuotaError(message)) {
+        console.warn(
+          `document AI: model "${model}" free-tier quota hit, trying next immediately`,
+        );
+        continue;
+      }
       if (
         isUnavailableModelError(message) ||
         isInvalidArgumentError(message) ||

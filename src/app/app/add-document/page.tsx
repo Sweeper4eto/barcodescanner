@@ -229,6 +229,11 @@ function AddDocumentContent() {
       return { ok: true, items: data.items };
     } catch (error) {
       const message = error instanceof Error ? error.message : "";
+      // Proxy/browser often drops the socket while the server is still cascading
+      // Gemini models after free-tier 429s — surface a timeout, not "Failed to fetch".
+      if (/failed to fetch|networkerror|load failed/i.test(message)) {
+        return { ok: false, error: t("errors.documentTimeout") };
+      }
       return { ok: false, error: message || t("errors.documentParseFailed") };
     }
   }

@@ -201,6 +201,9 @@ export const bg = {
     documentNoItems: "В документа не са намерени продукти.",
     documentScanRateLimited:
       "Твърде много сканирания на документи. Изчакайте няколко минути и опитайте отново.",
+    documentAiQuotaExceeded:
+      "Безплатната квота за Document AI е изчерпана засега. Опитайте след около 2 часа или добавете плащане към Gemini API ключа.",
+
     documentImportInvalidRows:
       "Някои редове имат невалидно количество или годност. Поправете ги и опитайте отново.",
     documentTooLarge:

@@ -38,6 +38,14 @@ function providerErrorDetail(message: string): string {
 }
 
 function publicOcrError(request: Request, message: string): string {
+  const lower = message.toLowerCase();
+  if (
+    lower.includes("free_tier") ||
+    lower.includes("generate_content_free_tier") ||
+    /please retry in \d+h/i.test(message)
+  ) {
+    return apiT(request, "errors.documentAiQuotaExceeded");
+  }
   if (message.startsWith("OCR_PROVIDER:")) {
     const detail = providerErrorDetail(message);
     return detail
