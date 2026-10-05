@@ -1,5 +1,9 @@
 import { db } from "@/lib/db";
 
+/** Calendar days for OCR admin charts — not the VPS clock (often UTC). */
+export const DOCUMENT_OCR_USAGE_TIMEZONE =
+  process.env.DOCUMENT_OCR_USAGE_TIMEZONE?.trim() || "Europe/Sofia";
+
 export async function recordDocumentOcrScan(input: {
   userId: string;
   username: string;
@@ -18,37 +22,96 @@ export async function recordDocumentOcrScan(input: {
   }
 }
 
+export function documentOcrUsageDayKey(
+  date: Date,
+  timeZone: string = DOCUMENT_OCR_USAGE_TIMEZONE,
+): string {
+  try {
+    return date.toLocaleDateString("en-CA", { timeZone });
+  } catch {
+    return date.toISOString().slice(0, 10);
+  }
+}
+
+function zonedOffsetMs(date: Date, timeZone: string): number {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+  const get = (type: string) =>
+    Number(parts.find((part) => part.type === type)?.value ?? 0);
+  let hour = get("hour");
+  if (hour === 24) hour = 0;
+  const asUtc = Date.UTC(
+    get("year"),
+    get("month") - 1,
+    get("day"),
+    hour,
+    get("minute"),
+    get("second"),
+  );
+  return asUtc - date.getTime();
+}
+
+/** Wall clock in `timeZone` → UTC instant (DST-safe, two-pass). */
+export function zonedLocalToUtc(
+  ymd: string,
+  hour: number,
+  minute: number,
+  second: number,
+  ms: number,
+  timeZone: string = DOCUMENT_OCR_USAGE_TIMEZONE,
+): Date {
+  const [y, m, d] = ymd.split("-").map(Number);
+  // Offset from whole seconds only — Intl formatToParts has no fractional second.
+  const wallAsUtc = Date.UTC(y, m - 1, d, hour, minute, second, 0);
+  const offset1 = zonedOffsetMs(new Date(wallAsUtc), timeZone);
+  let utc = wallAsUtc - offset1;
+  const offset2 = zonedOffsetMs(new Date(utc), timeZone);
+  utc = wallAsUtc - offset2;
+  return new Date(utc + ms);
+}
+
+function startOfNextUsageDay(ymd: string): Date {
+  const noon = zonedLocalToUtc(ymd, 12, 0, 0, 0);
+  noon.setUTCDate(noon.getUTCDate() + 1);
+  return zonedLocalToUtc(documentOcrUsageDayKey(noon), 0, 0, 0, 0);
+}
+
 function parseDayBound(
   value: string | null | undefined,
   endOfDay: boolean,
 ): Date | null {
   if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
-  const [y, m, d] = value.split("-").map(Number);
-  if (endOfDay) return new Date(y, m - 1, d, 23, 59, 59, 999);
-  return new Date(y, m - 1, d, 0, 0, 0, 0);
+  if (endOfDay) {
+    return new Date(startOfNextUsageDay(value).getTime() - 1);
+  }
+  return zonedLocalToUtc(value, 0, 0, 0, 0);
 }
 
-function ymdLocal(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
-
-function startOfLocalDay(daysAgo: number): Date {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  d.setDate(d.getDate() - daysAgo);
-  return d;
+function startOfUsageDay(daysAgo: number): Date {
+  const todayYmd = documentOcrUsageDayKey(new Date());
+  const noon = zonedLocalToUtc(todayYmd, 12, 0, 0, 0);
+  noon.setUTCDate(noon.getUTCDate() - daysAgo);
+  return zonedLocalToUtc(documentOcrUsageDayKey(noon), 0, 0, 0, 0);
 }
 
 function eachDayInclusive(from: Date, to: Date): string[] {
   const days: string[] = [];
-  const cursor = new Date(from.getFullYear(), from.getMonth(), from.getDate());
-  const end = new Date(to.getFullYear(), to.getMonth(), to.getDate());
-  while (cursor.getTime() <= end.getTime()) {
-    days.push(ymdLocal(cursor));
-    cursor.setDate(cursor.getDate() + 1);
+  let ymd = documentOcrUsageDayKey(from);
+  const endYmd = documentOcrUsageDayKey(to);
+  // Guard runaway if TZ math fails.
+  for (let i = 0; i < 400 && ymd <= endYmd; i += 1) {
+    days.push(ymd);
+    const noon = zonedLocalToUtc(ymd, 12, 0, 0, 0);
+    noon.setUTCDate(noon.getUTCDate() + 1);
+    ymd = documentOcrUsageDayKey(noon);
   }
   return days;
 }
@@ -84,7 +147,7 @@ export async function queryDocumentOcrUsage(input: {
   totalScans: number;
   summaries: DocumentOcrPeriodSummaries;
 }> {
-  const from = parseDayBound(input.dateFrom, false) ?? startOfLocalDay(6);
+  const from = parseDayBound(input.dateFrom, false) ?? startOfUsageDay(6);
   const to = parseDayBound(input.dateTo, true) ?? new Date();
   if (to.getTime() < from.getTime()) {
     return {
@@ -160,7 +223,7 @@ export async function queryDocumentOcrUsage(input: {
   for (const scan of scans) {
     if (!allowedUserIds.has(scan.userId)) continue;
     totalScans += 1;
-    const day = ymdLocal(scan.createdAt);
+    const day = documentOcrUsageDayKey(scan.createdAt);
     perDay.set(day, (perDay.get(day) ?? 0) + 1);
     const prev = perUser.get(scan.userId);
     if (!prev) {
@@ -197,13 +260,13 @@ async function loadPeriodSummaries(): Promise<DocumentOcrPeriodSummaries> {
   const now = new Date();
   const [days7, days14, days30] = await Promise.all([
     db.documentOcrScan.count({
-      where: { createdAt: { gte: startOfLocalDay(6), lte: now } },
+      where: { createdAt: { gte: startOfUsageDay(6), lte: now } },
     }),
     db.documentOcrScan.count({
-      where: { createdAt: { gte: startOfLocalDay(13), lte: now } },
+      where: { createdAt: { gte: startOfUsageDay(13), lte: now } },
     }),
     db.documentOcrScan.count({
-      where: { createdAt: { gte: startOfLocalDay(29), lte: now } },
+      where: { createdAt: { gte: startOfUsageDay(29), lte: now } },
     }),
   ]);
   return { days7, days14, days30 };

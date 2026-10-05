@@ -10,6 +10,9 @@ import { LoadingSpinnerBlock } from "@/components/loading-spinner";
 import { SearchField } from "@/components/search-field";
 import { useT } from "@/components/i18n-provider";
 
+/** Must match DOCUMENT_OCR_USAGE_TIMEZONE default (day buckets on server). */
+const OCR_USAGE_DISPLAY_TZ = "Europe/Sofia";
+
 type UsageRow = {
   userId: string;
   username: string;
@@ -130,6 +133,7 @@ export function DocumentOcrUsagePanel() {
         return new Date(iso).toLocaleString(dateLocale, {
           dateStyle: "medium",
           timeStyle: "short",
+          timeZone: OCR_USAGE_DISPLAY_TZ,
         });
       } catch {
         return iso;
