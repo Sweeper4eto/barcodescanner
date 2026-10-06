@@ -33,6 +33,7 @@ export function AccountPeopleSection({ clientId, stores, onChanged }: Props) {
   const { t } = useT();
   const [users, setUsers] = useState<UserRow[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [username, setUsername] = useState("");
   const [storeIds, setStoreIds] = useState<string[]>([]);
   const [clientRole, setClientRole] = useState<"OWNER" | "MEMBER">("MEMBER");
   const [active, setActive] = useState(true);
@@ -86,6 +87,7 @@ export function AccountPeopleSection({ clientId, stores, onChanged }: Props) {
 
   function selectUser(user: UserRow) {
     setSelectedId(user.id);
+    setUsername(user.username);
     setStoreIds(user.stores.map((store) => store.id));
     setClientRole(user.clientRole === "OWNER" ? "OWNER" : "MEMBER");
     setActive(user.active);
@@ -102,6 +104,7 @@ export function AccountPeopleSection({ clientId, stores, onChanged }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userId: selectedId,
+          username: username.trim(),
           clientId,
           storeIds,
           active,
@@ -192,9 +195,19 @@ export function AccountPeopleSection({ clientId, stores, onChanged }: Props) {
 
       {selected ? (
         <div className="space-y-3 rounded-xl border border-card-border p-3">
-          <p className="text-sm font-semibold text-foreground">
-            {selected.username}
-          </p>
+          <AdminField label={t("auth.username")}>
+            <input
+              className={adminInputClass}
+              value={username}
+              spellCheck={false}
+              autoComplete="username"
+              placeholder={t("team.usernamePlaceholder")}
+              onChange={(event) => setUsername(event.target.value)}
+            />
+            <span className="mt-1 block text-xs text-muted">
+              {t("auth.usernameHint")}
+            </span>
+          </AdminField>
           <AdminField label={t("team.role")}>
             <MenuSelect
               label={t("team.role")}

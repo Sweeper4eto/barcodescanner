@@ -22,6 +22,14 @@ test("zonedLocalToUtc midnight Sofia is previous evening UTC in summer", () => {
   assert.equal(end.toISOString(), "2026-10-05T20:59:59.999Z");
 });
 
+test("zonedLocalToUtc uses winter offset (EET, UTC+2)", () => {
+  // 15 Jan 2026 is standard time in Sofia.
+  const start = zonedLocalToUtc("2026-01-15", 0, 0, 0, 0, TZ);
+  assert.equal(start.toISOString(), "2026-01-14T22:00:00.000Z");
+  const nightScan = new Date("2026-01-14T23:30:00.000Z"); // 01:30 Sofia on 15 Jan
+  assert.equal(documentOcrUsageDayKey(nightScan, TZ), "2026-01-15");
+});
+
 test("night scan falls inside Monday Sofia day bounds", () => {
   const from = zonedLocalToUtc("2026-10-05", 0, 0, 0, 0, TZ);
   const to = zonedLocalToUtc("2026-10-05", 23, 59, 59, 999, TZ);

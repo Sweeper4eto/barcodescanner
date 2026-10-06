@@ -20,6 +20,13 @@ export function migrateTestDb(): void {
 }
 
 export async function resetTestDb(db: PrismaClient): Promise<void> {
+  // Schedule / audit / OCR first so FK order never blocks store/user wipes.
+  await db.scheduleShift.deleteMany();
+  await db.scheduleDayExclusion.deleteMany();
+  await db.storeScheduleDay.deleteMany();
+  await db.storeScheduleWeek.deleteMany();
+  await db.documentOcrScan.deleteMany();
+  await db.auditLog.deleteMany();
   await db.payment.deleteMany();
   await db.buyListEntry.deleteMany();
   await db.inventoryEntry.deleteMany();

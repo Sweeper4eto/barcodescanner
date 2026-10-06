@@ -516,5 +516,13 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Импорт на документ: когато има хоризонтални линии между продуктите, те държат к-во и срок на правилния ред.",
     href: "/app/add-document",
   },
+  {
+    key: "2026-10-schedule-no-desired-hours",
+    titleEn:
+      "Schedule: desired hours are removed — staff can view the week; owners still set and finalize shifts.",
+    titleBg:
+      "График: желаните часове са премахнати — служителите само преглеждат седмицата; собствениците задават и финализират смените.",
+    href: "/app/schedule",
+  },
 ];
 

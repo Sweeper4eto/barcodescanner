@@ -5,6 +5,11 @@ import { logAuditEvent } from "@/lib/audit-log";
 import { requireAdmin, isValidEmail, normalizeEmail } from "@/lib/auth";
 import { isOnlyClientOwner } from "@/lib/client-owner";
 import { db } from "@/lib/db";
+import {
+  parseUsernameChange,
+  syncDenormalizedUsername,
+  usernameIsTaken,
+} from "@/lib/rename-username";
 import { apiT } from "@/i18n";
 
 async function requireAdminResponse(request: Request) {
@@ -94,6 +99,7 @@ const assignSchema = z.object({
   active: z.boolean().optional(),
   clientRole: z.enum(["OWNER", "MEMBER"]).nullable().optional(),
   email: z.string().nullable().optional(),
+  username: z.string().optional(),
 });
 
 export async function PATCH(request: Request) {
@@ -145,6 +151,27 @@ export async function PATCH(request: Request) {
       { status: 404 },
     );
   }
+
+  const usernameChange = parseUsernameChange(
+    parsed.data.username,
+    user.username,
+  );
+  if (!usernameChange.ok) {
+    return NextResponse.json(
+      { error: apiT(request, usernameChange.errorKey) },
+      { status: 400 },
+    );
+  }
+  if (
+    usernameChange.username &&
+    (await usernameIsTaken(db, usernameChange.username, user.id))
+  ) {
+    return NextResponse.json(
+      { error: apiT(request, "auth.usernameTaken") },
+      { status: 400 },
+    );
+  }
+  const nextUsername = usernameChange.username;
 
   if (parsed.data.clientId) {
     const client = await db.client.findUnique({
@@ -211,8 +238,13 @@ export async function PATCH(request: Request) {
             ? { clientRole: parsed.data.clientRole }
             : {}),
           ...(nextEmail !== undefined ? { email: nextEmail } : {}),
+          ...(nextUsername ? { username: nextUsername } : {}),
         },
       });
+
+      if (nextUsername) {
+        await syncDenormalizedUsername(tx, parsed.data.userId, nextUsername);
+      }
 
       if (parsed.data.storeIds !== undefined) {
         await tx.userStore.deleteMany({ where: { userId: parsed.data.userId } });

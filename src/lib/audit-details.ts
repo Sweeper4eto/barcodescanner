@@ -160,6 +160,7 @@ export function auditUserUpdated(before: UserAssignmentLike, after: UserAssignme
   const afterStores = after.storeNames.length ? after.storeNames.join(", ") : "—";
 
   return auditSubjectWithChanges(`user "${after.username}"`, [
+    auditFieldChange("username", before.username, after.username),
     auditFieldChange("client", before.clientName, after.clientName),
     beforeStores !== afterStores ? `locations ${beforeStores} → ${afterStores}` : null,
     auditFieldChange("owner", before.clientRole === "OWNER", after.clientRole === "OWNER"),

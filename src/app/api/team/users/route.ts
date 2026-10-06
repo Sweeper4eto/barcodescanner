@@ -3,6 +3,12 @@ import { z } from "zod";
 import { isOnlyClientOwner, requireClientOwner } from "@/lib/client-owner";
 import { db } from "@/lib/db";
 import { hashPassword } from "@/lib/password";
+import {
+  parseUsernameChange,
+  syncDenormalizedUsername,
+  usernameIsTaken,
+} from "@/lib/rename-username";
+import { normalizeUsername, validateUsername } from "@/lib/register-validation";
 import { apiT } from "@/i18n";
 
 async function ownerOrForbidden(request: Request) {
@@ -91,10 +97,11 @@ export async function POST(request: Request) {
     );
   }
 
-  const username = parsed.data.username.trim().toLowerCase();
-  if (username.length < 3) {
+  const username = normalizeUsername(parsed.data.username);
+  const usernameError = validateUsername(username);
+  if (usernameError) {
     return NextResponse.json(
-      { error: apiT(request, "auth.usernameTooShort") },
+      { error: apiT(request, usernameError) },
       { status: 400 },
     );
   }
@@ -235,22 +242,26 @@ export async function PATCH(request: Request) {
 
   let nextUsername: string | undefined;
   if (parsed.data.username !== undefined) {
-    nextUsername = parsed.data.username.trim().toLowerCase();
-    if (nextUsername.length < 3) {
+    const usernameChange = parseUsernameChange(
+      parsed.data.username,
+      target.username,
+    );
+    if (!usernameChange.ok) {
       return NextResponse.json(
-        { error: apiT(request, "auth.usernameTooShort") },
+        { error: apiT(request, usernameChange.errorKey) },
         { status: 400 },
       );
     }
-    if (nextUsername !== target.username) {
-      const taken = await db.user.findUnique({ where: { username: nextUsername } });
-      if (taken) {
-        return NextResponse.json(
-          { error: apiT(request, "auth.usernameTaken") },
-          { status: 400 },
-        );
-      }
+    if (
+      usernameChange.username &&
+      (await usernameIsTaken(db, usernameChange.username, target.id))
+    ) {
+      return NextResponse.json(
+        { error: apiT(request, "auth.usernameTaken") },
+        { status: 400 },
+      );
     }
+    if (usernameChange.username) nextUsername = usernameChange.username;
   }
 
   let nextPasswordHash: string | undefined;
@@ -312,9 +323,14 @@ export async function PATCH(request: Request) {
   if (parsed.data.clientRole !== undefined) updateData.clientRole = parsed.data.clientRole;
 
   if (Object.keys(updateData).length > 0) {
-    await db.user.update({
-      where: { id: target.id },
-      data: updateData,
+    await db.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: target.id },
+        data: updateData,
+      });
+      if (nextUsername) {
+        await syncDenormalizedUsername(tx, target.id, nextUsername);
+      }
     });
   }
 

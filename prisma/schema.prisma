@@ -39,7 +39,6 @@ model User {
   priceReducedEntries InventoryEntry[] @relation("InventoryPriceReducedBy")
   addedInventoryEntries InventoryEntry[] @relation("InventoryAddedBy")
   whatsNewSeen        WhatsNewSeen[]
-  schedulePreferences SchedulePreference[]
   scheduleShifts      ScheduleShift[]
   scheduleDayExclusions ScheduleDayExclusion[]
   finalizedScheduleWeeks StoreScheduleWeek[] @relation("ScheduleFinalizedBy")
@@ -164,7 +163,6 @@ model StoreScheduleWeek {
   finalizedByUserId String?
   finalizedByUser   User?              @relation("ScheduleFinalizedBy", fields: [finalizedByUserId], references: [id], onDelete: SetNull)
   days              StoreScheduleDay[]
-  preferences       SchedulePreference[]
   shifts            ScheduleShift[]
   dayExclusions     ScheduleDayExclusion[]
   createdAt         DateTime           @default(now())
@@ -189,22 +187,6 @@ model StoreScheduleDay {
 
   @@unique([weekId, dayIndex])
   @@index([weekId])
-}
-
-model SchedulePreference {
-  id        String            @id @default(cuid())
-  weekId    String
-  week      StoreScheduleWeek @relation(fields: [weekId], references: [id], onDelete: Cascade)
-  userId    String
-  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  /** 0 = Monday … 6 = Sunday */
-  dayIndex  Int
-  startMin  Int
-  endMin    Int
-  updatedAt DateTime          @updatedAt
-
-  @@unique([weekId, userId, dayIndex])
-  @@index([userId])
 }
 
 model ScheduleShift {

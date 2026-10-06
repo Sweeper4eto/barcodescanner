@@ -12,21 +12,11 @@ import {
   mondayOfWeek,
   parseScheduleAccess,
   validateDayShifts,
-  validateWindow,
-  type PreferenceInput,
   type ScheduleAccess,
   type ScheduleMode,
   type ShiftDraft,
 } from "@/lib/schedule";
 import { hoursThisMonthByUserIds } from "@/lib/schedule-month-hours";
-
-const preferenceBody = z.object({
-  storeId: z.string().min(1),
-  weekStart: z.string().min(1),
-  dayIndex: z.number().int().min(0).max(6),
-  startMin: z.number().int(),
-  endMin: z.number().int(),
-});
 
 const ownerBody = z.object({
   storeId: z.string().min(1),
@@ -196,13 +186,6 @@ function serializeWeek(
     id: string;
     storeId: string;
     weekStart: string;
-    preferences: {
-      id: string;
-      userId: string;
-      dayIndex: number;
-      startMin: number;
-      endMin: number;
-    }[];
     shifts: {
       id: string;
       userId: string;
@@ -248,7 +231,6 @@ function serializeWeek(
     },
     days,
     staff,
-    preferences: week.preferences,
     shifts: week.shifts,
     me: { userId: meId, isOwner },
   };
@@ -258,7 +240,6 @@ async function loadFullWeek(weekId: string) {
   return db.storeScheduleWeek.findUniqueOrThrow({
     where: { id: weekId },
     include: {
-      preferences: true,
       shifts: true,
       days: true,
       dayExclusions: { select: { userId: true, dayIndex: true } },
@@ -284,9 +265,6 @@ async function runAutoFillForDay(args: {
   staffUserIds: string[];
 }) {
   const { clientId, weekId, dayIndex, staffUserIds } = args;
-  const preferences = await db.schedulePreference.findMany({
-    where: { weekId, dayIndex },
-  });
   const hoursThisMonthMin = await hoursThisMonthByUserIds(
     clientId,
     staffUserIds,
@@ -297,7 +275,6 @@ async function runAutoFillForDay(args: {
     autoFillDay({
       dayIndex,
       staffUserIds,
-      preferences: preferences as PreferenceInput[],
       hoursThisMonthMin,
     }),
   );
@@ -351,118 +328,6 @@ export async function GET(request: Request) {
   const staff = await loadStaff(storeId, isOwner ? "client" : "store");
 
   return NextResponse.json(serializeWeek(full, staff, isOwner, session.userId));
-}
-
-/** Employee (or owner) saves desired hours for one day. */
-export async function PUT(request: Request) {
-  let session;
-  try {
-    session = await requireSession();
-  } catch {
-    return NextResponse.json(
-      { error: apiT(request, "errors.unauthorized") },
-      { status: 401 },
-    );
-  }
-
-  const parsed = preferenceBody.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: apiT(request, "errors.invalidData") },
-      { status: 400 },
-    );
-  }
-
-  const { storeId, weekStart, dayIndex } = parsed.data;
-  const startMin = clampScheduleMinutes(parsed.data.startMin);
-  const endMin = clampScheduleMinutes(parsed.data.endMin);
-
-  if (!isValidWeekStart(weekStart) || !validateWindow(startMin, endMin)) {
-    return NextResponse.json(
-      { error: apiT(request, "errors.invalidData") },
-      { status: 400 },
-    );
-  }
-
-  const store = await userCanAccessStore(session.userId, storeId);
-  if (!store) {
-    return NextResponse.json(
-      { error: apiT(request, "errors.forbidden") },
-      { status: 403 },
-    );
-  }
-
-  const meRole = await db.user.findUnique({
-    where: { id: session.userId },
-    select: { clientRole: true },
-  });
-  const isOwnerUser = meRole?.clientRole === "OWNER";
-  const accessDenied = scheduleAccessDenied(
-    request,
-    await resolveScheduleGate(storeId),
-    isOwnerUser,
-  );
-  if (accessDenied) return accessDenied;
-
-  const week = await ensureWeek(storeId, weekStart);
-  const day = await getDay(week.id, dayIndex);
-
-  if (day.status === "FINALIZED") {
-    const me = await db.user.findUnique({
-      where: { id: session.userId },
-      select: { clientRole: true },
-    });
-    if (me?.clientRole !== "OWNER") {
-      return NextResponse.json(
-        { error: apiT(request, "schedule.locked") },
-        { status: 409 },
-      );
-    }
-  }
-
-  await db.schedulePreference.upsert({
-    where: {
-      weekId_userId_dayIndex: {
-        weekId: week.id,
-        userId: session.userId,
-        dayIndex,
-      },
-    },
-    create: {
-      weekId: week.id,
-      userId: session.userId,
-      dayIndex,
-      startMin,
-      endMin,
-    },
-    update: { startMin, endMin },
-  });
-
-  const me = await db.user.findUnique({
-    where: { id: session.userId },
-    select: { clientRole: true },
-  });
-  const isOwner = me?.clientRole === "OWNER";
-  const staffScope = isOwner ? "client" : "store";
-
-  // Auto mode: regenerate only this day.
-  if (day.mode === "auto") {
-    const staffForAuto = await loadStaff(storeId, staffScope);
-    const excluded = await excludedUserIdsForDay(week.id, dayIndex);
-    await runAutoFillForDay({
-      clientId: store.clientId,
-      weekId: week.id,
-      dayIndex,
-      staffUserIds: participantIdsForDay(staffForAuto, excluded),
-    });
-  }
-
-  const full = await loadFullWeek(week.id);
-  const staff = await loadStaff(storeId, staffScope);
-
-  return NextResponse.json(
-    serializeWeek(full, staff, isOwner, session.userId),
-  );
 }
 
 /** Owner: per-day mode, auto-run, manual shifts, finalize / reopen. */
@@ -546,7 +411,7 @@ export async function PATCH(request: Request) {
       });
     }
   } else if (action === "runAuto") {
-    // Fill from desires, then stay manual so the owner can tweak shifts.
+    // Equal split across included staff, then stay manual so the owner can tweak.
     const staffForAuto = await loadStaff(storeId, "client");
     const excluded = await excludedUserIdsForDay(week.id, dayIndex);
     await runAutoFillForDay({

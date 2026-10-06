@@ -268,7 +268,13 @@ export async function requireSession(options?: {
 
   const user = await db.user.findUnique({
     where: { id: session.userId },
-    select: { active: true, mustChangePassword: true, role: true, clientId: true },
+    select: {
+      active: true,
+      mustChangePassword: true,
+      role: true,
+      clientId: true,
+      username: true,
+    },
   });
   if (!user?.active) {
     throw new Error("UNAUTHORIZED");
@@ -288,6 +294,8 @@ export async function requireSession(options?: {
 
   return {
     ...session,
+    // Prefer live DB username so renames apply without forcing re-login.
+    username: user.username,
     mustChangePassword: user.mustChangePassword,
   };
 }

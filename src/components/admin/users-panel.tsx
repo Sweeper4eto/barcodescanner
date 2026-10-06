@@ -28,6 +28,7 @@ type UserRow = {
 type Store = { id: string; name: string };
 
 type AssignmentState = {
+  username: string;
   clientId: string;
   storeIds: string[];
   active: boolean;
@@ -42,6 +43,7 @@ type Props = {
 
 function assignmentFromUser(user: UserRow): AssignmentState {
   return {
+    username: user.username,
     clientId: user.clientId ?? "",
     storeIds: user.stores.map((store) => store.id).sort(),
     active: user.active,
@@ -53,6 +55,7 @@ function assignmentFromUser(user: UserRow): AssignmentState {
 function assignmentIsDirty(current: AssignmentState, saved: AssignmentState | null) {
   if (!saved) return false;
   return (
+    current.username !== saved.username ||
     current.clientId !== saved.clientId ||
     current.active !== saved.active ||
     current.clientRole !== saved.clientRole ||
@@ -70,6 +73,7 @@ export function UsersPanel({ clients, onRefresh }: Props) {
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [username, setUsername] = useState("");
   const [clientId, setClientId] = useState("");
   const [storeIds, setStoreIds] = useState<string[]>([]);
   const [active, setActive] = useState(true);
@@ -117,6 +121,7 @@ export function UsersPanel({ clients, onRefresh }: Props) {
   function selectUser(user: UserRow) {
     const snapshot = assignmentFromUser(user);
     setSelectedUserId(user.id);
+    setUsername(snapshot.username);
     setClientId(snapshot.clientId);
     setStoreIds(snapshot.storeIds);
     setActive(snapshot.active);
@@ -146,6 +151,7 @@ export function UsersPanel({ clients, onRefresh }: Props) {
   }, [search]);
 
   const currentAssignment: AssignmentState = {
+    username,
     clientId,
     storeIds: [...storeIds].sort(),
     active,
@@ -170,6 +176,7 @@ export function UsersPanel({ clients, onRefresh }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userId: selectedUserId,
+          username: username.trim(),
           clientId: clientId || null,
           storeIds,
           active,
@@ -186,6 +193,7 @@ export function UsersPanel({ clients, onRefresh }: Props) {
       const updated = list.find((user) => user.id === selectedUserId);
       if (updated) {
         const snapshot = assignmentFromUser(updated);
+        setUsername(snapshot.username);
         setClientId(snapshot.clientId);
         setStoreIds(snapshot.storeIds);
         setActive(snapshot.active);
@@ -347,9 +355,21 @@ export function UsersPanel({ clients, onRefresh }: Props) {
           <p className="mt-3 text-sm text-muted">{t("admin.selectUser")}</p>
         ) : (
           <div className="mt-3 space-y-3">
-            <p className="text-sm text-muted">
-              {t("admin.userLabel")}: {selectedUser.username}
-            </p>
+            <label className="block text-sm">
+              {t("auth.username")}
+              <input
+                type="text"
+                autoComplete="username"
+                spellCheck={false}
+                className="mt-1 w-full rounded-xl border border-input-border bg-input px-3 py-2 text-foreground"
+                value={username}
+                placeholder={t("team.usernamePlaceholder")}
+                onChange={(event) => setUsername(event.target.value)}
+              />
+              <span className="mt-1 block text-xs text-muted">
+                {t("auth.usernameHint")}
+              </span>
+            </label>
             <label className="block text-sm">
               {t("admin.emailLabel")}
               <input

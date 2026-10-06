@@ -41,13 +41,6 @@ type Staff = {
   displayName?: string | null;
   clientRole: string | null;
 };
-type Pref = {
-  id: string;
-  userId: string;
-  dayIndex: number;
-  startMin: number;
-  endMin: number;
-};
 type Shift = {
   id: string;
   userId: string;
@@ -70,7 +63,6 @@ type WeekPayload = {
   };
   days: DayState[];
   staff: Staff[];
-  preferences: Pref[];
   shifts: Shift[];
   me: { userId: string; isOwner: boolean };
 };
@@ -221,149 +213,16 @@ function formatDurationLabel(
   return formatDurationMinutes(totalMin, hoursUnit, minutesUnit);
 }
 
-/** Dual-handle range for desired hours (my preference). */
-function DualRangeSlider({
-  startMin,
-  endMin,
-  disabled,
-  onChange,
-  hoursUnit,
-  minutesUnit,
-}: {
-  startMin: number;
-  endMin: number;
-  disabled?: boolean;
-  onChange: (start: number, end: number) => void;
-  hoursUnit: string;
-  minutesUnit: string;
-}) {
-  const trackRef = useRef<HTMLDivElement>(null);
-  const dragWhich = useRef<"start" | "end" | null>(null);
-  const valuesRef = useRef({ startMin, endMin });
-  const onChangeRef = useRef(onChange);
-
-  useEffect(() => {
-    valuesRef.current = { startMin, endMin };
-  }, [startMin, endMin]);
-
-  useEffect(() => {
-    onChangeRef.current = onChange;
-  }, [onChange]);
-
-  function applyDrag(which: "start" | "end", clientX: number) {
-    const minutes = minutesFromClientX(trackRef.current, clientX);
-    const { startMin: start, endMin: end } = valuesRef.current;
-    if (which === "start") {
-      onChangeRef.current(Math.min(minutes, end - SCHEDULE_STEP_MIN), end);
-    } else {
-      onChangeRef.current(start, Math.max(minutes, start + SCHEDULE_STEP_MIN));
-    }
-  }
-
-  function handlePointerMove(event: PointerEvent<HTMLButtonElement>) {
-    const which = dragWhich.current;
-    if (!which || disabled) return;
-    applyDrag(which, event.clientX);
-  }
-
-  function handlePointerUp(event: PointerEvent<HTMLButtonElement>) {
-    dragWhich.current = null;
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    }
-  }
-
-  function handleStartDown(event: PointerEvent<HTMLButtonElement>) {
-    if (disabled) return;
-    event.preventDefault();
-    dragWhich.current = "start";
-    event.currentTarget.setPointerCapture(event.pointerId);
-    applyDrag("start", event.clientX);
-  }
-
-  function handleEndDown(event: PointerEvent<HTMLButtonElement>) {
-    if (disabled) return;
-    event.preventDefault();
-    dragWhich.current = "end";
-    event.currentTarget.setPointerCapture(event.pointerId);
-    applyDrag("end", event.clientX);
-  }
-
-  const startPct = leftPct(startMin);
-  const endPct = leftPct(endMin);
-  const duration = formatDurationLabel(
-    endMin - startMin,
-    hoursUnit,
-    minutesUnit,
-  );
-
-  return (
-    <div className="space-y-1.5">
-      <p className="text-center text-sm font-semibold tabular-nums text-foreground">
-        {formatMinutesAsClock(startMin)} – {formatMinutesAsClock(endMin)}
-        <span className="ml-1.5 text-xs font-semibold text-muted">
-          · {duration}
-        </span>
-      </p>
-      <div className="px-0.5">
-        <div ref={trackRef} className="relative h-6 touch-none select-none">
-          <div
-            aria-hidden
-            className="absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 rounded-full bg-card-border"
-          />
-          <div
-            aria-hidden
-            className="absolute top-1/2 h-1 -translate-y-1/2 rounded-full bg-primary/70"
-            style={{
-              left: `${startPct}%`,
-              width: `${Math.max(0, endPct - startPct)}%`,
-            }}
-          />
-          <button
-            type="button"
-            disabled={disabled}
-            aria-label="Start"
-            className="absolute top-1/2 z-[2] size-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-primary bg-background disabled:opacity-50"
-            style={{ left: `${startPct}%` }}
-            onPointerDown={handleStartDown}
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerUp}
-            onPointerCancel={handlePointerUp}
-          />
-          <button
-            type="button"
-            disabled={disabled}
-            aria-label="End"
-            className="absolute top-1/2 z-[2] size-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-primary bg-background disabled:opacity-50"
-            style={{ left: `${endPct}%` }}
-            onPointerDown={handleEndDown}
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerUp}
-            onPointerCancel={handlePointerUp}
-          />
-        </div>
-        <div className="mt-0.5 flex justify-between text-[0.65rem] tabular-nums text-muted">
-          <span>{formatMinutesAsClock(SCHEDULE_OPEN_MIN)}</span>
-          <span>{formatMinutesAsClock(SCHEDULE_CLOSE_MIN)}</span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 /**
- * Per-member day bar: yellow = employee desire (under), green = assigned shift
- * (on top, owner can drag when editable).
+ * Per-member day bar: green = assigned shift (owner can drag when editable).
  */
 function MemberShiftBar({
-  desire,
   assigned,
   editable,
   disabled,
   onCommit,
   onLiveChange,
 }: {
-  desire: { startMin: number; endMin: number } | null;
   assigned: { startMin: number; endMin: number } | null;
   editable: boolean;
   disabled?: boolean;
@@ -374,17 +233,12 @@ function MemberShiftBar({
   const dragWhich = useRef<"start" | "end" | null>(null);
   const [draft, setDraft] = useState(assigned);
   const draftRef = useRef(draft);
-  const desireRef = useRef(desire);
   const liveCb = useRef(onLiveChange);
   const onCommitRef = useRef(onCommit);
 
   useEffect(() => {
     draftRef.current = draft;
   }, [draft]);
-
-  useEffect(() => {
-    desireRef.current = desire;
-  }, [desire]);
 
   useEffect(() => {
     liveCb.current = onLiveChange;
@@ -407,8 +261,7 @@ function MemberShiftBar({
   function applyDrag(which: "start" | "end", clientX: number) {
     const minutes = minutesFromClientX(trackRef.current, clientX);
     const current =
-      draftRef.current ??
-      desireRef.current ?? { startMin: 10 * 60, endMin: 16 * 60 };
+      draftRef.current ?? { startMin: 10 * 60, endMin: 16 * 60 };
     const next =
       which === "start"
         ? {
@@ -458,22 +311,12 @@ function MemberShiftBar({
   }
 
   const show =
-    draft ?? assigned ?? (editable ? desire ?? { startMin: 10 * 60, endMin: 16 * 60 } : null);
+    draft ?? assigned ?? (editable ? { startMin: 10 * 60, endMin: 16 * 60 } : null);
   /** Green block is only a suggestion until a shift is saved / draft dragged. */
   const provisional = Boolean(editable && !assigned && !draft && show);
 
   return (
     <div ref={trackRef} className="relative h-6 touch-none select-none rounded-md border border-card-border/70 bg-transparent">
-      {desire ? (
-        <div
-          aria-hidden
-          className="absolute top-1 bottom-1 rounded-sm bg-[var(--urgency-warning-border)]/55"
-          style={{
-            left: `${leftPct(desire.startMin)}%`,
-            width: `${widthPct(desire.startMin, desire.endMin)}%`,
-          }}
-        />
-      ) : null}
       {show ? (
         <div
           aria-hidden
@@ -534,14 +377,12 @@ function formatShiftSummary(
 function MemberHoursLabel({
   personId,
   assigned,
-  desire,
   liveByUser,
   hoursUnit,
   minutesUnit,
 }: {
   personId: string;
   assigned: { startMin: number; endMin: number } | null;
-  desire: { startMin: number; endMin: number } | null;
   liveByUser: Record<string, { startMin: number; endMin: number }>;
   hoursUnit: string;
   minutesUnit: string;
@@ -552,14 +393,6 @@ function MemberHoursLabel({
     return (
       <span className="shrink-0 text-right text-xs tabular-nums text-muted">
         {formatShiftSummary(range, hoursUnit, minutesUnit)}
-      </span>
-    );
-  }
-  if (desire) {
-    return (
-      <span className="shrink-0 text-right text-xs tabular-nums text-muted">
-        {formatMinutesAsClock(desire.startMin)}–
-        {formatMinutesAsClock(desire.endMin)}
       </span>
     );
   }
@@ -581,13 +414,6 @@ function SchedulePageInner() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [desireStart, setDesireStart] = useState(10 * 60);
-  const [desireEnd, setDesireEnd] = useState(16 * 60);
-  const [savedDesire, setSavedDesire] = useState<{
-    startMin: number;
-    endMin: number;
-  } | null>(null);
-  const [desireConfirm, setDesireConfirm] = useState(false);
   const [saveFormatOpen, setSaveFormatOpen] = useState(false);
   const [savingExport, setSavingExport] = useState(false);
   const [flashMessage, setFlashMessage] = useState<string | null>(null);
@@ -606,7 +432,6 @@ function SchedulePageInner() {
 
   useEffect(() => {
     setLiveHoursByUser({});
-    setDesireConfirm(false);
   }, [weekStart, dayIndex]);
 
   const load = useCallback(async () => {
@@ -625,44 +450,18 @@ function SchedulePageInner() {
       }
       setData(json);
       setLiveHoursByUser({});
-      const mine = json.preferences.find(
-        (p) => p.userId === json.me.userId && p.dayIndex === dayIndex,
-      );
-      if (mine) {
-        setDesireStart(mine.startMin);
-        setDesireEnd(mine.endMin);
-        setSavedDesire({ startMin: mine.startMin, endMin: mine.endMin });
-      } else {
-        setSavedDesire(null);
-      }
     } catch {
       setError(t("schedule.loadFailed"));
       setData(null);
     } finally {
       setLoading(false);
     }
-  }, [storeId, weekStart, dayIndex, t]);
+  }, [storeId, weekStart, t]);
 
   useEffect(() => {
     if (!storeReady || !storeId) return;
     void load();
   }, [storeReady, storeId, load]);
-
-  useEffect(() => {
-    if (!data) return;
-    const mine = data.preferences.find(
-      (p) => p.userId === data.me.userId && p.dayIndex === dayIndex,
-    );
-    if (mine) {
-      setDesireStart(mine.startMin);
-      setDesireEnd(mine.endMin);
-      setSavedDesire({ startMin: mine.startMin, endMin: mine.endMin });
-    } else {
-      setDesireStart(10 * 60);
-      setDesireEnd(16 * 60);
-      setSavedDesire(null);
-    }
-  }, [data, dayIndex]);
 
   const dayShifts = useMemo(
     () =>
@@ -696,13 +495,9 @@ function SchedulePageInner() {
       : data.staff.filter((p) => !excludedToday.has(p.id));
     return people.map((person) => {
       const shift = dayShifts.find((s) => s.userId === person.id) ?? null;
-      const pref =
-        data.preferences.find(
-          (p) => p.userId === person.id && p.dayIndex === dayIndex,
-        ) ?? null;
-      return { person, shift, pref };
+      return { person, shift };
     });
-  }, [data, dayShifts, dayIndex, excludedToday]);
+  }, [data, dayShifts, excludedToday]);
 
   const isFinalized = dayState.status === "FINALIZED";
   const isOwner = Boolean(data?.me.isOwner);
@@ -712,24 +507,21 @@ function SchedulePageInner() {
 
   /**
    * Coverage follows who’s included today and the same ranges as the green
-   * bars (saved / live / editable desire or 10–16 placeholder).
+   * bars (saved / live / editable 10–16 placeholder).
    */
   const dayCoverageRanges = useMemo(() => {
     const ranges: { startMin: number; endMin: number }[] = [];
-    for (const { person, shift, pref } of memberRows) {
+    for (const { person, shift } of memberRows) {
       if (excludedToday.has(person.id)) continue;
       const live = liveHoursByUser[person.id];
       const assigned = shift
         ? { startMin: shift.startMin, endMin: shift.endMin }
         : null;
-      const desire = pref
-        ? { startMin: pref.startMin, endMin: pref.endMin }
-        : null;
       const effective =
         live ??
         assigned ??
         (ownerCanEditShifts
-          ? (desire ?? { startMin: 10 * 60, endMin: 16 * 60 })
+          ? { startMin: 10 * 60, endMin: 16 * 60 }
           : null);
       if (effective && effective.endMin > effective.startMin) {
         ranges.push(effective);
@@ -776,39 +568,6 @@ function SchedulePageInner() {
       }
       setData(json);
       setLiveHoursByUser({});
-    } catch {
-      setError(t("schedule.saveFailed"));
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function saveDesire() {
-    if (!storeId || !data || readOnly) return;
-    setSaving(true);
-    setError(null);
-    setDesireConfirm(false);
-    try {
-      const res = await fetch("/api/schedule", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          storeId,
-          weekStart,
-          dayIndex,
-          startMin: desireStart,
-          endMin: desireEnd,
-        }),
-      });
-      const json = (await res.json()) as WeekPayload & { error?: string };
-      if (!res.ok) {
-        setError(json.error ?? t("schedule.saveFailed"));
-        return;
-      }
-      setData(json);
-      setLiveHoursByUser({});
-      setSavedDesire({ startMin: desireStart, endMin: desireEnd });
-      setDesireConfirm(true);
     } catch {
       setError(t("schedule.saveFailed"));
     } finally {
@@ -962,16 +721,6 @@ function SchedulePageInner() {
       setSavingExport(false);
     }
   }
-
-  const desireDirty =
-    !savedDesire ||
-    savedDesire.startMin !== desireStart ||
-    savedDesire.endMin !== desireEnd;
-  const desireButtonLabel = !desireDirty
-    ? t("schedule.desireSaved")
-    : savedDesire
-      ? t("schedule.saveNewDesire")
-      : t("schedule.saveDesire");
 
   if (!storeReady) {
     return <LoadingSpinnerBlock wrapperClassName="flex justify-center py-10" />;
@@ -1185,9 +934,7 @@ function SchedulePageInner() {
               ) : null}
               {isOwner ? (
                 <p className="mb-2 text-[0.65rem] text-muted">
-                  <span className="mr-2 inline-block size-2 rounded-sm bg-[var(--urgency-warning-border)]/80 align-middle" />
-                  {t("schedule.legendDesire")}
-                  <span className="ml-3 mr-2 inline-block size-2 rounded-sm bg-primary/70 align-middle" />
+                  <span className="mr-2 inline-block size-2 rounded-sm bg-primary/70 align-middle" />
                   {t("schedule.legendAssigned")}
                 </p>
               ) : null}
@@ -1197,15 +944,12 @@ function SchedulePageInner() {
                 </p>
               ) : (
                 <ul className="space-y-3">
-                  {memberRows.map(({ person, shift, pref }) => {
+                  {memberRows.map(({ person, shift }) => {
                     const name =
                       person.displayName?.trim() || person.username;
                     const inSchedule = !excludedToday.has(person.id);
                     const assigned = shift
                       ? { startMin: shift.startMin, endMin: shift.endMin }
-                      : null;
-                    const desire = pref
-                      ? { startMin: pref.startMin, endMin: pref.endMin }
                       : null;
                     return (
                       <li
@@ -1232,17 +976,7 @@ function SchedulePageInner() {
                               />
                             </label>
                           ) : (
-                            <span
-                              className="flex size-5 items-center justify-center"
-                              aria-hidden={!desire}
-                              title={
-                                desire ? t("schedule.legendDesire") : undefined
-                              }
-                            >
-                              {desire ? (
-                                <span className="size-2.5 rounded-sm bg-[var(--urgency-warning-border)]" />
-                              ) : null}
-                            </span>
+                            <span className="size-5" aria-hidden />
                           )}
                           <span className="flex size-7 items-center justify-center rounded-full border border-primary/45 text-[10px] font-bold text-primary">
                             {initials(name)}
@@ -1253,7 +987,6 @@ function SchedulePageInner() {
                           <MemberHoursLabel
                             personId={person.id}
                             assigned={assigned}
-                            desire={desire}
                             liveByUser={liveHoursByUser}
                             hoursUnit={t("schedule.hoursShort")}
                             minutesUnit={t("schedule.minutesShort")}
@@ -1261,7 +994,6 @@ function SchedulePageInner() {
                         </div>
                         {inSchedule ? (
                           <MemberShiftBar
-                            desire={desire}
                             assigned={assigned}
                             editable={ownerCanEditShifts}
                             disabled={saving}
@@ -1287,44 +1019,11 @@ function SchedulePageInner() {
               )}
             </div>
 
-            {!readOnly ? (
-              <div className="rounded-2xl border border-card-border p-3">
-                <p className="text-sm font-semibold text-foreground">
-                  {t("schedule.myDesire")}
-                </p>
-                <div className="mt-3">
-                  <DualRangeSlider
-                    startMin={desireStart}
-                    endMin={desireEnd}
-                    disabled={saving}
-                    hoursUnit={t("schedule.hoursShort")}
-                    minutesUnit={t("schedule.minutesShort")}
-                    onChange={(s, e) => {
-                      setDesireStart(s);
-                      setDesireEnd(e);
-                      setDesireConfirm(false);
-                    }}
-                  />
-                </div>
-                {desireConfirm ? (
-                  <p className="mt-2 text-center text-sm text-primary">
-                    {t("schedule.desireSaveConfirm")}
-                  </p>
-                ) : null}
-                <button
-                  type="button"
-                  className={`${appButtonPrimaryFull} mt-3`}
-                  disabled={saving || !desireDirty}
-                  onClick={() => void saveDesire()}
-                >
-                  {desireButtonLabel}
-                </button>
-              </div>
-            ) : (
+            {readOnly ? (
               <p className="text-center text-xs text-muted">
                 {t("schedule.viewOnly")}
               </p>
-            )}
+            ) : null}
 
             {isOwner ? (
               <div className="pt-1">

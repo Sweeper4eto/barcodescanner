@@ -1118,6 +1118,180 @@ test("GET /api/admin/users supports search and pagination", async () => {
   assert.equal(byStore.data.users[0].username, "alpha_user");
 });
 
+test("PATCH /api/admin/users renames username and syncs denormalized copies", async () => {
+  const adminLogin = await loginUser("admin", "admin123");
+  assert.equal(adminLogin.ok, true);
+  if (!adminLogin.ok) return;
+  await setMockSession(adminLogin.token);
+
+  const client = await seedClientWithStore(db);
+  const store = client.stores[0];
+  assert.ok(store);
+
+  const { hashPassword } = await import("../src/lib/password");
+  const created = await db.user.create({
+    data: {
+      username: "rename_me",
+      passwordHash: await hashPassword("password123"),
+      role: "USER",
+      clientId: client.id,
+      clientRole: "MEMBER",
+      storeLinks: { create: [{ storeId: store.id }] },
+    },
+  });
+
+  await db.auditLog.create({
+    data: {
+      userId: created.id,
+      username: "rename_me",
+      event: "login",
+      details: "test",
+    },
+  });
+  await db.documentOcrScan.create({
+    data: {
+      userId: created.id,
+      username: "rename_me",
+      storeId: store.id,
+    },
+  });
+
+  const renamed = await jsonRequest(usersPatch, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      userId: created.id,
+      clientId: client.id,
+      username: "renamed_user",
+    }),
+  });
+  assert.equal(renamed.response.status, 200, JSON.stringify(renamed.data));
+
+  const user = await db.user.findUnique({ where: { id: created.id } });
+  assert.equal(user?.username, "renamed_user");
+  assert.equal(await db.user.findUnique({ where: { username: "rename_me" } }), null);
+
+  const auditRows = await db.auditLog.findMany({ where: { userId: created.id } });
+  assert.ok(auditRows.length >= 1);
+  assert.ok(auditRows.every((row) => row.username === "renamed_user"));
+
+  const ocrRows = await db.documentOcrScan.findMany({ where: { userId: created.id } });
+  assert.equal(ocrRows.length, 1);
+  assert.equal(ocrRows[0]?.username, "renamed_user");
+
+  const taken = await jsonRequest(usersPatch, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      userId: created.id,
+      clientId: client.id,
+      username: "admin",
+    }),
+  });
+  assert.equal(taken.response.status, 400);
+
+  const loginOld = await loginUser("rename_me", "password123");
+  assert.equal(loginOld.ok, false);
+  const loginNew = await loginUser("renamed_user", "password123");
+  assert.equal(loginNew.ok, true);
+});
+
+test("PATCH /api/team/users renames member and syncs denormalized username copies", async () => {
+  const client = await seedClientWithStore(db);
+  const store = client.stores[0]!;
+  const owner = await seedUserWithAccess(db, client.id, store.id, "rename_owner");
+  await db.user.update({
+    where: { id: owner.id },
+    data: { clientRole: "OWNER" },
+  });
+  const member = await seedUserWithAccess(db, client.id, store.id, "old_member");
+  await db.user.update({
+    where: { id: member.id },
+    data: { clientRole: "MEMBER" },
+  });
+
+  await db.auditLog.create({
+    data: {
+      userId: member.id,
+      username: "old_member",
+      event: "login",
+      details: "team rename test",
+    },
+  });
+  await db.documentOcrScan.create({
+    data: {
+      userId: member.id,
+      username: "old_member",
+      storeId: store.id,
+    },
+  });
+
+  const ownerLogin = await loginUser("rename_owner", "password123");
+  assert.equal(ownerLogin.ok, true);
+  if (!ownerLogin.ok) return;
+  await setMockSession(ownerLogin.token);
+
+  const renamed = await jsonRequest(teamPatch, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      userId: member.id,
+      username: "new_member",
+    }),
+  });
+  assert.equal(renamed.response.status, 200, JSON.stringify(renamed.data));
+  assert.equal(renamed.data.user.username, "new_member");
+
+  const updated = await db.user.findUnique({ where: { id: member.id } });
+  assert.equal(updated?.username, "new_member");
+  const audits = await db.auditLog.findMany({ where: { userId: member.id } });
+  assert.ok(audits.every((row) => row.username === "new_member"));
+  const scans = await db.documentOcrScan.findMany({ where: { userId: member.id } });
+  assert.ok(scans.every((row) => row.username === "new_member"));
+
+  const invalid = await jsonRequest(teamPatch, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      userId: member.id,
+      username: "Bad Name!",
+    }),
+  });
+  assert.equal(invalid.response.status, 400);
+});
+
+test("after username rename, /api/auth/me and requireSession use the new name with old JWT", async () => {
+  const client = await seedClientWithStore(db);
+  const store = client.stores[0]!;
+  const user = await seedUserWithAccess(db, client.id, store.id, "stale_jwt");
+  await db.user.update({
+    where: { id: user.id },
+    data: { clientRole: "OWNER" },
+  });
+
+  const login = await loginUser("stale_jwt", "password123");
+  assert.equal(login.ok, true);
+  if (!login.ok) return;
+  await setMockSession(login.token);
+
+  // JWT still says stale_jwt; DB rename happens without re-login.
+  await db.user.update({
+    where: { id: user.id },
+    data: { username: "fresh_jwt" },
+  });
+
+  const me = await jsonRequest(meGet, {
+    url: "http://localhost/api/auth/me",
+  });
+  assert.equal(me.response.status, 200);
+  assert.equal(me.data.user.username, "fresh_jwt");
+
+  const { requireSession } = await import("../src/lib/auth");
+  const session = await requireSession();
+  assert.equal(session.username, "fresh_jwt");
+  assert.equal(session.userId, user.id);
+});
+
 test("PATCH /api/admin/users deactivates user without client assignment", async () => {
   const adminLogin = await loginUser("admin", "admin123");
   assert.equal(adminLogin.ok, true);
