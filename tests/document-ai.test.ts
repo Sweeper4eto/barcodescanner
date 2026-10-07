@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  DEFAULT_DOCUMENT_AI_FETCH_TIMEOUT_MS,
+  documentAiFetchTimeoutMs,
   isGeminiFreeTierQuotaError,
+  isProviderHangTimeoutError,
   parseDocumentExpiry,
   parsePrintedExpiry,
   repairTruncatedItemsJson,
@@ -20,6 +23,44 @@ describe("isGeminiFreeTierQuotaError", () => {
       isGeminiFreeTierQuotaError("OCR_PROVIDER:503:high demand"),
       false,
     );
+  });
+});
+
+describe("isProviderHangTimeoutError", () => {
+  it("detects our AbortSignal timeout and Undici headers timeout", () => {
+    assert.equal(
+      isProviderHangTimeoutError(
+        "OCR_PROVIDER:504:Request timed out after 60000ms",
+      ),
+      true,
+    );
+    assert.equal(
+      isProviderHangTimeoutError(
+        "fetch failed: Headers Timeout Error UND_ERR_HEADERS_TIMEOUT",
+      ),
+      true,
+    );
+    assert.equal(
+      isProviderHangTimeoutError("OCR_PROVIDER:503:high demand"),
+      false,
+    );
+  });
+});
+
+describe("documentAiFetchTimeoutMs", () => {
+  it("defaults to 60s and clamps env overrides", () => {
+    const prev = process.env.DOCUMENT_AI_FETCH_TIMEOUT_MS;
+    try {
+      delete process.env.DOCUMENT_AI_FETCH_TIMEOUT_MS;
+      assert.equal(documentAiFetchTimeoutMs(), DEFAULT_DOCUMENT_AI_FETCH_TIMEOUT_MS);
+      process.env.DOCUMENT_AI_FETCH_TIMEOUT_MS = "1000";
+      assert.equal(documentAiFetchTimeoutMs(), 5_000);
+      process.env.DOCUMENT_AI_FETCH_TIMEOUT_MS = "999999";
+      assert.equal(documentAiFetchTimeoutMs(), 180_000);
+    } finally {
+      if (prev === undefined) delete process.env.DOCUMENT_AI_FETCH_TIMEOUT_MS;
+      else process.env.DOCUMENT_AI_FETCH_TIMEOUT_MS = prev;
+    }
   });
 });
 

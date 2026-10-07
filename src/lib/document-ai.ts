@@ -433,6 +433,19 @@ const PROVIDER_RETRY_DELAYS_MS = [1500, 4000];
 /** High-demand 503: one short retry, then switch model (avoid ~2 min on a busy model). */
 const HIGH_DEMAND_RETRY_DELAYS_MS = [1200];
 
+/**
+ * Cap silent Gemini hangs (Undici default headers timeout is ~300s).
+ * Override with DOCUMENT_AI_FETCH_TIMEOUT_MS (ms, min 5s, max 180s).
+ */
+export const DEFAULT_DOCUMENT_AI_FETCH_TIMEOUT_MS = 60_000;
+
+export function documentAiFetchTimeoutMs(): number {
+  const raw = process.env.DOCUMENT_AI_FETCH_TIMEOUT_MS?.trim();
+  const parsed = raw ? Number(raw) : DEFAULT_DOCUMENT_AI_FETCH_TIMEOUT_MS;
+  if (!Number.isFinite(parsed)) return DEFAULT_DOCUMENT_AI_FETCH_TIMEOUT_MS;
+  return Math.min(180_000, Math.max(5_000, Math.floor(parsed)));
+}
+
 async function sleep(ms: number): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -460,11 +473,24 @@ export function isGeminiFreeTierQuotaError(message: string): boolean {
   );
 }
 
+/** Hung fetch / AbortSignal timeout — do not retry the same model for another full wait. */
+export function isProviderHangTimeoutError(message: string): boolean {
+  const lower = message.toLowerCase();
+  return (
+    /^OCR_PROVIDER:504:/.test(message) ||
+    lower.includes("headers timeout") ||
+    lower.includes("und_err_headers_timeout") ||
+    lower.includes("request timed out after")
+  );
+}
+
 function isRetryableProviderError(message: string): boolean {
   if (isUnavailableModelError(message)) return false;
   if (message.startsWith("OCR_EMPTY:")) return false;
   // Free-tier exhausted: do not burn 1.5s+4s per model (client/proxy timeout).
   if (isGeminiFreeTierQuotaError(message)) return false;
+  // Silent hang already waited DOCUMENT_AI_FETCH_TIMEOUT_MS — next model, not another try.
+  if (isProviderHangTimeoutError(message)) return false;
 
   const statusMatch = /^OCR_PROVIDER:(\d{3}):/.exec(message);
   if (statusMatch) {
@@ -545,22 +571,29 @@ async function extractWithGeminiOnce(
     generationConfig.thinkingConfig = { thinkingLevel: "low" };
   }
 
-  const response = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      contents: [
-        {
-          role: "user",
-          parts: [
-            { text: SYSTEM_PROMPT },
-            { inlineData: { mimeType: mime, data: base64 } },
-          ],
-        },
-      ],
-      generationConfig,
-    }),
-  });
+  const timeoutMs = documentAiFetchTimeoutMs();
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      signal: AbortSignal.timeout(timeoutMs),
+      body: JSON.stringify({
+        contents: [
+          {
+            role: "user",
+            parts: [
+              { text: SYSTEM_PROMPT },
+              { inlineData: { mimeType: mime, data: base64 } },
+            ],
+          },
+        ],
+        generationConfig,
+      }),
+    });
+  } catch (error) {
+    throw mapFetchTimeoutError(error, timeoutMs);
+  }
 
   const data = (await response.json().catch(() => null)) as {
     error?: { message?: string; status?: string };
@@ -651,6 +684,12 @@ async function extractWithGemini(
         );
         continue;
       }
+      if (isProviderHangTimeoutError(message)) {
+        console.warn(
+          `document AI: model "${model}" hung/timed out, trying next immediately`,
+        );
+        continue;
+      }
       if (
         isUnavailableModelError(message) ||
         isInvalidArgumentError(message) ||
@@ -669,6 +708,27 @@ async function extractWithGemini(
   throw lastError ?? new Error("OCR_PROVIDER:No Gemini model available");
 }
 
+function mapFetchTimeoutError(error: unknown, timeoutMs: number): Error {
+  const err = error instanceof Error ? error : new Error(String(error));
+  const cause =
+    err.cause instanceof Error
+      ? err.cause.message
+      : typeof err.cause === "string"
+        ? err.cause
+        : "";
+  const blob = `${err.name} ${err.message} ${cause}`;
+  if (
+    err.name === "TimeoutError" ||
+    err.name === "AbortError" ||
+    /headers timeout|und_err_headers_timeout|aborted/i.test(blob)
+  ) {
+    return new Error(
+      `OCR_PROVIDER:504:Request timed out after ${timeoutMs}ms`,
+    );
+  }
+  return err;
+}
+
 async function extractWithOpenAI(
   apiKey: string,
   model: string,
@@ -678,34 +738,41 @@ async function extractWithOpenAI(
   const baseUrl =
     process.env.DOCUMENT_AI_BASE_URL?.trim().replace(/\/$/, "") ||
     "https://api.openai.com/v1";
-  const response = await fetch(`${baseUrl}/chat/completions`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model,
-      temperature: 0,
-      response_format: { type: "json_object" },
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        {
-          role: "user",
-          content: [
-            {
-              type: "text",
-              text: "Extract all product rows from this document photo.",
-            },
-            {
-              type: "image_url",
-              image_url: { url: `data:${mime};base64,${base64}` },
-            },
-          ],
-        },
-      ],
-    }),
-  });
+  const timeoutMs = documentAiFetchTimeoutMs();
+  let response: Response;
+  try {
+    response = await fetch(`${baseUrl}/chat/completions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      signal: AbortSignal.timeout(timeoutMs),
+      body: JSON.stringify({
+        model,
+        temperature: 0,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: "Extract all product rows from this document photo.",
+              },
+              {
+                type: "image_url",
+                image_url: { url: `data:${mime};base64,${base64}` },
+              },
+            ],
+          },
+        ],
+      }),
+    });
+  } catch (error) {
+    throw mapFetchTimeoutError(error, timeoutMs);
+  }
 
   const data = (await response.json().catch(() => null)) as {
     error?: { message?: string };
