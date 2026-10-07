@@ -32,8 +32,9 @@ test("buildExpiryDigestPayload highlights urgent items in English", () => {
   );
 
   assert.ok(payload);
+  assert.match(payload.title, /^Central:/);
   assert.match(payload.title, /Milk/);
-  assert.match(payload.body, /Central/);
+  assert.match(payload.body, /3/);
   assert.equal(payload.url, "/app/expiry?storeId=store-1");
 });
 
@@ -72,11 +73,38 @@ test("buildExpiryDigestPayload highlights critical items in Bulgarian", () => {
   );
 
   assert.ok(payload);
+  assert.match(payload.title, /^Централен:/);
   assert.match(payload.title, /Мляко/);
-  assert.match(payload.body, /Централен/);
 });
 
-test("buildExpiryDigestPayload links to app home for multiple stores", () => {
+test("buildExpiryDigestPayload links to store expiry for a single-store list", () => {
+  const payload = buildExpiryDigestPayload(
+    [
+      {
+        productName: "Milk",
+        storeName: "Central",
+        storeId: "store-1",
+        quantity: 1,
+        daysUntilExpiry: 3,
+      },
+      {
+        productName: "Bread",
+        storeName: "Central",
+        storeId: "store-1",
+        quantity: 2,
+        daysUntilExpiry: 2,
+      },
+    ],
+    "en",
+    { tier: "urgent", withinDays: 3 },
+  );
+
+  assert.ok(payload);
+  assert.equal(payload.url, "/app/expiry?storeId=store-1");
+  assert.match(payload.title, /Central/);
+});
+
+test("buildExpiryDigestPayload falls back to app home if stores are mixed", () => {
   const payload = buildExpiryDigestPayload(
     [
       {

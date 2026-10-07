@@ -524,5 +524,13 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "График: желаните часове са премахнати — служителите само преглеждат седмицата; собствениците задават и финализират смените.",
     href: "/app/schedule",
   },
+  {
+    key: "2026-10-expiry-push-per-store",
+    titleEn:
+      "Expiry alerts: one notification per store, with the location name first in the title.",
+    titleBg:
+      "Известия за годност: отделно известие за всеки обект, с името на локацията в началото на заглавието.",
+    href: "/app/settings/notifications",
+  },
 ];
 

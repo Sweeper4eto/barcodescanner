@@ -391,13 +391,15 @@ export const en = {
     digestCriticalManyBody: "Includes {productName} at {storeName}",
     digestSoonTitle: "{count} products expiring soon",
     digestSoonBody: "Next: {productName} at {storeName}",
-    digestUrgentSingle: "{productName} expires soon",
+    digestUrgentSingle: "{storeName}: {productName} expires soon",
     digestUrgentSingleBody:
-      "{quantity} at {storeName} · {days} day(s) left",
-    digestUrgentMany: "{count} products expire within {days} days",
-    digestUrgentManyBody: "Includes {productName} at {storeName}",
-    digestEarlyMany: "{count} products expire within {days} days",
-    digestEarlyBody: "Next: {productName} at {storeName}",
+      "{quantity} · {days} day(s) left",
+    digestUrgentMany:
+      "{storeName}: {count} products expire within {days} days",
+    digestUrgentManyBody: "Includes {productName}",
+    digestEarlyMany:
+      "{storeName}: {count} products expire within {days} days",
+    digestEarlyBody: "Next: {productName}",
     customize: "Customize",
     summaryUrgent: "{days}d urgent",
     summaryEarly: "{days}d early",

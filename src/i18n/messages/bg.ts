@@ -392,13 +392,15 @@ export const bg = {
     digestCriticalManyBody: "Включително {productName} в {storeName}",
     digestSoonTitle: "{count} продукта с наближаваща годност",
     digestSoonBody: "Следващ: {productName} в {storeName}",
-    digestUrgentSingle: "{productName} изтича скоро",
+    digestUrgentSingle: "{storeName}: {productName} изтича скоро",
     digestUrgentSingleBody:
-      "{quantity} в {storeName} · остават {days} ден(а)",
-    digestUrgentMany: "{count} продукта изтичат до {days} дни",
-    digestUrgentManyBody: "Включително {productName} в {storeName}",
-    digestEarlyMany: "{count} продукта изтичат до {days} дни",
-    digestEarlyBody: "Следващ: {productName} в {storeName}",
+      "{quantity} · остават {days} ден(а)",
+    digestUrgentMany:
+      "{storeName}: {count} продукта изтичат до {days} дни",
+    digestUrgentManyBody: "Включително {productName}",
+    digestEarlyMany:
+      "{storeName}: {count} продукта изтичат до {days} дни",
+    digestEarlyBody: "Следващ: {productName}",
     customize: "Персонализирай",
     summaryUrgent: "{days} д спешно",
     summaryEarly: "{days} д ранно",

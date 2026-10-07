@@ -41,6 +41,8 @@ export function buildExpiryDigestPayload(
   const tier = options?.tier ?? "urgent";
   const withinDays = options?.withinDays ?? 3;
 
+  const first = items[0];
+  // Digests are sent per store; keep a home fallback if a mixed list is passed.
   const storeIds = [...new Set(items.map((item) => item.storeId))];
   const url =
     storeIds.length === 1
@@ -48,36 +50,56 @@ export function buildExpiryDigestPayload(
       : "/app";
 
   if (tier === "urgent") {
-    const first = items[0];
     const title =
       items.length === 1
-        ? t("push.digestUrgentSingle", { productName: first.productName }, locale)
-        : t("push.digestUrgentMany", { count: items.length, days: withinDays }, locale);
+        ? t(
+            "push.digestUrgentSingle",
+            {
+              storeName: first.storeName,
+              productName: first.productName,
+            },
+            locale,
+          )
+        : t(
+            "push.digestUrgentMany",
+            {
+              storeName: first.storeName,
+              count: items.length,
+              days: withinDays,
+            },
+            locale,
+          );
     const body =
       items.length === 1
         ? t(
             "push.digestUrgentSingleBody",
             {
               quantity: first.quantity,
-              storeName: first.storeName,
               days: first.daysUntilExpiry,
             },
             locale,
           )
         : t(
             "push.digestUrgentManyBody",
-            { productName: first.productName, storeName: first.storeName },
+            { productName: first.productName },
             locale,
           );
     return { title, body, url };
   }
 
-  const first = items[0];
   return {
-    title: t("push.digestEarlyMany", { count: items.length, days: withinDays }, locale),
+    title: t(
+      "push.digestEarlyMany",
+      {
+        storeName: first.storeName,
+        count: items.length,
+        days: withinDays,
+      },
+      locale,
+    ),
     body: t(
       "push.digestEarlyBody",
-      { productName: first.productName, storeName: first.storeName },
+      { productName: first.productName },
       locale,
     ),
     url,
@@ -192,20 +214,30 @@ async function sendTierDigest(params: {
   const digestItems = itemsForDigestTier(items, prefs, tier);
   if (digestItems.length === 0) return 0;
 
+  // One push per store so multi-store users can tell locations apart.
+  const byStore = new Map<string, ExpiryDigestItem[]>();
+  for (const item of digestItems) {
+    const list = byStore.get(item.storeId);
+    if (list) list.push(item);
+    else byStore.set(item.storeId, [item]);
+  }
+
   const withinDays = withinDaysForTier(prefs, tier);
   let userSent = 0;
 
-  for (const subscription of subscriptions) {
-    const payload = buildExpiryDigestPayload(
-      digestItems,
-      subscriptionLocale(subscription.locale),
-      { tier, withinDays },
-    );
-    if (!payload) continue;
+  for (const storeItems of byStore.values()) {
+    for (const subscription of subscriptions) {
+      const payload = buildExpiryDigestPayload(
+        storeItems,
+        subscriptionLocale(subscription.locale),
+        { tier, withinDays },
+      );
+      if (!payload) continue;
 
-    const result = await sendPushToSubscription(subscription, payload);
-    if (result === "sent") {
-      userSent += 1;
+      const result = await sendPushToSubscription(subscription, payload);
+      if (result === "sent") {
+        userSent += 1;
+      }
     }
   }
 
