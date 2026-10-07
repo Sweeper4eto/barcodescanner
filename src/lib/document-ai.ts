@@ -430,8 +430,6 @@ export function getDocumentAiStatus(): {
 }
 
 const PROVIDER_RETRY_DELAYS_MS = [1500, 4000];
-/** High-demand 503: one short retry, then switch model (avoid ~2 min on a busy model). */
-const HIGH_DEMAND_RETRY_DELAYS_MS = [1200];
 
 /**
  * Cap silent Gemini hangs (Undici default headers timeout is ~300s).
@@ -450,7 +448,8 @@ async function sleep(ms: number): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function isHighDemandError(message: string): boolean {
+/** Model overloaded / 503 — retrying the same model rarely helps; switch immediately. */
+export function isProviderHighDemandError(message: string): boolean {
   const lower = message.toLowerCase();
   return (
     lower.includes("high demand") ||
@@ -491,11 +490,13 @@ function isRetryableProviderError(message: string): boolean {
   if (isGeminiFreeTierQuotaError(message)) return false;
   // Silent hang already waited DOCUMENT_AI_FETCH_TIMEOUT_MS — next model, not another try.
   if (isProviderHangTimeoutError(message)) return false;
+  // 503 / high demand: next model immediately (same-model retry often hangs again).
+  if (isProviderHighDemandError(message)) return false;
 
   const statusMatch = /^OCR_PROVIDER:(\d{3}):/.exec(message);
   if (statusMatch) {
     const status = Number(statusMatch[1]);
-    if (status === 429 || status === 500 || status === 502 || status === 503) {
+    if (status === 429 || status === 500 || status === 502) {
       return true;
     }
   }
@@ -505,13 +506,11 @@ function isRetryableProviderError(message: string): boolean {
     lower.includes("resource_exhausted") ||
     lower.includes("rate limit") ||
     lower.includes("quota") ||
-    lower.includes("overloaded") ||
     lower.includes("too many requests") ||
     lower.includes("unavailable") ||
     lower.includes("try again") ||
     lower.includes("deadline exceeded") ||
-    lower.includes("internal error") ||
-    lower.includes("high demand")
+    lower.includes("internal error")
   );
 }
 
@@ -520,8 +519,8 @@ async function withProviderRetries<T>(
   fn: () => Promise<T>,
 ): Promise<T> {
   let lastError: Error | null = null;
-  let delays = PROVIDER_RETRY_DELAYS_MS;
-  const maxAttempts = Math.max(PROVIDER_RETRY_DELAYS_MS.length, HIGH_DEMAND_RETRY_DELAYS_MS.length) + 1;
+  const delays = PROVIDER_RETRY_DELAYS_MS;
+  const maxAttempts = delays.length + 1;
 
   for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
     try {
@@ -529,9 +528,6 @@ async function withProviderRetries<T>(
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
       lastError = err;
-      if (isHighDemandError(err.message)) {
-        delays = HIGH_DEMAND_RETRY_DELAYS_MS;
-      }
       const canRetry =
         attempt < delays.length && isRetryableProviderError(err.message);
       if (!canRetry) throw err;
@@ -681,6 +677,12 @@ async function extractWithGemini(
       if (isGeminiFreeTierQuotaError(message)) {
         console.warn(
           `document AI: model "${model}" free-tier quota hit, trying next immediately`,
+        );
+        continue;
+      }
+      if (isProviderHighDemandError(message)) {
+        console.warn(
+          `document AI: model "${model}" high demand/503, trying next immediately`,
         );
         continue;
       }

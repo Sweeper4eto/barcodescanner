@@ -5,6 +5,7 @@ import {
   documentAiFetchTimeoutMs,
   isGeminiFreeTierQuotaError,
   isProviderHangTimeoutError,
+  isProviderHighDemandError,
   parseDocumentExpiry,
   parsePrintedExpiry,
   repairTruncatedItemsJson,
@@ -21,6 +22,22 @@ describe("isGeminiFreeTierQuotaError", () => {
     );
     assert.equal(
       isGeminiFreeTierQuotaError("OCR_PROVIDER:503:high demand"),
+      false,
+    );
+  });
+});
+
+describe("isProviderHighDemandError", () => {
+  it("detects 503 high demand so we skip same-model retry", () => {
+    assert.equal(
+      isProviderHighDemandError(
+        "OCR_PROVIDER:503:This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.",
+      ),
+      true,
+    );
+    assert.equal(isProviderHighDemandError("OCR_PROVIDER:503:overloaded"), true);
+    assert.equal(
+      isProviderHighDemandError("OCR_PROVIDER:504:Request timed out after 60000ms"),
       false,
     );
   });
