@@ -556,7 +556,16 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Сканиране на документ: имената са по-близо до отпечатаното, а обърквания x/х или гр/г по-рядко правят дублирани продукти.",
     href: "/app/add-document",
   },
+  {
+    key: "2026-10-document-sku-leading-9",
+    titleEn:
+      "Document scan: if a SKU looks like it lost a leading 9 (0000…), we also check the 9… form so the same product merges.",
+    titleBg:
+      "Сканиране на документ: ако SKU изглежда без водеща 9 (0000…), проверяваме и варианта с 9…, за да се слее същият продукт.",
+    href: "/app/add-document",
+  },
 ];
+
 
 
 

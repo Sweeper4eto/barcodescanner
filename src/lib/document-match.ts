@@ -72,6 +72,18 @@ type ArticulCandidate = {
   product: ProductSelect;
 };
 
+/**
+ * OCR sometimes drops a leading "9" on store SKUs that start with zeros
+ * (e.g. printed/stored `900001197` read as `00001197`). When the raw SKU
+ * starts with `0000`, also try a `9`-prefixed twin for lookup only.
+ */
+export function articulLookupKeys(articul: string): string[] {
+  const key = articul.trim();
+  if (!key) return [];
+  if (/^0000\d+$/.test(key)) return [key, `9${key}`];
+  return [key];
+}
+
 async function loadProductsByArticuls(
   storeId: string,
   articuls: string[],
@@ -125,16 +137,20 @@ function findArticulMatch(
   byArticul: Map<string, ArticulCandidate[]>,
 ): ProductSelect | null {
   if (!row.articul || !row.name) return null;
-  const candidates = byArticul.get(row.articul.trim());
-  if (!candidates || candidates.length === 0) return null;
 
   const rowExpiry = rowExpiryTimestamp(row);
   if (rowExpiry === null) return null;
 
-  for (const candidate of candidates) {
-    if (normalizeExpiryDate(candidate.expiryDate).getTime() !== rowExpiry) continue;
-    if (!namesMatchForMerge(row.name, candidate.product.name)) continue;
-    return candidate.product;
+  for (const key of articulLookupKeys(row.articul)) {
+    const candidates = byArticul.get(key);
+    if (!candidates || candidates.length === 0) continue;
+    for (const candidate of candidates) {
+      if (normalizeExpiryDate(candidate.expiryDate).getTime() !== rowExpiry) {
+        continue;
+      }
+      if (!namesMatchForMerge(row.name, candidate.product.name)) continue;
+      return candidate.product;
+    }
   }
   return null;
 }
@@ -169,8 +185,10 @@ function crosscheckArticul(
   resolved: ProductSelect | null,
 ) {
   if (!row.articul) return;
-  const candidates = byArticul.get(row.articul.trim());
-  if (!candidates || candidates.length === 0) return;
+  const candidates = articulLookupKeys(row.articul).flatMap(
+    (key) => byArticul.get(key) ?? [],
+  );
+  if (candidates.length === 0) return;
   const other = candidates.find(
     (candidate) => !resolved || candidate.product.id !== resolved.id,
   );
@@ -253,7 +271,9 @@ export async function matchDocumentRows(
       }
     }
     const articul = row.articul?.trim();
-    if (articul) articuls.add(articul);
+    if (articul) {
+      for (const key of articulLookupKeys(articul)) articuls.add(key);
+    }
     const name = row.name?.trim();
     if (name) names.add(name);
   }
