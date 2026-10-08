@@ -172,7 +172,7 @@ function AdminBuyListContent() {
           />
           {error ? <p className="text-sm text-error">{error}</p> : null}
           <p className="text-xs text-muted">
-            {t("admin.storeCartCount", { count: pagination.total })}
+            {pagination.total} {t("admin.storeCartCountUnit")}
           </p>
 
           <div className="space-y-2">

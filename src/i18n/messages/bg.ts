@@ -973,11 +973,13 @@ export const bg = {
     storeExpiry: "Годност на обект",
     storeExpiryTitle: "Годност — {name}",
     storeExpiryCount: "{count} артикула",
+    storeExpiryCountUnit: "артикула",
     selectStoreForExpiry:
       "Изберете обект от Клиенти, за да видите списъка с годност.",
     storeCart: "Количка на обект",
     storeCartTitle: "Количка — {name}",
     storeCartCount: "{count} артикула",
+    storeCartCountUnit: "артикула",
     selectStoreForCart:
       "Изберете обект от Клиенти, за да видите списъка с количка.",
     backToPanel: "← Назад към админ",

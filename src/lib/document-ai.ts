@@ -435,7 +435,7 @@ const PROVIDER_RETRY_DELAYS_MS = [1500, 4000];
  * Cap silent Gemini hangs (Undici default headers timeout is ~300s).
  * Override with DOCUMENT_AI_FETCH_TIMEOUT_MS (ms, min 5s, max 180s).
  */
-export const DEFAULT_DOCUMENT_AI_FETCH_TIMEOUT_MS = 40_000;
+export const DEFAULT_DOCUMENT_AI_FETCH_TIMEOUT_MS = 50_000;
 
 export function documentAiFetchTimeoutMs(): number {
   const raw = process.env.DOCUMENT_AI_FETCH_TIMEOUT_MS?.trim();
@@ -460,16 +460,63 @@ export function isProviderHighDemandError(message: string): boolean {
 
 /**
  * Gemini free-tier daily/minute caps (e.g. 20 req) — waiting a few seconds and
- * retrying the same model never helps; the API asks for hours. Skip sleeps and
- * fall through to the next model (often *-lite) immediately.
+ * retrying the same model never helps. Only these errors trigger the 10m skip;
+ * hangs / 503 / other failures do not put a model on cooldown.
  */
 export function isGeminiFreeTierQuotaError(message: string): boolean {
   const lower = message.toLowerCase();
   return (
     lower.includes("free_tier") ||
-    lower.includes("generate_content_free_tier") ||
-    /please retry in \d+h/i.test(message)
+    lower.includes("generate_content_free_tier")
   );
+}
+
+/** Parse "Please retry in 2h24m9s" from Gemini quota errors. */
+export function parseGeminiRetryAfterMs(message: string): number | null {
+  const match =
+    /retry in\s+(?:(\d+)\s*h)?(?:\s*(\d+)\s*m)?(?:\s*(\d+)\s*s)?/i.exec(
+      message,
+    );
+  if (!match) return null;
+  const hours = Number(match[1] ?? 0);
+  const minutes = Number(match[2] ?? 0);
+  const seconds = Number(match[3] ?? 0);
+  const ms = ((hours * 60 + minutes) * 60 + seconds) * 1000;
+  return ms > 0 ? ms : null;
+}
+
+/** How long to skip a model after free_tier before trying it again. */
+export const GEMINI_FREE_TIER_COOLDOWN_MS = 10 * 60 * 1000;
+
+/** In-process: skip models that already returned free_tier for a short window. */
+const geminiFreeTierCooldownUntilMs = new Map<string, number>();
+
+export function markGeminiModelFreeTierExhausted(
+  model: string,
+  _message?: string,
+  now = Date.now(),
+): void {
+  // Fixed 10m — ignore Gemini's multi-hour retry-after so we re-probe Flash often.
+  const until = now + GEMINI_FREE_TIER_COOLDOWN_MS;
+  const prev = geminiFreeTierCooldownUntilMs.get(model) ?? 0;
+  if (until > prev) geminiFreeTierCooldownUntilMs.set(model, until);
+}
+
+export function isGeminiModelFreeTierCoolingDown(
+  model: string,
+  now = Date.now(),
+): boolean {
+  const until = geminiFreeTierCooldownUntilMs.get(model);
+  if (until == null) return false;
+  if (now >= until) {
+    geminiFreeTierCooldownUntilMs.delete(model);
+    return false;
+  }
+  return true;
+}
+
+export function clearGeminiFreeTierCooldownsForTests(): void {
+  geminiFreeTierCooldownUntilMs.clear();
 }
 
 /** Hung fetch / AbortSignal timeout — do not retry the same model for another full wait. */
@@ -652,13 +699,22 @@ async function extractWithGemini(
 ): Promise<string> {
   const models = geminiModelsToTry(preferredModel);
   let lastError: Error | null = null;
+  let hangTimeouts = 0;
 
   for (const model of models) {
+    if (isGeminiModelFreeTierCoolingDown(model)) {
+      console.warn(
+        `document AI: model "${model}" skipped (free-tier cooldown)`,
+      );
+      continue;
+    }
+
     const startedAt = Date.now();
     try {
       const text = await withProviderRetries(`gemini:${model}`, () =>
         extractWithGeminiOnce(apiKey, model, mime, base64),
       );
+      geminiFreeTierCooldownUntilMs.delete(model);
       console.log(
         `document AI: model "${model}" ok in ${Date.now() - startedAt}ms`,
       );
@@ -675,6 +731,7 @@ async function extractWithGemini(
       const message = error instanceof Error ? error.message : String(error);
       lastError = error instanceof Error ? error : new Error(message);
       if (isGeminiFreeTierQuotaError(message)) {
+        markGeminiModelFreeTierExhausted(model, message);
         console.warn(
           `document AI: model "${model}" free-tier quota hit, trying next immediately`,
         );
@@ -687,9 +744,12 @@ async function extractWithGemini(
         continue;
       }
       if (isProviderHangTimeoutError(message)) {
+        hangTimeouts += 1;
         console.warn(
           `document AI: model "${model}" hung/timed out, trying next immediately`,
         );
+        // Second silent hang in one scan ≈ another full timeout for nothing — stop.
+        if (hangTimeouts >= 2) break;
         continue;
       }
       if (

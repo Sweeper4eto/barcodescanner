@@ -968,10 +968,12 @@ export const en = {
     storeExpiry: "Store expiry list",
     storeExpiryTitle: "Expiry — {name}",
     storeExpiryCount: "{count} items",
+    storeExpiryCountUnit: "items",
     selectStoreForExpiry: "Select a location from Clients to view its expiry list.",
     storeCart: "Store cart list",
     storeCartTitle: "Cart — {name}",
     storeCartCount: "{count} items",
+    storeCartCountUnit: "items",
     selectStoreForCart: "Select a location from Clients to view its cart list.",
     backToPanel: "← Back to admin",
     paymentFormula:

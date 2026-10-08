@@ -2,11 +2,16 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   DEFAULT_DOCUMENT_AI_FETCH_TIMEOUT_MS,
+  GEMINI_FREE_TIER_COOLDOWN_MS,
+  clearGeminiFreeTierCooldownsForTests,
   documentAiFetchTimeoutMs,
   isGeminiFreeTierQuotaError,
+  isGeminiModelFreeTierCoolingDown,
   isProviderHangTimeoutError,
   isProviderHighDemandError,
+  markGeminiModelFreeTierExhausted,
   parseDocumentExpiry,
+  parseGeminiRetryAfterMs,
   parsePrintedExpiry,
   repairTruncatedItemsJson,
   resolveDocumentExpiry,
@@ -24,6 +29,51 @@ describe("isGeminiFreeTierQuotaError", () => {
       isGeminiFreeTierQuotaError("OCR_PROVIDER:503:high demand"),
       false,
     );
+    assert.equal(
+      isGeminiFreeTierQuotaError(
+        "OCR_PROVIDER:504:Request timed out after 50000ms",
+      ),
+      false,
+    );
+    // Generic retry hint alone is not free-tier depletion.
+    assert.equal(
+      isGeminiFreeTierQuotaError("OCR_PROVIDER:429:Please retry in 2h"),
+      false,
+    );
+  });
+});
+
+describe("parseGeminiRetryAfterMs / free-tier cooldown", () => {
+  it("parses retry-after durations from quota errors", () => {
+    assert.equal(
+      parseGeminiRetryAfterMs("Please retry in 2h24m9s."),
+      ((2 * 60 + 24) * 60 + 9) * 1000,
+    );
+    assert.equal(parseGeminiRetryAfterMs("retry in 45m"), 45 * 60 * 1000);
+    assert.equal(parseGeminiRetryAfterMs("no hint"), null);
+  });
+
+  it("skips models for 10 minutes then retries", () => {
+    clearGeminiFreeTierCooldownsForTests();
+    const now = 1_000_000;
+    markGeminiModelFreeTierExhausted(
+      "gemini-3.5-flash",
+      "Please retry in 2h24m9s.",
+      now,
+    );
+    assert.equal(GEMINI_FREE_TIER_COOLDOWN_MS, 10 * 60 * 1000);
+    assert.equal(
+      isGeminiModelFreeTierCoolingDown("gemini-3.5-flash", now + 1000),
+      true,
+    );
+    assert.equal(
+      isGeminiModelFreeTierCoolingDown(
+        "gemini-3.5-flash",
+        now + GEMINI_FREE_TIER_COOLDOWN_MS,
+      ),
+      false,
+    );
+    clearGeminiFreeTierCooldownsForTests();
   });
 });
 
@@ -37,7 +87,7 @@ describe("isProviderHighDemandError", () => {
     );
     assert.equal(isProviderHighDemandError("OCR_PROVIDER:503:overloaded"), true);
     assert.equal(
-      isProviderHighDemandError("OCR_PROVIDER:504:Request timed out after 40000ms"),
+      isProviderHighDemandError("OCR_PROVIDER:504:Request timed out after 50000ms"),
       false,
     );
   });
@@ -47,7 +97,7 @@ describe("isProviderHangTimeoutError", () => {
   it("detects our AbortSignal timeout and Undici headers timeout", () => {
     assert.equal(
       isProviderHangTimeoutError(
-        "OCR_PROVIDER:504:Request timed out after 40000ms",
+        "OCR_PROVIDER:504:Request timed out after 50000ms",
       ),
       true,
     );
@@ -65,7 +115,7 @@ describe("isProviderHangTimeoutError", () => {
 });
 
 describe("documentAiFetchTimeoutMs", () => {
-  it("defaults to 40s and clamps env overrides", () => {
+  it("defaults to 50s and clamps env overrides", () => {
     const prev = process.env.DOCUMENT_AI_FETCH_TIMEOUT_MS;
     try {
       delete process.env.DOCUMENT_AI_FETCH_TIMEOUT_MS;

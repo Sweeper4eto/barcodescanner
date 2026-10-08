@@ -191,7 +191,7 @@ function AdminExpiryContent() {
           />
           {error ? <p className="text-sm text-error">{error}</p> : null}
           <p className="text-xs text-muted">
-            {t("admin.storeExpiryCount", { count: pagination.total })}
+            {pagination.total} {t("admin.storeExpiryCountUnit")}
           </p>
 
           <div className="space-y-1">
