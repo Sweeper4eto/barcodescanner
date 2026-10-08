@@ -72,6 +72,7 @@ export async function POST(request: Request) {
 
   const articul = parsed.data.articul?.trim() || null;
   const entryImagePath = parsed.data.imagePath?.trim() || null;
+  const name = parsed.data.name?.trim() ?? "";
   let product = parsed.data.productId
     ? await db.product.findUnique({ where: { id: parsed.data.productId } })
     : null;
@@ -87,13 +88,50 @@ export async function POST(request: Request) {
     }
   }
 
+  if (!product && barcode) {
+    product = await db.product.findFirst({
+      where: { barcode: { in: barcodeLookupValues(barcode) } },
+    });
+  }
+
   if (!product) {
-    product = await db.product.create({
-      data: {
-        barcode: barcode || makeAdhocBarcode(),
-        name: parsed.data.name?.trim() ?? "",
-        imagePath: null,
-      },
+    const createBarcode = barcode || makeAdhocBarcode();
+    try {
+      product = await db.product.create({
+        data: {
+          barcode: createBarcode,
+          name,
+          imagePath: null,
+        },
+      });
+    } catch (error) {
+      const isUnique =
+        typeof error === "object" &&
+        error !== null &&
+        "code" in error &&
+        (error as { code: unknown }).code === "P2002";
+      if (!isUnique) throw error;
+      // Barcode already exists (race / missed lookup) — reuse it.
+      product = barcode
+        ? await db.product.findFirst({
+            where: { barcode: { in: barcodeLookupValues(barcode) } },
+          })
+        : await db.product.findUnique({ where: { barcode: createBarcode } });
+      if (!product && !barcode) {
+        product = await db.product.create({
+          data: {
+            barcode: makeAdhocBarcode(),
+            name,
+            imagePath: null,
+          },
+        });
+      }
+      if (!product) throw error;
+    }
+  } else if (name && name !== product.name) {
+    product = await db.product.update({
+      where: { id: product.id },
+      data: { name },
     });
   }
 

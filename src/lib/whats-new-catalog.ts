@@ -548,5 +548,14 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Сканиране на документ: ако четенето е заето, виждате ясно съобщение да изчакате около 5 минути и да опитате отново.",
     href: "/app/add-document",
   },
+  {
+    key: "2026-10-document-ai-thinking-medium",
+    titleEn:
+      "Document scan: reading uses a bit more care on tables, so names and dates should stay more consistent.",
+    titleBg:
+      "Сканиране на документ: четенето е малко по-внимателно при таблици, за по-стабилни имена и дати.",
+    href: "/app/add-document",
+  },
 ];
+
 

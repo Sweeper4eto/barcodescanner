@@ -35,6 +35,78 @@ const importSchema = z.object({
   items: z.array(itemSchema).min(1),
 });
 
+function isUniqueConstraintError(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error as { code: unknown }).code === "P2002"
+  );
+}
+
+async function findProductByBarcode(barcode: string) {
+  return db.product.findFirst({
+    where: { barcode: { in: barcodeLookupValues(barcode) } },
+  });
+}
+
+/** Create product, or reuse the existing row when barcode already exists (race / duplicates). */
+async function findOrCreateImportProduct(input: {
+  productId: string | null | undefined;
+  barcode: string | null;
+  name: string;
+}) {
+  let product = input.productId
+    ? await db.product.findUnique({ where: { id: input.productId } })
+    : null;
+
+  if (product && input.barcode) {
+    const ok = barcodeLookupValues(input.barcode).includes(product.barcode);
+    if (!ok) product = null;
+  }
+
+  if (!product && input.barcode) {
+    product = await findProductByBarcode(input.barcode);
+  }
+
+  if (!product) {
+    const createBarcode = input.barcode || makeAdhocBarcode();
+    try {
+      product = await db.product.create({
+        data: {
+          barcode: createBarcode,
+          name: input.name,
+          imagePath: null,
+        },
+      });
+    } catch (error) {
+      if (!isUniqueConstraintError(error)) throw error;
+      // Concurrent import / duplicate barcode in the same batch — load winner.
+      product = input.barcode
+        ? await findProductByBarcode(input.barcode)
+        : await db.product.findUnique({ where: { barcode: createBarcode } });
+      if (!product && !input.barcode) {
+        product = await db.product.create({
+          data: {
+            barcode: makeAdhocBarcode(),
+            name: input.name,
+            imagePath: null,
+          },
+        });
+      }
+      if (!product) throw error;
+    }
+  } else if (input.name && input.name !== product.name) {
+    // Reviewer may have corrected a stale catalog name — persist for future scans.
+    product = await db.product.update({
+      where: { id: product.id },
+      data: { name: input.name },
+    });
+  }
+
+  return product;
+}
+
 export async function POST(request: Request) {
   let session;
   try {
@@ -70,115 +142,95 @@ export async function POST(request: Request) {
     );
   }
 
-  let created = 0;
-  let merged = 0;
+  try {
+    let created = 0;
+    let merged = 0;
 
-  for (const item of parsed.data.items) {
-    const articul = item.articul?.trim() || null;
-    const name = item.name?.trim() ?? "";
-    const barcode = normalizeBarcode(item.barcode ?? "") || null;
-    const expiryDate = normalizeExpiryDate(new Date(expiryYmdToIso(item.expiryYmd)));
-    const { start, end } = expiryDateDayBounds(expiryDate);
+    for (const item of parsed.data.items) {
+      const articul = item.articul?.trim() || null;
+      const name = item.name?.trim() ?? "";
+      const barcode = normalizeBarcode(item.barcode ?? "") || null;
+      const expiryDate = normalizeExpiryDate(
+        new Date(expiryYmdToIso(item.expiryYmd)),
+      );
+      const { start, end } = expiryDateDayBounds(expiryDate);
 
-    let product = item.productId
-      ? await db.product.findUnique({ where: { id: item.productId } })
-      : null;
-
-    if (product && barcode) {
-      const ok = barcodeLookupValues(barcode).includes(product.barcode);
-      if (!ok) {
-        product = null;
-      }
-    }
-
-    if (!product && barcode) {
-      product = await db.product.findFirst({
-        where: { barcode: { in: barcodeLookupValues(barcode) } },
+      const product = await findOrCreateImportProduct({
+        productId: item.productId,
+        barcode,
+        name,
       });
-    }
 
-    if (!product) {
-      product = await db.product.create({
-        data: {
-          barcode: barcode || makeAdhocBarcode(),
-          name,
-          imagePath: null,
+      const existing = await db.inventoryEntry.findFirst({
+        where: {
+          storeId: parsed.data.storeId,
+          productId: product.id,
+          ...activeInventoryWhere,
+          expiryDate: { gte: start, lt: end },
         },
+        orderBy: { enteredAt: "asc" },
       });
-    } else if (name && name !== product.name) {
-      // The reviewer may have corrected a name that was auto-filled from a
-      // stale/incorrect catalog entry (e.g. a past mis-scan). Since Product
-      // is shared by barcode across every store and future scan, persist the
-      // correction here so it doesn't keep resurfacing.
-      product = await db.product.update({
-        where: { id: product.id },
-        data: { name },
-      });
-    }
 
-    const existing = await db.inventoryEntry.findFirst({
-      where: {
-        storeId: parsed.data.storeId,
-        productId: product.id,
-        ...activeInventoryWhere,
-        expiryDate: { gte: start, lt: end },
-      },
-      orderBy: { enteredAt: "asc" },
-    });
+      if (existing) {
+        const entry = await db.inventoryEntry.update({
+          where: { id: existing.id },
+          data: {
+            quantity: existing.quantity + item.quantity,
+            ...(articul ? { articul } : {}),
+          },
+          include: { product: true },
+        });
+        merged += 1;
+        await logAuditEvent(
+          request,
+          session,
+          "inventory_merged",
+          auditInventoryMerged({
+            productName: entry.product.name,
+            barcode: entry.barcode,
+            addedQty: item.quantity,
+            totalQty: entry.quantity,
+            storeName: store.name,
+            expiryDate,
+          }),
+        );
+        continue;
+      }
 
-    if (existing) {
-      const entry = await db.inventoryEntry.update({
-        where: { id: existing.id },
+      const entry = await db.inventoryEntry.create({
         data: {
-          quantity: existing.quantity + item.quantity,
-          ...(articul ? { articul } : {}),
+          storeId: parsed.data.storeId,
+          productId: product.id,
+          barcode: product.barcode,
+          articul,
+          imagePath: null,
+          quantity: item.quantity,
+          expiryDate,
+          addedByUserId: session.userId,
         },
         include: { product: true },
       });
-      merged += 1;
+      created += 1;
       await logAuditEvent(
         request,
         session,
-        "inventory_merged",
-        auditInventoryMerged({
+        "inventory_added",
+        auditInventoryAdded({
           productName: entry.product.name,
           barcode: entry.barcode,
-          addedQty: item.quantity,
-          totalQty: entry.quantity,
+          quantity: item.quantity,
           storeName: store.name,
           expiryDate,
         }),
       );
-      continue;
     }
 
-    const entry = await db.inventoryEntry.create({
-      data: {
-        storeId: parsed.data.storeId,
-        productId: product.id,
-        barcode: product.barcode,
-        articul,
-        imagePath: null,
-        quantity: item.quantity,
-        expiryDate,
-        addedByUserId: session.userId,
-      },
-      include: { product: true },
-    });
-    created += 1;
-    await logAuditEvent(
-      request,
-      session,
-      "inventory_added",
-      auditInventoryAdded({
-        productName: entry.product.name,
-        barcode: entry.barcode,
-        quantity: item.quantity,
-        storeName: store.name,
-        expiryDate,
-      }),
+    return NextResponse.json({ created, merged, total: created + merged });
+  } catch (error) {
+    console.error("document import failed", error);
+    return NextResponse.json(
+      { error: apiT(request, "errors.saveFailed") },
+      { status: 500 },
     );
   }
-
-  return NextResponse.json({ created, merged, total: created + merged });
 }
