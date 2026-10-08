@@ -37,7 +37,7 @@ describe("isProviderHighDemandError", () => {
     );
     assert.equal(isProviderHighDemandError("OCR_PROVIDER:503:overloaded"), true);
     assert.equal(
-      isProviderHighDemandError("OCR_PROVIDER:504:Request timed out after 60000ms"),
+      isProviderHighDemandError("OCR_PROVIDER:504:Request timed out after 40000ms"),
       false,
     );
   });
@@ -47,7 +47,7 @@ describe("isProviderHangTimeoutError", () => {
   it("detects our AbortSignal timeout and Undici headers timeout", () => {
     assert.equal(
       isProviderHangTimeoutError(
-        "OCR_PROVIDER:504:Request timed out after 60000ms",
+        "OCR_PROVIDER:504:Request timed out after 40000ms",
       ),
       true,
     );
@@ -65,7 +65,7 @@ describe("isProviderHangTimeoutError", () => {
 });
 
 describe("documentAiFetchTimeoutMs", () => {
-  it("defaults to 60s and clamps env overrides", () => {
+  it("defaults to 40s and clamps env overrides", () => {
     const prev = process.env.DOCUMENT_AI_FETCH_TIMEOUT_MS;
     try {
       delete process.env.DOCUMENT_AI_FETCH_TIMEOUT_MS;

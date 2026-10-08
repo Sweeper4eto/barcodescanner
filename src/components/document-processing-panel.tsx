@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { LoadingSpinner } from "@/components/loading-spinner";
 import { BrandName } from "@/components/brand-name";
 import { useT } from "@/components/i18n-provider";
+import { useScreenWakeLock } from "@/hooks/use-screen-wake-lock";
 
 type Props = {
   /** 1-based page index when processing multiple uploads. */
@@ -39,6 +40,9 @@ export function DocumentProcessingPanel({
   const { t } = useT();
   const [softProgress, setSoftProgress] = useState(0.14);
   const multi = Boolean(total && total > 0 && current && current > 0);
+
+  // Keep the phone screen on for the whole OCR wait (panel is only mounted then).
+  useScreenWakeLock(true);
 
   useEffect(() => {
     if (multi) return;

@@ -435,7 +435,7 @@ const PROVIDER_RETRY_DELAYS_MS = [1500, 4000];
  * Cap silent Gemini hangs (Undici default headers timeout is ~300s).
  * Override with DOCUMENT_AI_FETCH_TIMEOUT_MS (ms, min 5s, max 180s).
  */
-export const DEFAULT_DOCUMENT_AI_FETCH_TIMEOUT_MS = 60_000;
+export const DEFAULT_DOCUMENT_AI_FETCH_TIMEOUT_MS = 40_000;
 
 export function documentAiFetchTimeoutMs(): number {
   const raw = process.env.DOCUMENT_AI_FETCH_TIMEOUT_MS?.trim();

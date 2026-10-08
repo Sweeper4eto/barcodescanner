@@ -532,5 +532,13 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Известия за годност: отделно известие за всеки обект, с името на локацията в началото на заглавието.",
     href: "/app/settings/notifications",
   },
+  {
+    key: "2026-10-document-processing-keep-awake",
+    titleEn:
+      "Document scan: the screen stays awake while Processing is shown, so the phone is less likely to drop the wait.",
+    titleBg:
+      "Сканиране на документ: екранът не заспива докато тече „Обработка“, за да не се прекъсва чакането.",
+    href: "/app/add-document",
+  },
 ];
 
