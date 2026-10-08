@@ -435,7 +435,7 @@ const PROVIDER_RETRY_DELAYS_MS = [1500, 4000];
  * Cap silent Gemini hangs (Undici default headers timeout is ~300s).
  * Override with DOCUMENT_AI_FETCH_TIMEOUT_MS (ms, min 5s, max 180s).
  */
-export const DEFAULT_DOCUMENT_AI_FETCH_TIMEOUT_MS = 50_000;
+export const DEFAULT_DOCUMENT_AI_FETCH_TIMEOUT_MS = 40_000;
 
 export function documentAiFetchTimeoutMs(): number {
   const raw = process.env.DOCUMENT_AI_FETCH_TIMEOUT_MS?.trim();
@@ -488,8 +488,29 @@ export function parseGeminiRetryAfterMs(message: string): number | null {
 /** How long to skip a model after free_tier before trying it again. */
 export const GEMINI_FREE_TIER_COOLDOWN_MS = 10 * 60 * 1000;
 
-/** In-process: skip models that already returned free_tier for a short window. */
-const geminiFreeTierCooldownUntilMs = new Map<string, number>();
+/** How long to skip a model after a hang/timeout before trying it again. */
+export const GEMINI_HANG_TIMEOUT_COOLDOWN_MS = 5 * 60 * 1000;
+
+type GeminiModelCooldown = {
+  untilMs: number;
+  reason: "free_tier" | "hang";
+};
+
+/** In-process: skip models after free_tier or hang for a short window. */
+const geminiModelCooldown = new Map<string, GeminiModelCooldown>();
+
+function markGeminiModelCooldown(
+  model: string,
+  delayMs: number,
+  reason: GeminiModelCooldown["reason"],
+  now = Date.now(),
+): void {
+  const untilMs = now + delayMs;
+  const prev = geminiModelCooldown.get(model);
+  if (!prev || untilMs > prev.untilMs) {
+    geminiModelCooldown.set(model, { untilMs, reason });
+  }
+}
 
 export function markGeminiModelFreeTierExhausted(
   model: string,
@@ -497,26 +518,31 @@ export function markGeminiModelFreeTierExhausted(
   now = Date.now(),
 ): void {
   // Fixed 10m — ignore Gemini's multi-hour retry-after so we re-probe Flash often.
-  const until = now + GEMINI_FREE_TIER_COOLDOWN_MS;
-  const prev = geminiFreeTierCooldownUntilMs.get(model) ?? 0;
-  if (until > prev) geminiFreeTierCooldownUntilMs.set(model, until);
+  markGeminiModelCooldown(model, GEMINI_FREE_TIER_COOLDOWN_MS, "free_tier", now);
 }
 
-export function isGeminiModelFreeTierCoolingDown(
+export function markGeminiModelHangTimeout(
   model: string,
   now = Date.now(),
-): boolean {
-  const until = geminiFreeTierCooldownUntilMs.get(model);
-  if (until == null) return false;
-  if (now >= until) {
-    geminiFreeTierCooldownUntilMs.delete(model);
-    return false;
+): void {
+  markGeminiModelCooldown(model, GEMINI_HANG_TIMEOUT_COOLDOWN_MS, "hang", now);
+}
+
+export function isGeminiModelCoolingDown(
+  model: string,
+  now = Date.now(),
+): GeminiModelCooldown["reason"] | null {
+  const entry = geminiModelCooldown.get(model);
+  if (entry == null) return null;
+  if (now >= entry.untilMs) {
+    geminiModelCooldown.delete(model);
+    return null;
   }
-  return true;
+  return entry.reason;
 }
 
 export function clearGeminiFreeTierCooldownsForTests(): void {
-  geminiFreeTierCooldownUntilMs.clear();
+  geminiModelCooldown.clear();
 }
 
 /** Hung fetch / AbortSignal timeout — do not retry the same model for another full wait. */
@@ -702,9 +728,10 @@ async function extractWithGemini(
   let hangTimeouts = 0;
 
   for (const model of models) {
-    if (isGeminiModelFreeTierCoolingDown(model)) {
+    const cooldownReason = isGeminiModelCoolingDown(model);
+    if (cooldownReason) {
       console.warn(
-        `document AI: model "${model}" skipped (free-tier cooldown)`,
+        `document AI: model "${model}" skipped (${cooldownReason} cooldown)`,
       );
       continue;
     }
@@ -714,7 +741,7 @@ async function extractWithGemini(
       const text = await withProviderRetries(`gemini:${model}`, () =>
         extractWithGeminiOnce(apiKey, model, mime, base64),
       );
-      geminiFreeTierCooldownUntilMs.delete(model);
+      geminiModelCooldown.delete(model);
       console.log(
         `document AI: model "${model}" ok in ${Date.now() - startedAt}ms`,
       );
@@ -745,6 +772,7 @@ async function extractWithGemini(
       }
       if (isProviderHangTimeoutError(message)) {
         hangTimeouts += 1;
+        markGeminiModelHangTimeout(model);
         console.warn(
           `document AI: model "${model}" hung/timed out, trying next immediately`,
         );
