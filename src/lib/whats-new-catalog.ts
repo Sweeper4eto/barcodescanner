@@ -549,13 +549,14 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
     href: "/app/add-document",
   },
   {
-    key: "2026-10-document-ai-thinking-medium",
+    key: "2026-10-document-literal-names-xh-match",
     titleEn:
-      "Document scan: reading uses a bit more care on tables, so names and dates should stay more consistent.",
+      "Document scan: names stay closer to the print, and x/х or гр/г quirks no longer create duplicate products as often.",
     titleBg:
-      "Сканиране на документ: четенето е малко по-внимателно при таблици, за по-стабилни имена и дати.",
+      "Сканиране на документ: имената са по-близо до отпечатаното, а обърквания x/х или гр/г по-рядко правят дублирани продукти.",
     href: "/app/add-document",
   },
 ];
+
 
 

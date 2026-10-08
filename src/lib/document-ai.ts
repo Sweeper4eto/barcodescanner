@@ -327,6 +327,10 @@ DATES:
 
 OTHER:
 - Extract every real product on the page. Keep Cyrillic names.
+- NAMES — copy EXACTLY as printed (literal transcript):
+  - Do NOT expand abbreviations (e.g. keep "Негаз." — never rewrite as "Негазирана").
+  - Do NOT transliterate or "fix" Latin ↔ Cyrillic lookalikes (keep "Max"/"Мах", "x"/"х", "гр"/"г" as on the page).
+  - Do NOT add/remove spaces inside the printed name except joining a true wrapped name line.
 - articul = SKU; barcode = EAN only; never swap them.
 - quantity = pieces if printed, else 1.
 - Ignore headers, addresses, totals, signatures.
@@ -624,8 +628,7 @@ async function extractWithGeminiOnce(
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
 
   // Gemini 2.5: disable thinking via budget 0 (faster OCR, more JSON room).
-  // Gemini 3.x: rejects thinkingBudget; use thinkingLevel. Prefer "medium"
-  // over "low" — table row/date/name alignment needs a bit more reasoning.
+  // Gemini 3.x: thinkingLevel "low" — less rewriting, lower latency/cost.
   const isGemini3 = /gemini-3/i.test(model);
   const isGemini25 = /gemini-2\.5/i.test(model);
 
@@ -637,7 +640,7 @@ async function extractWithGeminiOnce(
   if (isGemini25) {
     generationConfig.thinkingConfig = { thinkingBudget: 0 };
   } else if (isGemini3) {
-    generationConfig.thinkingConfig = { thinkingLevel: "medium" };
+    generationConfig.thinkingConfig = { thinkingLevel: "low" };
   }
 
   const timeoutMs = documentAiFetchTimeoutMs();
