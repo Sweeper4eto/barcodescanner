@@ -20,6 +20,7 @@ function alertKey(message: string): string {
 export function shouldAlertDocumentAiFailure(message: string): boolean {
   if (
     message.startsWith("OCR_PROVIDER:") ||
+    message === "OCR_CASCADE_EXHAUSTED" ||
     message === "OCR_NOT_CONFIGURED" ||
     message.startsWith("OCR_EMPTY:BLOCKED_")
   ) {
@@ -31,6 +32,9 @@ export function shouldAlertDocumentAiFailure(message: string): boolean {
 function publicAlertBody(message: string): string {
   if (message === "OCR_NOT_CONFIGURED") {
     return "Document AI is not configured (missing API key).";
+  }
+  if (message === "OCR_CASCADE_EXHAUSTED") {
+    return "Document scan AI: all models failed or cooling down — users asked to retry in ~5 minutes.";
   }
   if (message.startsWith("OCR_PROVIDER:")) {
     const rest = message.slice("OCR_PROVIDER:".length);

@@ -795,7 +795,11 @@ async function extractWithGemini(
     }
   }
 
-  throw lastError ?? new Error("OCR_PROVIDER:No Gemini model available");
+  console.warn(
+    `document AI: cascade exhausted${lastError ? ` (${lastError.message})` : ""}`,
+  );
+  // Distinct code so the API can show a friendly "try again in 5 minutes".
+  throw new Error("OCR_CASCADE_EXHAUSTED");
 }
 
 function mapFetchTimeoutError(error: unknown, timeoutMs: number): Error {

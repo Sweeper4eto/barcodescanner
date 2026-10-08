@@ -39,10 +39,12 @@ function providerErrorDetail(message: string): string {
 
 function publicOcrError(request: Request, message: string): string {
   const lower = message.toLowerCase();
+  if (message === "OCR_CASCADE_EXHAUSTED") {
+    return apiT(request, "errors.documentAiTryAgainLater");
+  }
   if (
     lower.includes("free_tier") ||
-    lower.includes("generate_content_free_tier") ||
-    /please retry in \d+h/i.test(message)
+    lower.includes("generate_content_free_tier")
   ) {
     return apiT(request, "errors.documentAiQuotaExceeded");
   }

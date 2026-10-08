@@ -202,6 +202,8 @@ export const en = {
       "Too many document scans. Please wait a few minutes and try again.",
     documentAiQuotaExceeded:
       "Document AI free quota is used up for now. Try again in a couple of hours, or add billing on the Gemini API key.",
+    documentAiTryAgainLater:
+      "Document reading is busy right now. Please wait about 5 minutes and try again.",
 
     documentImportInvalidRows:
       "Some rows have an invalid quantity or expiry date. Fix highlighted rows and try again.",

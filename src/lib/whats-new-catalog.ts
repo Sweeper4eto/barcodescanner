@@ -540,5 +540,13 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Сканиране на документ: екранът не заспива докато тече „Обработка“, за да не се прекъсва чакането.",
     href: "/app/add-document",
   },
+  {
+    key: "2026-10-document-ai-try-again-5m",
+    titleEn:
+      "Document scan: if reading is busy, you’ll see a clear message to wait about 5 minutes and try again.",
+    titleBg:
+      "Сканиране на документ: ако четенето е заето, виждате ясно съобщение да изчакате около 5 минути и да опитате отново.",
+    href: "/app/add-document",
+  },
 ];
 
