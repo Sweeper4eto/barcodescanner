@@ -627,8 +627,9 @@ async function extractWithGeminiOnce(
 ): Promise<string> {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
 
-  // Gemini 2.5: disable thinking via budget 0 (faster OCR, more JSON room).
-  // Gemini 3.x: thinkingLevel "low" — less rewriting, lower latency/cost.
+  // OCR should extract, not reason — we match products on our side afterward.
+  // Gemini 2.5: thinkingBudget 0 disables thinking.
+  // Gemini 3.x: "minimal" is the closest to off (3.7/3.8 reject it → "low").
   const isGemini3 = /gemini-3/i.test(model);
   const isGemini25 = /gemini-2\.5/i.test(model);
 
@@ -640,7 +641,8 @@ async function extractWithGeminiOnce(
   if (isGemini25) {
     generationConfig.thinkingConfig = { thinkingBudget: 0 };
   } else if (isGemini3) {
-    generationConfig.thinkingConfig = { thinkingLevel: "low" };
+    const thinkingLevel = /gemini-3\.[78]/i.test(model) ? "low" : "minimal";
+    generationConfig.thinkingConfig = { thinkingLevel };
   }
 
   const timeoutMs = documentAiFetchTimeoutMs();
