@@ -194,110 +194,22 @@ function cameraErrorKey(
   return "camera.unavailable";
 }
 
-/** Product photos: push for the highest stream the device will grant. */
+/** Product photos prefer max; document preview prefers a lighter supported size. */
 type CameraQualityProfile = "max" | "document";
 
 /**
- * Document OCR already downscales near ~2048px. Asking for 4K preview only
- * burns GPU on weak phones. Cap the long edge ~1920 and keep a 3:4 portrait
- * stream so it fills the document viewfinder (not 16:9 with side bars).
+ * Soft cap for document live preview. OCR still downscales near ~2048px, and
+ * full-res stills use ImageCapture when the device supports it.
  */
-const DOCUMENT_CAMERA_MAX_EDGE = 1920;
+const DOCUMENT_PREVIEW_MAX_EDGE = 1920;
 
-function cameraConstraintLadder(
-  profile: CameraQualityProfile,
-): MediaStreamConstraints[] {
-  if (profile === "document") {
-    // Viewfinder is aspect-[3/4] — request matching portrait sizes.
-    return [
-      {
-        video: {
-          facingMode: { exact: "environment" },
-          width: { ideal: 1440 },
-          height: { ideal: 1920 },
-          frameRate: { ideal: 30 },
-        },
-        audio: false,
-      },
-      {
-        video: {
-          facingMode: { ideal: "environment" },
-          width: { ideal: 1440 },
-          height: { ideal: 1920 },
-        },
-        audio: false,
-      },
-      {
-        video: {
-          facingMode: { ideal: "environment" },
-          width: { ideal: 1080 },
-          height: { ideal: 1440 },
-        },
-        audio: false,
-      },
-      {
-        video: {
-          facingMode: { ideal: "environment" },
-          width: { ideal: 720 },
-          height: { ideal: 960 },
-        },
-        audio: false,
-      },
-      { video: { facingMode: { ideal: "environment" } }, audio: false },
-      { video: { facingMode: { ideal: "user" } }, audio: false },
-      { video: true, audio: false },
-    ];
-  }
-
-  // Product photos — push for maximum rear-camera resolution.
-  // Safari often ignores huge ideals; still ask high, then fall back.
-  return [
-    {
-      video: {
-        facingMode: { exact: "environment" },
-        width: { ideal: 4032 },
-        height: { ideal: 3024 },
-        frameRate: { ideal: 30 },
-      },
-      audio: false,
-    },
-    {
-      video: {
-        facingMode: { ideal: "environment" },
-        width: { ideal: 4032 },
-        height: { ideal: 3024 },
-      },
-      audio: false,
-    },
-    {
-      video: {
-        facingMode: { ideal: "environment" },
-        width: { ideal: 3840 },
-        height: { ideal: 2160 },
-      },
-      audio: false,
-    },
-    {
-      video: {
-        facingMode: { ideal: "environment" },
-        width: { ideal: 1920 },
-        height: { ideal: 1080 },
-      },
-      audio: false,
-    },
-    { video: { facingMode: { ideal: "environment" } }, audio: false },
-    {
-      video: {
-        facingMode: { ideal: "user" },
-        width: { ideal: 1920 },
-        height: { ideal: 1080 },
-      },
-      audio: false,
-    },
-    { video: { facingMode: { ideal: "user" } }, audio: false },
-    { video: true, audio: false },
-  ];
-}
+/** Open rear camera with no forced size — let the device pick a native mode. */
+const CAMERA_OPEN_LADDER: MediaStreamConstraints[] = [
+  { video: { facingMode: { exact: "environment" } }, audio: false },
+  { video: { facingMode: { ideal: "environment" } }, audio: false },
+  { video: { facingMode: { ideal: "user" } }, audio: false },
+  { video: true, audio: false },
+];
 
 async function openCameraStream(
   profile: CameraQualityProfile = "max",
@@ -307,10 +219,10 @@ async function openCameraStream(
   }
 
   let lastError: unknown;
-  for (const constraint of cameraConstraintLadder(profile)) {
+  for (const constraint of CAMERA_OPEN_LADDER) {
     try {
       const stream = await navigator.mediaDevices.getUserMedia(constraint);
-      await maximizeTrackQuality(stream, profile);
+      await applyDeviceTrackQuality(stream, profile);
       return stream;
     } catch (error) {
       lastError = error;
@@ -326,41 +238,75 @@ function capabilityMax(
   return range && typeof range.max === "number" ? range.max : undefined;
 }
 
-/** Resolution + continuous focus/exposure when the browser exposes them. */
-async function maximizeTrackQuality(
-  stream: MediaStream,
-  profile: CameraQualityProfile = "max",
-): Promise<void> {
-  const track = stream.getVideoTracks()[0];
-  if (!track?.applyConstraints) return;
+function capabilityMin(
+  range: ULongRange | undefined,
+): number | undefined {
+  return range && typeof range.min === "number" ? range.min : undefined;
+}
 
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
+}
+
+/**
+ * Pick width/height from what this track actually supports, keeping the
+ * stream's native aspect ratio (avoids letterboxing from forced 16:9 / 3:4).
+ */
+function pickSupportedSize(
+  track: MediaStreamTrack,
+  profile: CameraQualityProfile,
+): { width: number; height: number } | null {
   const capabilities =
     typeof track.getCapabilities === "function"
       ? track.getCapabilities()
       : ({} as MediaTrackCapabilities);
+  const settings =
+    typeof track.getSettings === "function" ? track.getSettings() : {};
 
   const widthMax = capabilityMax(capabilities.width);
   const heightMax = capabilityMax(capabilities.height);
+  const widthMin = capabilityMin(capabilities.width) ?? 1;
+  const heightMin = capabilityMin(capabilities.height) ?? 1;
+  const curW = settings.width;
+  const curH = settings.height;
 
-  let widthIdeal: number;
-  let heightIdeal: number;
-  if (profile === "document") {
-    // Keep 3:4 portrait under the long-edge cap (matches the viewfinder).
-    const long = Math.min(
-      heightMax ?? DOCUMENT_CAMERA_MAX_EDGE,
-      DOCUMENT_CAMERA_MAX_EDGE,
-    );
-    const short = Math.min(
-      widthMax ?? Math.round((long * 3) / 4),
-      Math.round((long * 3) / 4),
-    );
-    widthIdeal = short;
-    heightIdeal = long;
-  } else {
-    widthIdeal = widthMax ?? 4032;
-    heightIdeal = heightMax ?? 3024;
+  if (!widthMax && !heightMax && !curW && !curH) return null;
+
+  const baseW = curW ?? widthMax ?? 1280;
+  const baseH = curH ?? heightMax ?? 720;
+  const aspect = baseW / Math.max(1, baseH);
+
+  if (profile === "max") {
+    const targetW = widthMax ?? baseW;
+    const targetH = heightMax ?? Math.round(targetW / aspect);
+    return {
+      width: clamp(targetW, widthMin, widthMax ?? targetW),
+      height: clamp(targetH, heightMin, heightMax ?? targetH),
+    };
   }
 
+  // Document preview: stay at/under DOCUMENT_PREVIEW_MAX_EDGE on the long side.
+  const deviceLong = Math.max(widthMax ?? baseW, heightMax ?? baseH);
+  const longEdge = Math.min(DOCUMENT_PREVIEW_MAX_EDGE, deviceLong);
+  let width: number;
+  let height: number;
+  if (aspect >= 1) {
+    width = longEdge;
+    height = Math.round(longEdge / aspect);
+  } else {
+    height = longEdge;
+    width = Math.round(longEdge * aspect);
+  }
+
+  return {
+    width: clamp(width, widthMin, widthMax ?? width),
+    height: clamp(height, heightMin, heightMax ?? height),
+  };
+}
+
+function continuousFocusConstraints(
+  capabilities: MediaTrackCapabilities,
+): Record<string, string>[] {
   const advanced: Record<string, string>[] = [];
   const focusModes = (capabilities as { focusMode?: string[] }).focusMode;
   if (Array.isArray(focusModes)) {
@@ -375,26 +321,41 @@ async function maximizeTrackQuality(
   if (Array.isArray(whiteBalanceModes) && whiteBalanceModes.includes("continuous")) {
     advanced.push({ whiteBalanceMode: "continuous" });
   }
+  return advanced;
+}
+
+/**
+ * Apply focus/exposure plus a size the device reports as supported.
+ * Never forces a fixed aspect the camera does not use natively.
+ */
+async function applyDeviceTrackQuality(
+  stream: MediaStream,
+  profile: CameraQualityProfile = "max",
+): Promise<void> {
+  const track = stream.getVideoTracks()[0];
+  if (!track?.applyConstraints) return;
+
+  const capabilities =
+    typeof track.getCapabilities === "function"
+      ? track.getCapabilities()
+      : ({} as MediaTrackCapabilities);
+  const size = pickSupportedSize(track, profile);
+  const advanced = continuousFocusConstraints(capabilities);
 
   try {
     await track.applyConstraints({
-      width: { ideal: widthIdeal },
-      height: { ideal: heightIdeal },
+      ...(size
+        ? { width: { ideal: size.width }, height: { ideal: size.height } }
+        : {}),
       ...(advanced.length > 0 ? { advanced } : {}),
     } as MediaTrackConstraints);
   } catch {
+    if (!size) return;
     try {
-      if (profile === "document") {
-        await track.applyConstraints({
-          width: { ideal: 1080 },
-          height: { ideal: 1440 },
-        });
-      } else {
-        await track.applyConstraints({
-          width: { ideal: widthMax ?? 1920 },
-          height: { ideal: heightMax ?? 1080 },
-        });
-      }
+      await track.applyConstraints({
+        width: { ideal: size.width },
+        height: { ideal: size.height },
+      });
     } catch {
       // Keep whatever resolution getUserMedia already gave us.
     }
@@ -541,9 +502,9 @@ async function captureFromVideoFrame(
 }
 
 /**
- * Capture a still. For document mode the live preview stays ~1080p; the still
- * prefers a full-resolution ImageCapture photo (up to ~4K), and only briefly
- * bumps the preview stream when ImageCapture is unavailable (e.g. Safari).
+ * Capture a still. Document preview stays at a device-supported lighter size;
+ * the still prefers full-res ImageCapture when available, otherwise briefly
+ * raises the stream to the device max and restores the preview afterward.
  */
 async function captureHighQualityStill(
   stream: MediaStream,
@@ -554,26 +515,21 @@ async function captureHighQualityStill(
   const track = stream.getVideoTracks()[0];
 
   if (profile === "document" && track) {
-    // ImageCapture.takePhoto can use the full sensor while the preview track
-    // stays at the lighter document resolution.
     await settleAutofocus(track);
     const photo = await captureWithImageCapture(track);
     if (photo) return photo;
 
-    // Safari / missing ImageCapture: briefly raise the stream, grab a frame,
-    // then restore the smooth ~1080p preview for retakes.
     try {
-      await maximizeTrackQuality(stream, "max");
+      await applyDeviceTrackQuality(stream, "max");
       await settleAutofocus(track);
       return await captureFromVideoFrame(video, canvas);
     } finally {
-      await maximizeTrackQuality(stream, "document");
+      await applyDeviceTrackQuality(stream, "document");
     }
   }
 
-  // Product photos: keep the stream at max, then still / frame.
   if (track) {
-    await maximizeTrackQuality(stream, "max");
+    await applyDeviceTrackQuality(stream, "max");
     await settleAutofocus(track);
     const still = await captureWithImageCapture(track);
     if (still) return still;

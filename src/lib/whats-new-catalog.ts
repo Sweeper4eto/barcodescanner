@@ -567,9 +567,9 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
   {
     key: "2026-10-document-camera-1080p",
     titleEn:
-      "Document scan: live preview is lighter (~1080p) to reduce stutter; the saved photo can still be up to ~4K when the phone allows.",
+      "Document scan: the camera uses a resolution your phone supports (lighter preview, full still when possible) for fewer glitches.",
     titleBg:
-      "Сканиране на документ: прегледът е по-лек (~1080p) срещу засичане; запазената снимка може да е до ~4K, когато телефонът го позволява.",
+      "Сканиране на документ: камерата ползва резолюция, която телефонът поддържа (по-лек преглед, пълна снимка когато е възможно) — по-малко засичане.",
     href: "/app/add-document",
   },
 ];
