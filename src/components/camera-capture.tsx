@@ -194,14 +194,62 @@ function cameraErrorKey(
   return "camera.unavailable";
 }
 
-async function openCameraStream(): Promise<MediaStream> {
-  if (!navigator.mediaDevices?.getUserMedia) {
-    throw new Error("NO_MEDIA_DEVICES");
+/** Product photos: push for the highest stream the device will grant. */
+type CameraQualityProfile = "max" | "document";
+
+/**
+ * Document OCR already downscales near ~2048px. Asking for 4K preview only
+ * burns GPU on weak phones; request ~1080p / long-edge 1920 instead.
+ */
+const DOCUMENT_CAMERA_MAX_EDGE = 1920;
+
+function cameraConstraintLadder(
+  profile: CameraQualityProfile,
+): MediaStreamConstraints[] {
+  if (profile === "document") {
+    return [
+      {
+        video: {
+          facingMode: { exact: "environment" },
+          width: { ideal: DOCUMENT_CAMERA_MAX_EDGE },
+          height: { ideal: 1080 },
+          frameRate: { ideal: 30 },
+        },
+        audio: false,
+      },
+      {
+        video: {
+          facingMode: { ideal: "environment" },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+        },
+        audio: false,
+      },
+      {
+        video: {
+          facingMode: { ideal: "environment" },
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        },
+        audio: false,
+      },
+      { video: { facingMode: { ideal: "environment" } }, audio: false },
+      {
+        video: {
+          facingMode: { ideal: "user" },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+        },
+        audio: false,
+      },
+      { video: { facingMode: { ideal: "user" } }, audio: false },
+      { video: true, audio: false },
+    ];
   }
 
-  // Push for maximum rear-camera resolution the device will grant.
+  // Product photos — push for maximum rear-camera resolution.
   // Safari often ignores huge ideals; still ask high, then fall back.
-  const constraints: MediaStreamConstraints[] = [
+  return [
     {
       video: {
         facingMode: { exact: "environment" },
@@ -247,12 +295,20 @@ async function openCameraStream(): Promise<MediaStream> {
     { video: { facingMode: { ideal: "user" } }, audio: false },
     { video: true, audio: false },
   ];
+}
+
+async function openCameraStream(
+  profile: CameraQualityProfile = "max",
+): Promise<MediaStream> {
+  if (!navigator.mediaDevices?.getUserMedia) {
+    throw new Error("NO_MEDIA_DEVICES");
+  }
 
   let lastError: unknown;
-  for (const constraint of constraints) {
+  for (const constraint of cameraConstraintLadder(profile)) {
     try {
       const stream = await navigator.mediaDevices.getUserMedia(constraint);
-      await maximizeTrackQuality(stream);
+      await maximizeTrackQuality(stream, profile);
       return stream;
     } catch (error) {
       lastError = error;
@@ -268,8 +324,11 @@ function capabilityMax(
   return range && typeof range.max === "number" ? range.max : undefined;
 }
 
-/** Max resolution + continuous focus/exposure when the browser exposes them. */
-async function maximizeTrackQuality(stream: MediaStream): Promise<void> {
+/** Resolution + continuous focus/exposure when the browser exposes them. */
+async function maximizeTrackQuality(
+  stream: MediaStream,
+  profile: CameraQualityProfile = "max",
+): Promise<void> {
   const track = stream.getVideoTracks()[0];
   if (!track?.applyConstraints) return;
 
@@ -280,6 +339,14 @@ async function maximizeTrackQuality(stream: MediaStream): Promise<void> {
 
   const widthMax = capabilityMax(capabilities.width);
   const heightMax = capabilityMax(capabilities.height);
+
+  const edgeCap =
+    profile === "document" ? DOCUMENT_CAMERA_MAX_EDGE : Number.POSITIVE_INFINITY;
+  const widthIdeal = Math.min(widthMax ?? (profile === "document" ? 1920 : 4032), edgeCap);
+  const heightIdeal = Math.min(
+    heightMax ?? (profile === "document" ? 1080 : 3024),
+    edgeCap,
+  );
 
   const advanced: Record<string, string>[] = [];
   const focusModes = (capabilities as { focusMode?: string[] }).focusMode;
@@ -298,15 +365,15 @@ async function maximizeTrackQuality(stream: MediaStream): Promise<void> {
 
   try {
     await track.applyConstraints({
-      width: { ideal: widthMax ?? 4032 },
-      height: { ideal: heightMax ?? 3024 },
+      width: { ideal: widthIdeal },
+      height: { ideal: heightIdeal },
       ...(advanced.length > 0 ? { advanced } : {}),
     } as MediaTrackConstraints);
   } catch {
     try {
       await track.applyConstraints({
-        width: { ideal: widthMax ?? 1920 },
-        height: { ideal: heightMax ?? 1080 },
+        width: { ideal: Math.min(widthMax ?? 1920, edgeCap) },
+        height: { ideal: Math.min(heightMax ?? 1080, edgeCap) },
       });
     } catch {
       // Keep whatever resolution getUserMedia already gave us.
@@ -453,24 +520,45 @@ async function captureFromVideoFrame(
   return canvas.toDataURL("image/jpeg", 0.97);
 }
 
-/** Full-resolution still when possible; else highest-quality preview frame. */
+/**
+ * Capture a still. For document mode the live preview stays ~1080p; the still
+ * prefers a full-resolution ImageCapture photo (up to ~4K), and only briefly
+ * bumps the preview stream when ImageCapture is unavailable (e.g. Safari).
+ */
 async function captureHighQualityStill(
   stream: MediaStream,
   video: HTMLVideoElement,
   canvas: HTMLCanvasElement,
+  profile: CameraQualityProfile = "max",
 ): Promise<string> {
   const track = stream.getVideoTracks()[0];
-  // Re-bump resolution right before capture (Safari often starts lower).
-  if (track) {
-    await maximizeTrackQuality(stream);
+
+  if (profile === "document" && track) {
+    // ImageCapture.takePhoto can use the full sensor while the preview track
+    // stays at the lighter document resolution.
     await settleAutofocus(track);
-  } else {
-    await settleAutofocus(undefined);
+    const photo = await captureWithImageCapture(track);
+    if (photo) return photo;
+
+    // Safari / missing ImageCapture: briefly raise the stream, grab a frame,
+    // then restore the smooth ~1080p preview for retakes.
+    try {
+      await maximizeTrackQuality(stream, "max");
+      await settleAutofocus(track);
+      return await captureFromVideoFrame(video, canvas);
+    } finally {
+      await maximizeTrackQuality(stream, "document");
+    }
   }
 
+  // Product photos: keep the stream at max, then still / frame.
   if (track) {
+    await maximizeTrackQuality(stream, "max");
+    await settleAutofocus(track);
     const still = await captureWithImageCapture(track);
     if (still) return still;
+  } else {
+    await settleAutofocus(undefined);
   }
 
   return captureFromVideoFrame(video, canvas);
@@ -508,6 +596,9 @@ export function CameraCapture({
   const autoStartedRef = useRef(false);
   const lastPreviewTapRef = useRef(0);
   const documentLayout = variant === "document";
+  const qualityProfile: CameraQualityProfile = documentLayout
+    ? "document"
+    : "max";
   const showCorners = showViewfinder || documentLayout;
 
   useEffect(() => {
@@ -563,7 +654,7 @@ export function CameraCapture({
 
     try {
       stopCamera();
-      const media = await openCameraStream();
+      const media = await openCameraStream(qualityProfile);
       streamRef.current = media;
       setActive(true);
     } catch (caught) {
@@ -571,7 +662,7 @@ export function CameraCapture({
     } finally {
       setStarting(false);
     }
-  }, [active, starting, stopCamera, t]);
+  }, [active, qualityProfile, starting, stopCamera, t]);
 
   useEffect(() => {
     if (!autoStart || !platformReady || autoStartedRef.current) return;
@@ -589,7 +680,12 @@ export function CameraCapture({
     setCapturing(true);
     setError("");
     try {
-      const dataUrl = await captureHighQualityStill(stream, video, canvas);
+      const dataUrl = await captureHighQualityStill(
+        stream,
+        video,
+        canvas,
+        qualityProfile,
+      );
       if (confirmMode === "instant") {
         stopCamera();
         onCapture(dataUrl);

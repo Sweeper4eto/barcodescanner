@@ -564,6 +564,14 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Сканиране на документ: ако SKU изглежда без водеща 9 (0000…), проверяваме и варианта с 9…, за да се слее същият продукт.",
     href: "/app/add-document",
   },
+  {
+    key: "2026-10-document-camera-1080p",
+    titleEn:
+      "Document scan: live preview is lighter (~1080p) to reduce stutter; the saved photo can still be up to ~4K when the phone allows.",
+    titleBg:
+      "Сканиране на документ: прегледът е по-лек (~1080p) срещу засичане; запазената снимка може да е до ~4K, когато телефонът го позволява.",
+    href: "/app/add-document",
+  },
 ];
 
 
