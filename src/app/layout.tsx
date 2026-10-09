@@ -1,9 +1,9 @@
 import type { Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { I18nProvider } from "@/components/i18n-provider";
 import { KeepKeyboardFocusVisible } from "@/components/keep-keyboard-focus-visible";
 import { PwaInstallPrompt } from "@/components/pwa-install-prompt";
 import { PwaRegister } from "@/components/pwa-register";
+import { RootClientI18nProvider } from "@/components/root-client-i18n-provider";
 import { defaultLocale } from "@/i18n";
 import { rootMetadata } from "@/lib/seo";
 import "./globals.css";
@@ -42,10 +42,12 @@ export default function RootLayout({
       style={{ colorScheme: "dark" }}
     >
       <body className="min-h-svh min-w-0 bg-background text-foreground">
-        <I18nProvider locale={defaultLocale}>{children}</I18nProvider>
-        <KeepKeyboardFocusVisible />
-        <PwaRegister />
-        <PwaInstallPrompt />
+        <RootClientI18nProvider>
+          {children}
+          <KeepKeyboardFocusVisible />
+          <PwaRegister />
+          <PwaInstallPrompt />
+        </RootClientI18nProvider>
       </body>
     </html>
   );
