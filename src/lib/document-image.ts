@@ -204,6 +204,8 @@ function sharpenInPlace(
   width: number,
   height: number,
 ): void {
+  // Milder kernel than a hard "5" center — strong sharpen rings digits and
+  // can make Gemini misread 8/0/6 and thin Godnost strokes.
   const copy = new Uint8ClampedArray(data);
   for (let y = 1; y < height - 1; y += 1) {
     for (let x = 1; x < width - 1; x += 1) {
@@ -212,7 +214,7 @@ function sharpenInPlace(
         const v =
           -copy[((y - 1) * width + x) * 4 + c] -
           copy[(y * width + (x - 1)) * 4 + c] +
-          5 * copy[i + c] -
+          4.2 * copy[i + c] -
           copy[(y * width + (x + 1)) * 4 + c] -
           copy[((y + 1) * width + x) * 4 + c];
         data[i + c] = Math.max(0, Math.min(255, v));
@@ -222,7 +224,7 @@ function sharpenInPlace(
 }
 
 function enhanceContrastInPlace(data: Uint8ClampedArray): void {
-  const contrast = 1.12;
+  const contrast = 1.06;
   for (let i = 0; i < data.length; i += 4) {
     const gray = toGray(data, i);
     const boosted = Math.min(
@@ -292,14 +294,15 @@ function cropAndDeskew(
 }
 
 export async function prepareDocumentImage(dataUrl: string): Promise<string> {
-  // Keep enough resolution for small Godnost digits; avoid crushing to 1280.
-  const TARGET_BYTES = 3_200_000;
+  // Prefer keeping more pixels for small Godnost digits. Gemini accepts larger
+  // payloads; only step down when the JPEG is still huge.
+  const TARGET_BYTES = 4_800_000;
   const STEPS = [
-    { maxEdge: 3200, quality: 0.92 },
-    { maxEdge: 2880, quality: 0.9 },
-    { maxEdge: 2560, quality: 0.88 },
-    { maxEdge: 2200, quality: 0.86 },
-    { maxEdge: 2048, quality: 0.84 },
+    { maxEdge: 3200, quality: 0.95 },
+    { maxEdge: 2880, quality: 0.93 },
+    { maxEdge: 2560, quality: 0.91 },
+    { maxEdge: 2200, quality: 0.88 },
+    { maxEdge: 2048, quality: 0.86 },
   ];
 
   const blob = await fetch(dataUrl).then((response) => response.blob());

@@ -202,7 +202,7 @@ type CameraQualityProfile = "max" | "document";
  * Raised only up to what getCapabilities reports — weak cameras stay lower;
  * stronger ones can reach this ceiling (aligned with prepareDocumentImage).
  */
-const DOCUMENT_PREVIEW_MAX_EDGE = 2880;
+const DOCUMENT_PREVIEW_MAX_EDGE = 3200;
 
 /** Open rear camera with no forced size — let the device pick a native mode. */
 const CAMERA_OPEN_LADDER: MediaStreamConstraints[] = [

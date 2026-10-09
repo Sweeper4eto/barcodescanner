@@ -567,9 +567,9 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
   {
     key: "2026-10-document-camera-1080p",
     titleEn:
-      "Document scan: photo matches the live preview; resolution uses what your phone supports (up to a high cap for sharper OCR).",
+      "Document scan: photo matches the live preview, and we send a sharper image for reading when your phone supports it.",
     titleBg:
-      "Сканиране на документ: снимката съвпада с прегледа; резолюцията е според телефона (до по-висок таван за по-ясно четене).",
+      "Сканиране на документ: снимката съвпада с прегледа, а за четене изпращаме по-ясен кадър, когато телефонът го позволява.",
     href: "/app/add-document",
   },
 ];
