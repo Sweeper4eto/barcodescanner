@@ -326,11 +326,14 @@ DATES:
 - Same Godnost on two neighboring products is allowed when both cells really show that date.
 
 OTHER:
-- Extract every real product on the page. Keep Cyrillic names.
-- NAMES — copy EXACTLY as printed (literal transcript):
-  - Do NOT expand abbreviations (e.g. keep "Негаз." — never rewrite as "Негазирана").
-  - Do NOT transliterate or "fix" Latin ↔ Cyrillic lookalikes (keep "Max"/"Мах", "x"/"х", "гр"/"г" as on the page).
-  - Do NOT add/remove spaces inside the printed name except joining a true wrapped name line.
+- Extract every real product on the page.
+- NAMES — NEVER change, normalize, translate, or "improve" the printed name. Copy it EXACTLY (character by character):
+  - Cyrillic + Latin in the SAME name is normal and REQUIRED to keep as-is (e.g. "обезмаслител MEGLIO" stays exactly that — not all-Cyrillic, not all-Latin).
+  - Latin brand letters stay Latin (MEGLIO, Vanish, Finish) — never rewrite as lookalike Cyrillic (not МИЦЮ, МИГЛИО, etc.).
+  - Do NOT substitute a "familiar" word for a similar-looking one (обезмаслител ≠ обезкостен; read the letters on the page).
+  - Do NOT expand abbreviations (keep "Негаз." — never "Негазирана").
+  - Do NOT transliterate or "fix" Latin ↔ Cyrillic lookalikes (keep "Max"/"Мах", "x"/"х", "гр"/"г" as printed).
+  - Do NOT add/remove spaces inside the name except joining a true wrapped name line.
 - articul = SKU; barcode = EAN only; never swap them.
 - quantity = pieces if printed, else 1.
 - Ignore headers, addresses, totals, signatures.

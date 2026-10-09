@@ -572,6 +572,14 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Сканиране на документ: снимката съвпада с прегледа, а за четене изпращаме по-ясен кадър, когато телефонът го позволява.",
     href: "/app/add-document",
   },
+  {
+    key: "2026-10-document-full-still-ocr",
+    titleEn:
+      "Document scan: we take a full camera still again when the phone allows it, so small digits read more reliably.",
+    titleBg:
+      "Сканиране на документ: отново правим пълна снимка от камерата, когато телефонът позволява — дребните цифри се четат по-сигурно.",
+    href: "/app/add-document",
+  },
 ];
 
 

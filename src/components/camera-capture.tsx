@@ -504,9 +504,9 @@ async function captureFromVideoFrame(
 
 /**
  * Capture a still.
- * Document mode always grabs the live preview frame so the saved photo matches
- * what was on screen (ImageCapture / max stills often show a wider field of view).
- * Product photos may still use a full-resolution ImageCapture when available.
+ * Document mode prefers a full-resolution ImageCapture still (sharper OCR digits)
+ * and falls back to the live video frame when ImageCapture is unavailable.
+ * Product photos use the same ImageCapture → frame ladder at max track quality.
  */
 async function captureHighQualityStill(
   stream: MediaStream,
@@ -516,9 +516,20 @@ async function captureHighQualityStill(
 ): Promise<string> {
   const track = stream.getVideoTracks()[0];
 
-  if (profile === "document") {
+  if (profile === "document" && track) {
     await settleAutofocus(track);
-    return captureFromVideoFrame(video, canvas);
+    const photo = await captureWithImageCapture(track);
+    if (photo) return photo;
+
+    // No ImageCapture (common on iOS Safari): briefly raise to device max, grab
+    // a frame, then restore the lighter document preview for the next shot.
+    try {
+      await applyDeviceTrackQuality(stream, "max");
+      await settleAutofocus(track);
+      return await captureFromVideoFrame(video, canvas);
+    } finally {
+      await applyDeviceTrackQuality(stream, "document");
+    }
   }
 
   if (track) {
