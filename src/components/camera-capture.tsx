@@ -199,7 +199,8 @@ type CameraQualityProfile = "max" | "document";
 
 /**
  * Document OCR already downscales near ~2048px. Asking for 4K preview only
- * burns GPU on weak phones; request ~1080p / long-edge 1920 instead.
+ * burns GPU on weak phones. Cap the long edge ~1920 and keep a 3:4 portrait
+ * stream so it fills the document viewfinder (not 16:9 with side bars).
  */
 const DOCUMENT_CAMERA_MAX_EDGE = 1920;
 
@@ -207,12 +208,13 @@ function cameraConstraintLadder(
   profile: CameraQualityProfile,
 ): MediaStreamConstraints[] {
   if (profile === "document") {
+    // Viewfinder is aspect-[3/4] — request matching portrait sizes.
     return [
       {
         video: {
           facingMode: { exact: "environment" },
-          width: { ideal: DOCUMENT_CAMERA_MAX_EDGE },
-          height: { ideal: 1080 },
+          width: { ideal: 1440 },
+          height: { ideal: 1920 },
           frameRate: { ideal: 30 },
         },
         audio: false,
@@ -220,28 +222,28 @@ function cameraConstraintLadder(
       {
         video: {
           facingMode: { ideal: "environment" },
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
+          width: { ideal: 1440 },
+          height: { ideal: 1920 },
         },
         audio: false,
       },
       {
         video: {
           facingMode: { ideal: "environment" },
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
+          width: { ideal: 1080 },
+          height: { ideal: 1440 },
+        },
+        audio: false,
+      },
+      {
+        video: {
+          facingMode: { ideal: "environment" },
+          width: { ideal: 720 },
+          height: { ideal: 960 },
         },
         audio: false,
       },
       { video: { facingMode: { ideal: "environment" } }, audio: false },
-      {
-        video: {
-          facingMode: { ideal: "user" },
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
-        },
-        audio: false,
-      },
       { video: { facingMode: { ideal: "user" } }, audio: false },
       { video: true, audio: false },
     ];
@@ -340,13 +342,24 @@ async function maximizeTrackQuality(
   const widthMax = capabilityMax(capabilities.width);
   const heightMax = capabilityMax(capabilities.height);
 
-  const edgeCap =
-    profile === "document" ? DOCUMENT_CAMERA_MAX_EDGE : Number.POSITIVE_INFINITY;
-  const widthIdeal = Math.min(widthMax ?? (profile === "document" ? 1920 : 4032), edgeCap);
-  const heightIdeal = Math.min(
-    heightMax ?? (profile === "document" ? 1080 : 3024),
-    edgeCap,
-  );
+  let widthIdeal: number;
+  let heightIdeal: number;
+  if (profile === "document") {
+    // Keep 3:4 portrait under the long-edge cap (matches the viewfinder).
+    const long = Math.min(
+      heightMax ?? DOCUMENT_CAMERA_MAX_EDGE,
+      DOCUMENT_CAMERA_MAX_EDGE,
+    );
+    const short = Math.min(
+      widthMax ?? Math.round((long * 3) / 4),
+      Math.round((long * 3) / 4),
+    );
+    widthIdeal = short;
+    heightIdeal = long;
+  } else {
+    widthIdeal = widthMax ?? 4032;
+    heightIdeal = heightMax ?? 3024;
+  }
 
   const advanced: Record<string, string>[] = [];
   const focusModes = (capabilities as { focusMode?: string[] }).focusMode;
@@ -371,10 +384,17 @@ async function maximizeTrackQuality(
     } as MediaTrackConstraints);
   } catch {
     try {
-      await track.applyConstraints({
-        width: { ideal: Math.min(widthMax ?? 1920, edgeCap) },
-        height: { ideal: Math.min(heightMax ?? 1080, edgeCap) },
-      });
+      if (profile === "document") {
+        await track.applyConstraints({
+          width: { ideal: 1080 },
+          height: { ideal: 1440 },
+        });
+      } else {
+        await track.applyConstraints({
+          width: { ideal: widthMax ?? 1920 },
+          height: { ideal: heightMax ?? 1080 },
+        });
+      }
     } catch {
       // Keep whatever resolution getUserMedia already gave us.
     }
@@ -796,6 +816,8 @@ export function CameraCapture({
     retakePhoto();
   }
 
+  // Document live preview uses contain (not cover) so the saved photo matches
+  // what was visible — CSS cover would hide edges that still get captured.
   const previewFrameClass = documentLayout
     ? "pointer-events-none h-full w-full object-contain"
     : compact
