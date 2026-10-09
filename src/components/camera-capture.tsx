@@ -198,10 +198,11 @@ function cameraErrorKey(
 type CameraQualityProfile = "max" | "document";
 
 /**
- * Soft cap for document live preview. OCR still downscales near ~2048px, and
- * full-res stills use ImageCapture when the device supports it.
+ * Soft cap for document live preview + matched still (same video frame).
+ * Raised only up to what getCapabilities reports — weak cameras stay lower;
+ * stronger ones can reach this ceiling (aligned with prepareDocumentImage).
  */
-const DOCUMENT_PREVIEW_MAX_EDGE = 1920;
+const DOCUMENT_PREVIEW_MAX_EDGE = 2880;
 
 /** Open rear camera with no forced size — let the device pick a native mode. */
 const CAMERA_OPEN_LADDER: MediaStreamConstraints[] = [
@@ -285,7 +286,7 @@ function pickSupportedSize(
     };
   }
 
-  // Document preview: stay at/under DOCUMENT_PREVIEW_MAX_EDGE on the long side.
+  // Document: long edge = min(soft cap, what this device reports it can do).
   const deviceLong = Math.max(widthMax ?? baseW, heightMax ?? baseH);
   const longEdge = Math.min(DOCUMENT_PREVIEW_MAX_EDGE, deviceLong);
   let width: number;
@@ -502,9 +503,10 @@ async function captureFromVideoFrame(
 }
 
 /**
- * Capture a still. Document preview stays at a device-supported lighter size;
- * the still prefers full-res ImageCapture when available, otherwise briefly
- * raises the stream to the device max and restores the preview afterward.
+ * Capture a still.
+ * Document mode always grabs the live preview frame so the saved photo matches
+ * what was on screen (ImageCapture / max stills often show a wider field of view).
+ * Product photos may still use a full-resolution ImageCapture when available.
  */
 async function captureHighQualityStill(
   stream: MediaStream,
@@ -514,18 +516,9 @@ async function captureHighQualityStill(
 ): Promise<string> {
   const track = stream.getVideoTracks()[0];
 
-  if (profile === "document" && track) {
+  if (profile === "document") {
     await settleAutofocus(track);
-    const photo = await captureWithImageCapture(track);
-    if (photo) return photo;
-
-    try {
-      await applyDeviceTrackQuality(stream, "max");
-      await settleAutofocus(track);
-      return await captureFromVideoFrame(video, canvas);
-    } finally {
-      await applyDeviceTrackQuality(stream, "document");
-    }
+    return captureFromVideoFrame(video, canvas);
   }
 
   if (track) {
