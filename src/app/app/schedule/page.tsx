@@ -683,37 +683,29 @@ function SchedulePageInner() {
   }
 
   async function exportWeekAsPicture() {
-    if (!storeId || savingExport) return;
+    // Use in-memory week data (same as PDF). Awaiting a refetch here breaks the
+    // mobile user-gesture chain, so navigator.share / downloads fail silently.
+    if (!storeId || !data || savingExport) return;
     setSavingExport(true);
     setError(null);
     setFlashMessage(null);
     try {
-      // Always re-fetch so a second save includes edits made after the first PNG.
-      const res = await fetch(
-        `/api/schedule?storeId=${encodeURIComponent(storeId)}&weekStart=${encodeURIComponent(weekStart)}`,
-        { credentials: "same-origin", cache: "no-store" },
-      );
-      const json = (await res.json()) as WeekPayload & { error?: string };
-      if (!res.ok || !json.staff) {
-        setError(json.error ?? t("schedule.loadFailed"));
-        return;
-      }
-      setData(json);
-
-      const ok = await downloadScheduleWeekPng({
+      const result = await downloadScheduleWeekPng({
         weekStart,
         storeName,
-        staff: json.staff,
-        shifts: json.shifts,
-        days: json.days,
+        staff: data.staff,
+        shifts: data.shifts,
+        days: data.days,
         labels: weekPrintLabels(),
       });
       setSaveFormatOpen(false);
-      if (!ok) {
+      if (result === "failed") {
         setError(t("schedule.saveWeekPictureFailed"));
         return;
       }
-      setFlashMessage(t("schedule.saveWeekSaved"));
+      if (result === "ok") {
+        setFlashMessage(t("schedule.saveWeekSaved"));
+      }
     } catch {
       setSaveFormatOpen(false);
       setError(t("schedule.saveWeekPictureFailed"));

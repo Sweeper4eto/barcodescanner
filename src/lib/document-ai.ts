@@ -337,7 +337,8 @@ OTHER:
 - Page-edge cut-off crumbs (1–2 words with no columns): omit; do not attach a neighbor's qty/date.
 - Final check: for the last 3 items, confirm each name still matches the Godnost printed on its own band.`;
 
-const DEFAULT_GEMINI_MODEL = "gemini-3.5-flash";
+// gemini-3.5-flash is deprecated (Google auto-routes it to 3.6) — call 3.6 by name.
+const DEFAULT_GEMINI_MODEL = "gemini-3.6-flash";
 const DEFAULT_OPENAI_MODEL = "gpt-4o-mini";
 
 /**
@@ -345,9 +346,8 @@ const DEFAULT_OPENAI_MODEL = "gpt-4o-mini";
  * Prefer full Flash models before lite — lite causes many row/date shifts.
  */
 const GEMINI_MODEL_FALLBACKS = [
-  "gemini-3.5-flash",
-  "gemini-3.8-flash",
   "gemini-3.6-flash",
+  "gemini-3.8-flash",
   "gemini-3-flash-preview",
   "gemini-3.5-flash-lite",
   "gemini-3.1-flash-lite",

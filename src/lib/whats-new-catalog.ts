@@ -564,6 +564,22 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Сканиране на документ: ако SKU изглежда без водеща 9 (0000…), проверяваме и варианта с 9…, за да се слее същият продукт.",
     href: "/app/add-document",
   },
+  {
+    key: "2026-10-schedule-picture-share-gesture",
+    titleEn:
+      "Schedule: Save as picture opens the share sheet reliably again on phones (no more silent fail).",
+    titleBg:
+      "График: „Запази като снимка“ отново отваря споделянето надеждно на телефона (без тихо отказване).",
+    href: "/app/schedule",
+  },
+  {
+    key: "2026-10-pwa-install-remind-week",
+    titleEn:
+      "Home screen icon: if you skip Add icon, we’ll ask again after about a week (only if it still isn’t installed).",
+    titleBg:
+      "Икона на началния екран: ако пропуснете „Добави икона“, ще попитаме отново след около седмица (само ако още не е добавена).",
+    href: "/app",
+  },
 ];
 
 

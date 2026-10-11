@@ -2,6 +2,9 @@ const DISMISS_KEY = "expire365-pwa-install-dismissed";
 const OFFER_KEY = "expire365-offer-pwa";
 const OFFER_EVENT = "expire365-offer-pwa";
 
+/** Soft dismiss: hide the install prompt for this long, then offer again if still not installed. */
+export const PWA_INSTALL_DISMISS_MS = 7 * 24 * 60 * 60 * 1000;
+
 export type BeforeInstallPromptEventLike = Event & {
   prompt: () => Promise<void>;
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
@@ -40,18 +43,34 @@ export function isIosDevice(): boolean {
   return iOS || iPadOs;
 }
 
-export function wasPwaInstallDismissed(): boolean {
+export function wasPwaInstallDismissed(
+  nowMs: number = Date.now(),
+): boolean {
   if (typeof window === "undefined") return false;
   try {
-    return window.localStorage.getItem(DISMISS_KEY) === "1";
+    const raw = window.localStorage.getItem(DISMISS_KEY);
+    if (!raw) return false;
+
+    const dismissedAt = Number(raw);
+    // Legacy forever flag ("1") — clear so we can re-offer under the week rule.
+    if (!Number.isFinite(dismissedAt) || dismissedAt <= 0) {
+      window.localStorage.removeItem(DISMISS_KEY);
+      return false;
+    }
+
+    if (nowMs - dismissedAt >= PWA_INSTALL_DISMISS_MS) {
+      window.localStorage.removeItem(DISMISS_KEY);
+      return false;
+    }
+    return true;
   } catch {
     return false;
   }
 }
 
-export function dismissPwaInstallPrompt(): void {
+export function dismissPwaInstallPrompt(nowMs: number = Date.now()): void {
   try {
-    window.localStorage.setItem(DISMISS_KEY, "1");
+    window.localStorage.setItem(DISMISS_KEY, String(nowMs));
   } catch {
     // ignore quota / private mode
   }
@@ -79,6 +98,6 @@ export function consumePwaInstallOffer(): boolean {
   }
 }
 
-export function shouldOfferPwaInstall(): boolean {
-  return !isPwaInstalled() && !wasPwaInstallDismissed();
+export function shouldOfferPwaInstall(nowMs: number = Date.now()): boolean {
+  return !isPwaInstalled() && !wasPwaInstallDismissed(nowMs);
 }

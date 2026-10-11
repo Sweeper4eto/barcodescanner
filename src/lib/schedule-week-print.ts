@@ -353,16 +353,17 @@ function buildDayExportBlocks(args: ScheduleWeekPrintArgs): {
   return { weekRange, blocks };
 }
 
-function canvasToPngBlob(canvas: HTMLCanvasElement): Promise<Blob> {
-  return new Promise((resolve, reject) => {
-    canvas.toBlob(
-      (blob) => {
-        if (blob) resolve(blob);
-        else reject(new Error("toBlob-failed"));
-      },
-      "image/png",
-    );
-  });
+/** Sync PNG blob so we can call navigator.share in the same user-gesture turn. */
+function canvasToPngBlobSync(canvas: HTMLCanvasElement): Blob {
+  const dataUrl = canvas.toDataURL("image/png");
+  const comma = dataUrl.indexOf(",");
+  if (comma < 0) throw new Error("toDataURL-failed");
+  const binary = atob(dataUrl.slice(comma + 1));
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return new Blob([bytes], { type: "image/png" });
 }
 
 function uniquePngFilename(weekStart: string): string {
@@ -376,31 +377,30 @@ function uniquePngFilename(weekStart: string): string {
   return `schedule-${weekStart}-${stamp}.png`;
 }
 
-async function deliverPngBlob(blob: Blob, filename: string): Promise<boolean> {
+export type SchedulePngDeliverResult = "ok" | "cancelled" | "failed";
+
+async function deliverPngBlob(
+  blob: Blob,
+  filename: string,
+): Promise<SchedulePngDeliverResult> {
   const file = new File([blob], filename, { type: "image/png" });
 
   // Phones: Web Share is the reliable path (iOS/Android often ignore <a download>).
-  // Some browsers never resolve share() after a successful save — race a timeout
-  // so the export button is not stuck disabled for the next save.
+  // Must stay in the user-gesture chain — no prior await fetch / toBlob.
   try {
     if (
       typeof navigator !== "undefined" &&
       typeof navigator.share === "function" &&
       (!navigator.canShare || navigator.canShare({ files: [file] }))
     ) {
-      await Promise.race([
-        navigator.share({ files: [file], title: filename }).then(() => true),
-        new Promise<true>((resolve) => {
-          window.setTimeout(() => resolve(true), 1500);
-        }),
-      ]);
-      return true;
+      await navigator.share({ files: [file], title: filename });
+      return "ok";
     }
   } catch (error) {
-    // User dismissed the sheet — treat as success (they chose cancel).
     if (error instanceof DOMException && error.name === "AbortError") {
-      return true;
+      return "cancelled";
     }
+    // NotAllowedError / other — fall through to <a download>.
   }
 
   const url = URL.createObjectURL(blob);
@@ -425,10 +425,10 @@ async function deliverPngBlob(blob: Blob, filename: string): Promise<boolean> {
       }, 350);
     }
     window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
-    return true;
+    return "ok";
   } catch {
     URL.revokeObjectURL(url);
-    return false;
+    return "failed";
   }
 }
 
@@ -577,18 +577,19 @@ function drawScheduleWeekPng(args: ScheduleWeekPrintArgs): HTMLCanvasElement {
 
 /**
  * Render the week table to a PNG via canvas (no SVG/foreignObject — works on phones)
- * and share/download it.
+ * and share/download it. Keep this free of awaits before share/download so the
+ * browser still treats it as a user gesture (required on mobile PWAs).
  */
 export async function downloadScheduleWeekPng(
   args: ScheduleWeekPrintArgs,
-): Promise<boolean> {
-  if (typeof document === "undefined") return false;
+): Promise<SchedulePngDeliverResult> {
+  if (typeof document === "undefined") return "failed";
 
   try {
     const canvas = drawScheduleWeekPng(args);
-    const blob = await canvasToPngBlob(canvas);
+    const blob = canvasToPngBlobSync(canvas);
     return deliverPngBlob(blob, uniquePngFilename(args.weekStart));
   } catch {
-    return false;
+    return "failed";
   }
 }
