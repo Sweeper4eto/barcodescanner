@@ -316,9 +316,15 @@ export default function AppHomePage() {
             </Link>
           </p>
         ) : stores.length === 0 ? (
-          <p className="mb-3 rounded-2xl bg-warning-bg p-4 text-sm text-warning-fg">
-            {t("app.noStores")}
-          </p>
+          <div className="mb-3 rounded-2xl bg-warning-bg p-4 text-sm text-warning-fg">
+            <p>{t("app.noStores")}</p>
+            <Link
+              href="/app/contact"
+              className="mt-2 inline-flex font-semibold underline underline-offset-2"
+            >
+              {t("app.noStoresContact")}
+            </Link>
+          </div>
         ) : null}
 
         {bootstrapped && isOwner && !sessionMissing && stores.length > 0 ? (

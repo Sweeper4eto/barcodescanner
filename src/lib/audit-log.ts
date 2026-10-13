@@ -180,6 +180,17 @@ function eventsForFilter(filter: AuditFilter): AuditEvent[] | null {
 
 export type AuditAccountKind = "business" | "household";
 
+/** Events owners may see in Team → Activity (no billing / other-account admin). */
+export const OWNER_ACTIVITY_EVENTS: AuditEvent[] = [
+  ...AUTH_EVENTS,
+  ...INVENTORY_EVENTS,
+  ...PRODUCT_EVENTS,
+  "user_updated",
+  "user_deleted",
+];
+
+export type OwnerActivityFilter = "all" | "auth" | "inventory" | "products";
+
 export type AuditLogQuery = {
   filter?: AuditFilter;
   q?: string;
@@ -194,6 +205,8 @@ export type AuditLogQuery = {
   timeTo?: string;
   page?: number;
   pageSize?: number;
+  /** Extra hard allowlist (e.g. owner activity). Intersected with filter events. */
+  eventsAllowlist?: AuditEvent[];
 };
 
 /** Match store name as written in audit details (`store "Name"`). */
@@ -206,8 +219,16 @@ export function buildAuditLogWhere(query: AuditLogQuery): Prisma.AuditLogWhereIn
   const events = eventsForFilter(filter);
   const and: Prisma.AuditLogWhereInput[] = [];
 
-  if (events) {
+  const allowlist = query.eventsAllowlist?.length
+    ? query.eventsAllowlist
+    : null;
+  if (events && allowlist) {
+    const allowed = new Set(allowlist);
+    and.push({ event: { in: events.filter((event) => allowed.has(event)) } });
+  } else if (events) {
     and.push({ event: { in: events } });
+  } else if (allowlist) {
+    and.push({ event: { in: allowlist } });
   }
 
   const clientId = query.clientId?.trim();

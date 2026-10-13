@@ -11,6 +11,7 @@ import { useViewportInsets } from "@/hooks/use-viewport-insets";
 import {
   appButtonDangerFull,
   appButtonNeutral,
+  appButtonNeutralFull,
   appButtonPrimary,
   appButtonPrimaryFull,
   appChromeInset,
@@ -710,6 +711,16 @@ export default function TeamPage() {
         {!loading && users.some((user) => user.id !== currentUserId) ? (
           <p className="mt-3 text-center text-xs text-muted">{t("team.tapToEdit")}</p>
         ) : null}
+
+        {!sheetOpen ? (
+          <button
+            type="button"
+            onClick={openCreate}
+            className={`${appButtonPrimaryFull} mt-3`}
+          >
+            {t("team.addMember")}
+          </button>
+        ) : null}
       </section>
 
       {!sheetOpen ? (
@@ -721,9 +732,9 @@ export default function TeamPage() {
           }}
         >
           <div className={`mx-auto max-w-lg ${appListInset}`}>
-            <button type="button" onClick={openCreate} className={appButtonPrimaryFull}>
-              {t("team.addMember")}
-            </button>
+            <Link href="/app/team/activity" className={appButtonNeutralFull}>
+              {t("team.activityLog")}
+            </Link>
           </div>
         </div>
       ) : null}

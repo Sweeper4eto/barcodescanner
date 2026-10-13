@@ -50,7 +50,7 @@ test("registerUser rejects duplicate usernames", async () => {
   if (!second.ok) assert.equal(second.errorKey, "auth.usernameTaken");
 });
 
-test("registerUser home creates Home; retail creates Main", async () => {
+test("registerUser home creates Home; retail has no default location", async () => {
   const home = await registerUser("homeowner1", "password123", {
     accountType: "home",
   });
@@ -76,12 +76,11 @@ test("registerUser home creates Home; retail creates Main", async () => {
   const retailStores = await db.store.findMany({
     where: { clientId: retail.user.clientId! },
   });
-  assert.equal(retailStores.length, 1);
-  assert.equal(retailStores[0]?.name, "Main");
+  assert.equal(retailStores.length, 0);
   const retailLinks = await db.userStore.count({
     where: { userId: retail.user.id },
   });
-  assert.equal(retailLinks, 1);
+  assert.equal(retailLinks, 0);
   assert.ok(retail.user.clientId);
 });
 

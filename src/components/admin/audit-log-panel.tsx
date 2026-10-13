@@ -13,6 +13,10 @@ import { MenuSelect } from "@/components/menu-select";
 import { SearchField } from "@/components/search-field";
 import { useT } from "@/components/i18n-provider";
 import type { MessageKey } from "@/i18n";
+import {
+  extractAuditStoreName,
+  formatAuditCompactWhen,
+} from "@/lib/audit-display";
 
 type AuditEntry = {
   id: string;
@@ -491,48 +495,115 @@ export function AuditLogPanel() {
         </p>
       ) : null}
 
-      <div className="overflow-x-auto rounded-xl border border-card-border">
+      <div className="rounded-xl border border-card-border">
         {loading ? (
           <LoadingSpinnerBlock wrapperClassName="flex justify-center p-6" />
         ) : entries.length === 0 ? (
           <p className="p-6 text-sm text-muted">{t("admin.noAuditEntries")}</p>
         ) : (
-          <table className="min-w-full text-left text-sm">
-            <thead className="border-b border-card-border bg-transparent text-xs uppercase tracking-wide text-muted">
-              <tr>
-                <th className="px-4 py-3 font-medium">{t("admin.auditWhen")}</th>
-                <th className="px-4 py-3 font-medium">{t("admin.eventType")}</th>
-                <th className="px-4 py-3 font-medium">{t("admin.userLabel")}</th>
-                <th className="px-4 py-3 font-medium">{t("common.additionalInfo")}</th>
-                <th className="px-4 py-3 font-medium">IP</th>
-                <th className="px-4 py-3 font-medium">{t("admin.device")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {entries.map((entry) => (
-                <tr key={entry.id} className="border-b border-card-border last:border-0">
-                  <td className="px-4 py-3 text-foreground">
-                    <span className="whitespace-nowrap">{formatDate(entry.occurredAt)}</span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${eventClass(entry.event)}`}
-                    >
-                      {formatEvent(entry.event)}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-foreground">{entry.username}</td>
-                  <td className="max-w-md px-4 py-3 text-muted" title={entry.details || undefined}>
-                    {entry.details || "—"}
-                  </td>
-                  <td className="break-all px-4 py-3 text-muted">
-                    {entry.ipAddress || "—"}
-                  </td>
-                  <td className="max-w-[10rem] px-4 py-3 text-muted">{entry.deviceInfo || "—"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <>
+            {/* Phone: readable row — time · user · store · action (no horizontal scroll) */}
+            <ul className="divide-y divide-card-border md:hidden">
+              {entries.map((entry) => {
+                const store = extractAuditStoreName(entry.details);
+                const whoWhere = [entry.username, store].filter(Boolean).join(" · ");
+                return (
+                  <li key={entry.id} className="px-3 py-2.5">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold text-foreground">
+                          {whoWhere || "—"}
+                        </p>
+                        <time
+                          className="mt-0.5 block tabular-nums text-xs text-muted"
+                          dateTime={entry.occurredAt}
+                        >
+                          {formatAuditCompactWhen(entry.occurredAt)}
+                        </time>
+                      </div>
+                      <span
+                        className={`max-w-[48%] shrink-0 truncate rounded-full px-2 py-0.5 text-xs font-medium ${eventClass(entry.event)}`}
+                        title={formatEvent(entry.event)}
+                      >
+                        {formatEvent(entry.event)}
+                      </span>
+                    </div>
+                    {entry.details ? (
+                      <p
+                        className="mt-1.5 line-clamp-2 text-xs text-muted"
+                        title={entry.details}
+                      >
+                        {entry.details}
+                      </p>
+                    ) : null}
+                  </li>
+                );
+              })}
+            </ul>
+
+            {/* Desktop: full table */}
+            <div className="hidden overflow-x-auto md:block">
+              <table className="min-w-full text-left text-sm">
+                <thead className="border-b border-card-border bg-transparent text-xs uppercase tracking-wide text-muted">
+                  <tr>
+                    <th className="px-4 py-3 font-medium">{t("admin.auditWhen")}</th>
+                    <th className="px-4 py-3 font-medium">{t("admin.eventType")}</th>
+                    <th className="px-4 py-3 font-medium">{t("admin.userLabel")}</th>
+                    <th className="px-4 py-3 font-medium">
+                      {t("admin.auditStoreFilter")}
+                    </th>
+                    <th className="px-4 py-3 font-medium">
+                      {t("common.additionalInfo")}
+                    </th>
+                    <th className="px-4 py-3 font-medium">IP</th>
+                    <th className="px-4 py-3 font-medium">{t("admin.device")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {entries.map((entry) => {
+                    const store = extractAuditStoreName(entry.details);
+                    return (
+                      <tr
+                        key={entry.id}
+                        className="border-b border-card-border last:border-0"
+                      >
+                        <td className="px-4 py-3 text-foreground">
+                          <span className="whitespace-nowrap">
+                            {formatDate(entry.occurredAt)}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span
+                            className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${eventClass(entry.event)}`}
+                          >
+                            {formatEvent(entry.event)}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-foreground">
+                          {entry.username}
+                        </td>
+                        <td className="max-w-[8rem] truncate px-4 py-3 text-muted">
+                          {store ?? "—"}
+                        </td>
+                        <td
+                          className="max-w-md px-4 py-3 text-muted"
+                          title={entry.details || undefined}
+                        >
+                          {entry.details || "—"}
+                        </td>
+                        <td className="break-all px-4 py-3 text-muted">
+                          {entry.ipAddress || "—"}
+                        </td>
+                        <td className="max-w-[10rem] px-4 py-3 text-muted">
+                          {entry.deviceInfo || "—"}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
 

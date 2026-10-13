@@ -234,7 +234,8 @@ export const en = {
     navOrders: "Cart",
     bottomNav: "Main navigation",
     noStores:
-      "No locations yet. Expiry, scan, and documents stay locked until a location is assigned. You can still contact support from here.",
+      "No locations yet. Contact support to add a location for your account — expiry, scan, and documents stay locked until then.",
+    noStoresContact: "Contact support",
     team: "Team",
     teamHint: "Add users or assign additional owners for your account",
     schedule: "Schedule",
@@ -806,6 +807,18 @@ export const en = {
     confirmDelete: "Delete",
     saveChanges: "Save",
     cancelEdit: "Cancel",
+    activityLog: "Activity log",
+    activityTitle: "Activity log",
+    activitySubtitle:
+      "Actions by your team at your locations only. Other accounts are never shown.",
+    activitySearchPlaceholder: "Search user, action, details…",
+    activityAllUsers: "All team users",
+    activityAllStores: "All locations",
+    activityStoreFilter: "Location",
+    activityEmpty: "No activity matches the current filters.",
+    activityLoadFailed: "Could not load activity log.",
+    activityOwnersOnly: "Only account owners can view the activity log.",
+    activityBack: "Back to team",
   },
   scanner: {
     startCamera: "Start camera",

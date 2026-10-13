@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  OWNER_ACTIVITY_EVENTS,
   auditStoreDetailsNeedle,
   buildAuditLogWhere,
 } from "../src/lib/audit-log";
@@ -91,4 +92,23 @@ test("buildAuditLogWhere combines event group with free text", () => {
   const and = where.AND as Array<Record<string, unknown>>;
   assert.ok(and.some((clause) => "event" in clause));
   assert.ok(and.some((clause) => "OR" in clause));
+});
+
+test("buildAuditLogWhere intersects filter with owner activity allowlist", () => {
+  const where = buildAuditLogWhere({
+    filter: "auth",
+    clientId: "client_1",
+    eventsAllowlist: OWNER_ACTIVITY_EVENTS,
+  });
+
+  assert.ok(where.AND);
+  const and = where.AND as Array<Record<string, unknown>>;
+  const eventClause = and.find((clause) => "event" in clause) as {
+    event: { in: string[] };
+  };
+  assert.ok(eventClause);
+  assert.ok(eventClause.event.in.includes("login"));
+  assert.ok(!eventClause.event.in.includes("payment_recorded"));
+  assert.ok(OWNER_ACTIVITY_EVENTS.includes("login"));
+  assert.ok(!OWNER_ACTIVITY_EVENTS.includes("payment_recorded"));
 });

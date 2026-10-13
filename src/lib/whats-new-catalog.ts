@@ -580,6 +580,22 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Икона на началния екран: ако пропуснете „Добави икона“, ще попитаме отново след около седмица (само ако още не е добавена).",
     href: "/app",
   },
+  {
+    key: "2026-10-team-activity-log",
+    titleEn:
+      "Team: owners can open Activity log — only your locations and your users, with search and filters.",
+    titleBg:
+      "Екип: собствениците отварят „Дневник на действията“ — само вашите обекти и хора, с търсене и филтри.",
+    href: "/app/team/activity",
+  },
+  {
+    key: "2026-10-business-no-default-main",
+    titleEn:
+      "New business signups no longer get a Main location — contact support to add one before using the app.",
+    titleBg:
+      "Новите бизнес регистрации вече не получават автоматично обект Main — свържете се с поддръжката за добавяне на обект, преди да ползвате приложението.",
+    href: "/app",
+  },
 ];
 
 

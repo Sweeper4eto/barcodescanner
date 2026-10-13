@@ -57,10 +57,6 @@ function defaultOrgName(username: string, accountType: RegisterAccountType): str
   return `${username}'s business`;
 }
 
-function defaultLocationName(accountType: RegisterAccountType): string {
-  return accountType === "home" ? "Home" : "Main";
-}
-
 export async function registerUser(
   username: string,
   password: string,
@@ -113,15 +109,19 @@ export async function registerUser(
       },
     });
 
-    // Every new account gets a default location (Home / Main) so the owner can
-    // use the app immediately; they can rename it later in admin or settings.
-    const store = await tx.store.create({
-      data: {
-        clientId: client.id,
-        name: defaultLocationName(options.accountType),
-        active: true,
-      },
-    });
+    // Household: auto Home so they can use the app immediately.
+    // Business: no default Main — admin must add a location before they can use product features.
+    let storeId: string | undefined;
+    if (homeUser) {
+      const store = await tx.store.create({
+        data: {
+          clientId: client.id,
+          name: "Home",
+          active: true,
+        },
+      });
+      storeId = store.id;
+    }
 
     return tx.user.create({
       data: {
@@ -131,7 +131,9 @@ export async function registerUser(
         role: "USER",
         clientRole: "OWNER",
         clientId: client.id,
-        storeLinks: { create: [{ storeId: store.id }] },
+        ...(storeId
+          ? { storeLinks: { create: [{ storeId }] } }
+          : {}),
       },
       select: {
         id: true,
