@@ -344,6 +344,7 @@ const DEFAULT_OPENAI_MODEL = "gpt-4o-mini";
 /**
  * Tried in order when the preferred model is busy / unavailable.
  * Prefer full Flash models before lite — lite causes many row/date shifts.
+ * Both lite models never get cooldown; 3.1-flash-lite is always last.
  */
 const GEMINI_MODEL_FALLBACKS = [
   "gemini-3.6-flash",
@@ -352,6 +353,19 @@ const GEMINI_MODEL_FALLBACKS = [
   "gemini-3.5-flash-lite",
   "gemini-3.1-flash-lite",
 ];
+
+/** Lite fallbacks — never skip for free_tier / hang cooldown. */
+export const GEMINI_COOLDOWN_EXEMPT_MODELS = [
+  "gemini-3.5-flash-lite",
+  "gemini-3.1-flash-lite",
+] as const;
+
+/** Always keep this model last in the cascade. */
+export const GEMINI_CASCADE_LAST_MODEL = "gemini-3.1-flash-lite";
+
+export function isGeminiCooldownExempt(model: string): boolean {
+  return (GEMINI_COOLDOWN_EXEMPT_MODELS as readonly string[]).includes(model);
+}
 
 function resolveModel(
   raw: string | undefined,
@@ -370,6 +384,14 @@ function geminiModelsToTry(preferred: string): string[] {
   };
   push(preferred);
   for (const model of GEMINI_MODEL_FALLBACKS) push(model);
+  // Always attempt 3.1-flash-lite last (never lost to earlier positioning).
+  const lastIdx = out.indexOf(GEMINI_CASCADE_LAST_MODEL);
+  if (lastIdx >= 0 && lastIdx !== out.length - 1) {
+    out.splice(lastIdx, 1);
+    out.push(GEMINI_CASCADE_LAST_MODEL);
+  } else if (lastIdx < 0) {
+    out.push(GEMINI_CASCADE_LAST_MODEL);
+  }
   return out;
 }
 
@@ -509,6 +531,7 @@ function markGeminiModelCooldown(
   reason: GeminiModelCooldown["reason"],
   now = Date.now(),
 ): void {
+  if (isGeminiCooldownExempt(model)) return;
   const untilMs = now + delayMs;
   const prev = geminiModelCooldown.get(model);
   if (!prev || untilMs > prev.untilMs) {
@@ -536,6 +559,7 @@ export function isGeminiModelCoolingDown(
   model: string,
   now = Date.now(),
 ): GeminiModelCooldown["reason"] | null {
+  if (isGeminiCooldownExempt(model)) return null;
   const entry = geminiModelCooldown.get(model);
   if (entry == null) return null;
   if (now >= entry.untilMs) {

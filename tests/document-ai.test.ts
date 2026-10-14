@@ -81,19 +81,30 @@ describe("parseGeminiRetryAfterMs / free-tier cooldown", () => {
   it("skips models for 5 minutes after hang timeout then retries", () => {
     clearGeminiFreeTierCooldownsForTests();
     const now = 1_000_000;
-    markGeminiModelHangTimeout("gemini-3.5-flash-lite", now);
+    markGeminiModelHangTimeout("gemini-3-flash-preview", now);
     assert.equal(GEMINI_HANG_TIMEOUT_COOLDOWN_MS, 5 * 60 * 1000);
     assert.equal(
-      isGeminiModelCoolingDown("gemini-3.5-flash-lite", now + 1000),
+      isGeminiModelCoolingDown("gemini-3-flash-preview", now + 1000),
       "hang",
     );
     assert.equal(
       isGeminiModelCoolingDown(
-        "gemini-3.5-flash-lite",
+        "gemini-3-flash-preview",
         now + GEMINI_HANG_TIMEOUT_COOLDOWN_MS,
       ),
       null,
     );
+    clearGeminiFreeTierCooldownsForTests();
+  });
+
+  it("never cools down either flash-lite model", () => {
+    clearGeminiFreeTierCooldownsForTests();
+    const now = 1_000_000;
+    for (const model of ["gemini-3.5-flash-lite", "gemini-3.1-flash-lite"]) {
+      markGeminiModelFreeTierExhausted(model, "Please retry in 8h.", now);
+      markGeminiModelHangTimeout(model, now);
+      assert.equal(isGeminiModelCoolingDown(model, now + 1000), null);
+    }
     clearGeminiFreeTierCooldownsForTests();
   });
 });
