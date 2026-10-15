@@ -31,6 +31,7 @@ import {
   appStatIconWrap,
 } from "@/lib/app-ui";
 import { useBrowserBackStack } from "@/lib/browser-back";
+import { useScreenWakeLock } from "@/hooks/use-screen-wake-lock";
 import {
   type DocumentDraftItem,
   draftItemValid,
@@ -57,6 +58,9 @@ function AddDocumentContent() {
   const { ready, user } = useAppSession();
   const searchParams = useSearchParams();
   const storeId = searchParams.get("storeId") ?? "";
+
+  useScreenWakeLock(true);
+
   const [checking, setChecking] = useState(true);
   const [step, setStep] = useState<Step>("camera");
   const [cameraSession, setCameraSession] = useState(0);

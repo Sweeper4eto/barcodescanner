@@ -785,7 +785,10 @@ export const en = {
     addAsOwner: "Account owner",
     newPassword: "New password",
     newPasswordPlaceholder: "Enter new password",
-    newPasswordHint: "Leave empty to keep the current password.",
+    newPasswordHint:
+      "Leave empty to keep the current password. A new password is temporary — they must change it on login.",
+    passwordTemporaryHint:
+      "This is a temporary password. The user must choose their own on first login.",
     confirmPassword: "Confirm password",
     confirmPasswordPlaceholder: "Re-enter password",
     sendWelcomeEmail: "Send welcome email",

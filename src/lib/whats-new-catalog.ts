@@ -596,6 +596,14 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Новите бизнес регистрации вече не получават автоматично обект Main — свържете се с поддръжката за добавяне на обект, преди да ползвате приложението.",
     href: "/app",
   },
+  {
+    key: "2026-10-app-screen-keep-awake",
+    titleEn:
+      "Screen stays awake on Expiry list, document scan, and while the camera/scanner is open.",
+    titleBg:
+      "Екранът остава буден в списъка с годност, при скен на документ и докато е отворена камерата/скенерът.",
+    href: "/app",
+  },
 ];
 
 

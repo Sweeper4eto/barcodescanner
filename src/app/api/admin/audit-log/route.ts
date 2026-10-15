@@ -3,6 +3,7 @@ import { requireAdmin } from "@/lib/auth";
 import {
   type AuditAccountKind,
   type AuditFilter,
+  attachAccountOwnersToAuditEntries,
   getAuditFilterOptions,
   queryAuditLog,
   serializeAuditEntries,
@@ -63,9 +64,13 @@ export async function GET(request: Request) {
         : Promise.resolve(null),
     ]);
 
+    const entries = await attachAccountOwnersToAuditEntries(
+      serializeAuditEntries(result.entries),
+    );
+
     return NextResponse.json({
       ...result,
-      entries: serializeAuditEntries(result.entries),
+      entries,
       ...(options ? { options } : {}),
     });
   } catch (error) {

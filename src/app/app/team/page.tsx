@@ -814,8 +814,12 @@ export default function TeamPage() {
                     error={passwordError}
                     errorId="team-password-error"
                   />
-                  {sheetMode === "edit" && !passwordError ? (
-                    <p className="mt-0.5 text-xs text-muted">{t("team.newPasswordHint")}</p>
+                  {!passwordError ? (
+                    <p className="mt-0.5 text-xs text-muted">
+                      {sheetMode === "edit"
+                        ? t("team.newPasswordHint")
+                        : t("team.passwordTemporaryHint")}
+                    </p>
                   ) : null}
                 </div>
               </div>

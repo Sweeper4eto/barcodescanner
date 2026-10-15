@@ -653,86 +653,91 @@ export function MinimartLocatorPanel() {
             )}
           </div>
 
-          <div className="rounded-2xl border border-card-border p-3">
+          <div className="flex max-h-[22rem] min-h-0 shrink-0 flex-col overflow-hidden rounded-2xl border border-card-border lg:max-h-[24rem]">
             {draft ? (
-              <div className="space-y-3">
-                <p className="text-xs text-muted">
-                  {isNewPin
-                    ? t("admin.minimartNewPin")
-                    : t("admin.minimartEditPin")}
-                  {" · "}
-                  {draft.lat.toFixed(5)}, {draft.lng.toFixed(5)}
-                </p>
-                <AdminField label={t("common.name")}>
-                  <input
-                    value={draft.title}
-                    onChange={(event) =>
-                      setDraft({ ...draft, title: event.target.value })
-                    }
-                    className={adminInputClass}
-                  />
-                </AdminField>
-                <AdminField label={t("admin.minimartCity")}>
-                  <input
-                    value={draft.city}
-                    onChange={(event) =>
-                      setDraft({ ...draft, city: event.target.value })
-                    }
-                    className={adminInputClass}
-                  />
-                </AdminField>
-                <AdminField label={t("common.address")}>
-                  <input
-                    value={draft.street}
-                    onChange={(event) =>
-                      setDraft({ ...draft, street: event.target.value })
-                    }
-                    className={adminInputClass}
-                  />
-                </AdminField>
-                <AdminField label={t("admin.minimartStatus")}>
-                  <MenuSelect
-                    label={t("admin.minimartStatus")}
-                    value={draft.status}
-                    options={MINIMART_STATUSES.map((status) => ({
-                      value: status,
-                      label: statusLabel(status),
-                    }))}
-                    onChange={(status) =>
-                      setDraft({ ...draft, status })
-                    }
-                    buttonClassName={`${adminInputClass} mt-1 flex items-center justify-between gap-2 text-left`}
-                  />
-                </AdminField>
-                <AdminField label={t("admin.minimartLinkedClient")}>
-                  <MenuSelect
-                    label={t("admin.minimartLinkedClient")}
-                    value={draft.clientId ?? NO_CLIENT}
-                    options={clientOptions}
-                    onChange={(next) =>
-                      setDraft({
-                        ...draft,
-                        clientId: next === NO_CLIENT ? null : next,
-                      })
-                    }
-                    buttonClassName={`${adminInputClass} mt-1 flex items-center justify-between gap-2 text-left`}
-                  />
-                  <p className="mt-1 text-[11px] text-muted">
-                    {t("admin.minimartLinkedClientHint")}
+              <>
+                <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3">
+                  <p className="text-xs text-muted">
+                    {isNewPin
+                      ? t("admin.minimartNewPin")
+                      : t("admin.minimartEditPin")}
+                    {" · "}
+                    {draft.lat.toFixed(5)}, {draft.lng.toFixed(5)}
                   </p>
-                </AdminField>
-                <AdminField label={t("admin.minimartComment")}>
-                  <textarea
-                    value={draft.comment}
-                    onChange={(event) =>
-                      setDraft({ ...draft, comment: event.target.value })
-                    }
-                    rows={4}
-                    className={`${adminInputClass} resize-y`}
-                    placeholder={t("admin.minimartCommentPlaceholder")}
-                  />
-                </AdminField>
-                <div className="grid grid-cols-2 gap-2">
+                  <AdminField label={t("common.name")}>
+                    <input
+                      value={draft.title}
+                      onChange={(event) =>
+                        setDraft({ ...draft, title: event.target.value })
+                      }
+                      className={adminInputClass}
+                    />
+                  </AdminField>
+                  <AdminField label={t("admin.minimartCity")}>
+                    <input
+                      value={draft.city}
+                      onChange={(event) =>
+                        setDraft({ ...draft, city: event.target.value })
+                      }
+                      className={adminInputClass}
+                    />
+                  </AdminField>
+                  <AdminField label={t("common.address")}>
+                    <input
+                      value={draft.street}
+                      onChange={(event) =>
+                        setDraft({ ...draft, street: event.target.value })
+                      }
+                      className={adminInputClass}
+                    />
+                  </AdminField>
+                  <AdminField label={t("admin.minimartStatus")}>
+                    <MenuSelect
+                      label={t("admin.minimartStatus")}
+                      value={draft.status}
+                      options={MINIMART_STATUSES.map((status) => ({
+                        value: status,
+                        label: statusLabel(status),
+                      }))}
+                      onChange={(status) =>
+                        setDraft({ ...draft, status })
+                      }
+                      buttonClassName={`${adminInputClass} mt-1 flex items-center justify-between gap-2 text-left`}
+                    />
+                  </AdminField>
+                  <AdminField label={t("admin.minimartLinkedClient")}>
+                    <MenuSelect
+                      label={t("admin.minimartLinkedClient")}
+                      value={draft.clientId ?? NO_CLIENT}
+                      options={clientOptions}
+                      onChange={(next) =>
+                        setDraft({
+                          ...draft,
+                          clientId: next === NO_CLIENT ? null : next,
+                        })
+                      }
+                      buttonClassName={`${adminInputClass} mt-1 flex items-center justify-between gap-2 text-left`}
+                    />
+                    <p className="mt-1 text-[11px] text-muted">
+                      {t("admin.minimartLinkedClientHint")}
+                    </p>
+                  </AdminField>
+                  <AdminField label={t("admin.minimartComment")}>
+                    <textarea
+                      value={draft.comment}
+                      onChange={(event) =>
+                        setDraft({ ...draft, comment: event.target.value })
+                      }
+                      rows={3}
+                      className={`${adminInputClass} resize-y`}
+                      placeholder={t("admin.minimartCommentPlaceholder")}
+                    />
+                  </AdminField>
+                  <p className="text-[11px] text-muted">
+                    {t("admin.minimartDragHint")}
+                  </p>
+                </div>
+                <div className="grid shrink-0 grid-cols-2 gap-2 border-t border-card-border bg-background p-3">
                   <button
                     type="button"
                     className={`${appButtonPrimary} w-full`}
@@ -750,12 +755,11 @@ export function MinimartLocatorPanel() {
                     {t("common.delete")}
                   </button>
                 </div>
-                <p className="text-[11px] text-muted">
-                  {t("admin.minimartDragHint")}
-                </p>
-              </div>
+              </>
             ) : (
-              <p className="text-sm text-muted">{t("admin.minimartPickStore")}</p>
+              <p className="p-3 text-sm text-muted">
+                {t("admin.minimartPickStore")}
+              </p>
             )}
           </div>
         </div>

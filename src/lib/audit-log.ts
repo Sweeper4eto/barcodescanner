@@ -401,3 +401,55 @@ export function serializeAuditEntries(
     occurredAt: entry.occurredAt.toISOString(),
   }));
 }
+
+/** Admin-only: resolve account owner username(s) for each entry's acting user. */
+export async function attachAccountOwnersToAuditEntries<
+  T extends { userId: string },
+>(entries: T[]): Promise<Array<T & { accountOwner: string | null }>> {
+  if (entries.length === 0) {
+    return [];
+  }
+
+  const userIds = [...new Set(entries.map((entry) => entry.userId))];
+  const actors = await db.user.findMany({
+    where: { id: { in: userIds } },
+    select: { id: true, clientId: true },
+  });
+  const clientIdByUserId = new Map(
+    actors.map((row) => [row.id, row.clientId] as const),
+  );
+  const clientIds = [
+    ...new Set(
+      actors
+        .map((row) => row.clientId)
+        .filter((id): id is string => Boolean(id)),
+    ),
+  ];
+
+  const ownersByClientId = new Map<string, string[]>();
+  if (clientIds.length > 0) {
+    const owners = await db.user.findMany({
+      where: {
+        clientId: { in: clientIds },
+        clientRole: "OWNER",
+      },
+      select: { clientId: true, username: true },
+      orderBy: { username: "asc" },
+    });
+    for (const owner of owners) {
+      if (!owner.clientId) continue;
+      const list = ownersByClientId.get(owner.clientId) ?? [];
+      list.push(owner.username);
+      ownersByClientId.set(owner.clientId, list);
+    }
+  }
+
+  return entries.map((entry) => {
+    const clientId = clientIdByUserId.get(entry.userId) ?? null;
+    const ownerNames = clientId ? ownersByClientId.get(clientId) : undefined;
+    return {
+      ...entry,
+      accountOwner: ownerNames?.length ? ownerNames.join(", ") : null,
+    };
+  });
+}

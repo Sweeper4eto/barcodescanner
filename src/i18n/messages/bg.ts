@@ -787,7 +787,10 @@ export const bg = {
     addAsOwner: "Собственик на акаунта",
     newPassword: "Нова парола",
     newPasswordPlaceholder: "Въведете нова парола",
-    newPasswordHint: "Ако е празно, старата парола остава.",
+    newPasswordHint:
+      "Ако е празно, старата парола остава. Новата е временна — трябва да я сменят при вход.",
+    passwordTemporaryHint:
+      "Това е временна парола. Потребителят трябва да избере своя при първи вход.",
     confirmPassword: "Потвърди парола",
     confirmPasswordPlaceholder: "Въведете паролата отново",
     sendWelcomeEmail: "Изпрати приветствен имейл",

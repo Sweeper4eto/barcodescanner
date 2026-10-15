@@ -14,6 +14,7 @@ import { MobilePageHeader, listPageShellClassName } from "@/components/mobile-pa
 import { ProductImage } from "@/components/product-image";
 import { QuantityStepper } from "@/components/quantity-picker";
 import { useT } from "@/components/i18n-provider";
+import { useScreenWakeLock } from "@/hooks/use-screen-wake-lock";
 import { goBackOrApp, navigateApp, replaceApp } from "@/lib/app-navigation";
 import { appButtonCancelFull } from "@/lib/app-ui";
 import { normalizeBarcode } from "@/lib/barcode";
@@ -30,6 +31,9 @@ export function ScanFlow() {
   const storeId = searchParams.get("storeId") ?? "";
   const urlBarcode = normalizeBarcode(searchParams.get("barcode") ?? "");
   const { t } = useT();
+
+  useScreenWakeLock(true);
+
   const [barcode, setBarcode] = useState("");
   const [product, setProduct] = useState<{
     id: string;

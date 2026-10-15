@@ -22,6 +22,7 @@ import { RemoveConfirmDialog } from "@/components/remove-confirm-dialog";
 import { SearchField } from "@/components/search-field";
 import { useT } from "@/components/i18n-provider";
 import { useAppSession } from "@/components/app-session-provider";
+import { useScreenWakeLock } from "@/hooks/use-screen-wake-lock";
 import {
   type ExpiryPeriod,
   DEFAULT_EXPIRY_PERIOD,
@@ -71,6 +72,9 @@ function ExpiryList() {
   const { offsetTop, keyboardInset } = useViewportInsets();
   const searchParams = useSearchParams();
   const storeId = searchParams.get("storeId") ?? "";
+
+  useScreenWakeLock(true);
+
   const [entries, setEntries] = useState<Entry[]>([]);
   const [pagination, setPagination] = useState<Pagination>({
     page: 1,

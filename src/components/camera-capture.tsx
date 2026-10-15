@@ -11,6 +11,7 @@ import {
 } from "@/components/app-nav-icons";
 import { useT } from "@/components/i18n-provider";
 import { ScannerViewfinderOverlay } from "@/components/scanner-viewfinder-overlay";
+import { useScreenWakeLock } from "@/hooks/use-screen-wake-lock";
 import { appButtonCancelFull, appButtonPrimaryFull, appFooterButtonGrid } from "@/lib/app-ui";
 
 type Props = {
@@ -509,6 +510,8 @@ export function CameraCapture({
   const lastPreviewTapRef = useRef(0);
   const documentLayout = variant === "document";
   const showCorners = showViewfinder || documentLayout;
+
+  useScreenWakeLock(active || starting || capturing || Boolean(preview));
 
   useEffect(() => {
     // Document flow keeps a live in-app preview so "new scan" / Retake reuse the

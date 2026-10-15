@@ -4,8 +4,9 @@ import { useEffect } from "react";
 
 /**
  * Keeps the screen awake while `active` is true (Screen Wake Lock API).
- * No-ops when unsupported. Re-acquires after the page becomes visible again
- * (browsers release the lock when the tab is backgrounded).
+ * Used on camera / document scan / expiry list. No-ops when unsupported.
+ * Re-acquires after the page becomes visible again (browsers release the
+ * lock when backgrounded). OS battery savers can still dim on some Androids.
  */
 export function useScreenWakeLock(active: boolean) {
   useEffect(() => {

@@ -15,6 +15,7 @@ import { appFooterButtonGrid } from "@/lib/app-ui";
 import { FlashlightIcon } from "@/components/app-nav-icons";
 import { useT } from "@/components/i18n-provider";
 import { ScannerViewfinderOverlay } from "@/components/scanner-viewfinder-overlay";
+import { useScreenWakeLock } from "@/hooks/use-screen-wake-lock";
 import { startEnhancedAutoScan, startFastVideoScan, toggleBarcodeTorch, applyBarcodeCameraConstraints, startAutoRefocus, captureScannerPreview } from "@/lib/barcode-camera";
 import { prepareBarcodeDecoders } from "@/lib/barcode-decode";
 import { CrossDecoderBarcodeConsensus, isPlausibleBarcode, normalizeBarcode } from "@/lib/barcode";
@@ -354,6 +355,8 @@ export function BarcodeScanner({
   const [starting, setStarting] = useState(false);
   const [torchOn, setTorchOn] = useState(false);
   const [torchAvailable, setTorchAvailable] = useState(false);
+
+  useScreenWakeLock(scanning || starting);
 
   useEffect(() => {
     onScanRef.current = onScan;

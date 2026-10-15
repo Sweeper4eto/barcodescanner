@@ -141,6 +141,7 @@ export async function POST(request: Request) {
       username,
       displayName: normalizeDisplayName(parsed.data.displayName),
       passwordHash: await hashPassword(parsed.data.password),
+      mustChangePassword: true,
       role: "USER",
       clientRole: parsed.data.clientRole === "OWNER" ? "OWNER" : "MEMBER",
       clientId: owner.clientId,
