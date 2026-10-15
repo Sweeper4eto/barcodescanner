@@ -32,18 +32,19 @@ export function useAppStoreId(): { storeId: string; ready: boolean } {
     }
 
     const stores = user?.stores ?? [];
+    const username = user?.username ?? null;
     const validQuery =
       Boolean(queryStoreId) && stores.some((store) => store.id === queryStoreId);
 
     if (validQuery) {
       setStoreId(queryStoreId);
-      setStoredStoreId(queryStoreId);
+      setStoredStoreId(queryStoreId, username);
       urlSyncedForRef.current = queryStoreId;
       setReady(true);
       return;
     }
 
-    const stored = getStoredStoreId();
+    const stored = getStoredStoreId(username);
     const validStored = stores.find((store) => store.id === stored);
     const resolved = validStored?.id ?? stores[0]?.id ?? "";
 
@@ -52,7 +53,7 @@ export function useAppStoreId(): { storeId: string; ready: boolean } {
 
     if (!resolved) return;
 
-    setStoredStoreId(resolved);
+    setStoredStoreId(resolved, username);
 
     const currentParam = new URL(window.location.href).searchParams.get(
       "storeId",

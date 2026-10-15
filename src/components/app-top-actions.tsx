@@ -38,23 +38,25 @@ export function AppStoreSelect() {
   const stores = useMemo(() => user?.stores ?? [], [user?.stores]);
   const [storeId, setStoreId] = useState("");
 
+  const username = user?.username ?? "";
+
   useEffect(() => {
     if (!ready) return;
     if (stores.length === 0) {
       setStoreId("");
-      clearStoredStoreId();
+      clearStoredStoreId(username || null);
       return;
     }
-    const stored = getStoredStoreId();
+    const stored = getStoredStoreId(username || null);
     const valid = stores.find((store) => store.id === stored);
     const nextId = valid?.id ?? stores[0]?.id ?? "";
     setStoreId(nextId);
-    if (nextId) setStoredStoreId(nextId);
-  }, [ready, stores]);
+    if (nextId) setStoredStoreId(nextId, username || null);
+  }, [ready, stores, username]);
 
   function onStoreChange(nextId: string) {
     setStoreId(nextId);
-    setStoredStoreId(nextId);
+    setStoredStoreId(nextId, username || null);
 
     if (typeof window === "undefined") return;
     const url = new URL(window.location.href);

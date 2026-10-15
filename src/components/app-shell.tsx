@@ -34,13 +34,13 @@ function RequireLocationGuard({ children }: { children: ReactNode }) {
     }
 
     if (isAllowedWithoutStore(pathname)) {
-      clearStoredStoreId();
+      clearStoredStoreId(user.username);
       refreshAttempted.current = false;
       return;
     }
 
     if (refreshAttempted.current) {
-      clearStoredStoreId();
+      clearStoredStoreId(user.username);
       router.replace("/app");
       return;
     }
@@ -51,7 +51,7 @@ function RequireLocationGuard({ children }: { children: ReactNode }) {
       const stores = await refresh();
       if (cancelled) return;
       if (stores.length === 0) {
-        clearStoredStoreId();
+        clearStoredStoreId(user.username);
         router.replace("/app");
       }
     })();

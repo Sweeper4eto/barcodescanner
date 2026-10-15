@@ -22,6 +22,7 @@ import {
 export type AppSessionStore = { id: string; name: string; active: boolean };
 
 type AppSessionUser = {
+  username: string;
   homeUser: boolean;
   stores: AppSessionStore[];
 };
@@ -45,15 +46,18 @@ export function useAppSession() {
   return useContext(AppSessionContext);
 }
 
-function syncSelectedStore(stores: AppSessionStore[]) {
+function syncSelectedStore(stores: AppSessionStore[], username: string) {
   if (stores.length === 0) {
-    clearStoredStoreId();
+    clearStoredStoreId(username);
     return;
   }
-  const stored = getStoredStoreId();
+  const stored = getStoredStoreId(username);
   const valid = stores.some((store) => store.id === stored);
   if (!valid) {
-    setStoredStoreId(stores[0]!.id);
+    setStoredStoreId(stores[0]!.id, username);
+  } else if (stored) {
+    // Re-write so both legacy + per-user keys stay aligned after login.
+    setStoredStoreId(stored, username);
   }
 }
 
@@ -77,10 +81,12 @@ export function AppSessionProvider({ children }: { children: ReactNode }) {
 
       if (!data.user) {
         setState({ ready: true, user: null, homeUser: null });
-        clearStoredStoreId();
+        // Keep selected store across logout so the last location is restored
+        // on the next login (cleared only when the user has no stores).
         return [];
       }
 
+      const username = String(data.user.username ?? "");
       const homeUser = Boolean(data.user.homeUser);
       writeCachedHomeUser(homeUser);
       const stores: AppSessionStore[] = (data.user.stores ?? []).filter(
@@ -88,10 +94,10 @@ export function AppSessionProvider({ children }: { children: ReactNode }) {
       );
       setState({
         ready: true,
-        user: { homeUser, stores },
+        user: { username, homeUser, stores },
         homeUser,
       });
-      syncSelectedStore(stores);
+      syncSelectedStore(stores, username);
       return stores;
     } catch {
       setState((current) => ({

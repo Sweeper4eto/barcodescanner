@@ -604,6 +604,14 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Екранът остава буден в списъка с годност, при скен на документ и докато е отворена камерата/скенерът.",
     href: "/app",
   },
+  {
+    key: "2026-10-remember-last-location",
+    titleEn:
+      "Your last selected location is remembered after logout — it’s selected again when you sign back in.",
+    titleBg:
+      "Последният избран обект се запомня след изход — при следващ вход отново е избран.",
+    href: "/app",
+  },
 ];
 
 

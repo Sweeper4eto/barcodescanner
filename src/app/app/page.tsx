@@ -234,13 +234,14 @@ export default function AppHomePage() {
       // (slow/hanging LAN fetches left owners on spinner + Contact only).
       const list: Store[] = data.user.stores ?? [];
       setStores(list);
-      const stored = getStoredStoreId();
+      const username = String(data.user.username ?? "");
+      const stored = getStoredStoreId(username);
       const valid = list.find((store) => store.id === stored);
       const nextId = valid?.id ?? list[0]?.id ?? "";
       if (nextId) {
-        setStoredStoreId(nextId);
+        setStoredStoreId(nextId, username);
       } else {
-        clearStoredStoreId();
+        clearStoredStoreId(username);
       }
       setBootstrapped(true);
 
