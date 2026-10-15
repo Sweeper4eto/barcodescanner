@@ -63,6 +63,10 @@ export const rootMetadata: Metadata = {
       "max-snippet": -1,
     },
   },
+  // Stop Chrome/Android from auto-translating the app UI (breaks login / hydration).
+  other: {
+    google: "notranslate",
+  },
   ...(googleVerification
     ? { verification: { google: googleVerification } }
     : {}),

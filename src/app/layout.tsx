@@ -38,10 +38,14 @@ export default function RootLayout({
   return (
     <html
       lang={defaultLocale}
-      className={`${geistSans.variable} ${geistMono.variable} min-h-svh antialiased`}
+      translate="no"
+      className={`notranslate ${geistSans.variable} ${geistMono.variable} min-h-svh antialiased`}
       style={{ colorScheme: "dark" }}
     >
-      <body className="min-h-svh min-w-0 bg-background text-foreground">
+      <body
+        className="notranslate min-h-svh min-w-0 bg-background text-foreground"
+        translate="no"
+      >
         <RootClientI18nProvider>
           {children}
           <KeepKeyboardFocusVisible />
