@@ -509,6 +509,8 @@ export const bg = {
   },
   addDocument: {
     title: "Сканирай документ",
+    locationConfirmation: "Потвърждение на обект",
+    locationName: "Име на обект",
     hint: "Снимайте списъка или качете една или повече страници.",
     multiHint: "Качване: няколко страници ОК.",
     frameHint:

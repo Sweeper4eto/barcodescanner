@@ -15,12 +15,14 @@ import { DocumentDraftDetailSheet } from "@/components/document-draft-detail-she
 import { DocumentDraftListCard } from "@/components/document-draft-list-card";
 import { DocumentProcessingPanel } from "@/components/document-processing-panel";
 import { LoadingSpinnerBlock } from "@/components/loading-spinner";
+import { LocationConfirmDialog } from "@/components/location-confirm-dialog";
 import { MobilePageHeader, listPageChromeClassName } from "@/components/mobile-page-header";
 import { RemoveConfirmDialog } from "@/components/remove-confirm-dialog";
 import { SearchField } from "@/components/search-field";
 import { useT } from "@/components/i18n-provider";
 import { useAppSession } from "@/components/app-session-provider";
-import { navigateApp } from "@/lib/app-navigation";
+import { goBackOrApp, navigateApp } from "@/lib/app-navigation";
+import { getStoredStoreId } from "@/lib/store-selection";
 import {
   appButtonCancelFull,
   appButtonPrimaryFull,
@@ -43,7 +45,7 @@ import {
 const reviewPageShellClassName =
   "mx-auto flex h-[calc(100svh-var(--app-bottom-nav-frame)-env(safe-area-inset-bottom,0px))] min-h-0 w-full max-w-lg flex-col overflow-x-visible pt-1";
 
-type Step = "camera" | "processing" | "review" | "done";
+type Step = "confirmLocation" | "camera" | "processing" | "review" | "done";
 
 type ImportResult = { created: number; merged: number };
 type SessionTotals = { scans: number; created: number; merged: number };
@@ -59,11 +61,22 @@ function AddDocumentContent() {
   const searchParams = useSearchParams();
   const storeId = searchParams.get("storeId") ?? "";
 
-  useScreenWakeLock(true);
-
   const [checking, setChecking] = useState(true);
-  const [step, setStep] = useState<Step>("camera");
+  const [step, setStep] = useState<Step>("confirmLocation");
   const [cameraSession, setCameraSession] = useState(0);
+
+  useScreenWakeLock(
+    step === "confirmLocation" ||
+      step === "camera" ||
+      step === "processing" ||
+      step === "review",
+  );
+
+  const locationName = useMemo(() => {
+    const preferred = storeId || getStoredStoreId(user?.username) || "";
+    const match = user?.stores.find((store) => store.id === preferred);
+    return match?.name ?? preferred;
+  }, [storeId, user?.stores, user?.username]);
   const [items, setItems] = useState<DocumentDraftItem[]>([]);
   const [error, setError] = useState("");
   const [importing, setImporting] = useState(false);
@@ -401,6 +414,8 @@ function AddDocumentContent() {
     );
   }
 
+  const showCamera = step === "confirmLocation" || step === "camera";
+
   return (
     <>
       <div
@@ -421,7 +436,7 @@ function AddDocumentContent() {
           />
         ) : null}
 
-      {step === "camera" ? (
+      {showCamera ? (
         <div className="space-y-3">
           {error ? <p className="text-sm text-error">{error}</p> : null}
           <CameraCapture
@@ -430,15 +445,28 @@ function AddDocumentContent() {
             allowFileUpload
             allowMultipleFiles
             showViewfinder
-            onCapture={(dataUrl) => void onCapture(dataUrl)}
-            onMultipleCapture={(pages) => void onMultipleCapture(pages)}
+            onCapture={(dataUrl) => {
+              if (step !== "camera") return;
+              void onCapture(dataUrl);
+            }}
+            onMultipleCapture={(pages) => {
+              if (step !== "camera") return;
+              void onMultipleCapture(pages);
+            }}
             onNewDocument={() => {
+              if (step !== "camera") return;
               setError("");
               // CameraCapture retakes in place (keeps MediaStream). Only remount
               // if the child could not reuse a live stream.
               setCameraSession((n) => n + 1);
             }}
-            onCancel={() => navigateApp("/app")}
+            onCancel={() => {
+              if (step === "confirmLocation") {
+                goBackOrApp("/app");
+                return;
+              }
+              navigateApp("/app");
+            }}
             key={cameraSession}
           />
         </div>
@@ -647,6 +675,18 @@ function AddDocumentContent() {
         </div>
       ) : null}
       </div>
+
+      {step === "confirmLocation" ? (
+        <LocationConfirmDialog
+          title={t("addDocument.locationConfirmation")}
+          locationLabel={t("addDocument.locationName")}
+          locationName={locationName || "—"}
+          yesLabel={t("common.yes")}
+          noLabel={t("common.no")}
+          onYes={() => setStep("camera")}
+          onNo={() => goBackOrApp("/app")}
+        />
+      ) : null}
 
       {detailItem ? (
         <DocumentDraftDetailSheet

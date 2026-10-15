@@ -508,6 +508,8 @@ export const en = {
   },
   addDocument: {
     title: "Scan document",
+    locationConfirmation: "Location confirmation",
+    locationName: "Location name",
     hint: "Photo the delivery list, or upload one or more pages.",
     multiHint: "Upload: multiple pages OK.",
     frameHint:

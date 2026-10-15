@@ -612,6 +612,14 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Последният избран обект се запомня след изход — при следващ вход отново е избран.",
     href: "/app",
   },
+  {
+    key: "2026-10-scan-location-confirm",
+    titleEn:
+      "Before document scan, confirm the location (Yes / No) so items go to the right store.",
+    titleBg:
+      "Преди скен на документ потвърдете обекта (Да / Не), за да отидат артикулите на правилното място.",
+    href: "/app/add-document",
+  },
 ];
 
 
