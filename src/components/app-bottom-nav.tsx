@@ -26,20 +26,20 @@ type Tab = {
 export function AppBottomNav() {
   const pathname = usePathname();
   const { t } = useT();
-  const { homeUser } = useAppSession();
+  const { homeUser, user } = useAppSession();
   const [storeId, setStoreId] = useState("");
   const [cartCount, setCartCount] = useState(0);
   const [navReady, setNavReady] = useState(false);
 
   useEffect(() => {
     function syncStoreId() {
-      setStoreId(getStoredStoreId() ?? "");
+      setStoreId(getStoredStoreId(user?.username) ?? "");
     }
     syncStoreId();
     setNavReady(true);
     window.addEventListener("magazin:store-changed", syncStoreId);
     return () => window.removeEventListener("magazin:store-changed", syncStoreId);
-  }, [pathname]);
+  }, [pathname, user?.username]);
 
   useEffect(() => {
     if (homeUser !== true || !storeId) {

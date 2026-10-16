@@ -104,6 +104,9 @@ function BuyListContent() {
   const clearFlash = useCallback(() => setFlashMessage(null), []);
   const loadingMoreRef = useRef(false);
   const fetchGenerationRef = useRef(0);
+  const storeIdRef = useRef(storeId);
+  storeIdRef.current = storeId;
+  const listFilterRef = useRef({ storeId: "", debouncedSearch: "" });
 
   useBrowserBackStack([
     {
@@ -186,10 +189,6 @@ function BuyListContent() {
     return () => window.clearTimeout(timer);
   }, [search]);
 
-  useEffect(() => {
-    setPage(1);
-  }, [debouncedSearch, storeId]);
-
   const clearSearchIfActive = useCallback(() => {
     if (!search.trim() && !debouncedSearch) return;
     setSearch("");
@@ -200,10 +199,11 @@ function BuyListContent() {
     async (targetPage: number, append: boolean) => {
       if (!storeId || homeUser !== true || !pageReady) return;
 
+      const requestedStoreId = storeId;
       const generation = ++fetchGenerationRef.current;
       loadingMoreRef.current = true;
-      setLoading(true);
-      const params = new URLSearchParams({ storeId });
+      if (!append) setLoading(true);
+      const params = new URLSearchParams({ storeId: requestedStoreId });
       if (debouncedSearch) {
         params.set("q", debouncedSearch);
       } else {
@@ -212,13 +212,16 @@ function BuyListContent() {
       }
 
       try {
-        const response = await fetch(`/api/buy-list?${params.toString()}`);
+        const response = await fetch(`/api/buy-list?${params.toString()}`, {
+          cache: "no-store",
+        });
         const data = (await response.json()) as {
           entries?: Entry[];
           pagination?: Pagination;
         };
 
         if (generation !== fetchGenerationRef.current) return;
+        if (storeIdRef.current !== requestedStoreId) return;
 
         const nextEntries = data.entries ?? [];
         setEntries((current) => (append ? [...current, ...nextEntries] : nextEntries));
@@ -231,7 +234,10 @@ function BuyListContent() {
           },
         );
       } finally {
-        if (generation === fetchGenerationRef.current) {
+        if (
+          generation === fetchGenerationRef.current &&
+          storeIdRef.current === requestedStoreId
+        ) {
           loadingMoreRef.current = false;
           setLoading(false);
         }
@@ -241,8 +247,27 @@ function BuyListContent() {
   );
 
   useEffect(() => {
-    if (storeId && homeUser === true && pageReady) {
-      void loadEntries(page, page > 1 && !debouncedSearch);
+    if (!pageReady || homeUser !== true) return;
+    if (!storeId) {
+      setEntries([]);
+      setLoading(false);
+      return;
+    }
+
+    const prev = listFilterRef.current;
+    const filterChanged =
+      prev.storeId !== storeId || prev.debouncedSearch !== debouncedSearch;
+
+    if (filterChanged) {
+      listFilterRef.current = { storeId, debouncedSearch };
+      setPage(1);
+      setEntries([]);
+      void loadEntries(1, false);
+      return;
+    }
+
+    if (page > 1 && !debouncedSearch) {
+      void loadEntries(page, true);
     }
   }, [storeId, debouncedSearch, page, homeUser, pageReady, loadEntries]);
 

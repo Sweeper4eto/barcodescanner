@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import {
   DocumentNavIcon,
@@ -22,7 +22,6 @@ import { SearchField } from "@/components/search-field";
 import { useT } from "@/components/i18n-provider";
 import { useAppSession } from "@/components/app-session-provider";
 import { goBackOrApp, navigateApp } from "@/lib/app-navigation";
-import { getStoredStoreId } from "@/lib/store-selection";
 import {
   appButtonCancelFull,
   appButtonPrimaryFull,
@@ -33,6 +32,7 @@ import {
   appStatIconWrap,
 } from "@/lib/app-ui";
 import { useBrowserBackStack } from "@/lib/browser-back";
+import { useAppStoreId } from "@/hooks/use-app-store-id";
 import { useScreenWakeLock } from "@/hooks/use-screen-wake-lock";
 import {
   type DocumentDraftItem,
@@ -58,8 +58,7 @@ function AddDocumentContent() {
   const { t } = useT();
   const router = useRouter();
   const { ready, user } = useAppSession();
-  const searchParams = useSearchParams();
-  const storeId = searchParams.get("storeId") ?? "";
+  const { storeId } = useAppStoreId();
 
   const [checking, setChecking] = useState(true);
   const [step, setStep] = useState<Step>("confirmLocation");
@@ -73,10 +72,9 @@ function AddDocumentContent() {
   );
 
   const locationName = useMemo(() => {
-    const preferred = storeId || getStoredStoreId(user?.username) || "";
-    const match = user?.stores.find((store) => store.id === preferred);
-    return match?.name ?? preferred;
-  }, [storeId, user?.stores, user?.username]);
+    const match = user?.stores.find((store) => store.id === storeId);
+    return match?.name ?? storeId;
+  }, [storeId, user?.stores]);
   const [items, setItems] = useState<DocumentDraftItem[]>([]);
   const [error, setError] = useState("");
   const [importing, setImporting] = useState(false);

@@ -6,7 +6,7 @@ import { MenuSelect } from "@/components/menu-select";
 import { useAppSession } from "@/components/app-session-provider";
 import { useT } from "@/components/i18n-provider";
 import { getStoredStoreId, setStoredStoreId, clearStoredStoreId } from "@/lib/store-selection";
-import { navigateApp } from "@/lib/app-navigation";
+import { replaceApp } from "@/lib/app-navigation";
 
 function StoreIcon({ className = "size-3.5" }: { className?: string }) {
   return (
@@ -55,14 +55,17 @@ export function AppStoreSelect() {
   }, [ready, stores, username]);
 
   function onStoreChange(nextId: string) {
+    if (nextId === storeId) return;
     setStoreId(nextId);
+    // Fires `magazin:store-changed` so expiry/buy-list pick up the store even
+    // if the soft URL replace is delayed.
     setStoredStoreId(nextId, username || null);
 
     if (typeof window === "undefined") return;
     const url = new URL(window.location.href);
     if (url.pathname.startsWith("/app")) {
       url.searchParams.set("storeId", nextId);
-      navigateApp(`${url.pathname}?${url.searchParams.toString()}`);
+      replaceApp(`${url.pathname}?${url.searchParams.toString()}`);
       return;
     }
     // Outside /app there is no soft navigator — hard reload is intentional.

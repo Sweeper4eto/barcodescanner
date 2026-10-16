@@ -1,6 +1,5 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { BarcodeScanner } from "@/components/barcode-scanner";
 import { ScanNavIcon } from "@/components/app-nav-icons";
@@ -22,6 +21,7 @@ import { RemoveConfirmDialog } from "@/components/remove-confirm-dialog";
 import { SearchField } from "@/components/search-field";
 import { useT } from "@/components/i18n-provider";
 import { useAppSession } from "@/components/app-session-provider";
+import { useAppStoreId } from "@/hooks/use-app-store-id";
 import { useScreenWakeLock } from "@/hooks/use-screen-wake-lock";
 import {
   type ExpiryPeriod,
@@ -70,8 +70,7 @@ function ExpiryList() {
   const { t } = useT();
   const { homeUser } = useAppSession();
   const { offsetTop, keyboardInset } = useViewportInsets();
-  const searchParams = useSearchParams();
-  const storeId = searchParams.get("storeId") ?? "";
+  const { storeId, ready: storeReady } = useAppStoreId();
 
   useScreenWakeLock(true);
 
@@ -102,13 +101,14 @@ function ExpiryList() {
   const [selectedIds, setSelectedIds] = useState<Record<string, true>>({});
   const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false);
   const [bulkRemoving, setBulkRemoving] = useState(false);
-  const [loading, setLoading] = useState(() => Boolean(storeId));
+  const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState<ExpiryPeriod>(DEFAULT_EXPIRY_PERIOD);
   const loadMoreRef = useRef<HTMLDivElement>(null);
-  const entriesCountRef = useRef(0);
   const clearFlash = useCallback(() => setFlashMessage(null), []);
   const loadingMoreRef = useRef(false);
   const fetchGenerationRef = useRef(0);
+  const storeIdRef = useRef(storeId);
+  storeIdRef.current = storeId;
 
   useBrowserBackStack([
     {
@@ -162,10 +162,6 @@ function ExpiryList() {
   ]);
 
   useEffect(() => {
-    entriesCountRef.current = entries.length;
-  }, [entries.length]);
-
-  useEffect(() => {
     setPeriod(getStoredExpiryPeriod());
   }, []);
 
@@ -198,10 +194,6 @@ function ExpiryList() {
     return () => window.clearTimeout(timer);
   }, [search]);
 
-  useEffect(() => {
-    setPage(1);
-  }, [debouncedSearch, period, storeId]);
-
   const clearSearchIfActive = useCallback(() => {
     if (!search.trim() && !debouncedSearch) return;
     setSearch("");
@@ -226,13 +218,14 @@ function ExpiryList() {
     async (targetPage: number, append: boolean) => {
       if (!storeId) return;
 
+      const requestedStoreId = storeId;
       const generation = ++fetchGenerationRef.current;
       loadingMoreRef.current = true;
-      if (!append && entriesCountRef.current === 0) {
+      if (!append) {
         setLoading(true);
       }
       const params = new URLSearchParams({
-        storeId,
+        storeId: requestedStoreId,
         withinDays: expiryPeriodToApiParam(period),
       });
       if (debouncedSearch) {
@@ -243,13 +236,17 @@ function ExpiryList() {
       }
 
       try {
-        const response = await fetch(`/api/inventory?${params.toString()}`);
+        const response = await fetch(`/api/inventory?${params.toString()}`, {
+          cache: "no-store",
+        });
         const data = (await response.json()) as {
           entries?: Entry[];
           pagination?: Pagination;
         };
 
+        // Drop stale responses — never paint another store's items.
         if (generation !== fetchGenerationRef.current) return;
+        if (storeIdRef.current !== requestedStoreId) return;
 
         const nextEntries = (data.entries ?? []).map((entry) => ({
           ...entry,
@@ -266,7 +263,10 @@ function ExpiryList() {
           },
         );
       } finally {
-        if (generation === fetchGenerationRef.current) {
+        if (
+          generation === fetchGenerationRef.current &&
+          storeIdRef.current === requestedStoreId
+        ) {
           loadingMoreRef.current = false;
           setLoading(false);
         }
@@ -275,11 +275,35 @@ function ExpiryList() {
     [storeId, debouncedSearch, period],
   );
 
+  const listFilterRef = useRef({ storeId: "", debouncedSearch: "", period });
+
+  // Reload on store/filter change (replace). Append only when page advances.
   useEffect(() => {
-    if (storeId) {
-      void loadEntries(page, page > 1 && !debouncedSearch);
+    if (!storeReady) return;
+    if (!storeId) {
+      setEntries([]);
+      setLoading(false);
+      return;
     }
-  }, [storeId, debouncedSearch, page, period, loadEntries]);
+
+    const prev = listFilterRef.current;
+    const filterChanged =
+      prev.storeId !== storeId ||
+      prev.debouncedSearch !== debouncedSearch ||
+      prev.period !== period;
+
+    if (filterChanged) {
+      listFilterRef.current = { storeId, debouncedSearch, period };
+      setPage(1);
+      setEntries([]);
+      void loadEntries(1, false);
+      return;
+    }
+
+    if (page > 1 && !debouncedSearch) {
+      void loadEntries(page, true);
+    }
+  }, [storeReady, storeId, debouncedSearch, period, page, loadEntries]);
 
   useEffect(() => {
     if (debouncedSearch || loading) return;
