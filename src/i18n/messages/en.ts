@@ -224,6 +224,7 @@ export const en = {
     greeting: "Hello,\n{username}",
     workingStore: "Current location",
     selectStore: "Select location",
+    selectStoreLocked: "Location locked while scanning",
     scanStock: "Scan item",
     addStock: "New product",
     expiry: "Expiry",

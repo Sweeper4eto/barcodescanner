@@ -12,7 +12,7 @@ import { CameraCapture, uploadImage } from "@/components/camera-capture";
 import { LoadingSpinnerBlock } from "@/components/loading-spinner";
 import { MobilePageHeader } from "@/components/mobile-page-header";
 import { useT } from "@/components/i18n-provider";
-import { useAppStoreId } from "@/hooks/use-app-store-id";
+import { useAppStoreId, useLockStoreSelection } from "@/hooks/use-app-store-id";
 import { normalizeBarcode } from "@/lib/barcode";
 import { replaceApp } from "@/lib/app-navigation";
 import { useWizardStep } from "@/lib/wizard-history";
@@ -28,6 +28,7 @@ function AddProductFlow() {
   const { t } = useT();
   const searchParams = useSearchParams();
   const { storeId } = useAppStoreId();
+  useLockStoreSelection(true);
   const initialBarcode = normalizeBarcode(searchParams.get("barcode") ?? "");
   const initialStep: AddProductStep = initialBarcode ? "name" : "scan";
   const { step, goToStep, goBack } = useWizardStep<AddProductStep>({

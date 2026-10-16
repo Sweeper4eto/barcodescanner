@@ -225,6 +225,7 @@ export const bg = {
     greeting: "Здравей,\n{username}",
     workingStore: "Текущ обект",
     selectStore: "Изберете обект",
+    selectStoreLocked: "Обектът е заключен по време на сканиране",
     scanStock: "Сканирай",
     addStock: "Нов продукт",
     expiry: "Годност",

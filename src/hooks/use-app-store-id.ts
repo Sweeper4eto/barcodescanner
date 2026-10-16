@@ -7,4 +7,6 @@
 export {
   useAppStoreId,
   useSetAppStoreId,
+  useStoreChangeLocked,
+  useLockStoreSelection,
 } from "@/components/store-selection-provider";

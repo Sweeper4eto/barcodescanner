@@ -21,7 +21,7 @@ import { RemoveConfirmDialog } from "@/components/remove-confirm-dialog";
 import { SearchField } from "@/components/search-field";
 import { useT } from "@/components/i18n-provider";
 import { useAppSession } from "@/components/app-session-provider";
-import { useAppStoreId } from "@/hooks/use-app-store-id";
+import { useAppStoreId, useLockStoreSelection } from "@/hooks/use-app-store-id";
 import { useScreenWakeLock } from "@/hooks/use-screen-wake-lock";
 import {
   type ExpiryPeriod,
@@ -85,6 +85,7 @@ function ExpiryList() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [page, setPage] = useState(1);
   const [showScanner, setShowScanner] = useState(false);
+  useLockStoreSelection(showScanner);
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [priceReduceConfirmId, setPriceReduceConfirmId] = useState<string | null>(null);
   const [discountPercent, setDiscountPercent] = useState(DEFAULT_DISCOUNT_PERCENT);

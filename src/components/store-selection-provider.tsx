@@ -17,13 +17,18 @@ import { getStoredStoreId, setStoredStoreId } from "@/lib/store-selection";
 type StoreSelectionState = {
   storeId: string;
   ready: boolean;
+  /** True while scan/camera (or post-confirm document) must not switch stores. */
+  changeLocked: boolean;
   setStoreId: (storeId: string) => void;
+  setStoreChangeLocked: (locked: boolean) => void;
 };
 
 const StoreSelectionContext = createContext<StoreSelectionState>({
   storeId: "",
   ready: false,
+  changeLocked: false,
   setStoreId: () => {},
+  setStoreChangeLocked: () => {},
 });
 
 function readWindowStoreId(): string {
@@ -48,7 +53,9 @@ export function StoreSelectionProvider({ children }: { children: ReactNode }) {
   const { user, ready: sessionReady } = useAppSession();
   const [storeId, setStoreIdState] = useState("");
   const [ready, setReady] = useState(false);
+  const [changeLocked, setChangeLockedState] = useState(false);
   const storeIdRef = useRef("");
+  const changeLockedRef = useRef(false);
   const storeIdsKey = useMemo(
     () => (user?.stores ?? []).map((store) => store.id).join(","),
     [user?.stores],
@@ -67,8 +74,14 @@ export function StoreSelectionProvider({ children }: { children: ReactNode }) {
     [user?.username],
   );
 
+  const setStoreChangeLocked = useCallback((locked: boolean) => {
+    changeLockedRef.current = locked;
+    setChangeLockedState(locked);
+  }, []);
+
   const setStoreId = useCallback(
     (nextId: string) => {
+      if (changeLockedRef.current) return;
       if (!nextId || nextId === storeIdRef.current) return;
       applyStoreId(nextId, true);
     },
@@ -114,6 +127,7 @@ export function StoreSelectionProvider({ children }: { children: ReactNode }) {
     if (!sessionReady) return;
 
     function onStoreChanged() {
+      if (changeLockedRef.current) return;
       const stores = user?.stores ?? [];
       const username = user?.username ?? null;
       const stored = getStoredStoreId(username);
@@ -133,8 +147,14 @@ export function StoreSelectionProvider({ children }: { children: ReactNode }) {
   }, [sessionReady, user]);
 
   const value = useMemo(
-    () => ({ storeId, ready, setStoreId }),
-    [storeId, ready, setStoreId],
+    () => ({
+      storeId,
+      ready,
+      changeLocked,
+      setStoreId,
+      setStoreChangeLocked,
+    }),
+    [storeId, ready, changeLocked, setStoreId, setStoreChangeLocked],
   );
 
   return (
@@ -151,4 +171,18 @@ export function useAppStoreId(): { storeId: string; ready: boolean } {
 
 export function useSetAppStoreId(): (storeId: string) => void {
   return useContext(StoreSelectionContext).setStoreId;
+}
+
+export function useStoreChangeLocked(): boolean {
+  return useContext(StoreSelectionContext).changeLocked;
+}
+
+/** Lock the header store picker for the lifetime of `locked === true` (clears on unmount). */
+export function useLockStoreSelection(locked: boolean) {
+  const { setStoreChangeLocked } = useContext(StoreSelectionContext);
+
+  useEffect(() => {
+    setStoreChangeLocked(locked);
+    return () => setStoreChangeLocked(false);
+  }, [locked, setStoreChangeLocked]);
 }

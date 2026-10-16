@@ -14,7 +14,7 @@ import { MobilePageHeader, listPageShellClassName } from "@/components/mobile-pa
 import { ProductImage } from "@/components/product-image";
 import { QuantityStepper } from "@/components/quantity-picker";
 import { useT } from "@/components/i18n-provider";
-import { useAppStoreId } from "@/hooks/use-app-store-id";
+import { useAppStoreId, useLockStoreSelection } from "@/hooks/use-app-store-id";
 import { useScreenWakeLock } from "@/hooks/use-screen-wake-lock";
 import { goBackOrApp, navigateApp, replaceApp } from "@/lib/app-navigation";
 import { appButtonCancelFull } from "@/lib/app-ui";
@@ -33,6 +33,8 @@ export function ScanFlow() {
   const urlBarcode = normalizeBarcode(searchParams.get("barcode") ?? "");
   const { t } = useT();
 
+  // Whole scan wizard is store-bound — changing location mid-flow would save to the wrong store.
+  useLockStoreSelection(true);
   useScreenWakeLock(true);
 
   const [barcode, setBarcode] = useState("");

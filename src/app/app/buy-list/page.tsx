@@ -20,7 +20,7 @@ import { SearchField } from "@/components/search-field";
 import { useT } from "@/components/i18n-provider";
 import { useAppSession } from "@/components/app-session-provider";
 import { useBrowserBackStack } from "@/lib/browser-back";
-import { useAppStoreId } from "@/hooks/use-app-store-id";
+import { useAppStoreId, useLockStoreSelection } from "@/hooks/use-app-store-id";
 import { useViewportInsets } from "@/hooks/use-viewport-insets";
 import { expiryYmdToIso } from "@/lib/inventory";
 import { CancelButton } from "@/components/cancel-button";
@@ -77,6 +77,7 @@ function BuyListContent() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [page, setPage] = useState(1);
   const [showScanner, setShowScanner] = useState(false);
+  useLockStoreSelection(showScanner);
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [moveToExpiryId, setMoveToExpiryId] = useState<string | null>(null);
   const [moveExpiryYmd, setMoveExpiryYmd] = useState("");

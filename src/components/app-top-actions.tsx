@@ -8,6 +8,7 @@ import { useT } from "@/components/i18n-provider";
 import {
   useAppStoreId,
   useSetAppStoreId,
+  useStoreChangeLocked,
 } from "@/components/store-selection-provider";
 
 function StoreIcon({ className = "size-3.5" }: { className?: string }) {
@@ -39,7 +40,9 @@ export function AppStoreSelect() {
   const { user, ready: sessionReady } = useAppSession();
   const { storeId, ready: storeReady } = useAppStoreId();
   const setStoreId = useSetAppStoreId();
+  const changeLocked = useStoreChangeLocked();
   const stores = useMemo(() => user?.stores ?? [], [user?.stores]);
+  const disabled = stores.length < 2 || changeLocked;
 
   if (!sessionReady && stores.length === 0) {
     return (
@@ -58,14 +61,16 @@ export function AppStoreSelect() {
         size="compact"
         menuAlign="end"
         className="w-full min-w-0"
-        label={t("app.selectStore")}
+        label={
+          changeLocked ? t("app.selectStoreLocked") : t("app.selectStore")
+        }
         value={storeReady ? storeId : ""}
         options={stores.map((store) => ({
           value: store.id,
           label: store.name,
         }))}
         onChange={setStoreId}
-        disabled={stores.length < 2}
+        disabled={disabled}
         leadingIcon={<StoreIcon />}
         placeholder={t("app.selectStore")}
       />

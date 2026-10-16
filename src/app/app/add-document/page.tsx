@@ -32,7 +32,7 @@ import {
   appStatIconWrap,
 } from "@/lib/app-ui";
 import { useBrowserBackStack } from "@/lib/browser-back";
-import { useAppStoreId } from "@/hooks/use-app-store-id";
+import { useAppStoreId, useLockStoreSelection } from "@/hooks/use-app-store-id";
 import { useScreenWakeLock } from "@/hooks/use-screen-wake-lock";
 import {
   type DocumentDraftItem,
@@ -64,6 +64,8 @@ function AddDocumentContent() {
   const [step, setStep] = useState<Step>("confirmLocation");
   const [cameraSession, setCameraSession] = useState(0);
 
+  // After Yes on location confirm, lock the picker — no second confirm if they switch.
+  useLockStoreSelection(step !== "confirmLocation");
   useScreenWakeLock(
     step === "confirmLocation" ||
       step === "camera" ||

@@ -620,6 +620,14 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Преди скен на документ потвърдете обекта (Да / Не), за да отидат артикулите на правилното място.",
     href: "/app/add-document",
   },
+  {
+    key: "2026-10-lock-store-while-scanning",
+    titleEn:
+      "Location picker is locked while scanning (and after you confirm a document location) so items can’t go to the wrong store.",
+    titleBg:
+      "Изборът на обект е заключен по време на сканиране (и след потвърждение при документ), за да не отидат артикули на грешен обект.",
+    href: "/app/scan",
+  },
 ];
 
 
