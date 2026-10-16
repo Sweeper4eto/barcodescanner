@@ -55,10 +55,10 @@ function syncSelectedStore(stores: AppSessionStore[], username: string) {
   const valid = stores.some((store) => store.id === stored);
   if (!valid) {
     setStoredStoreId(stores[0]!.id, username);
-  } else if (stored) {
-    // Re-write so both legacy + per-user keys stay aligned after login.
-    setStoredStoreId(stored, username);
+    return;
   }
+  // Ensure legacy + per-user keys match without emitting when already correct.
+  if (stored) setStoredStoreId(stored, username);
 }
 
 export function AppSessionProvider({ children }: { children: ReactNode }) {

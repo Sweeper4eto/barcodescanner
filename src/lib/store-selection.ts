@@ -25,10 +25,13 @@ export function setStoredStoreId(
   username?: string | null,
 ): void {
   if (typeof window === "undefined") return;
+  const before = getStoredStoreId(username);
   localStorage.setItem(LEGACY_STORE_KEY, storeId);
   if (username?.trim()) {
     localStorage.setItem(keyForUsername(username), storeId);
   }
+  // Skip event when nothing effective changed — avoids list reload flicker.
+  if (before === storeId) return;
   window.dispatchEvent(new Event("magazin:store-changed"));
 }
 

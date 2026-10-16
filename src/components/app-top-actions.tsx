@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { LanguageSwitch } from "@/components/language-switch";
 import { MenuSelect } from "@/components/menu-select";
 import { useAppSession } from "@/components/app-session-provider";
 import { useT } from "@/components/i18n-provider";
-import { getStoredStoreId, setStoredStoreId, clearStoredStoreId } from "@/lib/store-selection";
-import { replaceApp } from "@/lib/app-navigation";
+import {
+  useAppStoreId,
+  useSetAppStoreId,
+} from "@/components/store-selection-provider";
 
 function StoreIcon({ className = "size-3.5" }: { className?: string }) {
   return (
@@ -34,45 +36,12 @@ export function AppLanguageAction() {
 /** Compact location picker under the language flag (≤30vw via header stack). */
 export function AppStoreSelect() {
   const { t } = useT();
-  const { user, ready } = useAppSession();
+  const { user, ready: sessionReady } = useAppSession();
+  const { storeId, ready: storeReady } = useAppStoreId();
+  const setStoreId = useSetAppStoreId();
   const stores = useMemo(() => user?.stores ?? [], [user?.stores]);
-  const [storeId, setStoreId] = useState("");
 
-  const username = user?.username ?? "";
-
-  useEffect(() => {
-    if (!ready) return;
-    if (stores.length === 0) {
-      setStoreId("");
-      clearStoredStoreId(username || null);
-      return;
-    }
-    const stored = getStoredStoreId(username || null);
-    const valid = stores.find((store) => store.id === stored);
-    const nextId = valid?.id ?? stores[0]?.id ?? "";
-    setStoreId(nextId);
-    if (nextId) setStoredStoreId(nextId, username || null);
-  }, [ready, stores, username]);
-
-  function onStoreChange(nextId: string) {
-    if (nextId === storeId) return;
-    setStoreId(nextId);
-    // Fires `magazin:store-changed` so expiry/buy-list pick up the store even
-    // if the soft URL replace is delayed.
-    setStoredStoreId(nextId, username || null);
-
-    if (typeof window === "undefined") return;
-    const url = new URL(window.location.href);
-    if (url.pathname.startsWith("/app")) {
-      url.searchParams.set("storeId", nextId);
-      replaceApp(`${url.pathname}?${url.searchParams.toString()}`);
-      return;
-    }
-    // Outside /app there is no soft navigator — hard reload is intentional.
-    window.location.reload();
-  }
-
-  if (!ready && stores.length === 0) {
+  if (!sessionReady && stores.length === 0) {
     return (
       <span
         aria-hidden
@@ -90,12 +59,12 @@ export function AppStoreSelect() {
         menuAlign="end"
         className="w-full min-w-0"
         label={t("app.selectStore")}
-        value={storeId}
+        value={storeReady ? storeId : ""}
         options={stores.map((store) => ({
           value: store.id,
           label: store.name,
         }))}
-        onChange={onStoreChange}
+        onChange={setStoreId}
         disabled={stores.length < 2}
         leadingIcon={<StoreIcon />}
         placeholder={t("app.selectStore")}

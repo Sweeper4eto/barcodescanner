@@ -107,6 +107,7 @@ function ExpiryList() {
   const clearFlash = useCallback(() => setFlashMessage(null), []);
   const loadingMoreRef = useRef(false);
   const fetchGenerationRef = useRef(0);
+  const abortRef = useRef<AbortController | null>(null);
   const storeIdRef = useRef(storeId);
   storeIdRef.current = storeId;
 
@@ -235,9 +236,16 @@ function ExpiryList() {
         params.set("limit", String(PAGE_SIZE));
       }
 
+      const controller = new AbortController();
+      if (!append) {
+        abortRef.current?.abort();
+        abortRef.current = controller;
+      }
+
       try {
         const response = await fetch(`/api/inventory?${params.toString()}`, {
           cache: "no-store",
+          signal: controller.signal,
         });
         const data = (await response.json()) as {
           entries?: Entry[];
@@ -262,6 +270,8 @@ function ExpiryList() {
             totalPages: 1,
           },
         );
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") return;
       } finally {
         if (
           generation === fetchGenerationRef.current &&
@@ -295,6 +305,7 @@ function ExpiryList() {
     if (filterChanged) {
       listFilterRef.current = { storeId, debouncedSearch, period };
       setPage(1);
+      // Clear immediately so another store's items never stay visible.
       setEntries([]);
       void loadEntries(1, false);
       return;

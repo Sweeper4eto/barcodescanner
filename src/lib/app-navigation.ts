@@ -29,6 +29,24 @@ export function replaceApp(path: string) {
   window.location.replace(path);
 }
 
+/**
+ * Update the address bar for same-path query changes without a Next.js
+ * soft-navigation (avoids remounting /app screens when switching stores).
+ */
+export function replaceAppUrlQuiet(path: string) {
+  if (typeof window === "undefined") return;
+  const next = new URL(path, window.location.origin);
+  const current = new URL(window.location.href);
+  if (
+    next.pathname === current.pathname &&
+    next.search === current.search &&
+    next.hash === current.hash
+  ) {
+    return;
+  }
+  window.history.replaceState(window.history.state, "", `${next.pathname}${next.search}${next.hash}`);
+}
+
 export function goBackOrApp(fallback = "/app") {
   if (window.history.length > 1) {
     window.history.back();

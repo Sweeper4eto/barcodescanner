@@ -70,10 +70,10 @@ export function AppShell({ children }: { children: ReactNode }) {
   useEffect(() => {
     registerAppSoftNavigate({
       push: (path) => {
-        router.push(path);
+        router.push(path, { scroll: false });
       },
       replace: (path) => {
-        router.replace(path);
+        router.replace(path, { scroll: false });
       },
     });
     return () => registerAppSoftNavigate(null);

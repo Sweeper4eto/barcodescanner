@@ -12,7 +12,7 @@ import {
 } from "@/components/app-nav-icons";
 import { useT } from "@/components/i18n-provider";
 import { useAppSession } from "@/components/app-session-provider";
-import { getStoredStoreId } from "@/lib/store-selection";
+import { useAppStoreId } from "@/components/store-selection-provider";
 
 type Tab = {
   id: "expiry" | "add" | "document" | "orders";
@@ -26,20 +26,9 @@ type Tab = {
 export function AppBottomNav() {
   const pathname = usePathname();
   const { t } = useT();
-  const { homeUser, user } = useAppSession();
-  const [storeId, setStoreId] = useState("");
+  const { homeUser } = useAppSession();
+  const { storeId, ready: storeReady } = useAppStoreId();
   const [cartCount, setCartCount] = useState(0);
-  const [navReady, setNavReady] = useState(false);
-
-  useEffect(() => {
-    function syncStoreId() {
-      setStoreId(getStoredStoreId(user?.username) ?? "");
-    }
-    syncStoreId();
-    setNavReady(true);
-    window.addEventListener("magazin:store-changed", syncStoreId);
-    return () => window.removeEventListener("magazin:store-changed", syncStoreId);
-  }, [pathname, user?.username]);
 
   useEffect(() => {
     if (homeUser !== true || !storeId) {
@@ -72,8 +61,7 @@ export function AppBottomNav() {
   }, [homeUser, storeId, pathname]);
 
   const query = storeId ? `?storeId=${encodeURIComponent(storeId)}` : "";
-  // Keep links disabled until after mount so SSR matches the first client paint.
-  const disabled = !navReady || !storeId;
+  const disabled = !storeReady || !storeId;
 
   const tabs: Tab[] = [
     {
