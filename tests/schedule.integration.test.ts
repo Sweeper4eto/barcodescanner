@@ -276,6 +276,40 @@ test("members cannot PATCH schedule", async () => {
   assert.equal(response.status, 403);
 });
 
+test("PATCH setShifts rejects userIds outside the store client", async () => {
+  const { store, member, weekStart } = await seedScheduleTeam("public");
+  const login = await loginUser("sched_owner", "password123");
+  assert.equal(login.ok, true);
+  if (!login.ok) return;
+  await setMockSession(login.token);
+
+  const { response } = await jsonRequest(schedulePatch, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      storeId: store.id,
+      weekStart,
+      dayIndex: 0,
+      action: "setShifts",
+      shifts: [
+        {
+          userId: member.id,
+          dayIndex: 0,
+          startMin: SCHEDULE_OPEN_MIN,
+          endMin: SCHEDULE_OPEN_MIN + 120,
+        },
+        {
+          userId: "foreign-user-id-not-in-client",
+          dayIndex: 0,
+          startMin: SCHEDULE_OPEN_MIN + 120,
+          endMin: SCHEDULE_CLOSE_MIN,
+        },
+      ],
+    }),
+  });
+  assert.equal(response.status, 403);
+});
+
 test("team schedule-access can switch public/private/disabled", async () => {
   const { client } = await seedScheduleTeam("private");
   const login = await loginUser("sched_owner", "password123");

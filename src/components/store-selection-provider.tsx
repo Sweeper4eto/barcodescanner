@@ -141,9 +141,32 @@ export function StoreSelectionProvider({ children }: { children: ReactNode }) {
       syncUrlStoreId(stored);
     }
 
+    /** Back/forward: trust a valid ?storeId= from history; else rewrite bar to context. */
+    function onPopState() {
+      const stores = user?.stores ?? [];
+      const username = user?.username ?? null;
+      const query = readWindowStoreId();
+      if (changeLockedRef.current) {
+        if (storeIdRef.current) syncUrlStoreId(storeIdRef.current);
+        return;
+      }
+      if (query && stores.some((store) => store.id === query)) {
+        if (storeIdRef.current !== query) {
+          storeIdRef.current = query;
+          setStoreIdState(query);
+          setStoredStoreId(query, username);
+        }
+        return;
+      }
+      if (storeIdRef.current) syncUrlStoreId(storeIdRef.current);
+    }
+
     window.addEventListener("magazin:store-changed", onStoreChanged);
-    return () =>
+    window.addEventListener("popstate", onPopState);
+    return () => {
       window.removeEventListener("magazin:store-changed", onStoreChanged);
+      window.removeEventListener("popstate", onPopState);
+    };
   }, [sessionReady, user]);
 
   const value = useMemo(

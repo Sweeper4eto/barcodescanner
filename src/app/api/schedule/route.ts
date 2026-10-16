@@ -492,6 +492,24 @@ export async function PATCH(request: Request) {
         { status: 400 },
       );
     }
+    const shiftUserIds = [...new Set(shifts.map((s) => s.userId))];
+    if (shiftUserIds.length > 0) {
+      const allowed = await db.user.findMany({
+        where: {
+          id: { in: shiftUserIds },
+          clientId: store.clientId,
+          role: "USER",
+          active: true,
+        },
+        select: { id: true },
+      });
+      if (allowed.length !== shiftUserIds.length) {
+        return NextResponse.json(
+          { error: apiT(request, "errors.forbidden") },
+          { status: 403 },
+        );
+      }
+    }
     await db.storeScheduleDay.update({
       where: { id: day.id },
       data: { mode: "manual" },

@@ -6,9 +6,10 @@ import { BackArrowIcon, SendIcon } from "@/components/app-nav-icons";
 import { BrandName } from "@/components/brand-name";
 import { MobilePageHeader } from "@/components/mobile-page-header";
 import { MenuSelect } from "@/components/menu-select";
+import { useAppSession } from "@/components/app-session-provider";
 import { useT } from "@/components/i18n-provider";
+import { useAppStoreId } from "@/hooks/use-app-store-id";
 import { navigateApp } from "@/lib/app-navigation";
-import { getStoredStoreId } from "@/lib/store-selection";
 import { validateSupportEmail } from "@/lib/register-validation";
 
 type Store = { id: string; name: string; active: boolean };
@@ -147,6 +148,8 @@ function formatTicketDisplay(ticketId: string): string {
 
 export default function ContactSupportPage() {
   const { t } = useT();
+  const { user, ready: sessionReady } = useAppSession();
+  const { storeId: appStoreId, ready: storeReady } = useAppStoreId();
   const [stores, setStores] = useState<Store[]>([]);
   const [storeId, setStoreId] = useState("");
   const [topic, setTopic] = useState<Topic>("bug");
@@ -166,22 +169,20 @@ export default function ContactSupportPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      const response = await fetch("/api/auth/me");
-      const data = await response.json().catch(() => null);
-      if (cancelled) return;
-      const list: Store[] = (data?.user?.stores ?? []).filter((s: Store) => s.active);
-      setStores(list);
-      const preferred = getStoredStoreId();
-      const next = list.find((s) => s.id === preferred)?.id ?? list[0]?.id ?? "";
-      setStoreId(next);
-    }
-    void load();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    if (!sessionReady) return;
+    setStores((user?.stores ?? []).filter((s) => s.active));
+  }, [sessionReady, user?.stores]);
+
+  useEffect(() => {
+    if (!storeReady || stores.length === 0) return;
+    // Seed from the shared header location once; keep local form overrides.
+    setStoreId((current) => {
+      if (current && stores.some((s) => s.id === current)) return current;
+      return (
+        stores.find((s) => s.id === appStoreId)?.id ?? stores[0]?.id ?? ""
+      );
+    });
+  }, [storeReady, appStoreId, stores]);
 
   async function send() {
     const trimmed = message.trim();

@@ -422,6 +422,10 @@ function SchedulePageInner() {
   >({});
   const { offsetTop, keyboardInset } = useViewportInsets();
   const clearFlash = useCallback(() => setFlashMessage(null), []);
+  const storeIdRef = useRef(storeId);
+  storeIdRef.current = storeId;
+  const fetchGenerationRef = useRef(0);
+  const abortRef = useRef<AbortController | null>(null);
 
   /** Always land on the current week when opening the scheduler. */
   useEffect(() => {
@@ -436,13 +440,23 @@ function SchedulePageInner() {
 
   const load = useCallback(async () => {
     if (!storeId) return;
+    const requestedStoreId = storeId;
+    const generation = ++fetchGenerationRef.current;
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     setLoading(true);
     setError(null);
+    setData(null);
     try {
       const res = await fetch(
-        `/api/schedule?storeId=${encodeURIComponent(storeId)}&weekStart=${encodeURIComponent(weekStart)}`,
+        `/api/schedule?storeId=${encodeURIComponent(requestedStoreId)}&weekStart=${encodeURIComponent(weekStart)}`,
+        { cache: "no-store", signal: controller.signal },
       );
       const json = (await res.json()) as WeekPayload & { error?: string };
+      if (generation !== fetchGenerationRef.current) return;
+      if (storeIdRef.current !== requestedStoreId) return;
       if (!res.ok) {
         setError(json.error ?? t("schedule.loadFailed"));
         setData(null);
@@ -450,11 +464,19 @@ function SchedulePageInner() {
       }
       setData(json);
       setLiveHoursByUser({});
-    } catch {
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      if (generation !== fetchGenerationRef.current) return;
+      if (storeIdRef.current !== requestedStoreId) return;
       setError(t("schedule.loadFailed"));
       setData(null);
     } finally {
-      setLoading(false);
+      if (
+        generation === fetchGenerationRef.current &&
+        storeIdRef.current === requestedStoreId
+      ) {
+        setLoading(false);
+      }
     }
   }, [storeId, weekStart, t]);
 
@@ -546,6 +568,7 @@ function SchedulePageInner() {
     extra?: { userId: string; scheduleParticipant: boolean },
   ) {
     if (!storeId || !data) return;
+    const requestedStoreId = storeId;
     setSaving(true);
     setError(null);
     try {
@@ -553,7 +576,7 @@ function SchedulePageInner() {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          storeId,
+          storeId: requestedStoreId,
           weekStart,
           dayIndex,
           action,
@@ -562,6 +585,7 @@ function SchedulePageInner() {
         }),
       });
       const json = (await res.json()) as WeekPayload & { error?: string };
+      if (storeIdRef.current !== requestedStoreId) return;
       if (!res.ok) {
         setError(json.error ?? t("schedule.saveFailed"));
         return;
@@ -569,9 +593,10 @@ function SchedulePageInner() {
       setData(json);
       setLiveHoursByUser({});
     } catch {
+      if (storeIdRef.current !== requestedStoreId) return;
       setError(t("schedule.saveFailed"));
     } finally {
-      setSaving(false);
+      if (storeIdRef.current === requestedStoreId) setSaving(false);
     }
   }
 
@@ -581,6 +606,7 @@ function SchedulePageInner() {
     endMin: number,
   ) {
     if (!storeId || !data || !ownerCanEditShifts) return;
+    const requestedStoreId = storeId;
     const others = data.shifts
       .filter((s) => s.dayIndex === dayIndex && s.userId !== userId)
       .map((s) => ({
@@ -600,7 +626,7 @@ function SchedulePageInner() {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          storeId,
+          storeId: requestedStoreId,
           weekStart,
           dayIndex,
           action: "setShifts",
@@ -608,6 +634,7 @@ function SchedulePageInner() {
         }),
       });
       const json = (await res.json()) as WeekPayload & { error?: string };
+      if (storeIdRef.current !== requestedStoreId) return;
       if (!res.ok) {
         setError(json.error ?? t("schedule.invalidBounds"));
         return;
@@ -615,9 +642,10 @@ function SchedulePageInner() {
       setData(json);
       setLiveHoursByUser({});
     } catch {
+      if (storeIdRef.current !== requestedStoreId) return;
       setError(t("schedule.saveFailed"));
     } finally {
-      setSaving(false);
+      if (storeIdRef.current === requestedStoreId) setSaving(false);
     }
   }
 
