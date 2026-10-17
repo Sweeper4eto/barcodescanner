@@ -65,9 +65,15 @@ export function ReferredByPicker({
   }, [open]);
 
   const filtered = useMemo(() => {
+    const sorted = [...options].sort((a, b) =>
+      a.name.localeCompare(b.name, undefined, {
+        sensitivity: "base",
+        numeric: true,
+      }),
+    );
     const needle = filter.trim().toLowerCase();
-    if (!needle) return options;
-    return options.filter((row) => row.name.toLowerCase().includes(needle));
+    if (!needle) return sorted;
+    return sorted.filter((row) => row.name.toLowerCase().includes(needle));
   }, [filter, options]);
 
   const selectedLabel =
@@ -92,6 +98,27 @@ export function ReferredByPicker({
           aria-expanded={open}
           aria-controls={listId}
           className={`${adminInputClass} flex items-center justify-between gap-2 text-left disabled:opacity-50`}
+          onKeyDown={(event) => {
+            if (disabled) return;
+            if (event.key === "Escape" && open) {
+              event.preventDefault();
+              setOpen(false);
+              setFilter("");
+              return;
+            }
+            // Closed: typing opens and seeds the live filter (multi-letter continues in the search field).
+            if (
+              !open &&
+              event.key.length === 1 &&
+              !event.ctrlKey &&
+              !event.metaKey &&
+              !event.altKey
+            ) {
+              event.preventDefault();
+              setFilter(event.key);
+              setOpen(true);
+            }
+          }}
           onClick={() => {
             if (disabled) return;
             setOpen((current) => !current);

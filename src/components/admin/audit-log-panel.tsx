@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   AdminField,
   AdminTabBar,
@@ -250,11 +250,13 @@ export function AuditLogPanel() {
     }
   }, [clients, clientId]);
 
-  function onSearch(event: FormEvent) {
-    event.preventDefault();
-    setPage(1);
-    setQuery(search.trim());
-  }
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setPage(1);
+      setQuery(search.trim());
+    }, 180);
+    return () => window.clearTimeout(timer);
+  }, [search]);
 
   function clearFilters() {
     setFilter("all");
@@ -348,6 +350,8 @@ export function AuditLogPanel() {
             label={t("admin.auditClientFilter")}
             value={clientId}
             options={clientOptions}
+            sortByLabel
+            pinnedValues={[ALL]}
             onChange={(next) => {
               setClientId(next);
               setUsername(ALL);
@@ -362,6 +366,8 @@ export function AuditLogPanel() {
             label={t("admin.userLabel")}
             value={username}
             options={usernameOptions}
+            sortByLabel
+            pinnedValues={[ALL]}
             onChange={(next) => {
               setUsername(next);
               setPage(1);
@@ -382,6 +388,8 @@ export function AuditLogPanel() {
               label={t("admin.auditStoreFilter")}
               value={storeName}
               options={storeOptions}
+              sortByLabel
+              pinnedValues={[ALL]}
               onChange={(next) => {
                 setStoreName(next);
                 setPage(1);
@@ -461,7 +469,7 @@ export function AuditLogPanel() {
         </AdminField>
       </div>
 
-      <form className="flex min-w-0 flex-wrap gap-2" onSubmit={onSearch}>
+      <div className="flex min-w-0 flex-wrap gap-2">
         <SearchField
           value={search}
           onChange={setSearch}
@@ -469,12 +477,6 @@ export function AuditLogPanel() {
           inputClassName={adminSearchInputClass}
           className="min-w-[12rem] flex-1"
         />
-        <button
-          type="submit"
-          className="rounded-xl border border-primary bg-transparent px-4 py-2 text-sm font-medium text-primary"
-        >
-          {t("common.search")}
-        </button>
         <button
           type="button"
           onClick={() => void clearFilters()}
@@ -489,7 +491,7 @@ export function AuditLogPanel() {
         >
           {t("admin.refresh")}
         </button>
-      </form>
+      </div>
 
       {error ? (
         <p className="rounded-xl border border-danger-border bg-danger/5 px-4 py-3 text-sm text-error">

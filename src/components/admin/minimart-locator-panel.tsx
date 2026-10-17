@@ -181,7 +181,17 @@ export function MinimartLocatorPanel() {
         setStores([]);
         return;
       }
-      setStores(data.stores ?? []);
+      const list = data.stores ?? [];
+      setStores(
+        [...list].sort((a, b) => {
+          const aKey = `${a.city} ${a.street}`;
+          const bKey = `${b.city} ${b.street}`;
+          return aKey.localeCompare(bKey, undefined, {
+            sensitivity: "base",
+            numeric: true,
+          });
+        }),
+      );
     } catch {
       setError(t("errors.networkError"));
     } finally {
@@ -429,7 +439,16 @@ export function MinimartLocatorPanel() {
           setError(data.error ?? t("errors.saveFailed"));
           return;
         }
-        setStores((current) => [...current, data.store!]);
+        setStores((current) =>
+          [...current, data.store!].sort((a, b) => {
+            const aKey = `${a.city} ${a.street}`;
+            const bKey = `${b.city} ${b.street}`;
+            return aKey.localeCompare(bKey, undefined, {
+              sensitivity: "base",
+              numeric: true,
+            });
+          }),
+        );
         setSelectedId(data.store.id);
         setIsNewPin(false);
         setDraft(draftFromStore(data.store));
@@ -710,6 +729,8 @@ export function MinimartLocatorPanel() {
                       label={t("admin.minimartLinkedClient")}
                       value={draft.clientId ?? NO_CLIENT}
                       options={clientOptions}
+                      sortByLabel
+                      pinnedValues={[NO_CLIENT]}
                       onChange={(next) =>
                         setDraft({
                           ...draft,

@@ -225,7 +225,12 @@ export function ClientsPanel({
   const loadStores = useCallback(async (clientId: string) => {
     const response = await fetch(`/api/admin/stores?clientId=${clientId}`);
     const data = await response.json();
-    const list = (data.stores ?? []) as Store[];
+    const list = ((data.stores ?? []) as Store[]).slice().sort((a, b) =>
+      a.name.localeCompare(b.name, undefined, {
+        sensitivity: "base",
+        numeric: true,
+      }),
+    );
     setStores(list);
     return list;
   }, []);
@@ -534,9 +539,17 @@ export function ClientsPanel({
     return <span className="mt-1 size-2 shrink-0 rounded-full bg-primary" title={t("admin.paymentStandingCurrent")} />;
   }
 
-  const visibleClients = clients.filter((client) =>
-    accountKind === "household" ? client.homeUser : !client.homeUser,
-  );
+  const visibleClients = clients
+    .filter((client) =>
+      accountKind === "household" ? client.homeUser : !client.homeUser,
+    )
+    .slice()
+    .sort((a, b) =>
+      a.name.localeCompare(b.name, undefined, {
+        sensitivity: "base",
+        numeric: true,
+      }),
+    );
 
   const liveLocations = visibleClients.reduce(
     (sum, client) => sum + (client.active ? client._count.stores : 0),

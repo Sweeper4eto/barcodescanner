@@ -95,7 +95,7 @@ function ChangePasswordContent() {
             name="password"
             type="password"
             value={password}
-            autoComplete="new-password"
+            suppressPasswordSuggest
             onChange={(value) => {
               setPassword(value);
               setPasswordError("");
@@ -108,7 +108,7 @@ function ChangePasswordContent() {
             name="confirmPassword"
             type="password"
             value={confirmPassword}
-            autoComplete="new-password"
+            suppressPasswordSuggest
             onChange={(value) => {
               setConfirmPassword(value);
               setConfirmError("");

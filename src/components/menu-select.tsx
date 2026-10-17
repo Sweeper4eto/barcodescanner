@@ -1,6 +1,15 @@
 "use client";
 
-import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type ReactNode,
+} from "react";
+import { sortLabelsPinnedFirst } from "@/lib/alpha-sort";
 
 export type MenuSelectOption<T extends string> = {
   value: T;
@@ -23,7 +32,33 @@ type MenuSelectProps<T extends string> = {
   size?: "field" | "compact";
   /** Align the menu to the start or end of the trigger. */
   menuAlign?: "start" | "end";
+  /**
+   * Sort options A–Z by label. Use `pinnedValues` to keep sentinels
+   * (All / None / …) at the top.
+   */
+  sortByLabel?: boolean;
+  pinnedValues?: readonly T[];
 };
+
+const TYPEAHEAD_RESET_MS = 800;
+
+function normalizeTypeahead(value: string): string {
+  return value.toLocaleLowerCase();
+}
+
+/** Prefix match; hidden multi-letter buffer (native &lt;select&gt;-style). */
+function findTypeaheadMatch<T extends string>(
+  list: MenuSelectOption<T>[],
+  buffer: string,
+): MenuSelectOption<T> | undefined {
+  const needle = normalizeTypeahead(buffer);
+  if (!needle) return undefined;
+  return list.find(
+    (option) =>
+      !option.disabled &&
+      normalizeTypeahead(option.label).startsWith(needle),
+  );
+}
 
 export function MenuSelect<T extends string>({
   value,
@@ -37,14 +72,35 @@ export function MenuSelect<T extends string>({
   leadingIcon,
   size = "field",
   menuAlign = "start",
+  sortByLabel = false,
+  pinnedValues = [],
 }: MenuSelectProps<T>) {
   const [open, setOpen] = useState(false);
   const [menuAbove, setMenuAbove] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
+  const optionRefs = useRef(new Map<string, HTMLButtonElement>());
+  const typeBufferRef = useRef("");
+  const typeTimerRef = useRef<number | null>(null);
   const listId = useId();
-  const selected = options.find((option) => option.value === value);
+  const orderedOptions = useMemo(
+    () =>
+      sortByLabel
+        ? sortLabelsPinnedFirst(options, pinnedValues)
+        : options,
+    [options, sortByLabel, pinnedValues],
+  );
+  const selected = orderedOptions.find((option) => option.value === value);
   const displayLabel = selected?.label ?? placeholder ?? "";
   const compact = size === "compact";
+
+  useEffect(() => {
+    return () => {
+      if (typeTimerRef.current != null) {
+        window.clearTimeout(typeTimerRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -73,19 +129,105 @@ export function MenuSelect<T extends string>({
       if (!rootRef.current.contains(target)) setOpen(false);
     }
 
-    function onKeyDown(event: KeyboardEvent) {
+    function onDocKeyDown(event: globalThis.KeyboardEvent) {
       if (event.key === "Escape") setOpen(false);
     }
 
     document.addEventListener("mousedown", onPointerDown);
     document.addEventListener("touchstart", onPointerDown);
-    document.addEventListener("keydown", onKeyDown);
+    document.addEventListener("keydown", onDocKeyDown);
     return () => {
       document.removeEventListener("mousedown", onPointerDown);
       document.removeEventListener("touchstart", onPointerDown);
-      document.removeEventListener("keydown", onKeyDown);
+      document.removeEventListener("keydown", onDocKeyDown);
     };
   }, [open]);
+
+  function scheduleTypeBufferReset() {
+    if (typeTimerRef.current != null) {
+      window.clearTimeout(typeTimerRef.current);
+    }
+    typeTimerRef.current = window.setTimeout(() => {
+      typeBufferRef.current = "";
+      typeTimerRef.current = null;
+    }, TYPEAHEAD_RESET_MS);
+  }
+
+  function applyTypeahead(nextBuffer: string) {
+    const match = findTypeaheadMatch(orderedOptions, nextBuffer);
+    if (!match) return;
+    onChange(match.value);
+    const node = optionRefs.current.get(match.value);
+    node?.scrollIntoView({ block: "nearest" });
+  }
+
+  function onTypeaheadKeyDown(event: KeyboardEvent<HTMLElement>) {
+    if (disabled) return;
+
+    if (event.key === "Escape") {
+      if (open) {
+        event.preventDefault();
+        setOpen(false);
+      }
+      return;
+    }
+
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      if (!open) setOpen(true);
+      const enabled = orderedOptions.filter((option) => !option.disabled);
+      if (enabled.length === 0) return;
+      const index = enabled.findIndex((option) => option.value === value);
+      const delta = event.key === "ArrowDown" ? 1 : -1;
+      const next =
+        enabled[
+          index < 0
+            ? 0
+            : (index + delta + enabled.length) % enabled.length
+        ];
+      onChange(next.value);
+      queueMicrotask(() => {
+        optionRefs.current.get(next.value)?.scrollIntoView({ block: "nearest" });
+      });
+      return;
+    }
+
+    if (event.key === "Enter" || event.key === " ") {
+      if (!open) {
+        event.preventDefault();
+        setOpen(true);
+        return;
+      }
+      // Open: Enter/Space on an option is handled by the option button.
+      if (event.key === "Enter") {
+        event.preventDefault();
+        setOpen(false);
+      }
+      return;
+    }
+
+    if (event.key === "Backspace") {
+      if (!typeBufferRef.current) return;
+      event.preventDefault();
+      typeBufferRef.current = typeBufferRef.current.slice(0, -1);
+      scheduleTypeBufferReset();
+      if (typeBufferRef.current) applyTypeahead(typeBufferRef.current);
+      return;
+    }
+
+    // Printable character — accumulate hidden multi-letter buffer.
+    if (
+      event.key.length === 1 &&
+      !event.ctrlKey &&
+      !event.metaKey &&
+      !event.altKey
+    ) {
+      event.preventDefault();
+      typeBufferRef.current += event.key;
+      scheduleTypeBufferReset();
+      applyTypeahead(typeBufferRef.current);
+    }
+  }
 
   return (
     <div
@@ -107,6 +249,7 @@ export function MenuSelect<T extends string>({
         aria-expanded={open}
         aria-controls={listId}
         aria-label={label}
+        onKeyDown={onTypeaheadKeyDown}
         onClick={() => {
           if (disabled) return;
           setOpen((current) => !current);
@@ -140,18 +283,21 @@ export function MenuSelect<T extends string>({
 
       {open ? (
         <ul
+          ref={listRef}
           id={listId}
           role="listbox"
+          tabIndex={-1}
           aria-label={label}
-          className={`absolute z-[100] max-h-72 min-w-full w-max max-w-[min(90vw,24rem)] overflow-y-auto overscroll-contain rounded-xl border border-input-border py-1 shadow-lg shadow-black/50 ${
+          className={`absolute z-[100] max-h-72 min-w-full w-max max-w-[min(90vw,24rem)] overflow-y-auto overscroll-contain rounded-xl border border-input-border py-1 shadow-lg shadow-black/50 outline-none ${
             menuAbove ? "bottom-full mb-1" : "top-full mt-1"
           } ${menuAlign === "end" ? "right-0" : "left-0"}`}
           style={{ backgroundColor: "var(--background)" }}
+          onKeyDown={onTypeaheadKeyDown}
         >
-          {options.length === 0 ? (
+          {orderedOptions.length === 0 ? (
             <li className="px-3 py-2.5 text-sm text-muted">{placeholder ?? label}</li>
           ) : (
-            options.map((option) => {
+            orderedOptions.map((option) => {
               const active = option.value === value;
               return (
                 <li key={option.value} role="presentation">
@@ -161,6 +307,10 @@ export function MenuSelect<T extends string>({
                     aria-selected={active}
                     disabled={option.disabled}
                     title={option.label}
+                    ref={(node) => {
+                      if (node) optionRefs.current.set(option.value, node);
+                      else optionRefs.current.delete(option.value);
+                    }}
                     className={`flex w-full px-3 py-2.5 text-left text-sm whitespace-nowrap disabled:cursor-not-allowed disabled:opacity-40 ${
                       active
                         ? "bg-selected text-primary"

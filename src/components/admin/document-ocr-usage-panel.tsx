@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   AdminField,
   adminInputClass,
@@ -120,12 +120,12 @@ export function DocumentOcrUsagePanel() {
     void load();
   }, [load, reloadToken]);
 
-  function onSearch(event: FormEvent) {
-    event.preventDefault();
-    setPreset("custom");
-    setQuery(search);
-    setReloadToken((n) => n + 1);
-  }
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setQuery(search.trim());
+    }, 180);
+    return () => window.clearTimeout(timer);
+  }, [search]);
 
   const formatWhen = useMemo(
     () => (iso: string) => {
@@ -220,10 +220,7 @@ export function DocumentOcrUsagePanel() {
         </button>
       </div>
 
-      <form
-        onSubmit={onSearch}
-        className="flex flex-wrap items-end gap-3 rounded-xl border border-card-border bg-card p-3"
-      >
+      <div className="flex flex-wrap items-end gap-3 rounded-xl border border-card-border bg-card p-3">
         <AdminField label={t("admin.dateFrom")}>
           <input
             type="date"
@@ -255,12 +252,13 @@ export function DocumentOcrUsagePanel() {
           />
         </div>
         <button
-          type="submit"
+          type="button"
+          onClick={() => setReloadToken((n) => n + 1)}
           className="rounded-xl border border-card-border px-3 py-2 text-sm font-semibold text-foreground hover:bg-selected/40"
         >
           {t("admin.refresh")}
         </button>
-      </form>
+      </div>
 
       <p className="text-sm text-muted">
         {t("admin.documentOcrUsageTotal", { count: String(totalScans) })}

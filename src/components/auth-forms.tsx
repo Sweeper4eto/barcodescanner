@@ -9,6 +9,7 @@ import { FormEvent, memo, useEffect, useState, type ChangeEvent, type ReactNode 
 import { BrandName } from "@/components/brand-name";
 import { LanguageSwitch } from "@/components/language-switch";
 import { markPwaInstallOffered, shouldOfferPwaInstall } from "@/lib/pwa-install";
+import { passwordNoSuggestProps } from "@/lib/password-field";
 import {
   ORG_NAME_MAX,
   PASSWORD_MAX,
@@ -211,6 +212,7 @@ export function TextField({
   value,
   onChange,
   autoComplete,
+  suppressPasswordSuggest = false,
   hint,
   error,
 }: {
@@ -220,6 +222,8 @@ export function TextField({
   value: string;
   onChange: (value: string) => void;
   autoComplete?: string;
+  /** Hide OS / browser strong-password suggestions. */
+  suppressPasswordSuggest?: boolean;
   hint?: string;
   error?: string;
 }) {
@@ -233,7 +237,9 @@ export function TextField({
         name={name}
         type={type}
         value={value}
-        autoComplete={autoComplete}
+        {...(suppressPasswordSuggest
+          ? passwordNoSuggestProps
+          : { autoComplete })}
         aria-invalid={error ? true : undefined}
         onChange={(event) => onChange(event.target.value)}
         onInput={(event) => onChange(event.currentTarget.value)}
@@ -260,6 +266,7 @@ function AuthIconField({
   defaultValue,
   onChange,
   autoComplete,
+  suppressPasswordSuggest = false,
   icon,
   trailing,
   compact = false,
@@ -276,6 +283,8 @@ function AuthIconField({
   defaultValue?: string;
   onChange?: (value: string) => void;
   autoComplete?: string;
+  /** Hide OS / browser strong-password suggestions. */
+  suppressPasswordSuggest?: boolean;
   icon: ReactNode;
   trailing?: ReactNode;
   compact?: boolean;
@@ -315,7 +324,9 @@ function AuthIconField({
           name={name}
           type={type}
           placeholder={label}
-          autoComplete={autoComplete}
+          {...(suppressPasswordSuggest
+            ? passwordNoSuggestProps
+            : { autoComplete })}
           maxLength={maxLength}
           required={required}
           aria-invalid={error ? true : undefined}
@@ -723,7 +734,7 @@ export function RegisterForm() {
   }
 
   return (
-    <form className="space-y-3.5" onSubmit={onSubmit} noValidate>
+    <form className="space-y-3.5" autoComplete="off" onSubmit={onSubmit} noValidate>
       <AccountTypeSwitch
         value={accountType}
         onChange={setAccountType}
@@ -772,7 +783,7 @@ export function RegisterForm() {
         name="password"
         type={showPassword ? "text" : "password"}
         value={password}
-        autoComplete="new-password"
+        suppressPasswordSuggest
         onChange={(value) => setFieldValue("password", value, setPassword)}
         icon={<LockFieldIcon className="size-4" />}
         error={fieldErrors.password}
@@ -802,7 +813,7 @@ export function RegisterForm() {
         name="confirmPassword"
         type={showConfirmPassword ? "text" : "password"}
         value={confirmPassword}
-        autoComplete="new-password"
+        suppressPasswordSuggest
         onChange={(value) => setFieldValue("confirmPassword", value, setConfirmPassword)}
         icon={<LockFieldIcon className="size-4" />}
         error={fieldErrors.confirmPassword}

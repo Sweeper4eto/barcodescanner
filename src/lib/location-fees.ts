@@ -2,6 +2,14 @@
 export const DEFAULT_FIRST_LOCATION_FEE = 20;
 /** Default € for 2nd, 3rd, … locations. */
 export const DEFAULT_EXTRA_LOCATION_FEE = 15;
+/** Suggested monthly discount € per active referred client. */
+export const REFERRAL_DISCOUNT_EUR = 5;
+
+/** Suggested payment discount from referral count (editable in admin). */
+export function suggestedReferralDiscount(referralCount: number): number {
+  const n = Math.max(0, Math.floor(Number(referralCount) || 0));
+  return n * REFERRAL_DISCOUNT_EUR;
+}
 
 export function defaultFeeForLocationIndex(existingLocationCount: number): number {
   return existingLocationCount <= 0

@@ -71,6 +71,7 @@ export async function GET(request: Request) {
         client: { select: { id: true, name: true } },
         storeLinks: {
           select: { store: { select: { id: true, name: true, clientId: true } } },
+          orderBy: { store: { name: "asc" } },
         },
       },
     }),

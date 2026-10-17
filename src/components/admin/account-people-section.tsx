@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   AdminEmptyState,
   AdminField,
@@ -9,6 +9,7 @@ import {
 import { PrimaryButton } from "@/components/auth-forms";
 import { MenuSelect } from "@/components/menu-select";
 import { useT } from "@/components/i18n-provider";
+import { sortByName, sortByUsername } from "@/lib/alpha-sort";
 
 type UserRow = {
   id: string;
@@ -52,12 +53,14 @@ export function AccountPeopleSection({ clientId, stores, onChanged }: Props) {
         `/api/admin/users?clientId=${encodeURIComponent(clientId)}&pageSize=50`,
       );
       const data = (await response.json()) as { users?: UserRow[] };
-      if (!cancelled) setUsers(data.users ?? []);
+      if (!cancelled) setUsers(sortByUsername(data.users ?? []));
     })();
     return () => {
       cancelled = true;
     };
   }, [clientId, reloadToken]);
+
+  const sortedStores = useMemo(() => sortByName(stores), [stores]);
 
   function reloadUsers() {
     setReloadToken((n) => n + 1);
@@ -76,8 +79,10 @@ export function AccountPeopleSection({ clientId, stores, onChanged }: Props) {
         );
         const data = (await response.json()) as { users?: UserRow[] };
         setCandidates(
-          (data.users ?? []).filter(
-            (user) => user.role !== "ADMIN" && user.clientId !== clientId,
+          sortByUsername(
+            (data.users ?? []).filter(
+              (user) => user.role !== "ADMIN" && user.clientId !== clientId,
+            ),
           ),
         );
       })();
@@ -222,7 +227,7 @@ export function AccountPeopleSection({ clientId, stores, onChanged }: Props) {
           <div>
             <p className="mb-2 text-xs text-muted">{t("admin.clientStores")}</p>
             <div className="space-y-1.5">
-              {stores.map((store) => {
+              {sortedStores.map((store) => {
                 const checked = storeIds.includes(store.id);
                 return (
                   <label

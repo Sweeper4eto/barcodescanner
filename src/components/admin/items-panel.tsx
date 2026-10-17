@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  FormEvent,
   useCallback,
   useEffect,
   useRef,
@@ -113,11 +112,13 @@ export function ItemsPanel({ onRefresh }: Props) {
     }
   }
 
-  async function onSearch(event: FormEvent) {
-    event.preventDefault();
-    setPage(1);
-    setQuery(search.trim());
-  }
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setPage(1);
+      setQuery(search.trim());
+    }, 180);
+    return () => window.clearTimeout(timer);
+  }, [search]);
 
   async function persistImagePath(imagePath: string | null) {
     if (!selectedId) return false;
@@ -243,25 +244,15 @@ export function ItemsPanel({ onRefresh }: Props) {
     <div className="grid min-w-0 gap-6 md:grid-cols-12">
       <div className="min-w-0 md:col-span-4">
         <AdminSection title={t("admin.items")}>
-          <form className="mb-4 flex min-w-0 gap-2" onSubmit={onSearch}>
+          <div className="mb-4 flex min-w-0 items-center gap-2">
             <SearchField
               value={search}
               onChange={setSearch}
               placeholder={t("admin.searchPlaceholder")}
               inputClassName={adminSearchInputClass}
             />
-            <button
-              type="submit"
-              disabled={loading}
-              className="shrink-0 rounded-xl border border-primary bg-transparent px-4 py-2 text-sm font-medium text-primary disabled:opacity-60"
-            >
-              {loading ? (
-                <LoadingSpinner size="sm" className="mx-auto" />
-              ) : (
-                t("common.search")
-              )}
-            </button>
-          </form>
+            {loading ? <LoadingSpinner size="sm" className="shrink-0" /> : null}
+          </div>
           <div className="space-y-2">
             {products.length === 0 ? (
               <AdminEmptyState

@@ -1,0 +1,12 @@
+expire365 business card layout samples
+
+ 01. Brand header left · contact below
+ 02. Centered stack · brand top
+ 03. Split columns · big logo stacked / info right
+ 04. Brand bottom-left · tagline top
+ 05. Brand top-right · copy left block
+ 06. Horizontal band · brand strip top
+ 07. Two zones · brand mid-left · contacts mid-right
+ 08. Minimal quiet · large lockup left · slim contact right
+ 09. Name hero · brand lockup under name · meta footer
+ 10. Footer brand bar · content above

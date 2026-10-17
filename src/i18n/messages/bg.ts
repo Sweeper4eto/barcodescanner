@@ -1012,6 +1012,8 @@ export const bg = {
     expectedAmount:
       "Очаквана сума: {amount} {currency} ({stores} обекта · такси {fee} {currency})",
     discountPlaceholder: "Отстъпка ({currency})",
+    referralDiscountHint:
+      "Предложено от препоръки: {amount} {currency} ({count} × {per} €). Можете да я промените.",
     notesPlaceholder: "Бележки",
     finalAmount: "Крайна сума: {amount} {currency}",
     markAsPaid: "Маркирай като платено",

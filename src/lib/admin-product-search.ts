@@ -112,6 +112,7 @@ export async function searchAdminProducts(
     WHERE (name LIKE ${contains} OR barcode LIKE ${contains})
       ${catalogOnly}
     ${excludeSql}
+    ORDER BY name
     LIMIT ${needed}
   `);
 

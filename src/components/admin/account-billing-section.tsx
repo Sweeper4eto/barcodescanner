@@ -5,6 +5,10 @@ import { AdminField, adminInputClass } from "@/components/admin/admin-ui";
 import { PrimaryButton } from "@/components/auth-forms";
 import { useT } from "@/components/i18n-provider";
 import { MenuSelect } from "@/components/menu-select";
+import {
+  REFERRAL_DISCOUNT_EUR,
+  suggestedReferralDiscount,
+} from "@/lib/location-fees";
 import type { PaymentStanding } from "@/lib/payment-status";
 
 type StoreFeeRow = {
@@ -74,6 +78,9 @@ export function AccountBillingSection({ clientId, onChanged }: Props) {
       }
       setDetail(data);
       setPaymentsRequired(Boolean(data.client.paymentsRequired));
+      setDiscount(
+        String(suggestedReferralDiscount(data.referrals?.length ?? 0)),
+      );
     })();
     return () => {
       cancelled = true;
@@ -298,6 +305,18 @@ export function AccountBillingSection({ clientId, onChanged }: Props) {
             value={discount}
             onChange={(event) => setDiscount(event.target.value)}
           />
+          {!detail.client.homeUser ? (
+            <p className="text-xs text-muted">
+              {t("admin.referralDiscountHint", {
+                count: detail.referrals.length,
+                per: REFERRAL_DISCOUNT_EUR,
+                amount: suggestedReferralDiscount(
+                  detail.referrals.length,
+                ).toFixed(0),
+                currency,
+              })}
+            </p>
+          ) : null}
           {!detail.client.homeUser ? (
             <div className="rounded-xl border border-card-border bg-selected/20 px-3 py-2">
               <p className="text-xs font-semibold text-foreground">

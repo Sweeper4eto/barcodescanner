@@ -97,7 +97,12 @@ export function UsersPanel({ clients, onRefresh }: Props) {
 
     const response = await fetch(`/api/admin/users?${params}`);
     const data = await response.json();
-    const list = (data.users ?? []) as UserRow[];
+    const list = ((data.users ?? []) as UserRow[]).slice().sort((a, b) =>
+      a.username.localeCompare(b.username, undefined, {
+        sensitivity: "base",
+        numeric: true,
+      }),
+    );
     setUsers(list);
     setTotal(data.total ?? 0);
     setTotalPages(data.totalPages ?? 1);
@@ -115,7 +120,15 @@ export function UsersPanel({ clients, onRefresh }: Props) {
     }
     const response = await fetch(`/api/admin/stores?clientId=${nextClientId}`);
     const data = await response.json();
-    setClientStores(data.stores ?? []);
+    const list = (data.stores ?? []) as { id: string; name: string }[];
+    setClientStores(
+      [...list].sort((a, b) =>
+        a.name.localeCompare(b.name, undefined, {
+          sensitivity: "base",
+          numeric: true,
+        }),
+      ),
+    );
   }
 
   function selectUser(user: UserRow) {
@@ -389,6 +402,8 @@ export function UsersPanel({ clients, onRefresh }: Props) {
               <MenuSelect
                 label={t("admin.clientLabel")}
                 value={clientId}
+                sortByLabel
+                pinnedValues={[""]}
                 options={[
                   { value: "", label: t("admin.noClient") },
                   ...clients.map((client) => ({
@@ -477,7 +492,14 @@ export function UsersPanel({ clients, onRefresh }: Props) {
                 {t("auth.password")}
                 <input
                   type="password"
-                  autoComplete="new-password"
+                  autoComplete="off"
+                  autoCapitalize="off"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  data-1p-ignore
+                  data-lpignore="true"
+                  data-bwignore="true"
+                  data-form-type="other"
                   className="mt-1 w-full rounded-xl border border-input-border bg-input px-3 py-2 text-foreground"
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
@@ -487,7 +509,14 @@ export function UsersPanel({ clients, onRefresh }: Props) {
                 {t("auth.confirmPassword")}
                 <input
                   type="password"
-                  autoComplete="new-password"
+                  autoComplete="off"
+                  autoCapitalize="off"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  data-1p-ignore
+                  data-lpignore="true"
+                  data-bwignore="true"
+                  data-form-type="other"
                   className="mt-1 w-full rounded-xl border border-input-border bg-input px-3 py-2 text-foreground"
                   value={confirmPassword}
                   onChange={(event) => setConfirmPassword(event.target.value)}

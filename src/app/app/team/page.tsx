@@ -194,7 +194,14 @@ function PasswordField({
           value={value}
           placeholder={placeholder}
           onChange={(event) => onChange(event.target.value)}
-          autoComplete="new-password"
+          autoComplete="off"
+          autoCapitalize="off"
+          autoCorrect="off"
+          spellCheck={false}
+          data-1p-ignore
+          data-lpignore="true"
+          data-bwignore="true"
+          data-form-type="other"
           aria-invalid={error ? true : undefined}
           aria-describedby={error ? errorId : undefined}
         />

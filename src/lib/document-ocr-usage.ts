@@ -247,9 +247,11 @@ export async function queryDocumentOcrUsage(input: {
         lastScanAt: stats.lastScanAt.toISOString(),
       };
     })
-    .sort(
-      (a, b) =>
-        new Date(b.lastScanAt).getTime() - new Date(a.lastScanAt).getTime(),
+    .sort((a, b) =>
+      a.username.localeCompare(b.username, undefined, {
+        sensitivity: "base",
+        numeric: true,
+      }),
     );
 
   const daily: DocumentOcrDailyRow[] = [...perDay.entries()].map(

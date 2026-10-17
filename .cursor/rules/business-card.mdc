@@ -1,0 +1,15 @@
+---
+description: Keep expire365 business card SVG and JPG previews in sync
+globs: assets/business-card/**
+alwaysApply: false
+---
+
+# Business cards (`assets/business-card/`)
+
+Whenever you change the business card design (copy, layout, phone, email, language):
+
+1. Update `build-svg.mjs` (source of truth).
+2. Run `node assets/business-card/build-svg.mjs` — it writes **both SVG and JPG**.
+3. Never update only the SVG or only AI preview JPGs; the script must regenerate JPGs from the SVG.
+
+Print handoff: PDF preferred; JPG from this script is 96×56 mm at 300 dpi.

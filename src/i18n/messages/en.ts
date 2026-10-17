@@ -1006,6 +1006,8 @@ export const en = {
     expectedAmount:
       "Expected amount: {amount} {currency} ({stores} locations · fees {fee} {currency})",
     discountPlaceholder: "Discount ({currency})",
+    referralDiscountHint:
+      "Suggested from referrals: {amount} {currency} ({count} × {per} €). You can change it.",
     notesPlaceholder: "Notes",
     finalAmount: "Final amount: {amount} {currency}",
     markAsPaid: "Mark as paid",

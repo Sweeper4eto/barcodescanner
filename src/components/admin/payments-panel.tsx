@@ -216,6 +216,7 @@ export function PaymentsPanel({
 
   const filteredStatusRows = useMemo(() => {
     const q = clientQuery.trim().toLowerCase();
+    // Keep API standing priority; names are already A–Z within each standing.
     return statusRows.filter((row) => {
       if (accountFilter === "business" && row.client.homeUser) return false;
       if (accountFilter === "household" && !row.client.homeUser) return false;

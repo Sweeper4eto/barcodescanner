@@ -349,9 +349,15 @@ export async function getAuditFilterOptions(opts?: {
       homeUser: client.homeUser,
       active: client.active,
     })),
-    usernames: scopedUsers
-      .map((row) => row.username)
-      .filter((name) => name.trim().length > 0),
+    usernames: [
+      ...new Set(
+        scopedUsers
+          .map((row) => row.username)
+          .filter((name) => name.trim().length > 0),
+      ),
+    ].sort((a, b) =>
+      a.localeCompare(b, undefined, { sensitivity: "base", numeric: true }),
+    ),
     stores: stores.map((store) => ({
       id: store.id,
       name: store.name,
