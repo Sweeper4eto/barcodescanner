@@ -34,7 +34,10 @@ export type ExpiryExportLabels = {
   onlySelected: string;
 };
 
-export type ExpiryExportResult = "ok" | "cancelled" | "failed";
+export type ExpiryExportResult =
+  | { status: "saved" }
+  | { status: "preview"; url: string; filename: string }
+  | { status: "failed" };
 
 const LOGO_SRC = "/landing/brand-mark.png?v=3";
 const SCALE = 2;
@@ -489,28 +492,19 @@ function jpgFilename(when: Date): string {
   return `expiry-${stamp}.jpg`;
 }
 
-async function deliverJpegBlob(
-  blob: Blob,
-  filename: string,
-): Promise<ExpiryExportResult> {
-  const file = new File([blob], filename, { type: "image/jpeg" });
-  try {
-    if (
-      typeof navigator !== "undefined" &&
-      typeof navigator.share === "function" &&
-      (!navigator.canShare || navigator.canShare({ files: [file] }))
-    ) {
-      await navigator.share({ files: [file], title: filename });
-      return "ok";
-    }
-  } catch (error) {
-    if (error instanceof DOMException && error.name === "AbortError") {
-      return "cancelled";
-    }
-  }
+function isIosDevice(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent;
+  return (
+    /iPhone|iPad|iPod/i.test(ua) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
+  );
+}
 
-  const url = URL.createObjectURL(blob);
+/** Write the jpeg into the phone's Downloads folder. No share sheet — that only copies. */
+function triggerDownload(blob: Blob, filename: string): boolean {
   try {
+    const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
     anchor.download = filename;
@@ -518,36 +512,40 @@ async function deliverJpegBlob(
     document.body.appendChild(anchor);
     anchor.click();
     anchor.remove();
-    const mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    if (mobile) {
-      window.setTimeout(() => {
-        try {
-          window.open(url, "_blank", "noopener,noreferrer");
-        } catch {
-          /* ignore */
-        }
-      }, 350);
-    }
     window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
-    return "ok";
+    return true;
   } catch {
-    URL.revokeObjectURL(url);
-    return "failed";
+    return false;
   }
 }
 
+function deliverJpegBlob(blob: Blob, filename: string): ExpiryExportResult {
+  // iOS ignores <a download> in Safari and installed web apps. Show the picture
+  // so it can be saved to Photos. The share sheet only offered Copy.
+  if (isIosDevice()) {
+    return {
+      status: "preview",
+      url: URL.createObjectURL(blob),
+      filename,
+    };
+  }
+  return triggerDownload(blob, filename)
+    ? { status: "saved" }
+    : { status: "failed" };
+}
+
 /**
- * Draw the selected expiry rows to a JPEG and share or download it.
- * Canvas work stays synchronous so mobile share remains a user gesture.
+ * Draw the selected expiry rows to a JPEG and save it on the device.
+ * Canvas work stays synchronous so the download stays inside the tap.
  */
-export async function downloadExpirySelectionJpg(input: {
+export function downloadExpirySelectionJpg(input: {
   items: ExpiryExportItem[];
   labels: ExpiryExportLabels;
   locale: string;
   exportedAt?: Date;
-}): Promise<ExpiryExportResult> {
-  if (typeof document === "undefined") return "failed";
-  if (expiryExportDecision(input.items.length) !== "ok") return "failed";
+}): ExpiryExportResult {
+  if (typeof document === "undefined") return { status: "failed" };
+  if (expiryExportDecision(input.items.length) !== "ok") return { status: "failed" };
   try {
     const exportedAt = input.exportedAt ?? new Date();
     const canvas = drawExpiryCanvas(
@@ -559,6 +557,6 @@ export async function downloadExpirySelectionJpg(input: {
     const blob = canvasToJpegBlobSync(canvas);
     return deliverJpegBlob(blob, jpgFilename(exportedAt));
   } catch {
-    return "failed";
+    return { status: "failed" };
   }
 }

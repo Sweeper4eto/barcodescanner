@@ -353,7 +353,7 @@ function buildDayExportBlocks(args: ScheduleWeekPrintArgs): {
   return { weekRange, blocks };
 }
 
-/** Sync PNG blob so we can call navigator.share in the same user-gesture turn. */
+/** Sync PNG blob so the download stays inside the tap. */
 function canvasToPngBlobSync(canvas: HTMLCanvasElement): Blob {
   const dataUrl = canvas.toDataURL("image/png");
   const comma = dataUrl.indexOf(",");
@@ -377,34 +377,24 @@ function uniquePngFilename(weekStart: string): string {
   return `schedule-${weekStart}-${stamp}.png`;
 }
 
-export type SchedulePngDeliverResult = "ok" | "cancelled" | "failed";
+export type SchedulePngDeliverResult =
+  | { status: "saved" }
+  | { status: "preview"; url: string; filename: string }
+  | { status: "failed" };
 
-async function deliverPngBlob(
-  blob: Blob,
-  filename: string,
-): Promise<SchedulePngDeliverResult> {
-  const file = new File([blob], filename, { type: "image/png" });
+function isIosDevice(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent;
+  return (
+    /iPhone|iPad|iPod/i.test(ua) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
+  );
+}
 
-  // Phones: Web Share is the reliable path (iOS/Android often ignore <a download>).
-  // Must stay in the user-gesture chain — no prior await fetch / toBlob.
+/** Write the png into Downloads. The share sheet only copies the picture. */
+function triggerDownload(blob: Blob, filename: string): boolean {
   try {
-    if (
-      typeof navigator !== "undefined" &&
-      typeof navigator.share === "function" &&
-      (!navigator.canShare || navigator.canShare({ files: [file] }))
-    ) {
-      await navigator.share({ files: [file], title: filename });
-      return "ok";
-    }
-  } catch (error) {
-    if (error instanceof DOMException && error.name === "AbortError") {
-      return "cancelled";
-    }
-    // NotAllowedError / other — fall through to <a download>.
-  }
-
-  const url = URL.createObjectURL(blob);
-  try {
+    const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
     anchor.download = filename;
@@ -412,24 +402,24 @@ async function deliverPngBlob(
     document.body.appendChild(anchor);
     anchor.click();
     anchor.remove();
-
-    // iOS/Android often ignore <a download> — open the image so the user can save it.
-    const mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    if (mobile) {
-      window.setTimeout(() => {
-        try {
-          window.open(url, "_blank", "noopener,noreferrer");
-        } catch {
-          /* ignore */
-        }
-      }, 350);
-    }
     window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
-    return "ok";
+    return true;
   } catch {
-    URL.revokeObjectURL(url);
-    return "failed";
+    return false;
   }
+}
+
+function deliverPngBlob(blob: Blob, filename: string): SchedulePngDeliverResult {
+  if (isIosDevice()) {
+    return {
+      status: "preview",
+      url: URL.createObjectURL(blob),
+      filename,
+    };
+  }
+  return triggerDownload(blob, filename)
+    ? { status: "saved" }
+    : { status: "failed" };
 }
 
 function measurePngHeight(blocks: DayExportBlock[]): number {
@@ -577,19 +567,18 @@ function drawScheduleWeekPng(args: ScheduleWeekPrintArgs): HTMLCanvasElement {
 
 /**
  * Render the week table to a PNG via canvas (no SVG/foreignObject — works on phones)
- * and share/download it. Keep this free of awaits before share/download so the
- * browser still treats it as a user gesture (required on mobile PWAs).
+ * and save it. Keep this free of awaits so the download stays inside the tap.
  */
-export async function downloadScheduleWeekPng(
+export function downloadScheduleWeekPng(
   args: ScheduleWeekPrintArgs,
-): Promise<SchedulePngDeliverResult> {
-  if (typeof document === "undefined") return "failed";
+): SchedulePngDeliverResult {
+  if (typeof document === "undefined") return { status: "failed" };
 
   try {
     const canvas = drawScheduleWeekPng(args);
     const blob = canvasToPngBlobSync(canvas);
     return deliverPngBlob(blob, uniquePngFilename(args.weekStart));
   } catch {
-    return "failed";
+    return { status: "failed" };
   }
 }

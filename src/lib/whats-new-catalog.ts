@@ -636,6 +636,22 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Годност, множествен избор: бутонът за скен става дискета и запазва до 20 избрани артикула като снимка.",
     href: "/app/expiry",
   },
+  {
+    key: "2026-10-expiry-export-saves-file",
+    titleEn:
+      "Expiry export saves the picture on your phone (Downloads), instead of only copying it.",
+    titleBg:
+      "Експортът от Годност запазва снимката на телефона (Изтегляния), вместо само да я копира.",
+    href: "/app/expiry",
+  },
+  {
+    key: "2026-10-schedule-picture-saves-file",
+    titleEn:
+      "Schedule “Picture” saves the week on your phone (Downloads), instead of only copying it.",
+    titleBg:
+      "График „Снимка“ запазва седмицата на телефона (Изтегляния), вместо само да я копира.",
+    href: "/app/schedule",
+  },
 ];
 
 

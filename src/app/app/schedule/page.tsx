@@ -10,12 +10,15 @@ import { useT } from "@/components/i18n-provider";
 import { useAppStoreId } from "@/hooks/use-app-store-id";
 import { CancelButton } from "@/components/cancel-button";
 import {
+  appButtonNeutral,
   appButtonNeutralFull,
   appButtonPrimaryFull,
   appChromeInset,
+  appFooterButtonGrid,
   appListInset,
   appPageShell,
 } from "@/lib/app-ui";
+import { useBrowserBackStack } from "@/lib/browser-back";
 import {
   SCHEDULE_CLOSE_MIN,
   SCHEDULE_OPEN_MIN,
@@ -417,11 +420,28 @@ function SchedulePageInner() {
   const [saveFormatOpen, setSaveFormatOpen] = useState(false);
   const [savingExport, setSavingExport] = useState(false);
   const [flashMessage, setFlashMessage] = useState<string | null>(null);
+  const [picturePreview, setPicturePreview] = useState<{
+    url: string;
+    filename: string;
+  } | null>(null);
   const [liveHoursByUser, setLiveHoursByUser] = useState<
     Record<string, { startMin: number; endMin: number }>
   >({});
   const { offsetTop, keyboardInset } = useViewportInsets();
   const clearFlash = useCallback(() => setFlashMessage(null), []);
+  const closePicturePreview = useCallback(() => {
+    setPicturePreview((current) => {
+      if (current) URL.revokeObjectURL(current.url);
+      return null;
+    });
+  }, []);
+  useBrowserBackStack([
+    {
+      id: "schedule-picture",
+      open: picturePreview !== null,
+      close: closePicturePreview,
+    },
+  ]);
   const storeIdRef = useRef(storeId);
   storeIdRef.current = storeId;
   const fetchGenerationRef = useRef(0);
@@ -712,13 +732,13 @@ function SchedulePageInner() {
 
   async function exportWeekAsPicture() {
     // Use in-memory week data (same as PDF). Awaiting a refetch here breaks the
-    // mobile user-gesture chain, so navigator.share / downloads fail silently.
+    // mobile user-gesture chain, so the download fails silently.
     if (!storeId || !data || savingExport) return;
     setSavingExport(true);
     setError(null);
     setFlashMessage(null);
     try {
-      const result = await downloadScheduleWeekPng({
+      const result = downloadScheduleWeekPng({
         weekStart,
         storeName,
         staff: data.staff,
@@ -727,13 +747,15 @@ function SchedulePageInner() {
         labels: weekPrintLabels(),
       });
       setSaveFormatOpen(false);
-      if (result === "failed") {
+      if (result.status === "failed") {
         setError(t("schedule.saveWeekPictureFailed"));
         return;
       }
-      if (result === "ok") {
-        setFlashMessage(t("schedule.saveWeekSaved"));
+      if (result.status === "preview") {
+        setPicturePreview({ url: result.url, filename: result.filename });
+        return;
       }
+      setFlashMessage(t("schedule.saveWeekPictureSaved"));
     } catch {
       setSaveFormatOpen(false);
       setError(t("schedule.saveWeekPictureFailed"));
@@ -851,6 +873,36 @@ function SchedulePageInner() {
                   {t("common.cancel")}
                 </CancelButton>
               </div>
+            </div>
+          </div>
+        ) : null}
+
+        {picturePreview ? (
+          <div className="fixed inset-0 z-[80] mx-auto flex w-full max-w-lg flex-col bg-background">
+            <div className="min-h-0 flex-1 overflow-auto px-3 pt-3">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={picturePreview.url} alt="" className="w-full" />
+              <p className="mt-3 text-sm text-muted">
+                {t("schedule.saveWeekPictureHint")}
+              </p>
+            </div>
+            <div
+              className={`${appFooterButtonGrid} border-t border-card-border px-3 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] pt-2`}
+            >
+              <button
+                type="button"
+                className={appButtonNeutral}
+                onClick={closePicturePreview}
+              >
+                {t("common.cancel")}
+              </button>
+              <a
+                href={picturePreview.url}
+                download={picturePreview.filename}
+                className={appButtonPrimaryFull}
+              >
+                {t("schedule.saveWeekPictureSave")}
+              </a>
             </div>
           </div>
         ) : null}

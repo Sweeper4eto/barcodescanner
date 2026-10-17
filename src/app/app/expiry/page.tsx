@@ -108,6 +108,10 @@ function ExpiryList() {
   const [selectedIds, setSelectedIds] = useState<Record<string, true>>({});
   const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false);
   const [bulkRemoving, setBulkRemoving] = useState(false);
+  const [exportPreview, setExportPreview] = useState<{
+    url: string;
+    filename: string;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState<ExpiryPeriod>(DEFAULT_EXPIRY_PERIOD);
   const loadMoreRef = useRef<HTMLDivElement>(null);
@@ -165,6 +169,16 @@ function ExpiryList() {
         setSelectionMode(false);
         setSelectedIds({});
         setBulkConfirmOpen(false);
+      },
+    },
+    {
+      id: "export-preview",
+      open: exportPreview !== null,
+      close: () => {
+        setExportPreview((current) => {
+          if (current) URL.revokeObjectURL(current.url);
+          return null;
+        });
       },
     },
   ]);
@@ -383,7 +397,7 @@ function ExpiryList() {
     setSelectedIds({ [entryId]: true });
   }
 
-  async function exportSelected() {
+  function exportSelected() {
     const count = Object.keys(selectedIds).length;
     const decision = expiryExportDecision(count);
     if (decision === "empty") return;
@@ -410,7 +424,7 @@ function ExpiryList() {
     const selectedLabel = t("expiry.exportSelectedCount", {
       count: items.length,
     });
-    const result = await downloadExpirySelectionJpg({
+    const result = downloadExpirySelectionJpg({
       items,
       locale: dateLocale,
       labels: {
@@ -425,10 +439,20 @@ function ExpiryList() {
         onlySelected: t("expiry.exportOnlySelected"),
       },
     });
-    if (result === "failed") {
+    if (result.status === "failed") {
       setFlashTone("error");
       setFlashMessage(t("expiry.exportFailed"));
+      return;
     }
+    if (result.status === "preview") {
+      setExportPreview({
+        url: result.url,
+        filename: result.filename,
+      });
+      return;
+    }
+    setFlashTone("success");
+    setFlashMessage(t("expiry.exportSaved"));
   }
 
   function toggleSelected(entryId: string) {
@@ -907,6 +931,43 @@ function ExpiryList() {
                 ? t("expiry.bulkRemoving")
                 : t("expiry.bulkRemove", { count: selectedCount })}
             </button>
+          </div>
+        </div>
+      ) : null}
+
+      {exportPreview ? (
+        <div className="fixed inset-0 z-[70] mx-auto flex w-full max-w-lg flex-col bg-background">
+          <div className="min-h-0 flex-1 overflow-auto px-3 pt-3">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={exportPreview.url}
+              alt=""
+              className="w-full"
+            />
+            <p className="mt-3 text-sm text-muted">{t("expiry.exportSaveHint")}</p>
+          </div>
+          <div
+            className={`${appFooterButtonGrid} border-t border-card-border px-3 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] pt-2`}
+          >
+            <button
+              type="button"
+              className={appButtonNeutral}
+              onClick={() => {
+                setExportPreview((current) => {
+                  if (current) URL.revokeObjectURL(current.url);
+                  return null;
+                });
+              }}
+            >
+              {t("expiry.confirmCancel")}
+            </button>
+            <a
+              href={exportPreview.url}
+              download={exportPreview.filename}
+              className={appButtonPrimaryFull}
+            >
+              {t("expiry.exportSavePhotos")}
+            </a>
           </div>
         </div>
       ) : null}
