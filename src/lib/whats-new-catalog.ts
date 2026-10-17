@@ -628,6 +628,14 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Изборът на обект е заключен по време на сканиране (и след потвърждение при документ), за да не отидат артикули на грешен обект.",
     href: "/app/scan",
   },
+  {
+    key: "2026-10-expiry-export-selection",
+    titleEn:
+      "Expiry multi-select: the scan button becomes a save icon that exports up to 20 selected items as a picture.",
+    titleBg:
+      "Годност, множествен избор: бутонът за скен става дискета и запазва до 20 избрани артикула като снимка.",
+    href: "/app/expiry",
+  },
 ];
 
 

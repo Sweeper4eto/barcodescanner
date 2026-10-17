@@ -2,7 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { BarcodeScanner } from "@/components/barcode-scanner";
-import { ScanNavIcon } from "@/components/app-nav-icons";
+import { SaveDiskIcon, ScanNavIcon } from "@/components/app-nav-icons";
 import { ExpiryListCard } from "@/components/expiry-list-card";
 import {
   ExpiryEntryDetailSheet,
@@ -41,6 +41,12 @@ import {
   appFooterButtonGrid,
 } from "@/lib/app-ui";
 import { resolveEntryImagePath } from "@/lib/inventory-entry-display";
+import {
+  EXPIRY_EXPORT_MAX_ITEMS,
+  downloadExpirySelectionJpg,
+  expiryExportDecision,
+  preloadExpiryExportLogo,
+} from "@/lib/expiry-selection-export";
 
 const PAGE_SIZE = 40;
 
@@ -67,8 +73,8 @@ type Pagination = {
 };
 
 function ExpiryList() {
-  const { t } = useT();
-  const { homeUser } = useAppSession();
+  const { t, dateLocale } = useT();
+  const { homeUser, user } = useAppSession();
   const { offsetTop, keyboardInset } = useViewportInsets();
   const { storeId, ready: storeReady } = useAppStoreId();
 
@@ -165,6 +171,10 @@ function ExpiryList() {
 
   useEffect(() => {
     setPeriod(getStoredExpiryPeriod());
+  }, []);
+
+  useEffect(() => {
+    preloadExpiryExportLogo();
   }, []);
 
   const loadFavourites = useCallback(async () => {
@@ -371,6 +381,54 @@ function ExpiryList() {
     setShowScanner(false);
     setSelectionMode(true);
     setSelectedIds({ [entryId]: true });
+  }
+
+  async function exportSelected() {
+    const count = Object.keys(selectedIds).length;
+    const decision = expiryExportDecision(count);
+    if (decision === "empty") return;
+    if (decision === "too-many") {
+      setFlashTone("success");
+      setFlashMessage(
+        t("expiry.exportMax", { max: EXPIRY_EXPORT_MAX_ITEMS }),
+      );
+      return;
+    }
+
+    const items = entries
+      .filter((entry) => selectedIds[entry.id])
+      .map((entry) => ({
+        name: entry.product.name.trim() || t("common.noName"),
+        enteredAt: entry.enteredAt,
+        expiryDate: entry.expiryDate,
+        quantity: entry.quantity,
+      }));
+    if (items.length === 0) return;
+
+    const storeName =
+      user?.stores.find((store) => store.id === storeId)?.name.trim() ?? "";
+    const selectedLabel = t("expiry.exportSelectedCount", {
+      count: items.length,
+    });
+    const result = await downloadExpirySelectionJpg({
+      items,
+      locale: dateLocale,
+      labels: {
+        title: homeUser === true ? t("expiry.title") : t("expiry.storeTitle"),
+        storeLine: storeName ? `${storeName} · ${selectedLabel}` : selectedLabel,
+        addedPrefix: t("expiry.enteredOn"),
+        validUntil: t("expiry.validUntil"),
+        pieces: t("expiry.pieces"),
+        day: t("expiry.day"),
+        days: t("expiry.days"),
+        today: t("expiry.today"),
+        onlySelected: t("expiry.exportOnlySelected"),
+      },
+    });
+    if (result === "failed") {
+      setFlashTone("error");
+      setFlashMessage(t("expiry.exportFailed"));
+    }
   }
 
   function toggleSelected(entryId: string) {
@@ -665,18 +723,30 @@ function ExpiryList() {
             inputClassName="h-9 rounded-lg border border-input-border bg-input pl-2.5 text-base text-foreground"
             onClear={() => setShowScanner(false)}
           />
-          <button
-            type="button"
-            onClick={() => setShowScanner((open) => !open)}
-            className={`flex h-9 shrink-0 items-center justify-center gap-1 rounded-lg border px-2 text-[10px] font-medium leading-none ${
-              showScanner
-                ? "border-primary bg-selected text-primary"
-                : "border-input-border bg-transparent text-primary"
-            }`}
-          >
-            <ScanNavIcon className="h-4 w-4 text-primary" />
-            <span>{t("app.navScan")}</span>
-          </button>
+          {selectionMode ? (
+            <button
+              type="button"
+              onClick={() => void exportSelected()}
+              disabled={selectedCount === 0}
+              className="flex h-9 shrink-0 items-center justify-center gap-1 rounded-lg border border-primary bg-transparent px-2 text-[10px] font-medium leading-none text-primary disabled:opacity-40"
+            >
+              <SaveDiskIcon className="h-4 w-4 text-primary" />
+              <span>{t("expiry.exportSelection")}</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowScanner((open) => !open)}
+              className={`flex h-9 shrink-0 items-center justify-center gap-1 rounded-lg border px-2 text-[10px] font-medium leading-none ${
+                showScanner
+                  ? "border-primary bg-selected text-primary"
+                  : "border-input-border bg-transparent text-primary"
+              }`}
+            >
+              <ScanNavIcon className="h-4 w-4 text-primary" />
+              <span>{t("app.navScan")}</span>
+            </button>
+          )}
         </div>
 
         {showScanner ? (

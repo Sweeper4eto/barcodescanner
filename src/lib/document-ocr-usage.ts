@@ -247,12 +247,14 @@ export async function queryDocumentOcrUsage(input: {
         lastScanAt: stats.lastScanAt.toISOString(),
       };
     })
-    .sort((a, b) =>
-      a.username.localeCompare(b.username, undefined, {
+    .sort((a, b) => {
+      const byScan = b.lastScanAt.localeCompare(a.lastScanAt);
+      if (byScan !== 0) return byScan;
+      return a.username.localeCompare(b.username, undefined, {
         sensitivity: "base",
         numeric: true,
-      }),
-    );
+      });
+    });
 
   const daily: DocumentOcrDailyRow[] = [...perDay.entries()].map(
     ([day, count]) => ({ day, count }),
