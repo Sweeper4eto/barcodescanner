@@ -19,6 +19,7 @@ type UserRow = {
   active: boolean;
   clientId: string | null;
   clientRole: "OWNER" | "MEMBER" | null;
+  createdAt: string;
   stores: { id: string; name: string }[];
 };
 
@@ -31,7 +32,7 @@ type Props = {
 };
 
 export function AccountPeopleSection({ clientId, stores, onChanged }: Props) {
-  const { t } = useT();
+  const { t, dateLocale } = useT();
   const [users, setUsers] = useState<UserRow[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [username, setUsername] = useState("");
@@ -167,34 +168,48 @@ export function AccountPeopleSection({ clientId, stores, onChanged }: Props) {
         {users.length === 0 ? (
           <AdminEmptyState message={t("admin.accountNoPeople")} />
         ) : (
-          users.map((user) => (
-            <button
-              key={user.id}
-              type="button"
-              onClick={() => selectUser(user)}
-              className={`flex w-full items-center justify-between gap-2 rounded-xl border px-3 py-2.5 text-left text-sm ${
-                selectedId === user.id
-                  ? "border-primary bg-selected"
-                  : "border-card-border"
-              } ${!user.active ? "opacity-60" : ""}`}
-            >
-              <span className="min-w-0">
-                <span className="block font-semibold text-foreground">
-                  {user.username}
+          users.map((user) => {
+            const registered = new Date(user.createdAt).toLocaleDateString(
+              dateLocale,
+              { year: "numeric", month: "short", day: "numeric" },
+            );
+            return (
+              <button
+                key={user.id}
+                type="button"
+                onClick={() => selectUser(user)}
+                className={`flex w-full items-center justify-between gap-2 rounded-xl border px-3 py-2.5 text-left text-sm ${
+                  selectedId === user.id
+                    ? "border-primary bg-selected"
+                    : "border-card-border"
+                } ${!user.active ? "opacity-60" : ""}`}
+              >
+                <span className="min-w-0">
+                  <span className="flex min-w-0 items-baseline gap-2">
+                    <span className="min-w-0 truncate font-semibold text-foreground">
+                      {user.username}
+                    </span>
+                    <span
+                      className="shrink-0 text-xs font-normal text-muted"
+                      title={t("admin.registeredOn", { date: registered })}
+                    >
+                      {registered}
+                    </span>
+                  </span>
+                  <span className="text-xs text-muted">
+                    {user.clientRole === "OWNER"
+                      ? t("admin.ownerBadge")
+                      : t("team.member")}
+                    {" · "}
+                    {user.stores.length > 0
+                      ? user.stores.map((store) => store.name).join(", ")
+                      : t("admin.noStoresYet")}
+                  </span>
                 </span>
-                <span className="text-xs text-muted">
-                  {user.clientRole === "OWNER"
-                    ? t("admin.ownerBadge")
-                    : t("team.member")}
-                  {" · "}
-                  {user.stores.length > 0
-                    ? user.stores.map((store) => store.name).join(", ")
-                    : t("admin.noStoresYet")}
-                </span>
-              </span>
-              <span className="text-xs text-primary">{t("common.edit")}</span>
-            </button>
-          ))
+                <span className="text-xs text-primary">{t("common.edit")}</span>
+              </button>
+            );
+          })
         )}
       </div>
 

@@ -58,6 +58,7 @@ export async function GET(request: Request) {
         active: true,
         clientId: true,
         clientRole: true,
+        createdAt: true,
         client: { select: { id: true, name: true } },
         storeLinks: {
           select: { store: { select: { id: true, name: true, clientId: true } } },

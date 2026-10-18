@@ -41,6 +41,8 @@ export type Client = {
   expiryDefaultEarlyDays: number | null;
   expiryDefaultUrgentDays: number | null;
   expiryDefaultTime1: string | null;
+  /** Account registration / creation time (ISO). */
+  createdAt: string;
   _count: { stores: number; users: number; referrals?: number };
 };
 
@@ -142,7 +144,7 @@ export function ClientsPanel({
   onOpenConsumed,
   usersSlot,
 }: Props) {
-  const { t } = useT();
+  const { t, dateLocale } = useT();
   const [subview, setSubview] = useState<ClientsSubview>("current");
   const [detailTab, setDetailTab] = useState<ClientDetailTab>("overview");
   const [storePage, setStorePage] = useState(1);
@@ -565,7 +567,16 @@ export function ClientsPanel({
     return Boolean(info && !client.homeUser && client.paymentsRequired && info.standing === "behind1");
   });
 
+  function formatRegisteredDate(iso: string) {
+    return new Date(iso).toLocaleDateString(dateLocale, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  }
+
   function renderAccountCard(client: Client) {
+    const registered = formatRegisteredDate(client.createdAt);
     return (
       <button
         key={client.id}
@@ -579,7 +590,17 @@ export function ClientsPanel({
       >
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
-            <p className="truncate font-medium text-foreground">{client.name}</p>
+            <div className="flex min-w-0 items-baseline gap-2">
+              <p className="min-w-0 truncate font-medium text-foreground">
+                {client.name}
+              </p>
+              <p
+                className="shrink-0 text-xs text-muted"
+                title={t("admin.registeredOn", { date: registered })}
+              >
+                {registered}
+              </p>
+            </div>
             {client.phone ? (
               <p className="mt-0.5 text-xs text-muted">{client.phone}</p>
             ) : null}
@@ -842,9 +863,18 @@ export function ClientsPanel({
               </div>
             ) : (
               <div className="rounded-2xl border border-card-border bg-background p-5">
-                <p className="mb-4 text-lg font-semibold text-foreground">
-                  {selectedClient?.name}
-                </p>
+                <div className="mb-4 flex min-w-0 flex-wrap items-baseline gap-2">
+                  <p className="text-lg font-semibold text-foreground">
+                    {selectedClient?.name}
+                  </p>
+                  {selectedClient?.createdAt ? (
+                    <p className="text-sm text-muted">
+                      {t("admin.registeredOn", {
+                        date: formatRegisteredDate(selectedClient.createdAt),
+                      })}
+                    </p>
+                  ) : null}
+                </div>
                 <AdminTabBar
                   tabs={[
                     { id: "overview" as const, label: t("admin.hubOverview") },

@@ -50,6 +50,7 @@ type ClientOption = {
 type FilterMode = "all" | MinimartVisitStatus;
 
 const NO_CLIENT = "__none__";
+const NO_LOCATION = "__none_location__";
 
 type Draft = {
   title: string;
@@ -80,6 +81,12 @@ function statusMarkerHtml(status: MinimartVisitStatus): string {
   return `<span style="display:block;width:16px;height:16px;border-radius:9999px;background:${color};border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.45)"></span>`;
 }
 
+function storeLabel(store: MinimartStoreRow): string {
+  const place = store.city || store.title;
+  const street = store.street?.trim() || "—";
+  return `${place} · ${street}`;
+}
+
 export function MinimartLocatorPanel() {
   const { t } = useT();
   const [stores, setStores] = useState<MinimartStoreRow[]>([]);
@@ -89,8 +96,10 @@ export function MinimartLocatorPanel() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [qInput, setQInput] = useState("");
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<FilterMode>("all");
+  const [toolsOpen, setToolsOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [placeMode, setPlaceMode] = useState(false);
   const [draft, setDraft] = useState<Draft | null>(null);
@@ -102,6 +111,7 @@ export function MinimartLocatorPanel() {
   const leafletRef = useRef<typeof import("leaflet") | null>(null);
   const fittedRef = useRef(false);
   const placeModeRef = useRef(placeMode);
+  const detailsRef = useRef<HTMLDivElement>(null);
 
   const selected = useMemo(
     () => stores.find((s) => s.id === selectedId) ?? null,
@@ -124,21 +134,36 @@ export function MinimartLocatorPanel() {
     [clients, t],
   );
 
-  const statusLabel = useCallback(
-    (status: MinimartVisitStatus) => {
-      switch (status) {
-        case "ACCEPTED":
-          return t("admin.minimartStatusAccepted");
-        case "THINKING":
-          return t("admin.minimartStatusThinking");
-        case "REJECTED":
-          return t("admin.minimartStatusRejected");
-        default:
-          return t("admin.minimartStatusNotVisited");
-      }
-    },
-    [t],
+  const statusLabel = useCallback((status: MinimartVisitStatus) => {
+    switch (status) {
+      case "ACCEPTED":
+        return t("admin.minimartStatusAccepted");
+      case "THINKING":
+        return t("admin.minimartStatusThinking");
+      case "REJECTED":
+        return t("admin.minimartStatusRejected");
+      default:
+        return t("admin.minimartStatusNotVisited");
+    }
+  }, [t]);
+
+  const locationOptions = useMemo(
+    () => [
+      { value: NO_LOCATION, label: t("admin.minimartPickStore") },
+      ...stores.map((store) => ({
+        value: store.id,
+        label: `${statusLabel(store.status)} · ${storeLabel(store)}${
+          store.clientName ? ` · ${store.clientName}` : ""
+        }`,
+      })),
+    ],
+    [statusLabel, stores, t],
   );
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setQ(qInput.trim()), 300);
+    return () => window.clearTimeout(timer);
+  }, [qInput]);
 
   useEffect(() => {
     placeModeRef.current = placeMode;
@@ -266,6 +291,9 @@ export function MinimartLocatorPanel() {
         });
         setPlaceMode(false);
         setMessage(t("admin.minimartPinPlaced"));
+        queueMicrotask(() => {
+          detailsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+        });
       });
 
       mapInstance.current = map;
@@ -311,6 +339,12 @@ export function MinimartLocatorPanel() {
         marker.on("click", () => {
           setIsNewPin(false);
           setSelectedId(store.id);
+          queueMicrotask(() => {
+            detailsRef.current?.scrollIntoView({
+              behavior: "smooth",
+              block: "start",
+            });
+          });
         });
         marker.on("dragend", () => {
           const pos = marker!.getLatLng();
@@ -355,12 +389,11 @@ export function MinimartLocatorPanel() {
   useEffect(() => {
     const map = mapInstance.current;
     if (!map) return;
-    // Place-mode chrome must not leave Leaflet with a stale size (blank tiles).
     const id = window.requestAnimationFrame(() => {
       map.invalidateSize();
     });
     return () => window.cancelAnimationFrame(id);
-  }, [placeMode]);
+  }, [placeMode, toolsOpen, draft]);
 
   useEffect(() => {
     if (!draft || !mapInstance.current) return;
@@ -533,257 +566,265 @@ export function MinimartLocatorPanel() {
   ];
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <AdminSection title={t("admin.minimartLocator")}>
-        <p className="mb-3 text-sm text-muted">{t("admin.minimartLocatorHint")}</p>
-        <div className="flex flex-wrap items-end gap-2">
-          <div className="min-w-[12rem] flex-1">
-            <AdminField label={t("common.search")}>
-              <input
-                value={q}
-                onChange={(event) => setQ(event.target.value)}
-                className={adminInputClass}
-                placeholder={t("admin.minimartSearchPlaceholder")}
-              />
-            </AdminField>
-          </div>
-          <div className="flex flex-wrap gap-1.5">
-            {filterButtons.map(({ id, label }) => (
-              <button
-                key={id}
-                type="button"
-                onClick={() => setFilter(id)}
-                className={`${appButtonNeutral} ${
-                  filter === id ? "border-primary text-primary" : ""
-                }`}
-              >
-                {id !== "all" ? (
-                  <span
-                    aria-hidden
-                    className="mr-1.5 inline-block size-2 rounded-full"
-                    style={{
-                      background: MINIMART_STATUS_COLORS[id as MinimartVisitStatus],
-                    }}
-                  />
-                ) : null}
-                {label}
-              </button>
-            ))}
-          </div>
-          <button
-            type="button"
-            className={`${adminGhostButtonClass} ${
-              placeMode ? "border-primary text-primary" : ""
-            }`}
-            onClick={() => {
-              setPlaceMode((value) => !value);
-              setMessage(placeMode ? "" : t("admin.minimartPlaceHint"));
-            }}
-          >
-            {placeMode ? t("admin.minimartPlaceCancel") : t("admin.minimartPlacePin")}
-          </button>
-          <button
-            type="button"
-            className={adminGhostButtonClass}
-            onClick={() => void load()}
-            disabled={loading}
-          >
-            {t("admin.refresh")}
-          </button>
-          <button
-            type="button"
-            className={adminActionButtonClass}
-            onClick={() => void syncFromMinimart()}
-            disabled={syncing}
-          >
-            {syncing ? t("admin.minimartSyncing") : t("admin.minimartSync")}
-          </button>
-        </div>
-        <p className="mt-2 text-xs text-muted">
+        <p className="mb-2 text-xs text-muted sm:text-sm">
           {t("admin.minimartCounts", {
             total: stores.length,
             accepted: acceptedCount,
           })}
         </p>
+
+        <button
+          type="button"
+          className={`${adminGhostButtonClass} flex w-full items-center justify-between gap-2 sm:w-auto`}
+          aria-expanded={toolsOpen}
+          aria-label={
+            toolsOpen ? t("admin.minimartToolsHide") : t("admin.minimartToolsShow")
+          }
+          onClick={() => setToolsOpen((open) => !open)}
+        >
+          <span>{t("admin.minimartTools")}</span>
+          <span aria-hidden className="text-[0.65rem] text-muted">
+            {toolsOpen ? "▲" : "▼"}
+          </span>
+        </button>
+
+        {toolsOpen ? (
+          <div className="mt-3 space-y-3 rounded-2xl border border-card-border p-3">
+            <p className="text-xs text-muted sm:text-sm">
+              {t("admin.minimartLocatorHint")}
+            </p>
+            <AdminField label={t("common.search")}>
+              <input
+                value={qInput}
+                onChange={(event) => setQInput(event.target.value)}
+                className={adminInputClass}
+                placeholder={t("admin.minimartSearchPlaceholder")}
+                autoComplete="off"
+              />
+            </AdminField>
+            <div className="flex flex-wrap gap-1.5">
+              {filterButtons.map(({ id, label }) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setFilter(id)}
+                  className={`${appButtonNeutral} ${
+                    filter === id ? "border-primary text-primary" : ""
+                  }`}
+                >
+                  {id !== "all" ? (
+                    <span
+                      aria-hidden
+                      className="mr-1.5 inline-block size-2 rounded-full"
+                      style={{
+                        background:
+                          MINIMART_STATUS_COLORS[id as MinimartVisitStatus],
+                      }}
+                    />
+                  ) : null}
+                  {label}
+                </button>
+              ))}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                className={`${adminGhostButtonClass} ${
+                  placeMode ? "border-primary text-primary" : ""
+                }`}
+                onClick={() => {
+                  setPlaceMode((value) => !value);
+                  setMessage(placeMode ? "" : t("admin.minimartPlaceHint"));
+                }}
+              >
+                {placeMode
+                  ? t("admin.minimartPlaceCancel")
+                  : t("admin.minimartPlacePin")}
+              </button>
+              <button
+                type="button"
+                className={adminGhostButtonClass}
+                onClick={() => void load()}
+                disabled={loading}
+              >
+                {t("admin.refresh")}
+              </button>
+              <button
+                type="button"
+                className={adminActionButtonClass}
+                onClick={() => void syncFromMinimart()}
+                disabled={syncing}
+              >
+                {syncing ? t("admin.minimartSyncing") : t("admin.minimartSync")}
+              </button>
+            </div>
+          </div>
+        ) : null}
+
         {message ? (
           <p className="mt-2 text-sm text-primary">{message}</p>
         ) : null}
         {error ? <p className="mt-2 text-sm text-danger">{error}</p> : null}
       </AdminSection>
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
+      <div
+        className={`overflow-hidden rounded-2xl border border-card-border ${
+          placeMode
+            ? "ring-2 ring-primary/40 ring-offset-2 ring-offset-background"
+            : ""
+        }`}
+      >
         <div
-          className={`overflow-hidden rounded-2xl border border-card-border ${
-            placeMode ? "ring-2 ring-primary/40 ring-offset-2 ring-offset-background" : ""
+          ref={mapRef}
+          className={`h-[min(55vh,22rem)] w-full bg-card-border/20 sm:h-[28rem] lg:h-[32rem] ${
+            placeMode ? "cursor-crosshair" : ""
           }`}
-        >
-          <div
-            ref={mapRef}
-            className={`h-[28rem] w-full bg-card-border/20 lg:h-[36rem] ${
-              placeMode ? "cursor-crosshair" : ""
-            }`}
+        />
+      </div>
+
+      <div
+        ref={detailsRef}
+        className="space-y-3 rounded-2xl border border-card-border p-3"
+      >
+        <AdminField label={t("admin.minimartPickLocation")}>
+          <MenuSelect
+            label={t("admin.minimartPickLocation")}
+            value={isNewPin ? NO_LOCATION : (selectedId ?? NO_LOCATION)}
+            options={locationOptions}
+            searchable
+            searchPlaceholder={t("admin.minimartLocationSearch")}
+            onChange={(next) => {
+              if (next === NO_LOCATION) {
+                setSelectedId(null);
+                setIsNewPin(false);
+                setDraft(null);
+                return;
+              }
+              setIsNewPin(false);
+              setSelectedId(next);
+            }}
+            buttonClassName={`${adminInputClass} mt-1 flex items-center justify-between gap-2 text-left`}
+            disabled={loading || isNewPin}
           />
-        </div>
+        </AdminField>
 
-        <div className="flex max-h-[36rem] flex-col gap-3">
-          <div className="min-h-0 flex-1 space-y-1 overflow-y-auto rounded-2xl border border-card-border p-2">
-            {loading ? (
-              <p className="p-2 text-sm text-muted">{t("common.loading")}</p>
-            ) : stores.length === 0 ? (
-              <p className="p-2 text-sm text-muted">{t("admin.minimartEmpty")}</p>
-            ) : (
-              stores.map((store) => (
-                <button
-                  key={store.id}
-                  type="button"
-                  onClick={() => {
-                    setIsNewPin(false);
-                    setSelectedId(store.id);
-                  }}
-                  className={`flex w-full flex-col rounded-xl border px-2.5 py-2 text-left text-sm ${
-                    selectedId === store.id && !isNewPin
-                      ? "border-primary/50 bg-primary/10"
-                      : "border-transparent hover:bg-transparent"
-                  }`}
-                >
-                  <span className="flex items-center gap-1.5 font-medium text-foreground">
-                    <span
-                      aria-hidden
-                      className="inline-block size-2.5 shrink-0 rounded-full"
-                      style={{
-                        background: MINIMART_STATUS_COLORS[store.status],
-                      }}
-                    />
-                    {store.city || store.title}
-                    {store.manual ? (
-                      <span className="ml-1 text-[10px] text-muted">
-                        ({t("admin.minimartManual")})
-                      </span>
-                    ) : null}
-                  </span>
-                  <span className="pl-4 text-xs text-muted">
-                    {statusLabel(store.status)} · {store.street || "—"}
-                    {store.clientName
-                      ? ` · ${store.clientName}`
-                      : ""}
-                  </span>
-                </button>
-              ))
-            )}
-          </div>
-
-          <div className="flex max-h-[22rem] min-h-0 shrink-0 flex-col overflow-hidden rounded-2xl border border-card-border lg:max-h-[24rem]">
-            {draft ? (
-              <>
-                <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3">
-                  <p className="text-xs text-muted">
-                    {isNewPin
-                      ? t("admin.minimartNewPin")
-                      : t("admin.minimartEditPin")}
-                    {" · "}
-                    {draft.lat.toFixed(5)}, {draft.lng.toFixed(5)}
-                  </p>
-                  <AdminField label={t("common.name")}>
-                    <input
-                      value={draft.title}
-                      onChange={(event) =>
-                        setDraft({ ...draft, title: event.target.value })
-                      }
-                      className={adminInputClass}
-                    />
-                  </AdminField>
-                  <AdminField label={t("admin.minimartCity")}>
-                    <input
-                      value={draft.city}
-                      onChange={(event) =>
-                        setDraft({ ...draft, city: event.target.value })
-                      }
-                      className={adminInputClass}
-                    />
-                  </AdminField>
-                  <AdminField label={t("common.address")}>
-                    <input
-                      value={draft.street}
-                      onChange={(event) =>
-                        setDraft({ ...draft, street: event.target.value })
-                      }
-                      className={adminInputClass}
-                    />
-                  </AdminField>
-                  <AdminField label={t("admin.minimartStatus")}>
-                    <MenuSelect
-                      label={t("admin.minimartStatus")}
-                      value={draft.status}
-                      options={MINIMART_STATUSES.map((status) => ({
-                        value: status,
-                        label: statusLabel(status),
-                      }))}
-                      onChange={(status) =>
-                        setDraft({ ...draft, status })
-                      }
-                      buttonClassName={`${adminInputClass} mt-1 flex items-center justify-between gap-2 text-left`}
-                    />
-                  </AdminField>
-                  <AdminField label={t("admin.minimartLinkedClient")}>
-                    <MenuSelect
-                      label={t("admin.minimartLinkedClient")}
-                      value={draft.clientId ?? NO_CLIENT}
-                      options={clientOptions}
-                      sortByLabel
-                      pinnedValues={[NO_CLIENT]}
-                      onChange={(next) =>
-                        setDraft({
-                          ...draft,
-                          clientId: next === NO_CLIENT ? null : next,
-                        })
-                      }
-                      buttonClassName={`${adminInputClass} mt-1 flex items-center justify-between gap-2 text-left`}
-                    />
-                    <p className="mt-1 text-[11px] text-muted">
-                      {t("admin.minimartLinkedClientHint")}
-                    </p>
-                  </AdminField>
-                  <AdminField label={t("admin.minimartComment")}>
-                    <textarea
-                      value={draft.comment}
-                      onChange={(event) =>
-                        setDraft({ ...draft, comment: event.target.value })
-                      }
-                      rows={3}
-                      className={`${adminInputClass} resize-y`}
-                      placeholder={t("admin.minimartCommentPlaceholder")}
-                    />
-                  </AdminField>
-                  <p className="text-[11px] text-muted">
-                    {t("admin.minimartDragHint")}
-                  </p>
-                </div>
-                <div className="grid shrink-0 grid-cols-2 gap-2 border-t border-card-border bg-background p-3">
-                  <button
-                    type="button"
-                    className={`${appButtonPrimary} w-full`}
-                    disabled={saving}
-                    onClick={() => void saveDraft()}
-                  >
-                    {saving ? t("admin.saving") : t("common.save")}
-                  </button>
-                  <button
-                    type="button"
-                    className={adminDangerButtonClass}
-                    disabled={saving}
-                    onClick={() => void deleteSelected()}
-                  >
-                    {t("common.delete")}
-                  </button>
-                </div>
-              </>
-            ) : (
-              <p className="p-3 text-sm text-muted">
-                {t("admin.minimartPickStore")}
+        {draft ? (
+          <div className="space-y-3 border-t border-card-border pt-3">
+            <p className="text-xs text-muted">
+              {isNewPin
+                ? t("admin.minimartNewPin")
+                : t("admin.minimartEditPin")}
+              {" · "}
+              {draft.lat.toFixed(5)}, {draft.lng.toFixed(5)}
+            </p>
+            <AdminField label={t("admin.minimartLocationName")}>
+              <input
+                value={draft.title}
+                onChange={(event) =>
+                  setDraft({ ...draft, title: event.target.value })
+                }
+                className={adminInputClass}
+                autoComplete="off"
+              />
+            </AdminField>
+            <AdminField label={t("admin.minimartCity")}>
+              <input
+                value={draft.city}
+                onChange={(event) =>
+                  setDraft({ ...draft, city: event.target.value })
+                }
+                className={adminInputClass}
+                autoComplete="off"
+              />
+            </AdminField>
+            <AdminField label={t("common.address")}>
+              <input
+                value={draft.street}
+                onChange={(event) =>
+                  setDraft({ ...draft, street: event.target.value })
+                }
+                className={adminInputClass}
+                autoComplete="off"
+              />
+            </AdminField>
+            <AdminField label={t("admin.minimartStatus")}>
+              <MenuSelect
+                label={t("admin.minimartStatus")}
+                value={draft.status}
+                options={MINIMART_STATUSES.map((status) => ({
+                  value: status,
+                  label: statusLabel(status),
+                }))}
+                onChange={(status) => setDraft({ ...draft, status })}
+                buttonClassName={`${adminInputClass} mt-1 flex items-center justify-between gap-2 text-left`}
+              />
+            </AdminField>
+            <AdminField label={t("admin.minimartLinkedClient")}>
+              <MenuSelect
+                label={t("admin.minimartLinkedClient")}
+                value={draft.clientId ?? NO_CLIENT}
+                options={clientOptions}
+                sortByLabel
+                pinnedValues={[NO_CLIENT]}
+                searchable
+                searchPlaceholder={t("admin.minimartAccountSearch")}
+                onChange={(next) =>
+                  setDraft({
+                    ...draft,
+                    clientId: next === NO_CLIENT ? null : next,
+                  })
+                }
+                buttonClassName={`${adminInputClass} mt-1 flex items-center justify-between gap-2 text-left`}
+              />
+              <p className="mt-1 text-[11px] text-muted">
+                {t("admin.minimartLinkedClientHint")}
               </p>
-            )}
+            </AdminField>
+            <AdminField label={t("admin.minimartComment")}>
+              <textarea
+                value={draft.comment}
+                onChange={(event) =>
+                  setDraft({ ...draft, comment: event.target.value })
+                }
+                rows={3}
+                className={`${adminInputClass} resize-y`}
+                placeholder={t("admin.minimartCommentPlaceholder")}
+              />
+            </AdminField>
+            <p className="text-[11px] text-muted">
+              {t("admin.minimartDragHint")}
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                className={`${appButtonPrimary} w-full`}
+                disabled={saving}
+                onClick={() => void saveDraft()}
+              >
+                {saving ? t("admin.saving") : t("common.save")}
+              </button>
+              <button
+                type="button"
+                className={adminDangerButtonClass}
+                disabled={saving}
+                onClick={() => void deleteSelected()}
+              >
+                {t("common.delete")}
+              </button>
+            </div>
           </div>
-        </div>
+        ) : (
+          <p className="text-sm text-muted">{t("admin.minimartPickStore")}</p>
+        )}
+
+        {loading ? (
+          <p className="text-sm text-muted">{t("common.loading")}</p>
+        ) : null}
+        {!loading && stores.length === 0 ? (
+          <p className="text-sm text-muted">{t("admin.minimartEmpty")}</p>
+        ) : null}
       </div>
     </div>
   );

@@ -21,6 +21,7 @@ type UserRow = {
   active: boolean;
   clientId: string | null;
   clientRole: "OWNER" | "MEMBER" | null;
+  createdAt: string;
   client: { id: string; name: string } | null;
   stores: { id: string; name: string; clientId: string }[];
 };
@@ -65,7 +66,7 @@ function assignmentIsDirty(current: AssignmentState, saved: AssignmentState | nu
 }
 
 export function UsersPanel({ clients, onRefresh }: Props) {
-  const { t } = useT();
+  const { t, dateLocale } = useT();
   const [users, setUsers] = useState<UserRow[]>([]);
   const [search, setSearch] = useState("");
   const [query, setQuery] = useState("");
@@ -303,31 +304,43 @@ export function UsersPanel({ clients, onRefresh }: Props) {
           {users.length === 0 ? (
             <AdminEmptyState message={t("admin.noUsersFound")} />
           ) : (
-            users.map((user) => (
-              <button
-                key={user.id}
-                type="button"
-                onClick={() => selectUser(user)}
-                className={`w-full rounded-xl border px-3 py-2 text-left ${selectedUserId === user.id ? "border-primary bg-selected" : "border-card-border"} ${!user.active ? "opacity-60" : ""}`}
-              >
-                <div className="flex items-center gap-2">
-                  <p className="font-medium">{user.username}</p>
-                  {user.clientRole === "OWNER" ? (
-                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-primary">
-                      {t("admin.ownerBadge")}
+            users.map((user) => {
+              const registered = new Date(user.createdAt).toLocaleDateString(
+                dateLocale,
+                { year: "numeric", month: "short", day: "numeric" },
+              );
+              return (
+                <button
+                  key={user.id}
+                  type="button"
+                  onClick={() => selectUser(user)}
+                  className={`w-full rounded-xl border px-3 py-2 text-left ${selectedUserId === user.id ? "border-primary bg-selected" : "border-card-border"} ${!user.active ? "opacity-60" : ""}`}
+                >
+                  <div className="flex min-w-0 items-center gap-2">
+                    <p className="min-w-0 truncate font-medium">{user.username}</p>
+                    {user.clientRole === "OWNER" ? (
+                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-primary">
+                        {t("admin.ownerBadge")}
+                      </span>
+                    ) : null}
+                    <span
+                      className="ml-auto shrink-0 text-xs text-muted"
+                      title={t("admin.registeredOn", { date: registered })}
+                    >
+                      {registered}
                     </span>
+                  </div>
+                  {user.email ? (
+                    <p className="truncate text-xs text-muted">{user.email}</p>
                   ) : null}
-                </div>
-                {user.email ? (
-                  <p className="truncate text-xs text-muted">{user.email}</p>
-                ) : null}
-                <p className="text-xs text-muted">
-                  {t("admin.clientRow", {
-                    name: user.client?.name ?? t("common.none"),
-                  })}
-                </p>
-              </button>
-            ))
+                  <p className="text-xs text-muted">
+                    {t("admin.clientRow", {
+                      name: user.client?.name ?? t("common.none"),
+                    })}
+                  </p>
+                </button>
+              );
+            })
           )}
         </div>
         {totalPages > 1 ? (
