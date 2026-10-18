@@ -660,6 +660,14 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Детайли на артикул: двойно докосване на истинска снимка я показва по-голяма. Картинката без снимка остава същата.",
     href: "/app/expiry",
   },
+  {
+    key: "2026-10-detail-photo-tap-zoom",
+    titleEn:
+      "Item details: tap a real product photo once to see it larger. Tap again or Close to dismiss.",
+    titleBg:
+      "Детайли на артикул: едно докосване на истинска снимка я показва по-голяма. Докоснете отново или Затвори, за да я затворите.",
+    href: "/app/expiry",
+  },
 ];
 
 

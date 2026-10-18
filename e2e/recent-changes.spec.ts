@@ -87,27 +87,6 @@ async function selectEveryCard(page: Page) {
   }
 }
 
-async function pointerUp(locator: Locator, pointerType: "mouse" | "touch") {
-  await locator.evaluate((element, type) => {
-    element.dispatchEvent(
-      new PointerEvent("pointerup", {
-        bubbles: true,
-        cancelable: true,
-        pointerType: type,
-        button: 0,
-        pointerId: 1,
-        isPrimary: true,
-      }),
-    );
-  }, pointerType);
-}
-
-async function doubleTap(locator: Locator) {
-  await pointerUp(locator, "mouse");
-  await locator.page().waitForTimeout(90);
-  await pointerUp(locator, "mouse");
-}
-
 function insertOcrScan(input: {
   userId: string;
   username: string;
@@ -277,7 +256,7 @@ test.describe("Recent product changes", () => {
     await assertNoNextJsOverlay(page);
   });
 
-  test("double tap enlarges a real photo and a single tap does not", async ({
+  test("tap enlarges a real photo; the no-picture art does not", async ({
     page,
     baseURL,
   }) => {
@@ -294,7 +273,7 @@ test.describe("Recent product changes", () => {
       .getByRole("button", { name: "View item details" })
       .click();
     const plainSheet = page.getByRole("dialog", { name: plainName! });
-    await doubleTap(plainSheet.getByRole("img", { name: "No picture" }));
+    await plainSheet.getByRole("img", { name: "No picture" }).click();
     await expect(page.getByRole("dialog", { name: "View product image" })).toHaveCount(0);
     await plainSheet.getByRole("button", { name: "Cancel" }).click();
     await expect(plainSheet).toHaveCount(0);
@@ -308,17 +287,13 @@ test.describe("Recent product changes", () => {
       .getByRole("dialog", { name: photoName! })
       .getByRole("button", { name: "View product image" });
     await expect(photo).toBeVisible();
-    await pointerUp(photo, "mouse");
-    await page.waitForTimeout(400);
-    await expect(page.getByRole("dialog", { name: "View product image" })).toHaveCount(0);
-
-    await doubleTap(photo);
+    await photo.click();
     const zoom = page.getByRole("dialog", { name: "View product image" });
     await expect(zoom).toBeVisible();
     await zoom.locator("img").click();
     await expect(zoom).toHaveCount(0);
 
-    await doubleTap(photo);
+    await photo.click();
     await expect(zoom).toBeVisible();
     await zoom.getByRole("button", { name: "Close" }).click();
     await expect(zoom).toHaveCount(0);

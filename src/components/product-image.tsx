@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState, type MouseEvent, type PointerEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type MouseEvent,
+  type PointerEvent,
+} from "react";
 import { createPortal } from "react-dom";
 import { useT } from "@/components/i18n-provider";
 import { NoPicturePlaceholder } from "@/components/no-picture-placeholder";
@@ -17,7 +24,11 @@ type Props = {
   placeholderClassName?: string;
   /** Hold ~0.5s or double-tap to change the picture. */
   onLongPress?: () => void;
-  /** Double-tap a real photo (not the no-picture art) to open it large. */
+  /**
+   * Open a real photo larger. In item details (no long-press) a normal tap is
+   * enough. When long-press is also bound, use a double-tap so it does not
+   * fight the change-photo gesture.
+   */
   zoomOnDoubleTap?: boolean;
 };
 
@@ -55,6 +66,12 @@ export function ProductImage({
   function clearTextSelection() {
     const selection = window.getSelection?.();
     selection?.removeAllRanges();
+  }
+
+  function openZoom(event?: { stopPropagation?: () => void }) {
+    event?.stopPropagation?.();
+    if (!canZoom) return;
+    setZoomed(true);
   }
 
   function triggerChange() {
@@ -103,13 +120,20 @@ export function ProductImage({
       return;
     }
     if (!isDoubleTap(event)) return;
-    if (canZoom) setZoomed(true);
+    if (canZoom) openZoom(event);
     else triggerChange();
   }
 
-  function onZoomPointerUp(event: PointerEvent) {
+  function onZoomClick(event: MouseEvent) {
     if (!canZoom || onLongPress) return;
-    if (isDoubleTap(event)) setZoomed(true);
+    openZoom(event);
+  }
+
+  function onZoomKeyDown(event: KeyboardEvent) {
+    if (!canZoom || onLongPress) return;
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    openZoom(event);
   }
 
   function onContextMenu(event: MouseEvent) {
@@ -135,11 +159,15 @@ export function ProductImage({
       }
     : canZoom
       ? {
-          onPointerUp: onZoomPointerUp,
+          onClick: onZoomClick,
+          onKeyDown: onZoomKeyDown,
           role: "button" as const,
           tabIndex: 0,
           "aria-label": t("expiry.viewImage"),
-          style: { touchAction: "manipulation" as const },
+          style: {
+            touchAction: "manipulation" as const,
+            cursor: "zoom-in" as const,
+          },
         }
       : {};
 
