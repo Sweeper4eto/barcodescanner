@@ -1,23 +1,12 @@
+import { requireAdminResponse } from "@/lib/admin-guard";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { logAuditEvent } from "@/lib/audit-log";
 import { auditClientCreated, auditClientDeleted, auditClientUpdated } from "@/lib/audit-details";
-import { requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { clientDefaultsSchema, clientDefaultsToData } from "@/lib/expiry-notification-prefs";
 import { startOfBillingMonth } from "@/lib/payment-status";
 import { apiT } from "@/i18n";
-
-async function requireAdminResponse(request: Request) {
-  try {
-    return await requireAdmin();
-  } catch {
-    return NextResponse.json(
-      { error: apiT(request, "errors.forbidden") },
-      { status: 403 },
-    );
-  }
-}
 
 export async function GET(request: Request) {
   const admin = await requireAdminResponse(request);

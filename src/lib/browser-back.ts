@@ -7,7 +7,7 @@ export function pushBrowserBackEntry(): void {
     typeof window.history.state === "object" && window.history.state !== null
       ? window.history.state
       : {};
-  window.history.pushState({ ...state, __magazinBack: true }, "");
+  window.history.pushState({ ...state, __expire365Back: true }, "");
 }
 
 export type BrowserBackLayer = {

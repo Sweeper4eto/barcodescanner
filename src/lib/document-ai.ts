@@ -933,7 +933,7 @@ export async function extractDocumentRows(
 export async function extractDocumentRowsFromPath(
   imagePath: string,
 ): Promise<DocumentOcrRow[]> {
-  const filePath = resolveLocalUploadPath(imagePath);
+  const filePath = await resolveLocalUploadPath(imagePath);
   if (!filePath) {
     throw new Error("INVALID_IMAGE");
   }

@@ -66,7 +66,8 @@ const CAMERA_ATTEMPTS: MediaTrackConstraints[] = [
   {},
 ];
 
-const CAMERA_CACHE_KEY = "magazin-barcode-camera-id";
+const CAMERA_CACHE_KEY = "expire365-barcode-camera-id";
+const LEGACY_CAMERA_CACHE_KEY = "magazin-barcode-camera-id";
 
 const SCANNER_OPTIONS = {
   verbose: false,
@@ -80,6 +81,7 @@ const SCANNER_OPTIONS = {
 function cacheCameraId(cameraId: string): void {
   try {
     sessionStorage.setItem(CAMERA_CACHE_KEY, cameraId);
+    sessionStorage.removeItem(LEGACY_CAMERA_CACHE_KEY);
   } catch {
     // sessionStorage may be unavailable in private mode
   }
@@ -87,7 +89,14 @@ function cacheCameraId(cameraId: string): void {
 
 function readCachedCameraId(): string | null {
   try {
-    return sessionStorage.getItem(CAMERA_CACHE_KEY);
+    const current = sessionStorage.getItem(CAMERA_CACHE_KEY);
+    if (current) return current;
+    const legacy = sessionStorage.getItem(LEGACY_CAMERA_CACHE_KEY);
+    if (legacy) {
+      sessionStorage.setItem(CAMERA_CACHE_KEY, legacy);
+      sessionStorage.removeItem(LEGACY_CAMERA_CACHE_KEY);
+    }
+    return legacy;
   } catch {
     return null;
   }

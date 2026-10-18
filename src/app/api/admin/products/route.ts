@@ -1,3 +1,4 @@
+import { requireAdminResponse } from "@/lib/admin-guard";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import {
@@ -5,23 +6,11 @@ import {
   auditProductUpdated,
 } from "@/lib/audit-details";
 import { logAuditEvent } from "@/lib/audit-log";
-import { requireAdmin } from "@/lib/auth";
 import { searchAdminProducts } from "@/lib/admin-product-search";
 import { barcodeLookupValues, normalizeBarcode } from "@/lib/barcode";
 import { db } from "@/lib/db";
 import { deleteLocalUpload } from "@/lib/upload";
 import { apiT } from "@/i18n";
-
-async function requireAdminResponse(request: Request) {
-  try {
-    return await requireAdmin();
-  } catch {
-    return NextResponse.json(
-      { error: apiT(request, "errors.forbidden") },
-      { status: 403 },
-    );
-  }
-}
 
 export async function GET(request: Request) {
   const admin = await requireAdminResponse(request);

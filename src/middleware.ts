@@ -5,6 +5,7 @@ import {
   verifySessionToken,
   COOKIE_NAME,
   CLIENT_COOKIE_NAME,
+  LEGACY_COOKIE_NAME,
 } from "@/lib/session-token";
 
 const publicPaths = ["/", "/login", "/register", "/contact", "/terms", "/privacy"];
@@ -33,12 +34,29 @@ function applySessionCookie(
   token: string,
   request: NextRequest,
 ) {
+  response.cookies.set(COOKIE_NAME, token, sessionCookieOptions(request));
+}
+
+function finish(request: NextRequest, response: NextResponse) {
   const opts = sessionCookieOptions(request);
-  response.cookies.set(COOKIE_NAME, token, opts);
-  response.cookies.set(CLIENT_COOKIE_NAME, token, {
-    ...opts,
-    httpOnly: false,
-  });
+  const current = request.cookies.get(COOKIE_NAME)?.value;
+  const legacy = request.cookies.get(LEGACY_COOKIE_NAME)?.value;
+  const alreadySet = response.cookies.get(COOKIE_NAME)?.value;
+  const loggingOut = request.nextUrl.pathname === "/api/auth/logout";
+  if (!loggingOut && !current && legacy && !alreadySet) {
+    response.cookies.set(COOKIE_NAME, legacy, opts);
+  }
+  if (request.cookies.has(LEGACY_COOKIE_NAME)) {
+    response.cookies.set(LEGACY_COOKIE_NAME, "", { ...opts, maxAge: 0 });
+  }
+  if (request.cookies.has(CLIENT_COOKIE_NAME)) {
+    response.cookies.set(CLIENT_COOKIE_NAME, "", {
+      ...opts,
+      httpOnly: false,
+      maxAge: 0,
+    });
+  }
+  return response;
 }
 
 export async function middleware(request: NextRequest) {
@@ -51,11 +69,11 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith("/uploads") ||
     pathname.startsWith("/auth/")
   ) {
-    return NextResponse.next();
+    return finish(request, NextResponse.next());
   }
 
-  // Phone/Safari often drops Set-Cookie on redirects. Bootstrap from ?__session=
-  // on this document response (200), not on a 302 — cookies stick that way.
+  // Phone/Safari often drops Set-Cookie on redirects. Bootstrap the httpOnly
+  // cookie from ?__session= on this document response (200), not on a 302.
   // Router prefetches/RSC fetches of the same URL must not bootstrap: they would
   // hand the session back after a logout, since the token lingers in the URL.
   const isRscRequest = request.headers.get("rsc") !== null;
@@ -68,15 +86,15 @@ export async function middleware(request: NextRequest) {
       const response = NextResponse.next();
       applySessionCookie(response, bootstrapToken, request);
       console.info("[middleware] session bootstrap ok →", pathname);
-      return response;
+      return finish(request, response);
     }
     console.warn("[middleware] session bootstrap failed");
-    return redirectPath(request, "/login?error=credentials");
+    return finish(request, redirectPath(request, "/login?error=credentials"));
   }
 
   const token =
     request.cookies.get(COOKIE_NAME)?.value ??
-    request.cookies.get(CLIENT_COOKIE_NAME)?.value;
+    request.cookies.get(LEGACY_COOKIE_NAME)?.value;
   const session = token ? await verifySessionToken(token) : null;
 
   if (pathname.startsWith("/app") && !session) {
@@ -85,51 +103,51 @@ export async function middleware(request: NextRequest) {
 
   if (session?.mustChangePassword) {
     if (pathname === passwordChangePath || pathname === "/login") {
-      return NextResponse.next();
+      return finish(request, NextResponse.next());
     }
-    return redirectPath(request, passwordChangePath);
+    return finish(request, redirectPath(request, passwordChangePath));
   }
 
   if (pathname === passwordChangePath) {
     if (!session) {
-      return redirectPath(request, "/login");
+      return finish(request, redirectPath(request, "/login"));
     }
-    return NextResponse.next();
+    return finish(request, NextResponse.next());
   }
 
   if (pathname.startsWith("/admin")) {
     if (!session) {
-      return redirectPath(request, "/login");
+      return finish(request, redirectPath(request, "/login"));
     }
     if (session.role !== "ADMIN") {
-      return redirectPath(request, "/app");
+      return finish(request, redirectPath(request, "/app"));
     }
-    return NextResponse.next();
+    return finish(request, NextResponse.next());
   }
 
   if (pathname.startsWith("/app")) {
     if (!session) {
-      return redirectPath(request, "/login");
+      return finish(request, redirectPath(request, "/login"));
     }
     if (session.role === "ADMIN") {
-      return redirectPath(request, "/admin");
+      return finish(request, redirectPath(request, "/admin"));
     }
-    return NextResponse.next();
+    return finish(request, NextResponse.next());
   }
 
   if (publicPaths.includes(pathname)) {
     if (publicReadablePaths.includes(pathname)) {
-      return NextResponse.next();
+      return finish(request, NextResponse.next());
     }
     if (session?.role === "ADMIN") {
-      return redirectPath(request, "/admin");
+      return finish(request, redirectPath(request, "/admin"));
     }
     if (session?.role === "USER" && session.clientId) {
-      return redirectPath(request, "/app");
+      return finish(request, redirectPath(request, "/app"));
     }
   }
 
-  return NextResponse.next();
+  return finish(request, NextResponse.next());
 }
 
 export const config = {

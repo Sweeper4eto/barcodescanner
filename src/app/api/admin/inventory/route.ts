@@ -1,5 +1,5 @@
+import { requireAdminResponse } from "@/lib/admin-guard";
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/auth";
 import { expiryListDateBounds, parseExpiryWithinDays } from "@/lib/expiry";
 import { activeInventoryWhere } from "@/lib/inventory";
 import { filterInventoryEntriesBySearch } from "@/lib/inventory-search";
@@ -7,21 +7,8 @@ import { db } from "@/lib/db";
 import { apiT } from "@/i18n";
 
 export async function GET(request: Request) {
-  try {
-    await requireAdmin();
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "";
-    if (message === "MUST_CHANGE_PASSWORD") {
-      return NextResponse.json(
-        { error: apiT(request, "auth.mustChangePassword"), code: "MUST_CHANGE_PASSWORD" },
-        { status: 403 },
-      );
-    }
-    return NextResponse.json(
-      { error: apiT(request, "errors.forbidden") },
-      { status: 403 },
-    );
-  }
+  const admin = await requireAdminResponse(request);
+  if (admin instanceof NextResponse) return admin;
 
   const { searchParams } = new URL(request.url);
   const storeId = searchParams.get("storeId");

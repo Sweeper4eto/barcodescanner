@@ -1,7 +1,7 @@
 /**
  * Send one test push to a user (by username).
  *
- *   DATABASE_URL="file:/var/lib/magazin/data.db" npx tsx scripts/send-test-push.ts Sweps
+ *   DATABASE_URL="file:/var/lib/expire365/data.db" npx tsx scripts/send-test-push.ts Sweps
  *
  * Requires VAPID_* in the environment and an existing push subscription
  * (user already toggled notifications on).

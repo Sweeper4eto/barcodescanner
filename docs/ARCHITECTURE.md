@@ -1,80 +1,81 @@
-# Magazin — архитектура
+# expire365 — архитектура
 
-**Last updated:** 2026-09-13
+**Last updated:** 2026-10-18
 
-Мобилно-оптимизирано уеб приложение за управление на стока по магазини, срок на годност, клиенти и месечни плащания.
+Мобилно уеб приложение (PWA) за срок на годност. Домакинствата ползват количка и любими. Магазините ползват намаление на цена, OCR на документ, график на персонала и екип. Админът води акаунти, такси, поддръжка, каталог, OCR статистика и What’s new.
 
 ## Технологии
 
 | Слой | Избор |
 |------|--------|
 | Frontend + API | Next.js 16, React 19, Tailwind |
-| База данни | SQLite (dev) / PostgreSQL (prod) |
+| База данни | SQLite и в разработка, и в production (`EXPIRE365_DB_PATH`, по подразбиране `/var/lib/expire365/data.db`) |
 | ORM | Prisma 7 + better-sqlite3 adapter |
-| Auth | JWT в httpOnly cookie |
-| Баркод | html5-qrcode |
-| Снимки | MediaDevices API + качване в `public/uploads` |
+| Auth | JWT само в httpOnly cookie. След вход адресът носи `?__session=` за миг, за да се запише това cookie на отговор 200; страницата маха параметъра и не пази token в JavaScript |
+| Баркод | html5-qrcode и допълнителни декодери |
+| Снимки | Качване в `data/uploads`. `GET /uploads/:filename` пуска файла само на логнат потребител, който има право да го види. Каталожна снимка е за всеки логнат потребител. Снимка само върху ред в годност е за този магазин и за админ |
 | PWA | Web manifest, service worker, икони за „Добави на началния екран“ |
+
+PostgreSQL не се ползва. Документ, който го описва като production база, е остарял.
 
 ## Роли
 
-- **ADMIN** — `/admin`: клиенти, магазини, потребители, плащания
-- **USER** — `/app`: сканиране, въвеждане, годност (след асайнване)
+- **ADMIN** — `/admin`
+- **USER + домакинство** — `/app`: годност, скан, количка, любими
+- **USER + магазин** — `/app`: годност, скан, документ (OCR), намаление на цена. Графикът се вижда според `scheduleAccess` на акаунта (`private` / `public` / `disabled`)
 
 ## Функционалност
 
 ### Админ панел
 
-- **Акаунти (hub):** списък бизнес/домакинство в отделни секции; за всеки акаунт — Overview, Locations, People, Billing (такса, require payments, mark paid)
-- **Плащания / lock:** `Client.paymentsRequired` + `paymentsRequiredSince` (месецът, от който тече таксуването). Lock (`clientRequiresPayment`) само при **просрочен** неплатен месец *преди* текущия; текущият месец може да се плати по всяко време. Пример: включено от 1 окт. → lock от 1 ноем. ако окт. е неплатен. Household и fee ≤ 0 са освободени.
-- **Плащания (portfolio):** календар / standing по клиент
-- **Потребители:** глобално търсене като подтаб в Accounts
-- **Плащания:** portfolio „кой дължи“ + by-month; редакция на такса/обекти е в Account → Billing
-- **Audit log:** подтабове Business / Household; филтри по акаунт (само от текущия тип), потребител, обект, IP, период
-- **Items / Support / What’s new:** както досега
-- **Minimart locator:** карта + CRM статуси; пин може да се свърже с **Business** Client (`clientId`, без household); един клиент → много пинове; sync не пипа status/comment/clientId
+- **Акаунти:** бизнес и домакинство отделно. За акаунт: Overview, Locations, People, Billing (такса, require payments, mark paid)
+- **Плащания / lock:** `Client.paymentsRequired` + `paymentsRequiredSince`. Lock само при просрочен неплатен месец преди текущия. Домакинство и такса ≤ 0 са освободени
+- **Плащания (portfolio):** календар и кой дължи
+- **Потребители:** търсене в Accounts
+- **Audit log:** Business / Household, филтри по акаунт, потребител, обект, IP, период
+- **Items / Support / What’s new**
+- **OCR usage:** сканирания по потребител, най-новото първо, плюс дневен брой. `GET /api/admin/document-ocr-usage`
+- **Minimart locator:** карта и CRM статуси. Пин може да сочи към бизнес клиент. Sync не пипа status, comment и clientId
+
+Всички `/api/admin/*` минават през `requireAdminResponse` в `src/lib/admin-guard.ts`.
 
 ### Потребител
 
-- Регистрация → „Please contact administrator for Customer assignment“
-- Логин без клиент или с неактивен клиент → грешка
-- Dropdown магазин (запомня се в `localStorage`)
-- **Сканирай:** камера/ръчно → продукт → количество 1–20 → дата → запис
-- **Въведи стока:** баркод → име → снимка → глобална база
-- **Документ:** `/app/add-document` — live in-app камера (`getUserMedia`), не native iOS picker, за да няма повторно питане за разрешение при „Нов скан“ / Retake
-- **Годност:** сортиране по срок, цветове, премахване
+- Регистрация на домакинство създава собствен магазин. Бизнес потребител без акаунт не влиза в приложението, докато админът не го върже
+- Избраният магазин се пази в `localStorage`
+- **Скан:** камера или ръчно → продукт → количество → дата → запис
+- **Документ:** `/app/add-document`, камера в приложението, OCR, после импорт в годност
+- **Годност:** период, търсене, цвят по спешност, премахване, намаление (магазин), количка и любими (домакинство)
+- **Мултиизбор в годност:** дълго натискане. Сканът до търсачката става експорт. До 20 избрани реда стават JPG (`src/lib/expiry-selection-export.ts`). Над 20 има съобщение. На Android/desktop файлът се сваля. На iPhone се показва, за да се добави в Снимки
+- **Снимка на продукт:** двойно докосване на истинска снимка в детайлите я отваря голяма. Картинката „без снимка“ не се увеличава. Повторно докосване я затваря
+- **График:** `/app/schedule`. Седмица, дни, финализиране, автоматично разпределение 07:00–22:00, изключване на човек за ден. Запис като PDF или PNG (`src/lib/schedule-week-print.ts`), със същото поведение за сваляне като експорта на годност
+- **Екип и billing:** собственикът управлява хора и вижда таксуването на акаунта
+
+Екранът за годност и екранът за график споделят лентите, диалозите за запис и прегледа на снимката с отделни компоненти (`expiry-selection-chrome`, `schedule-shift-bars`, `schedule-export-sheets`).
 
 ### Placeholder за липсваща снимка
 
-`ProductImage` (`src/components/product-image.tsx`) показва **`NoPicturePlaceholder`** когато няма `imagePath` или зареждането е неуспешно:
+`ProductImage` показва `NoPicturePlaceholder`, когато няма `imagePath` или снимката не се зареди. Илюстрацията е мини-маркет с mint рамка (`src/components/no-picture-placeholder.tsx`).
 
-- Илюстрация: **#29 Mini market scene** (малък щанд с стоки)
-- Стил: **mint glow** — mint рамка, radial halo, mint икона (`text-accent`)
-- Компонент: `src/components/no-picture-placeholder.tsx`
-- Достъпност: `aria-label` от `common.noPicture` (без видим текст „Няма снимка“)
+### What's new
 
-### What's new (новости за потребители)
+- Каталог: `src/lib/whats-new-catalog.ts` — нов `key`, EN, BG, по желание `href`
+- Admin → What’s new синхронизира каталога като Draft
+- Админът избира редове и пуска Push. Разработчикът не пише текста в админа
 
-- Каталог в код: `src/lib/whats-new-catalog.ts` — при всяка **видима** промяна се добавя нов ред (`key`, EN, BG, по желание `href`).
-- Sync: Admin → **What's new** (GET `/api/admin/whats-new`) създава **Draft** редове автоматично.
-- Публикуване: админ избира редове → **Push to users** → потребителите виждат sheet на `/app`.
-- Разработчикът **не** пише текст в админ панела — само в каталога; админът само пуска Live.
+### Push за годност
 
-### Push известия за годност (phases 1–3)
-
-- **Настройки:** `/app/settings/notifications` — ранно/спешно напомняне (дни + **отделен час** за всяко ниво), филтър по обект; timezone dropdown (auto-detect до първо Save, после запазената стойност). График „веднъж/два пъти дневно“ е премахнат — всяко ниво е винаги **веднъж дневно**.
-- **API:** `GET/PATCH /api/push/notification-settings` (auth user).
-- **Admin defaults:** полета на `Client` + секция в Admin → Accounts → Overview (за потребители без собствени настройки).
-- **Изпращане:** `sendExpiryDigests()` в `src/lib/push-expiry.ts` — Early и Urgent са **независими** digest-и (`expiry-digest-early` / `expiry-digest-urgent`); всеки с собствен час (`time1` / `time2`). Ако часовете съвпадат, се пращат и двете. Продукт в двата прозореца може да влезе и в двата digest-а. Пращане в **15‑минутен** слот около избрания час.
-- **Cron:** `POST /api/cron/expiry-notifications` (header `x-cron-secret`) — `*/15 * * * *`; purge cron също вика digest, но за точния слот трябва 15‑минутен cron.
+- Настройки: `/app/settings/notifications` — ранно и спешно напомняне, отделен час, филтър по обект
+- Изпращане: `sendExpiryDigests()` в `src/lib/push-expiry.ts`
+- Cron: `POST /api/cron/expiry-notifications` с header `x-cron-secret`, на 15 минути
 
 ### Годност и purge
 
-- Видими: изтичащи в следващите 3 месеца или изтекли до 6 месеца назад
-- Цветове: ≤7д червено, ≤14д жълто, ≤28д синьо
-- `removedAt` — ръчно премахване от списъка
-- `deletedAt` — hard delete 6 месеца след изтичане (cron + при зареждане на списъка)
-- **Намалена цена:** `priceReducedAt` + `priceDiscountPercent` + `priceReducedByUserId` — last editor (който последно е включил/сменил %); при restore се чистят; UI footer „Reduced by / Намалил“ + дата/час
+- Списъкът по подразбиране е периодът, избран от потребителя (по подразбиране 30 дни)
+- Цветове: ≤7 дни критично, ≤14 предупреждение, ≤28 скоро
+- `removedAt` — махнат от списъка
+- `deletedAt` — hard delete след гратисния период (cron)
+- Намалена цена: `priceReducedAt`, `priceDiscountPercent`, `priceReducedByUserId`
 
 ## API
 
@@ -85,81 +86,64 @@
 | GET | `/api/auth/me` | Потребител + магазини |
 | GET/POST/PATCH/DELETE | `/api/admin/clients` | Клиенти |
 | GET/POST/PATCH/DELETE | `/api/admin/stores` | Магазини |
-| GET/PATCH | `/api/admin/users` | Потребители |
-| GET/POST/PATCH/DELETE | `/api/admin/minimart-locator` | Minimart карта (sync/create/edit; optional `clientId`) |
-| GET | `/api/admin/payments/calendar` | Календарен изглед |
+| GET/PATCH/DELETE | `/api/admin/users` | Потребители |
+| GET | `/api/admin/document-ocr-usage` | OCR сканирания |
+| GET/POST/PATCH/DELETE | `/api/admin/minimart-locator` | Minimart карта |
+| GET | `/api/admin/payments/calendar` | Календар на плащания |
 | GET/POST | `/api/products` | Продукти |
 | GET/POST/PATCH | `/api/inventory` | Стока в магазин |
-| POST | `/api/upload` | Качване на снимка |
-| POST/GET | `/api/cron/purge-inventory` | Hard delete (header `x-cron-secret`) |
+| GET/POST/PATCH | `/api/schedule` | График на магазина |
+| POST | `/api/upload` | Качване на снимка (изисква сесия) |
+| GET | `/uploads/:filename` | Снимка само за оторизиран потребител |
+| POST | `/api/cron/purge-inventory` | Hard delete (`x-cron-secret`) |
+| POST | `/api/cron/expiry-notifications` | Push за годност (`x-cron-secret`) |
 
-## PWA (Progressive Web App)
+## PWA
 
-Приложението може да се **добави на началния екран** на телефона и да се отваря на цял екран като приложение.
+- Manifest: `src/app/manifest.ts`
+- Service worker: `public/sw.js` (страници; API заявките са online)
+- Икони: `public/icons/` (`npm run icons`)
 
-- Manifest: `src/app/manifest.ts` → `/manifest.webmanifest`
-- Service worker: `public/sw.js` (кешира основни страници; API заявките винаги са online)
-- Икони: `public/icons/` (генерират се с `npm run icons`)
-
-### iPhone (Safari)
-
-1. Отворете сайта в Safari
-2. Бутон **Сподели** → **Add to Home Screen** / **Добави на началния екран**
-
-### Android (Chrome)
-
-1. Отворете сайта в Chrome
-2. Меню → **Инсталирай приложение** или **Добави на началния екран**
-
-> За камерата на телефон в production е препоръчително **HTTPS**.
+За камера на телефон в production е нужен HTTPS.
 
 ## Cron
 
-Извикване (напр. от systemd/cron job):
-
 ```bash
 curl -X POST -H "x-cron-secret: YOUR_SECRET" http://localhost:3000/api/cron/purge-inventory
+curl -X POST -H "x-cron-secret: YOUR_SECRET" http://localhost:3000/api/cron/expiry-notifications
 ```
 
-## Backups (VPS / SQLite)
+## Backups
 
-Production DB is SQLite (`MAGAZIN_DB_PATH`, default `/var/lib/magazin/data.db`). Photos are under `public/uploads`.
+Скрипт: `scripts/backup-expire365.sh`
 
-Script: `scripts/backup-magazin.sh`
-
-**Policy:** 1 local backup per week; keep the **2 newest** folders (~2 weeks / ~2–3 GB compressed). Each run deletes anything older. Once a month you can download `/var/backups/magazin/` to your PC.
+Копира SQLite базата и снимките от `data/uploads` (и остатък от `public/uploads`, ако има). Веднъж седмично, пазят се 2-те най-нови папки. Ако сървърът още е в `/var/www/magazin`, скриптът ползва тази папка, докато не я преименувате.
 
 ```bash
-# Once on the server
 sudo apt install -y sqlite3
-sudo mkdir -p /var/backups/magazin
-sudo chmod +x /var/www/magazin/scripts/backup-magazin.sh
-
-# Crontab — every Sunday 03:15
-15 3 * * 0 /var/www/magazin/scripts/backup-magazin.sh >> /var/log/magazin-backup.log 2>&1
+sudo mkdir -p /var/backups/expire365
+sudo chmod +x /var/www/expire365/scripts/backup-expire365.sh
+# crontab — неделя 03:15
+15 3 * * 0 /var/www/expire365/scripts/backup-expire365.sh >> /var/log/expire365-backup.log 2>&1
 ```
 
-Monthly (from your PC):
+Възстановяване (спри приложението първо):
 
 ```bash
-scp -r root@YOUR_SERVER:/var/backups/magazin ./magazin-backup-$(date +%Y%m)
-ssh root@YOUR_SERVER 'rm -rf /var/backups/magazin/*'
+pm2 stop expire365
+gunzip -c /path/to/backup/data.db.gz > /var/lib/expire365/data.db
+mkdir -p /var/www/expire365/data
+tar -C /var/www/expire365/data -xzf /path/to/backup/uploads.tar.gz
+pm2 start expire365
 ```
 
-Restore (stop app first):
-
-```bash
-pm2 stop magazin
-gunzip -c /path/to/backup/data.db.gz > /var/lib/magazin/data.db
-# optional: restore uploads
-tar -C /var/www/magazin/public -xzf /path/to/backup/uploads.tar.gz
-pm2 start magazin
-```
+Архивът от преди 2026-10-18 разархивира снимките в `public/uploads`. След старт приложението ги мести в `data/uploads`.
 
 ## Стартиране
 
+От директорията на проекта:
+
 ```bash
-cd D:\Work\magazin
 npm install
 cp .env.example .env
 npm run db:migrate
@@ -167,13 +151,14 @@ npm run db:seed
 npm run dev
 ```
 
-Админ: `admin` / `admin123`
+Админ след seed: `admin` / `admin123`
 
 ## Тестове
 
 ```bash
-npm run validate   # lint + test + build
+npm test          # unit + integration
+npm run test:e2e  # Playwright
+npm run validate  # lint + test + build
 ```
 
-`tests/expiry.test.ts` — формула за плащания, видимост и цветове на годност.
-`tests/no-picture-placeholder.test.ts` — избран placeholder (#29 + mint glow).
+Покрити са годност, график, OCR ред, експорт на снимка, двойно докосване и достъп до качени снимки, плюс вход, админ и ролите home/retail.

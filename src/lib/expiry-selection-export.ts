@@ -3,6 +3,7 @@ import {
   formatLocaleDay,
   formatLocaleTime,
 } from "@/lib/expiry";
+import { pictureSaveStatus, readIosSaveTarget } from "@/lib/picture-save";
 
 /** One JPG stays readable in chat apps past this many rows. */
 export const EXPIRY_EXPORT_MAX_ITEMS = 20;
@@ -492,15 +493,6 @@ function jpgFilename(when: Date): string {
   return `expiry-${stamp}.jpg`;
 }
 
-function isIosDevice(): boolean {
-  if (typeof navigator === "undefined") return false;
-  const ua = navigator.userAgent;
-  return (
-    /iPhone|iPad|iPod/i.test(ua) ||
-    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
-  );
-}
-
 /** Write the jpeg into the phone's Downloads folder. No share sheet — that only copies. */
 function triggerDownload(blob: Blob, filename: string): boolean {
   try {
@@ -522,14 +514,15 @@ function triggerDownload(blob: Blob, filename: string): boolean {
 function deliverJpegBlob(blob: Blob, filename: string): ExpiryExportResult {
   // iOS ignores <a download> in Safari and installed web apps. Show the picture
   // so it can be saved to Photos. The share sheet only offered Copy.
-  if (isIosDevice()) {
+  if (pictureSaveStatus(readIosSaveTarget(), true) === "preview") {
     return {
       status: "preview",
       url: URL.createObjectURL(blob),
       filename,
     };
   }
-  return triggerDownload(blob, filename)
+  const started = triggerDownload(blob, filename);
+  return pictureSaveStatus(false, started) === "saved"
     ? { status: "saved" }
     : { status: "failed" };
 }

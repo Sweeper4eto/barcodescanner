@@ -48,12 +48,21 @@ export function t(
   );
 }
 
-function localeFromCookie(cookieHeader: string): Locale | null {
-  const match = cookieHeader.match(/(?:^|;\s*)magazin-locale=(en|bg)(?:;|$)/);
+function readLocaleCookie(cookieHeader: string, name: string): Locale | null {
+  const match = cookieHeader.match(
+    new RegExp(`(?:^|;\\s*)${name}=(en|bg)(?:;|$)`),
+  );
   if (match?.[1] && locales.includes(match[1] as Locale)) {
     return match[1] as Locale;
   }
   return null;
+}
+
+function localeFromCookie(cookieHeader: string): Locale | null {
+  return (
+    readLocaleCookie(cookieHeader, "expire365-locale") ??
+    readLocaleCookie(cookieHeader, "magazin-locale")
+  );
 }
 
 export function getLocaleFromRequest(request: Request): Locale {

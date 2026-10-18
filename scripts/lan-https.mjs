@@ -40,7 +40,7 @@ function serveCertDownload(certPem, port) {
     }
     res.writeHead(200, {
       "Content-Type": "application/x-x509-ca-cert",
-      "Content-Disposition": "attachment; filename=magazin-dev.pem",
+      "Content-Disposition": "attachment; filename=expire365-dev.pem",
       "Content-Length": Buffer.byteLength(certPem),
     });
     res.end(certPem);
@@ -86,7 +86,7 @@ async function ensureCerts(ips) {
   }
 
   const pems = await selfsigned.generate(
-    [{ name: "commonName", value: "magazin-dev" }],
+    [{ name: "commonName", value: "expire365-dev" }],
     {
       days: 825,
       keySize: 2048,
@@ -194,7 +194,7 @@ async function main() {
     if (req.url === CERT_DOWNLOAD_PATH) {
       res.writeHead(200, {
         "Content-Type": "application/x-x509-ca-cert",
-        "Content-Disposition": "attachment; filename=magazin-dev.pem",
+        "Content-Disposition": "attachment; filename=expire365-dev.pem",
         "Content-Length": Buffer.byteLength(certs.cert),
       });
       res.end(certs.cert);
@@ -242,7 +242,7 @@ async function main() {
     console.log(
       "  4. Settings → General → About → Certificate Trust Settings → turn on",
     );
-    console.log('     full trust for "magazin-dev" (only appears after step 3).');
+    console.log('     full trust for "expire365-dev" (only appears after step 3).');
     console.log(
       "  5. Now open the https:// URL above again — no warning, and Add to",
     );

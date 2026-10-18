@@ -1,18 +1,7 @@
+import { requireAdminResponse } from "@/lib/admin-guard";
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/auth";
 import { queryDocumentOcrUsage } from "@/lib/document-ocr-usage";
 import { apiT } from "@/i18n";
-
-async function requireAdminResponse(request: Request) {
-  try {
-    return await requireAdmin();
-  } catch {
-    return NextResponse.json(
-      { error: apiT(request, "errors.forbidden") },
-      { status: 403 },
-    );
-  }
-}
 
 export async function GET(request: Request) {
   const admin = await requireAdminResponse(request);

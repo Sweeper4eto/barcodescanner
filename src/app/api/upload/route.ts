@@ -4,8 +4,9 @@ import { saveDataUrl, saveUpload, UploadError } from "@/lib/upload";
 import { apiT } from "@/i18n";
 
 export async function POST(request: Request) {
+  let session;
   try {
-    await requireSession();
+    session = await requireSession();
   } catch {
     return NextResponse.json(
       { error: apiT(request, "errors.unauthorized") },
@@ -25,13 +26,13 @@ export async function POST(request: Request) {
           { status: 400 },
         );
       }
-      const path = await saveUpload(file);
+      const path = await saveUpload(file, session.userId);
       return NextResponse.json({ path });
     }
 
     const json = await request.json().catch(() => null);
     if (json?.dataUrl && typeof json.dataUrl === "string") {
-      const path = await saveDataUrl(json.dataUrl);
+      const path = await saveDataUrl(json.dataUrl, session.userId);
       return NextResponse.json({ path });
     }
 

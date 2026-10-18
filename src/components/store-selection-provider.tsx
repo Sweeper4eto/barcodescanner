@@ -12,7 +12,11 @@ import {
 } from "react";
 import { useAppSession } from "@/components/app-session-provider";
 import { replaceAppUrlQuiet } from "@/lib/app-navigation";
-import { getStoredStoreId, setStoredStoreId } from "@/lib/store-selection";
+import {
+  STORE_CHANGED_EVENT,
+  getStoredStoreId,
+  setStoredStoreId,
+} from "@/lib/store-selection";
 
 type StoreSelectionState = {
   storeId: string;
@@ -161,10 +165,10 @@ export function StoreSelectionProvider({ children }: { children: ReactNode }) {
       if (storeIdRef.current) syncUrlStoreId(storeIdRef.current);
     }
 
-    window.addEventListener("magazin:store-changed", onStoreChanged);
+    window.addEventListener(STORE_CHANGED_EVENT, onStoreChanged);
     window.addEventListener("popstate", onPopState);
     return () => {
-      window.removeEventListener("magazin:store-changed", onStoreChanged);
+      window.removeEventListener(STORE_CHANGED_EVENT, onStoreChanged);
       window.removeEventListener("popstate", onPopState);
     };
   }, [sessionReady, user]);

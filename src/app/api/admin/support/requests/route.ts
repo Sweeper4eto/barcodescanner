@@ -1,24 +1,13 @@
+import { requireAdminResponse } from "@/lib/admin-guard";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { apiT } from "@/i18n";
-
-async function adminOrForbidden(request: Request) {
-  try {
-    return await requireAdmin();
-  } catch {
-    return NextResponse.json(
-      { error: apiT(request, "errors.forbidden") },
-      { status: 403 },
-    );
-  }
-}
 
 const statusSchema = z.enum(["new", "in_progress", "done"]);
 
 export async function GET(request: Request) {
-  const admin = await adminOrForbidden(request);
+  const admin = await requireAdminResponse(request);
   if (admin instanceof NextResponse) return admin;
 
   const { searchParams } = new URL(request.url);
@@ -85,7 +74,7 @@ const patchSchema = z.object({
 });
 
 export async function PATCH(request: Request) {
-  const admin = await adminOrForbidden(request);
+  const admin = await requireAdminResponse(request);
   if (admin instanceof NextResponse) return admin;
 
   const json = await request.json().catch(() => null);

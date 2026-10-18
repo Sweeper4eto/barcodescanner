@@ -35,6 +35,13 @@ test("apiT uses Accept-Language when locale is registered", () => {
 
 test("apiT uses locale cookie for mobile client", () => {
   const request = new Request("http://localhost", {
+    headers: { cookie: "expire365-locale=bg" },
+  });
+  assert.equal(apiT(request, "auth.login"), "Вход");
+});
+
+test("apiT still reads a saved magazin-locale cookie", () => {
+  const request = new Request("http://localhost", {
     headers: { cookie: "magazin-locale=bg" },
   });
   assert.equal(apiT(request, "auth.login"), "Вход");

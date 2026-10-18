@@ -5,6 +5,10 @@ import { BarcodeScanner } from "@/components/barcode-scanner";
 import { SaveDiskIcon, ScanNavIcon } from "@/components/app-nav-icons";
 import { ExpiryListCard } from "@/components/expiry-list-card";
 import {
+  ExpiryExportPreview,
+  ExpirySelectionFooter,
+} from "@/components/expiry-selection-chrome";
+import {
   ExpiryEntryDetailSheet,
   type ExpiryDetailEntry,
 } from "@/components/expiry-entry-detail-sheet";
@@ -35,11 +39,7 @@ import { useViewportInsets } from "@/hooks/use-viewport-insets";
 import { CancelButton } from "@/components/cancel-button";
 import { ConfirmButton } from "@/components/confirm-button";
 import { DangerRemoveButton } from "@/components/danger-remove-button";
-import {
-  appButtonDangerFull,
-  appButtonNeutral,
-  appFooterButtonGrid,
-} from "@/lib/app-ui";
+import { appButtonNeutral, appFooterButtonGrid } from "@/lib/app-ui";
 import { resolveEntryImagePath } from "@/lib/inventory-entry-display";
 import {
   EXPIRY_EXPORT_MAX_ITEMS,
@@ -905,72 +905,23 @@ function ExpiryList() {
       ) : null}
 
       {selectionMode ? (
-        <div
-          className="fixed inset-x-0 z-50 mx-auto w-full max-w-lg border-t border-card-border bg-background/95 px-3 pb-2 pt-2 backdrop-blur-sm supports-[backdrop-filter]:bg-background/90"
-          style={{
-            bottom:
-              "calc(var(--app-bottom-nav-height) + env(safe-area-inset-bottom, 0px))",
-          }}
-        >
-          <div className={appFooterButtonGrid}>
-            <button
-              type="button"
-              className={appButtonNeutral}
-              onClick={exitSelectionMode}
-              disabled={bulkRemoving}
-            >
-              {t("expiry.confirmCancel")}
-            </button>
-            <button
-              type="button"
-              className={appButtonDangerFull}
-              disabled={selectedCount === 0 || bulkRemoving}
-              onClick={() => setBulkConfirmOpen(true)}
-            >
-              {bulkRemoving
-                ? t("expiry.bulkRemoving")
-                : t("expiry.bulkRemove", { count: selectedCount })}
-            </button>
-          </div>
-        </div>
+        <ExpirySelectionFooter
+          selectedCount={selectedCount}
+          busy={bulkRemoving}
+          onCancel={exitSelectionMode}
+          onRemove={() => setBulkConfirmOpen(true)}
+        />
       ) : null}
 
-      {exportPreview ? (
-        <div className="fixed inset-0 z-[70] mx-auto flex w-full max-w-lg flex-col bg-background">
-          <div className="min-h-0 flex-1 overflow-auto px-3 pt-3">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={exportPreview.url}
-              alt=""
-              className="w-full"
-            />
-            <p className="mt-3 text-sm text-muted">{t("expiry.exportSaveHint")}</p>
-          </div>
-          <div
-            className={`${appFooterButtonGrid} border-t border-card-border px-3 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] pt-2`}
-          >
-            <button
-              type="button"
-              className={appButtonNeutral}
-              onClick={() => {
-                setExportPreview((current) => {
-                  if (current) URL.revokeObjectURL(current.url);
-                  return null;
-                });
-              }}
-            >
-              {t("expiry.confirmCancel")}
-            </button>
-            <a
-              href={exportPreview.url}
-              download={exportPreview.filename}
-              className={appButtonPrimaryFull}
-            >
-              {t("expiry.exportSavePhotos")}
-            </a>
-          </div>
-        </div>
-      ) : null}
+      <ExpiryExportPreview
+        preview={exportPreview}
+        onClose={() => {
+          setExportPreview((current) => {
+            if (current) URL.revokeObjectURL(current.url);
+            return null;
+          });
+        }}
+      />
 
       {priceReduceConfirmId ? (
         <div

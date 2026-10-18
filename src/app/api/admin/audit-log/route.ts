@@ -1,5 +1,5 @@
+import { requireAdminResponse } from "@/lib/admin-guard";
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/auth";
 import {
   type AuditAccountKind,
   type AuditFilter,
@@ -9,17 +9,6 @@ import {
   serializeAuditEntries,
 } from "@/lib/audit-log";
 import { apiT } from "@/i18n";
-
-async function requireAdminResponse(request: Request) {
-  try {
-    return await requireAdmin();
-  } catch {
-    return NextResponse.json(
-      { error: apiT(request, "errors.forbidden") },
-      { status: 403 },
-    );
-  }
-}
 
 const FILTERS: AuditFilter[] = ["all", "auth", "inventory", "products", "admin"];
 const ACCOUNT_KINDS: AuditAccountKind[] = ["business", "household"];

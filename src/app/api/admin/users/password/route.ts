@@ -1,29 +1,11 @@
+import { requireAdminResponse } from "@/lib/admin-guard";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auditUserPasswordSet } from "@/lib/audit-details";
 import { logAuditEvent } from "@/lib/audit-log";
-import { requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { hashPassword } from "@/lib/password";
 import { apiT } from "@/i18n";
-
-async function requireAdminResponse(request: Request) {
-  try {
-    return await requireAdmin();
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "";
-    if (message === "MUST_CHANGE_PASSWORD") {
-      return NextResponse.json(
-        { error: apiT(request, "auth.mustChangePassword"), code: "MUST_CHANGE_PASSWORD" },
-        { status: 403 },
-      );
-    }
-    return NextResponse.json(
-      { error: apiT(request, "errors.forbidden") },
-      { status: 403 },
-    );
-  }
-}
 
 const bodySchema = z.object({
   userId: z.string().min(1),

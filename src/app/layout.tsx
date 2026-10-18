@@ -1,6 +1,7 @@
 import type { Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { KeepKeyboardFocusVisible } from "@/components/keep-keyboard-focus-visible";
+import { SessionClientBootstrap } from "@/components/session-client-bootstrap";
 import { PwaInstallPrompt } from "@/components/pwa-install-prompt";
 import { PwaRegister } from "@/components/pwa-register";
 import { RootClientI18nProvider } from "@/components/root-client-i18n-provider";
@@ -48,6 +49,7 @@ export default function RootLayout({
       >
         <RootClientI18nProvider>
           {children}
+          <SessionClientBootstrap />
           <KeepKeyboardFocusVisible />
           <PwaRegister />
           <PwaInstallPrompt />

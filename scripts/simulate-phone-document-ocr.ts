@@ -48,7 +48,7 @@ async function main() {
   try {
     uploadedPath = await saveDataUrl(dataUrl);
     console.log(`saved as ${uploadedPath}`);
-    const resolved = resolveLocalUploadPath(uploadedPath);
+    const resolved = await resolveLocalUploadPath(uploadedPath);
     console.log(`resolved to ${resolved}`);
     if (!resolved) throw new Error("resolveLocalUploadPath returned null");
     const rowsA = await extractDocumentRowsFromPath(uploadedPath);
@@ -60,7 +60,7 @@ async function main() {
     );
   } finally {
     if (uploadedPath) {
-      const resolved = resolveLocalUploadPath(uploadedPath);
+      const resolved = await resolveLocalUploadPath(uploadedPath);
       if (resolved) await unlink(resolved).catch(() => undefined);
     }
   }

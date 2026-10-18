@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { buildScheduleWeekPrintHtml } from "../src/lib/schedule-week-print";
+import {
+  buildScheduleWeekPrintHtml,
+  downloadScheduleWeekPng,
+} from "../src/lib/schedule-week-print";
 
 const labels = {
   title: "Weekly schedule",
@@ -77,5 +80,19 @@ describe("schedule week print", () => {
     });
     assert.match(html, /Alice A/);
     assert.doesNotMatch(html, />bob</);
+  });
+
+  test("picture download fails outside the browser", () => {
+    assert.deepEqual(
+      downloadScheduleWeekPng({
+        weekStart: "2026-09-28",
+        storeName: "Main",
+        staff: [],
+        shifts: [],
+        days: daysWith(),
+        labels,
+      }),
+      { status: "failed" },
+    );
   });
 });

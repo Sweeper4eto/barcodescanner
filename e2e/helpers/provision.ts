@@ -197,12 +197,12 @@ export async function createTeamUserViaPage(
 }
 
 /**
- * Logout without depending on the header button. Clears the sessionStorage
- * mirror as the UI does, otherwise the next load restores the session cookie.
+ * Logout without depending on the header button. Also expires a leftover
+ * JS-readable session cookie from older builds.
  */
 export async function logoutViaPage(page: Page): Promise<void> {
-  // Leave /app first: its mirror effects would write the session cookie back
-  // from the ?__session= token that is still in the URL.
+  // Leave /app first. A URL that still has ?__session= would sign the browser
+  // back in on the next document load.
   await page.goto("/terms");
   await page.evaluate(async () => {
     await fetch("/api/auth/logout", {
@@ -210,6 +210,8 @@ export async function logoutViaPage(page: Page): Promise<void> {
       credentials: "same-origin",
     });
     sessionStorage.removeItem("magazin_session_client");
+    sessionStorage.removeItem("expire365_home_user");
+    sessionStorage.removeItem("magazin_home_user");
     document.cookie = "magazin_session_client=; Path=/; Max-Age=0; SameSite=Lax";
   });
   await page.context().clearCookies();
@@ -227,10 +229,11 @@ export async function useLocale(
   baseURL: string,
 ): Promise<void> {
   await page.context().addCookies([
-    { name: "magazin-locale", value: locale, url: baseURL },
+    { name: "expire365-locale", value: locale, url: baseURL },
   ]);
   await page.addInitScript((value) => {
-    localStorage.setItem("magazin-locale", value);
+    localStorage.setItem("expire365-locale", value);
+    localStorage.removeItem("magazin-locale");
   }, locale);
 }
 
@@ -246,8 +249,9 @@ export async function skipPwaInstallPrompt(page: Page): Promise<void> {
 
 export async function selectStore(page: Page, storeId: string): Promise<void> {
   await page.evaluate((id) => {
-    localStorage.setItem("magazin_selected_store", id);
-    window.dispatchEvent(new Event("magazin:store-changed"));
+    localStorage.setItem("expire365_selected_store", id);
+    localStorage.removeItem("magazin_selected_store");
+    window.dispatchEvent(new Event("expire365:store-changed"));
   }, storeId);
 }
 

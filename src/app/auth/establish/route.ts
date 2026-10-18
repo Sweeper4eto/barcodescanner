@@ -3,7 +3,7 @@ import { resolveLoginTicket } from "@/lib/login-tickets";
 import {
   applySessionCookie,
   COOKIE_NAME,
-  CLIENT_COOKIE_NAME,
+  LEGACY_COOKIE_NAME,
 } from "@/lib/session";
 import { verifySessionToken } from "@/lib/session-token";
 
@@ -60,7 +60,7 @@ async function establish(request: Request) {
   if (!token) {
     const existing =
       cookieFrom(request, COOKIE_NAME) ||
-      cookieFrom(request, CLIENT_COOKIE_NAME);
+      cookieFrom(request, LEGACY_COOKIE_NAME);
     if (existing && (await verifySessionToken(existing))) {
       return finishWithSession(request, existing, safeNext);
     }

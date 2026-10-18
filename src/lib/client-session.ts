@@ -1,17 +1,9 @@
 /**
- * The session token is mirrored into a JS-readable cookie and sessionStorage so
- * phones that drop Set-Cookie on HTTP LAN addresses stay signed in. Logging out
- * therefore has to clear that mirror too, or the next page load restores it.
+ * Older builds copied the login token into a JS-readable cookie and
+ * sessionStorage. Logout still expires that leftover so a page script cannot
+ * read it.
  */
-let signedOut = false;
-
-/** True once this document logged out: mirror writers must stand down. */
-export function isSignedOut(): boolean {
-  return signedOut;
-}
-
 export async function clearClientSession(): Promise<void> {
-  signedOut = true;
   try {
     // Dynamic import keeps the token/jose module out of the initial bundle.
     const { CLIENT_COOKIE_NAME } = await import("@/lib/session-token");

@@ -17,7 +17,7 @@ function createClient() {
     // confusing "table does not exist" errors against a phantom database.
     throw new Error(
       "DATABASE_URL is not set. Refusing to start with a fallback SQLite file. " +
-        "Set DATABASE_URL (e.g. file:/var/lib/magazin/data.db) in the environment/.env.",
+        "Set DATABASE_URL (e.g. file:/var/lib/expire365/data.db) in the environment/.env.",
     );
   }
   const url = configured ?? "file:./dev.db";

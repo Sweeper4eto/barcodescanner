@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  compareOcrUsageRows,
   documentOcrUsageDayKey,
   zonedLocalToUtc,
 } from "../src/lib/document-ocr-usage";
@@ -28,6 +29,18 @@ test("zonedLocalToUtc uses winter offset (EET, UTC+2)", () => {
   assert.equal(start.toISOString(), "2026-01-14T22:00:00.000Z");
   const nightScan = new Date("2026-01-14T23:30:00.000Z"); // 01:30 Sofia on 15 Jan
   assert.equal(documentOcrUsageDayKey(nightScan, TZ), "2026-01-15");
+});
+
+test("OCR user rows are newest scan first, then username", () => {
+  const rows = [
+    { username: "zoe", lastScanAt: "2026-10-18T08:00:00.000Z" },
+    { username: "adam", lastScanAt: "2026-10-18T10:00:00.000Z" },
+    { username: "mia", lastScanAt: "2026-10-18T08:00:00.000Z" },
+  ].sort(compareOcrUsageRows);
+  assert.deepEqual(
+    rows.map((row) => row.username),
+    ["adam", "mia", "zoe"],
+  );
 });
 
 test("night scan falls inside Monday Sofia day bounds", () => {

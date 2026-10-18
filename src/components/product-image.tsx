@@ -4,6 +4,11 @@ import { useEffect, useRef, useState, type MouseEvent, type PointerEvent } from 
 import { createPortal } from "react-dom";
 import { useT } from "@/components/i18n-provider";
 import { NoPicturePlaceholder } from "@/components/no-picture-placeholder";
+import {
+  applyPointerTap,
+  emptyDoubleTapState,
+  type DoubleTapState,
+} from "@/lib/double-tap";
 
 type Props = {
   src: string | null | undefined;
@@ -17,7 +22,6 @@ type Props = {
 };
 
 const LONG_PRESS_MS = 450;
-const DOUBLE_TAP_MS = 350;
 
 export function ProductImage({
   src,
@@ -31,8 +35,7 @@ export function ProductImage({
   const [broken, setBroken] = useState(false);
   const [zoomed, setZoomed] = useState(false);
   const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lastTapRef = useRef(0);
-  const lastPointerTypeRef = useRef("");
+  const tapState = useRef<DoubleTapState>(emptyDoubleTapState());
   const longPressFiredRef = useRef(false);
   const showImage = Boolean(src?.trim()) && !broken;
   const canZoom = zoomOnDoubleTap && showImage;
@@ -71,28 +74,20 @@ export function ProductImage({
     longPressFiredRef.current = false;
     pressTimer.current = setTimeout(() => {
       longPressFiredRef.current = true;
-      lastTapRef.current = 0;
+      tapState.current = emptyDoubleTapState();
       triggerChange();
     }, LONG_PRESS_MS);
   }
 
   /** True only for a second tap of the same kind. A phone tap also emits a fake mouse tap. */
   function isDoubleTap(event: PointerEvent): boolean {
-    if (event.pointerType === "mouse" && event.button !== 0) return false;
-    const now = Date.now();
-    const previousAt = lastTapRef.current;
-    const previousType = lastPointerTypeRef.current;
-    if (
-      event.pointerType === "mouse" &&
-      previousType === "touch" &&
-      now - previousAt < 700
-    ) {
-      return false;
-    }
-    lastPointerTypeRef.current = event.pointerType;
-    lastTapRef.current = now;
-    const gap = now - previousAt;
-    return gap >= 40 && gap < DOUBLE_TAP_MS && previousType === event.pointerType;
+    const result = applyPointerTap(
+      tapState.current,
+      { pointerType: event.pointerType, button: event.button },
+      Date.now(),
+    );
+    tapState.current = result.state;
+    return result.doubleTap;
   }
 
   function onPointerUp(event: PointerEvent) {
@@ -104,7 +99,7 @@ export function ProductImage({
     clearPress();
     if (longPressFiredRef.current) {
       longPressFiredRef.current = false;
-      lastTapRef.current = 0;
+      tapState.current = emptyDoubleTapState();
       return;
     }
     if (!isDoubleTap(event)) return;

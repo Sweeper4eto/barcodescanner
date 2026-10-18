@@ -1,20 +1,9 @@
+import { requireAdminResponse } from "@/lib/admin-guard";
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/auth";
 import { paymentAmount } from "@/lib/expiry";
 import { db } from "@/lib/db";
 import { sumLocationFees } from "@/lib/location-fees";
 import { apiT } from "@/i18n";
-
-async function requireAdminResponse(request: Request) {
-  try {
-    return await requireAdmin();
-  } catch {
-    return NextResponse.json(
-      { error: apiT(request, "errors.forbidden") },
-      { status: 403 },
-    );
-  }
-}
 
 export async function GET(request: Request) {
   const admin = await requireAdminResponse(request);

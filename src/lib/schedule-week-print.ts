@@ -1,3 +1,4 @@
+import { pictureSaveStatus, readIosSaveTarget } from "@/lib/picture-save";
 import {
   addDaysYmd,
   formatDurationMinutes,
@@ -382,15 +383,6 @@ export type SchedulePngDeliverResult =
   | { status: "preview"; url: string; filename: string }
   | { status: "failed" };
 
-function isIosDevice(): boolean {
-  if (typeof navigator === "undefined") return false;
-  const ua = navigator.userAgent;
-  return (
-    /iPhone|iPad|iPod/i.test(ua) ||
-    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
-  );
-}
-
 /** Write the png into Downloads. The share sheet only copies the picture. */
 function triggerDownload(blob: Blob, filename: string): boolean {
   try {
@@ -410,14 +402,15 @@ function triggerDownload(blob: Blob, filename: string): boolean {
 }
 
 function deliverPngBlob(blob: Blob, filename: string): SchedulePngDeliverResult {
-  if (isIosDevice()) {
+  if (pictureSaveStatus(readIosSaveTarget(), true) === "preview") {
     return {
       status: "preview",
       url: URL.createObjectURL(blob),
       filename,
     };
   }
-  return triggerDownload(blob, filename)
+  const started = triggerDownload(blob, filename);
+  return pictureSaveStatus(false, started) === "saved"
     ? { status: "saved" }
     : { status: "failed" };
 }

@@ -2,7 +2,10 @@ import { cookies } from "next/headers";
 import { AuthShell, LoginForm } from "@/components/auth-forms";
 import { MobileI18nProvider } from "@/components/mobile-i18n-provider";
 import { t, type Locale, type MessageKey } from "@/i18n";
-import { isMobileLocale } from "@/lib/client-locale";
+import {
+  CLIENT_LOCALE_COOKIE,
+  isMobileLocale,
+} from "@/lib/client-locale";
 
 function errorMessageForCode(code: string | undefined, locale: Locale): string {
   if (!code) return "";
@@ -24,7 +27,10 @@ export default async function LoginPage({
 }) {
   const params = await searchParams;
   const cookieStore = await cookies();
-  const rawLocale = cookieStore.get("magazin-locale")?.value ?? "";
+  const rawLocale =
+    cookieStore.get(CLIENT_LOCALE_COOKIE)?.value ??
+    cookieStore.get("magazin-locale")?.value ??
+    "";
   const locale: Locale = isMobileLocale(rawLocale) ? rawLocale : "en";
   const initialError = errorMessageForCode(params.error, locale);
 

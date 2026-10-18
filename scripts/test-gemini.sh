@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
-cd /var/www/magazin
+if [[ -d /var/www/expire365 ]]; then
+  cd /var/www/expire365
+elif [[ -d /var/www/magazin ]]; then
+  cd /var/www/magazin
+else
+  cd /var/www/expire365
+fi
 
 node --input-type=module <<'EOF'
 import "dotenv/config";

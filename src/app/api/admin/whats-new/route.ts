@@ -1,20 +1,9 @@
+import { requireAdminResponse } from "@/lib/admin-guard";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { apiT } from "@/i18n";
 import { syncWhatsNewCatalog } from "@/lib/whats-new-sync";
-
-async function adminOrForbidden(request: Request) {
-  try {
-    return await requireAdmin();
-  } catch {
-    return NextResponse.json(
-      { error: apiT(request, "errors.forbidden") },
-      { status: 403 },
-    );
-  }
-}
 
 function serialize(row: {
   id: string;
@@ -41,7 +30,7 @@ function serialize(row: {
 }
 
 export async function GET(request: Request) {
-  const admin = await adminOrForbidden(request);
+  const admin = await requireAdminResponse(request);
   if (admin instanceof NextResponse) return admin;
 
   const sync = await syncWhatsNewCatalog();
@@ -73,7 +62,7 @@ const createSchema = z.object({
 });
 
 export async function POST(request: Request) {
-  const admin = await adminOrForbidden(request);
+  const admin = await requireAdminResponse(request);
   if (admin instanceof NextResponse) return admin;
 
   const json = await request.json().catch(() => null);
@@ -105,7 +94,7 @@ const patchSchema = z.object({
 });
 
 export async function PATCH(request: Request) {
-  const admin = await adminOrForbidden(request);
+  const admin = await requireAdminResponse(request);
   if (admin instanceof NextResponse) return admin;
 
   const json = await request.json().catch(() => null);

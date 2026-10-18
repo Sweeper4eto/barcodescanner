@@ -116,6 +116,19 @@ function eachDayInclusive(from: Date, to: Date): string[] {
   return days;
 }
 
+/** Newest scan first. Equal times fall back to username. */
+export function compareOcrUsageRows(
+  a: { lastScanAt: string; username: string },
+  b: { lastScanAt: string; username: string },
+): number {
+  const byScan = b.lastScanAt.localeCompare(a.lastScanAt);
+  if (byScan !== 0) return byScan;
+  return a.username.localeCompare(b.username, undefined, {
+    sensitivity: "base",
+    numeric: true,
+  });
+}
+
 export type DocumentOcrUsageRow = {
   userId: string;
   username: string;
@@ -247,14 +260,7 @@ export async function queryDocumentOcrUsage(input: {
         lastScanAt: stats.lastScanAt.toISOString(),
       };
     })
-    .sort((a, b) => {
-      const byScan = b.lastScanAt.localeCompare(a.lastScanAt);
-      if (byScan !== 0) return byScan;
-      return a.username.localeCompare(b.username, undefined, {
-        sensitivity: "base",
-        numeric: true,
-      });
-    });
+    .sort(compareOcrUsageRows);
 
   const daily: DocumentOcrDailyRow[] = [...perDay.entries()].map(
     ([day, count]) => ({ day, count }),

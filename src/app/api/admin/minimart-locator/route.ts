@@ -1,6 +1,6 @@
+import { requireAdminResponse } from "@/lib/admin-guard";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { apiT } from "@/i18n";
 import {
@@ -10,17 +10,6 @@ import {
   minimartStatusSchema,
   type MinimartVisitStatus,
 } from "@/lib/minimart-locator";
-
-async function requireAdminResponse(request: Request) {
-  try {
-    return await requireAdmin();
-  } catch {
-    return NextResponse.json(
-      { error: apiT(request, "errors.forbidden") },
-      { status: 403 },
-    );
-  }
-}
 
 const clientInclude = {
   client: { select: { id: true, name: true, homeUser: true } },

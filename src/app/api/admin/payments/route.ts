@@ -1,8 +1,8 @@
+import { requireAdminResponse } from "@/lib/admin-guard";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auditPaymentRecorded } from "@/lib/audit-details";
 import { logAuditEvent } from "@/lib/audit-log";
-import { requireAdmin } from "@/lib/auth";
 import { paymentAmount } from "@/lib/expiry";
 import { db } from "@/lib/db";
 import { sumLocationFees } from "@/lib/location-fees";
@@ -15,17 +15,6 @@ import {
   periodKey,
   standingSortRank,
 } from "@/lib/payment-status";
-
-async function requireAdminResponse(request: Request) {
-  try {
-    return await requireAdmin();
-  } catch {
-    return NextResponse.json(
-      { error: apiT(request, "errors.forbidden") },
-      { status: 403 },
-    );
-  }
-}
 
 const paymentSchema = z.object({
   clientId: z.string().min(1),

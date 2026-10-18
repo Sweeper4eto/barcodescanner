@@ -2,8 +2,10 @@ import { SignJWT } from "jose/jwt/sign";
 import { jwtVerify } from "jose/jwt/verify";
 import type { Role } from "@/generated/prisma/client";
 
-export const COOKIE_NAME = "magazin_session";
-/** Non-HttpOnly fallback for phones that drop Set-Cookie on HTTP LAN IPs. */
+export const COOKIE_NAME = "expire365_session";
+/** Previous httpOnly session cookie. Read once, then expired. */
+export const LEGACY_COOKIE_NAME = "magazin_session";
+/** Retired JS-readable session cookie. Kept only so logout can expire leftovers. */
 export const CLIENT_COOKIE_NAME = "magazin_session_client";
 export const MAX_AGE_SECONDS = 60 * 60 * 24 * 14;
 

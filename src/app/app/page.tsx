@@ -9,7 +9,7 @@ import { PushNotifications } from "@/components/push-notifications";
 import { WhatsNewDialog } from "@/components/whats-new-dialog";
 import { useT } from "@/components/i18n-provider";
 import { useAppSession } from "@/components/app-session-provider";
-import { isSignedOut, logoutSession } from "@/lib/client-session";
+import { logoutSession } from "@/lib/client-session";
 import { getStoredStoreId, setStoredStoreId, clearStoredStoreId } from "@/lib/store-selection";
 
 type Store = { id: string; name: string; active: boolean };
@@ -177,21 +177,6 @@ export default function AppHomePage() {
     let cancelled = false;
 
     async function load() {
-      // Ensure LAN JS cookie exists before /me (HttpOnly Set-Cookie is often dropped).
-      try {
-        const url = new URL(window.location.href);
-        const token = url.searchParams.get("__session")?.trim();
-        if (token && !isSignedOut()) {
-          const { CLIENT_COOKIE_NAME, MAX_AGE_SECONDS } = await import(
-            "@/lib/session-token"
-          );
-          document.cookie = `${CLIENT_COOKIE_NAME}=${encodeURIComponent(token)}; Path=/; Max-Age=${MAX_AGE_SECONDS}; SameSite=Lax`;
-          sessionStorage.setItem(CLIENT_COOKIE_NAME, token);
-        }
-      } catch {
-        /* ignore */
-      }
-
       async function fetchMe() {
         try {
           const response = await fetch("/api/auth/me", {
