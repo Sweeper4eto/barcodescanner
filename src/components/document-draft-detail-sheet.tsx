@@ -250,6 +250,7 @@ export function DocumentDraftDetailSheet({ item, onClose, onSave }: Props) {
               <ProductImage
                 src={item.productImagePath}
                 alt={displayName}
+                zoomOnDoubleTap
                 className="aspect-square w-full rounded-xl object-cover"
                 placeholderClassName="aspect-square w-full rounded-xl text-xs"
               />

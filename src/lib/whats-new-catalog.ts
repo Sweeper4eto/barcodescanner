@@ -652,6 +652,14 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "График „Снимка“ запазва седмицата на телефона (Изтегляния), вместо само да я копира.",
     href: "/app/schedule",
   },
+  {
+    key: "2026-10-detail-photo-double-tap",
+    titleEn:
+      "Item details: double-tap a real product photo to see it larger. The no-picture art stays as it is.",
+    titleBg:
+      "Детайли на артикул: двойно докосване на истинска снимка я показва по-голяма. Картинката без снимка остава същата.",
+    href: "/app/expiry",
+  },
 ];
 
 

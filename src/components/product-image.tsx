@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type MouseEvent, type PointerEvent } from "react";
+import { createPortal } from "react-dom";
 import { useT } from "@/components/i18n-provider";
 import { NoPicturePlaceholder } from "@/components/no-picture-placeholder";
 
@@ -11,6 +12,8 @@ type Props = {
   placeholderClassName?: string;
   /** Hold ~0.5s or double-tap to change the picture. */
   onLongPress?: () => void;
+  /** Double-tap a real photo (not the no-picture art) to open it large. */
+  zoomOnDoubleTap?: boolean;
 };
 
 const LONG_PRESS_MS = 450;
@@ -22,16 +25,21 @@ export function ProductImage({
   className = "",
   placeholderClassName = "",
   onLongPress,
+  zoomOnDoubleTap = false,
 }: Props) {
   const { t } = useT();
   const [broken, setBroken] = useState(false);
+  const [zoomed, setZoomed] = useState(false);
   const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastTapRef = useRef(0);
+  const lastPointerTypeRef = useRef("");
   const longPressFiredRef = useRef(false);
   const showImage = Boolean(src?.trim()) && !broken;
+  const canZoom = zoomOnDoubleTap && showImage;
 
   useEffect(() => {
     setBroken(false);
+    setZoomed(false);
   }, [src]);
 
   function clearPress() {
@@ -68,9 +76,27 @@ export function ProductImage({
     }, LONG_PRESS_MS);
   }
 
+  /** True only for a second tap of the same kind. A phone tap also emits a fake mouse tap. */
+  function isDoubleTap(event: PointerEvent): boolean {
+    if (event.pointerType === "mouse" && event.button !== 0) return false;
+    const now = Date.now();
+    const previousAt = lastTapRef.current;
+    const previousType = lastPointerTypeRef.current;
+    if (
+      event.pointerType === "mouse" &&
+      previousType === "touch" &&
+      now - previousAt < 700
+    ) {
+      return false;
+    }
+    lastPointerTypeRef.current = event.pointerType;
+    lastTapRef.current = now;
+    const gap = now - previousAt;
+    return gap >= 40 && gap < DOUBLE_TAP_MS && previousType === event.pointerType;
+  }
+
   function onPointerUp(event: PointerEvent) {
     if (!onLongPress) return;
-    // Ignore secondary buttons / multi-touch leftovers.
     if (event.pointerType === "mouse" && event.button !== 0) {
       clearPress();
       return;
@@ -78,15 +104,17 @@ export function ProductImage({
     clearPress();
     if (longPressFiredRef.current) {
       longPressFiredRef.current = false;
-      return;
-    }
-    const now = Date.now();
-    if (now - lastTapRef.current < DOUBLE_TAP_MS) {
       lastTapRef.current = 0;
-      triggerChange();
       return;
     }
-    lastTapRef.current = now;
+    if (!isDoubleTap(event)) return;
+    if (canZoom) setZoomed(true);
+    else triggerChange();
+  }
+
+  function onZoomPointerUp(event: PointerEvent) {
+    if (!canZoom || onLongPress) return;
+    if (isDoubleTap(event)) setZoomed(true);
   }
 
   function onContextMenu(event: MouseEvent) {
@@ -110,7 +138,15 @@ export function ProductImage({
           userSelect: "none" as const,
         },
       }
-    : {};
+    : canZoom
+      ? {
+          onPointerUp: onZoomPointerUp,
+          role: "button" as const,
+          tabIndex: 0,
+          "aria-label": t("expiry.viewImage"),
+          style: { touchAction: "manipulation" as const },
+        }
+      : {};
 
   if (!showImage) {
     return (
@@ -124,7 +160,8 @@ export function ProductImage({
   }
 
   return (
-    // eslint-disable-next-line @next/next/no-img-element
+    <>
+    {/* eslint-disable-next-line @next/next/no-img-element */}
     <img
       src={src!}
       alt={alt}
@@ -133,5 +170,33 @@ export function ProductImage({
       draggable={false}
       {...interactiveProps}
     />
+    {zoomed && typeof document !== "undefined"
+      ? createPortal(
+          <div
+            className="fixed inset-0 z-[90] flex items-center justify-center bg-black/85 p-4"
+            role="dialog"
+            aria-modal="true"
+            aria-label={t("expiry.viewImage")}
+            onClick={() => setZoomed(false)}
+          >
+            <button
+              type="button"
+              className="absolute right-3 top-[max(0.75rem,env(safe-area-inset-top,0px))] rounded-xl border border-card-border px-3 py-2.5 text-sm font-semibold text-foreground"
+              onClick={() => setZoomed(false)}
+            >
+              {t("expiry.closeImage")}
+            </button>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={src!}
+              alt={alt}
+              className="max-h-full max-w-full object-contain"
+              draggable={false}
+            />
+          </div>,
+          document.body,
+        )
+      : null}
+    </>
   );
 }

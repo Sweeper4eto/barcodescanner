@@ -380,6 +380,7 @@ export function ExpiryEntryDetailSheet({
               <ProductImage
                 src={displayImage}
                 alt={displayName}
+                zoomOnDoubleTap
                 className="aspect-square w-full rounded-xl object-cover"
                 placeholderClassName="aspect-square w-full rounded-xl text-xs"
               />
