@@ -164,97 +164,57 @@ function HomeLinkCard({
 export default function AppHomePage() {
   const router = useRouter();
   const { t } = useT();
-  const { refresh: refreshSession } = useAppSession();
-  const [stores, setStores] = useState<Store[]>([]);
-  const [username, setUsername] = useState("");
-  const [isOwner, setIsOwner] = useState(false);
+  const { ready: sessionReady, user: sessionUser } = useAppSession();
   const [billingEnabled, setBillingEnabled] = useState(false);
-  const [schedulePublic, setSchedulePublic] = useState(false);
-  const [bootstrapped, setBootstrapped] = useState(false);
-  const [sessionMissing, setSessionMissing] = useState(false);
+
+  // One source of truth: AppSessionProvider already fetched /api/auth/me.
+  // A second parallel fetch hung forever on flaky BrowserStack tunnels.
+  const bootstrapped = sessionReady;
+  const sessionMissing = sessionReady && !sessionUser;
+  const username = sessionUser?.username ?? "";
+  const stores: Store[] = sessionUser?.stores ?? [];
+  const isOwner = sessionUser?.clientRole === "OWNER";
+  const schedulePublic = sessionUser?.scheduleAccess === "public";
 
   useEffect(() => {
-    let cancelled = false;
+    if (!sessionReady || !sessionUser) return;
 
-    async function load() {
-      async function fetchMe() {
-        try {
-          const response = await fetch("/api/auth/me", {
-            credentials: "same-origin",
-            cache: "no-store",
-            signal: AbortSignal.timeout(12_000),
-          });
-          return await response.json().catch(() => ({}));
-        } catch {
-          return {};
-        }
-      }
-
-      let data = await fetchMe();
-      if (cancelled) return;
-
-      if (!data.user) {
-        for (const wait of [100, 300, 600]) {
-          await new Promise((r) => setTimeout(r, wait));
-          if (cancelled) return;
-          data = await fetchMe();
-          if (data.user) break;
-        }
-      }
-
-      if (!data.user) {
-        setSessionMissing(true);
-        setBootstrapped(true);
-        return;
-      }
-
-      setSessionMissing(false);
-      setUsername(data.user.username);
-      const owner = data.user.clientRole === "OWNER";
-      setIsOwner(owner);
-      setSchedulePublic(data.user.scheduleAccess === "public");
-      setBillingEnabled(false);
-
-      // Paint home immediately from /me — never block on billing or session refresh
-      // (slow/hanging LAN fetches left owners on spinner + Contact only).
-      const list: Store[] = data.user.stores ?? [];
-      setStores(list);
-      const username = String(data.user.username ?? "");
-      const stored = getStoredStoreId(username);
-      const valid = list.find((store) => store.id === stored);
-      const nextId = valid?.id ?? list[0]?.id ?? "";
-      if (nextId) {
-        setStoredStoreId(nextId, username);
-      } else {
-        clearStoredStoreId(username);
-      }
-      setBootstrapped(true);
-
-      void refreshSession();
-
-      if (owner) {
-        void (async () => {
-          try {
-            const billingRes = await fetch("/api/billing", {
-              credentials: "same-origin",
-              cache: "no-store",
-            });
-            if (!cancelled && billingRes.ok) {
-              const billing = (await billingRes.json()) as { enabled?: boolean };
-              setBillingEnabled(Boolean(billing.enabled));
-            }
-          } catch {
-            /* ignore — home still works without billing card */
-          }
-        })();
-      }
+    const list = sessionUser.stores;
+    const name = sessionUser.username;
+    const stored = getStoredStoreId(name);
+    const valid = list.find((store) => store.id === stored);
+    const nextId = valid?.id ?? list[0]?.id ?? "";
+    if (nextId) {
+      setStoredStoreId(nextId, name);
+    } else {
+      clearStoredStoreId(name);
     }
+  }, [sessionReady, sessionUser]);
 
-    void load();
+  useEffect(() => {
+    if (!sessionReady || sessionUser?.clientRole !== "OWNER") return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const controller = new AbortController();
+        const timer = window.setTimeout(() => controller.abort(), 6_000);
+        const billingRes = await fetch("/api/billing", {
+          credentials: "same-origin",
+          cache: "no-store",
+          signal: controller.signal,
+        }).finally(() => window.clearTimeout(timer));
+        if (!cancelled && billingRes.ok) {
+          const billing = (await billingRes.json()) as { enabled?: boolean };
+          setBillingEnabled(Boolean(billing.enabled));
+        }
+      } catch {
+        /* ignore — home still works without billing card */
+      }
+    })();
     return () => {
       cancelled = true;
     };
-  }, [router, refreshSession]);
+  }, [sessionReady, sessionUser?.clientRole]);
 
   async function logout() {
     await logoutSession();

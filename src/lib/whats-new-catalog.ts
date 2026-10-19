@@ -676,6 +676,22 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Скан на документ: дати като 2027-02-11 (година първа) се запазват, дори когато скенерът ги сложи в грешното поле.",
     href: "/app/add-document",
   },
+  {
+    key: "2026-10-document-camera-bottom-chrome",
+    titleEn:
+      "Document camera: Cancel, Capture, and Upload stay clear of the phone browser bar. Photo quality is unchanged.",
+    titleBg:
+      "Камера за документ: Отказ, Снимай и Качи остават над лентата на браузъра. Качеството на снимката е същото.",
+    href: "/app/add-document",
+  },
+  {
+    key: "2026-10-document-camera-pin-above-nav",
+    titleEn:
+      "Document scan keeps the bottom menu; Capture sits above it and the preview fills the space left.",
+    titleBg:
+      "Скан на документ запазва долното меню; Снимай е над него, а прегледът запълва останалото място.",
+    href: "/app/add-document",
+  },
 ];
 
 
