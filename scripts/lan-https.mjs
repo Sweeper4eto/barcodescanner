@@ -1,8 +1,7 @@
 #!/usr/bin/env node
 /**
  * Serves the app over HTTPS on the LAN so phone browsers allow the camera.
- * HTTP Next.js runs on 127.0.0.1:3000; this proxy listens on 0.0.0.0:4000
- * (4000 is on BrowserStack iOS Safari's allowed port list; 3443 is not).
+ * HTTP Next.js runs on 127.0.0.1:3000; this proxy listens on 0.0.0.0:3443.
  */
 import { spawn } from "node:child_process";
 import { createRequire } from "node:module";
@@ -21,7 +20,7 @@ const certDir = path.join(root, ".certs");
 const keyPath = path.join(certDir, "key.pem");
 const certPath = path.join(certDir, "cert.pem");
 const HTTP_PORT = Number(process.env.PORT || 3000);
-const HTTPS_PORT = Number(process.env.HTTPS_PORT || 4000);
+const HTTPS_PORT = Number(process.env.HTTPS_PORT || 3443);
 const CERT_DOWNLOAD_PORT = Number(process.env.CERT_DOWNLOAD_PORT || 8080);
 const CERT_DOWNLOAD_PATH = "/lan-cert.pem";
 const mode = process.argv[2] === "dev" ? "dev" : "start";
@@ -96,8 +95,6 @@ async function ensureCerts(ips) {
           name: "subjectAltName",
           altNames: [
             { type: 2, value: "localhost" },
-            // BrowserStack Local rewrites iOS localhost → this hostname.
-            { type: 2, value: "bs-local.com" },
             ...ips.map((ip) => ({ type: 7, ip })),
           ],
         },
@@ -163,10 +160,7 @@ async function main() {
   const appUrl = `https://${lanIp ?? "localhost"}:${HTTPS_PORT}`;
   const certs = await ensureCerts(ips);
 
-  const nextProc = runNext(appUrl, [
-    "bs-local.com",
-    ...ips.filter((ip) => ip !== "127.0.0.1"),
-  ]);
+  const nextProc = runNext(appUrl, ips.filter((ip) => ip !== "127.0.0.1"));
   const certDownloadServer = serveCertDownload(certs.cert, CERT_DOWNLOAD_PORT);
 
   const shutdown = () => {

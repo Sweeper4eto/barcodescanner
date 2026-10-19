@@ -24,8 +24,6 @@ export type AppSessionStore = { id: string; name: string; active: boolean };
 type AppSessionUser = {
   username: string;
   homeUser: boolean;
-  clientRole?: string | null;
-  scheduleAccess?: string | null;
   stores: AppSessionStore[];
 };
 
@@ -72,14 +70,12 @@ export function AppSessionProvider({ children }: { children: ReactNode }) {
   });
 
   const refresh = useCallback(async (): Promise<AppSessionStore[]> => {
-    const controller = new AbortController();
-    const timer = window.setTimeout(() => controller.abort(), 6_000);
     try {
       const response = await fetch("/api/auth/me", {
         credentials: "same-origin",
         cache: "no-store",
-        // Phone/LAN/BrowserStack: never leave the shell on a spinner forever.
-        signal: controller.signal,
+        // Phone/LAN: never leave the header store chip on a skeleton forever.
+        signal: AbortSignal.timeout(12_000),
       });
       const data = await response.json();
 
@@ -98,19 +94,7 @@ export function AppSessionProvider({ children }: { children: ReactNode }) {
       );
       setState({
         ready: true,
-        user: {
-          username,
-          homeUser,
-          clientRole:
-            typeof data.user.clientRole === "string"
-              ? data.user.clientRole
-              : null,
-          scheduleAccess:
-            typeof data.user.scheduleAccess === "string"
-              ? data.user.scheduleAccess
-              : null,
-          stores,
-        },
+        user: { username, homeUser, stores },
         homeUser,
       });
       syncSelectedStore(stores, username);
@@ -122,8 +106,6 @@ export function AppSessionProvider({ children }: { children: ReactNode }) {
         homeUser: current.homeUser ?? false,
       }));
       return [];
-    } finally {
-      window.clearTimeout(timer);
     }
   }, []);
 
@@ -139,15 +121,6 @@ export function AppSessionProvider({ children }: { children: ReactNode }) {
 
     void refresh();
 
-    // Hard stop for hung tunnels (BrowserStack Local, flaky Wi‑Fi).
-    const failSafe = window.setTimeout(() => {
-      setState((current) =>
-        current.ready
-          ? current
-          : { ready: true, user: current.user, homeUser: current.homeUser ?? false },
-      );
-    }, 8_000);
-
     function onFocus() {
       void refresh();
     }
@@ -158,7 +131,6 @@ export function AppSessionProvider({ children }: { children: ReactNode }) {
     window.addEventListener("focus", onFocus);
     document.addEventListener("visibilitychange", onVisibility);
     return () => {
-      window.clearTimeout(failSafe);
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onVisibility);
     };

@@ -846,7 +846,7 @@ export const en = {
     permissionDenied:
       "Camera permission denied. Allow camera access in your browser or enter the barcode manually.",
     insecureContext:
-      "Camera does not work over http:// on Wi‑Fi. On your PC run npm run start:lan, then open https://YOUR-PC-IP:4000 on this phone (accept the certificate warning), or enter the barcode manually.",
+      "Camera does not work over http:// on Wi‑Fi. On your PC run npm run start:lan, then open https://YOUR-PC-IP:3443 on this phone (accept the certificate warning), or enter the barcode manually.",
     noCamera: "No camera found on this device. Enter the barcode manually.",
     manualPlaceholder: "Or enter barcode manually",
     confirmBarcode: "Confirm barcode",

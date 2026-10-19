@@ -404,15 +404,6 @@ function AddDocumentContent() {
   }
 
   const isReviewStep = step === "review";
-  const showCamera = step === "confirmLocation" || step === "camera";
-
-  function leaveDocumentFlow() {
-    if (step === "confirmLocation") {
-      goBackOrApp("/app");
-      return;
-    }
-    navigateApp("/app");
-  }
 
   if (checking) {
     return (
@@ -423,57 +414,61 @@ function AddDocumentContent() {
     );
   }
 
+  const showCamera = step === "confirmLocation" || step === "camera";
+
   return (
     <>
       <div
         className={
-          isReviewStep || showCamera
+          isReviewStep
             ? reviewPageShellClassName
             : "mx-auto min-w-0 max-w-lg overflow-x-visible px-4 pb-5 pt-1"
         }
       >
         {!isReviewStep ? (
-          <div className={showCamera ? "shrink-0 px-4" : undefined}>
-            <MobilePageHeader
-              title={
-                step === "processing" || step === "done"
-                  ? undefined
-                  : t("addDocument.title")
-              }
-              sticky={!showCamera}
-            />
-          </div>
+          <MobilePageHeader
+            title={
+              step === "processing" || step === "done"
+                ? undefined
+                : t("addDocument.title")
+            }
+            sticky
+          />
         ) : null}
 
       {showCamera ? (
-        <div className="flex min-h-0 flex-1 flex-col gap-2 px-4 pb-2">
-          {error ? <p className="shrink-0 text-sm text-error">{error}</p> : null}
-          <div className="min-h-0 flex-1">
-            <CameraCapture
-              variant="document"
-              autoStart
-              allowFileUpload
-              allowMultipleFiles
-              showViewfinder
-              onCapture={(dataUrl) => {
-                if (step !== "camera") return;
-                void onCapture(dataUrl);
-              }}
-              onMultipleCapture={(pages) => {
-                if (step !== "camera") return;
-                void onMultipleCapture(pages);
-              }}
-              onNewDocument={() => {
-                if (step !== "camera") return;
-                setError("");
-                // CameraCapture retakes in place (keeps MediaStream). Only remount
-                // if the child could not reuse a live stream.
-                setCameraSession((n) => n + 1);
-              }}
-              onCancel={leaveDocumentFlow}
-              key={cameraSession}
-            />
-          </div>
+        <div className="space-y-3">
+          {error ? <p className="text-sm text-error">{error}</p> : null}
+          <CameraCapture
+            variant="document"
+            autoStart
+            allowFileUpload
+            allowMultipleFiles
+            showViewfinder
+            onCapture={(dataUrl) => {
+              if (step !== "camera") return;
+              void onCapture(dataUrl);
+            }}
+            onMultipleCapture={(pages) => {
+              if (step !== "camera") return;
+              void onMultipleCapture(pages);
+            }}
+            onNewDocument={() => {
+              if (step !== "camera") return;
+              setError("");
+              // CameraCapture retakes in place (keeps MediaStream). Only remount
+              // if the child could not reuse a live stream.
+              setCameraSession((n) => n + 1);
+            }}
+            onCancel={() => {
+              if (step === "confirmLocation") {
+                goBackOrApp("/app");
+                return;
+              }
+              navigateApp("/app");
+            }}
+            key={cameraSession}
+          />
         </div>
       ) : null}
 
@@ -689,7 +684,7 @@ function AddDocumentContent() {
           yesLabel={t("common.yes")}
           noLabel={t("common.no")}
           onYes={() => setStep("camera")}
-          onNo={leaveDocumentFlow}
+          onNo={() => goBackOrApp("/app")}
         />
       ) : null}
 

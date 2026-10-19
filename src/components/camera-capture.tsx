@@ -6,8 +6,8 @@ import { CancelButton } from "@/components/cancel-button";
 import { ConfirmButton } from "@/components/confirm-button";
 import { ForwardButton } from "@/components/forward-button";
 import {
+  BackArrowIcon,
   CameraIcon,
-  RefreshIcon,
 } from "@/components/app-nav-icons";
 import { useT } from "@/components/i18n-provider";
 import { ScannerViewfinderOverlay } from "@/components/scanner-viewfinder-overlay";
@@ -709,10 +709,8 @@ export function CameraCapture({
       ? "pointer-events-none h-full w-full object-contain"
       : "pointer-events-none max-h-[min(52dvh,24rem)] w-full object-contain";
 
-  // Document preview height is CSS-only; capture still uses full camera resolution.
-  // Document fills space above the pinned toolbar (app bottom nav stays visible).
   const previewShellClass = documentLayout
-    ? "relative mx-auto flex min-h-0 w-full flex-1 items-center justify-center overflow-hidden rounded-2xl border border-card-border bg-black"
+    ? "relative mx-auto flex aspect-[3/4] max-h-[min(58dvh,28rem)] w-full items-center justify-center overflow-hidden rounded-2xl border border-card-border bg-black"
     : compact
       ? "relative mx-auto flex h-[min(28dvh,12.5rem)] w-full items-center justify-center overflow-hidden rounded-xl border border-card-border bg-black"
       : "relative mx-auto flex max-h-[min(52dvh,24rem)] w-full items-center justify-center overflow-hidden rounded-xl border border-card-border bg-black";
@@ -774,9 +772,8 @@ export function CameraCapture({
     </>
   );
 
-  // Sit just above the app bottom nav (shell already reserves nav + safe-area).
   const documentToolbar = documentLayout && !preview && (
-    <div className="flex shrink-0 items-center gap-2 pt-1 pb-1">
+    <div className="flex items-center gap-2 pt-1 pb-3">
       <div className="min-w-0 flex-1">
         {onCancel ? (
           <CancelButton disabled={capturing} onClick={onCancel}>
@@ -824,15 +821,15 @@ export function CameraCapture({
   );
 
   const documentPreviewToolbar = documentLayout && preview ? (
-    <div className={`${appFooterButtonGrid} shrink-0 pt-1 pb-1`}>
+    <div className={`${appFooterButtonGrid} pt-1 pb-3`}>
       <button
         type="button"
         onClick={handleNewDocument}
         className={appButtonCancelFull}
-        aria-label={t("addDocument.retake")}
+        aria-label={t("common.back")}
       >
-        <RefreshIcon className="size-4 shrink-0" />
-        {t("addDocument.retake")}
+        <BackArrowIcon className="size-4 shrink-0" />
+        {t("common.back")}
       </button>
       <ForwardButton onClick={() => void uploadAndContinue()}>
         {t("common.next")}
@@ -841,14 +838,8 @@ export function CameraCapture({
   ) : null;
 
   return (
-    <div
-      className={
-        documentLayout
-          ? `relative flex h-full min-h-0 flex-col gap-2${active && !preview ? " isolate" : ""}`
-          : `relative space-y-3${active && !preview ? " isolate" : ""}`
-      }
-    >
-      {error ? <p className="shrink-0 text-sm text-error">{error}</p> : null}
+    <div className={`relative space-y-3 ${active && !preview ? "isolate" : ""}`}>
+      {error ? <p className="text-sm text-error">{error}</p> : null}
 
       {!preview ? (
         <>

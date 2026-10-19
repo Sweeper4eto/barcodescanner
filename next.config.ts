@@ -18,8 +18,6 @@ const nextConfig: NextConfig = {
   allowedDevOrigins: [
     "127.0.0.1",
     "localhost",
-    // BrowserStack Local (iOS Safari rewrites localhost → this host).
-    "bs-local.com",
     "192.168.1.112",
     "192.168.1.211",
     // Any host on the home LAN (phone testing over Wi‑Fi).
