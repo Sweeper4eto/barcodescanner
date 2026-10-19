@@ -212,11 +212,16 @@ describe("resolveDocumentExpiry", () => {
     assert.equal(resolveDocumentExpiry("2027-12-01", null), "2027-12-01");
   });
 
-  it("ignores ISO-shaped values in the printed field", () => {
+  it("prefers expiryDate ISO over ISO wrongly put in printed", () => {
     assert.equal(
       resolveDocumentExpiry("2027-12-01", "2027-01-12"),
       "2027-12-01",
     );
+  });
+
+  it("uses ISO from printed when expiryDate is missing", () => {
+    assert.equal(resolveDocumentExpiry(null, "2027-02-11"), "2027-02-11");
+    assert.equal(resolveDocumentExpiry("", "2027-07-30"), "2027-07-30");
   });
 });
 

@@ -108,6 +108,10 @@ export function parsePrintedExpiry(value: string | null | undefined): string | n
 /**
  * Prefer the printed DD.MM.YYYY cell (source of truth) over model ISO,
  * which often swaps day/month (01.12 -> 2027-01-12 instead of 2027-12-01).
+ *
+ * Some models put a valid ISO date only in `expiryPrinted` and leave
+ * `expiryDate` null — accept that as a last resort so we do not show
+ * "No date found" when the year-month-day value was clearly present.
  */
 export function resolveDocumentExpiry(
   expiryDate: string | null | undefined,
@@ -115,8 +119,10 @@ export function resolveDocumentExpiry(
 ): string | null {
   const fromPrinted = parsePrintedExpiry(expiryPrinted);
   if (fromPrinted) return fromPrinted;
-  // Fallback only when the model failed to copy printed text.
-  return parseDocumentExpiry(expiryDate);
+  const fromExpiryDate = parseDocumentExpiry(expiryDate);
+  if (fromExpiryDate) return fromExpiryDate;
+  // Printed field sometimes holds ISO when expiryDate was left empty.
+  return parseDocumentExpiry(expiryPrinted);
 }
 
 function normalizeQuantity(value: unknown): number {

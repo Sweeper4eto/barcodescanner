@@ -668,6 +668,14 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Детайли на артикул: едно докосване на истинска снимка я показва по-голяма. Докоснете отново или Затвори, за да я затворите.",
     href: "/app/expiry",
   },
+  {
+    key: "2026-10-document-iso-date-in-printed",
+    titleEn:
+      "Document scan: year-first dates like 2027-02-11 are kept even when the scanner puts them in the wrong field.",
+    titleBg:
+      "Скан на документ: дати като 2027-02-11 (година първа) се запазват, дори когато скенерът ги сложи в грешното поле.",
+    href: "/app/add-document",
+  },
 ];
 
 
