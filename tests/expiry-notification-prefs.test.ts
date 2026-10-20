@@ -3,12 +3,14 @@ import assert from "node:assert/strict";
 import {
   buildTimeSlotOptions,
   digestKindForTier,
+  expiryNotificationPrefsSchema,
   isInQuietHours,
   isInTierSendWindow,
   itemsForDigestTier,
   mergeClientDefaults,
   parseTimeToMinutes,
   prefsFromUserRow,
+  prefsHaveNoAlertTiers,
   resolveNotifyStoreIds,
   shouldSendTierNow,
   snapTimeToStep,
@@ -187,4 +189,33 @@ test("shouldSendTierNow allows next day at schedule time", () => {
   const yesterday = new Date("2026-06-01T06:00:10Z");
   const todayAtNine = new Date("2026-06-02T06:00:20Z");
   assert.equal(shouldSendTierNow(prefs, "early", yesterday, todayAtNine), true);
+});
+
+test("schema allows both alert tiers off (turns alerts off)", () => {
+  const parsed = expiryNotificationPrefsSchema.safeParse({
+    ...SYSTEM_DEFAULT_PREFS,
+    earlyEnabled: false,
+    urgentEnabled: false,
+    storeIds: null,
+  });
+  assert.equal(parsed.success, true);
+  assert.equal(
+    prefsHaveNoAlertTiers({ earlyEnabled: false, urgentEnabled: false }),
+    true,
+  );
+  assert.equal(
+    prefsHaveNoAlertTiers({ earlyEnabled: true, urgentEnabled: false }),
+    false,
+  );
+});
+
+test("shouldSendTierNow sends nothing when both tiers are off", () => {
+  const prefs = prefsFromUserRow({
+    ...baseRow,
+    expiryNotifyEarlyEnabled: false,
+    expiryNotifyUrgentEnabled: false,
+  });
+  const atNine = new Date("2026-06-02T06:00:30Z");
+  assert.equal(shouldSendTierNow(prefs, "early", null, atNine), false);
+  assert.equal(shouldSendTierNow(prefs, "urgent", null, atNine), false);
 });

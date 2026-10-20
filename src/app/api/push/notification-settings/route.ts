@@ -6,6 +6,7 @@ import {
   expiryNotificationPrefsSchema,
   mergeClientDefaults,
   prefsFromUserRow,
+  prefsHaveNoAlertTiers,
   prefsToUserData,
 } from "@/lib/expiry-notification-prefs";
 import { userPrefsSelect } from "@/lib/push-expiry";
@@ -94,10 +95,20 @@ export async function PATCH(request: Request) {
   }
 
   const prefs = { ...parsed.data, customized: true };
+  const alertsOff = prefsHaveNoAlertTiers(prefs);
+
   await db.user.update({
     where: { id: session.userId },
     data: prefsToUserData(prefs),
   });
+
+  // Saving with both Early and Urgent off turns alerts off entirely —
+  // drop server-side push subscriptions so home "Enable expiry alerts" is off.
+  if (alertsOff) {
+    await db.pushSubscription.deleteMany({
+      where: { userId: session.userId },
+    });
+  }
 
   const stores = await db.store.findMany({
     where: { id: { in: [...allowed] }, active: true },
@@ -107,5 +118,6 @@ export async function PATCH(request: Request) {
 
   return NextResponse.json({
     settings: serializePrefs(prefs, stores),
+    alertsDisabled: alertsOff,
   });
 }

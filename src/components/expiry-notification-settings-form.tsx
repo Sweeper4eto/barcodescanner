@@ -9,7 +9,10 @@ import { NotifyTimeSelect } from "@/components/notify-time-select";
 import { useT } from "@/components/i18n-provider";
 import { appButtonPrimaryFull, appFormInput } from "@/lib/app-ui";
 import type { ExpiryNotificationPrefs } from "@/lib/expiry-notification-prefs";
-import { snapTimeToStep } from "@/lib/expiry-notification-prefs";
+import {
+  prefsHaveNoAlertTiers,
+  snapTimeToStep,
+} from "@/lib/expiry-notification-prefs";
 import {
   buildTimezoneOptions,
   detectBrowserTimezone,
@@ -203,6 +206,25 @@ export function ExpiryNotificationSettingsForm() {
     });
   }
 
+  async function clearBrowserPushSubscription() {
+    if (typeof window === "undefined") return;
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      const subscription = await registration.pushManager.getSubscription();
+      if (!subscription) return;
+      const endpoint = subscription.endpoint;
+      await fetch("/api/push/unsubscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ endpoint }),
+      }).catch(() => null);
+      await subscription.unsubscribe().catch(() => undefined);
+    } catch {
+      /* server already cleared subscriptions when both tiers are off */
+    }
+  }
+
   async function save() {
     if (!prefs) return;
     setSaving(true);
@@ -214,6 +236,7 @@ export function ExpiryNotificationSettingsForm() {
         schedule: "daily" as const,
         storeIds: storeMode === "all" ? null : prefs.storeIds ?? [],
       };
+      const turningAlertsOff = prefsHaveNoAlertTiers(prefs);
       const response = await fetch("/api/push/notification-settings", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -221,13 +244,19 @@ export function ExpiryNotificationSettingsForm() {
       });
       const data = (await response.json().catch(() => null)) as {
         settings?: SettingsResponse;
+        alertsDisabled?: boolean;
         error?: string;
       } | null;
       if (!response.ok || !data?.settings) {
         setError(data?.error ?? t("pushSettings.saveError"));
         return;
       }
-      setMessage(t("pushSettings.saved"));
+      if (turningAlertsOff || data.alertsDisabled) {
+        await clearBrowserPushSubscription();
+        setMessage(t("pushSettings.savedAlertsOff"));
+      } else {
+        setMessage(t("pushSettings.saved"));
+      }
       setPrefs({ ...data.settings, customized: true });
     } catch {
       setError(t("pushSettings.saveError"));

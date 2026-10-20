@@ -71,9 +71,7 @@ export const expiryNotificationPrefsSchema = z
     timezone: z.string().min(1).max(64),
     storeIds: z.array(z.string().min(1)).nullable(),
   })
-  .refine((value) => value.earlyEnabled || value.urgentEnabled, {
-    message: "At least one alert tier must be enabled",
-  })
+  // Both tiers off is allowed — that means "no expiry digests" (alerts off).
   .refine(
     (value) =>
       !value.earlyEnabled ||
@@ -81,6 +79,13 @@ export const expiryNotificationPrefsSchema = z
       value.earlyDays >= value.urgentDays,
     { message: "Early warning days must be >= urgent days" },
   );
+
+/** True when the user has turned off every digest tier (alerts effectively off). */
+export function prefsHaveNoAlertTiers(
+  prefs: Pick<ExpiryNotificationPrefs, "earlyEnabled" | "urgentEnabled">,
+): boolean {
+  return !prefs.earlyEnabled && !prefs.urgentEnabled;
+}
 
 export type UserPrefsRow = {
   expiryNotifyEarlyEnabled: boolean;

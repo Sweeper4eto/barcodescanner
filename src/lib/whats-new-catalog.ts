@@ -676,6 +676,14 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Скан на документ: дати като 2027-02-11 (година първа) се запазват, дори когато скенерът ги сложи в грешното поле.",
     href: "/app/add-document",
   },
+  {
+    key: "2026-10-alerts-both-tiers-off-saves",
+    titleEn:
+      "Expiry alerts: turn Early and Urgent both off, then Save — alerts disable instead of blocking save.",
+    titleBg:
+      "Известия за годност: изключете Ранно и Спешно и Запази — известията се спират, вместо да блокират записа.",
+    href: "/app/settings/notifications",
+  },
 ];
 
 

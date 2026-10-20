@@ -420,12 +420,14 @@ export const en = {
     title: "Expiry alerts",
     save: "Save",
     saved: "Settings saved.",
+    savedAlertsOff:
+      "Settings saved. Both reminder tiers are off — expiry alerts are disabled.",
     loadError: "Could not load notification settings.",
     saveError: "Could not save settings.",
     general: "General",
     tiers: "Reminder tiers",
     tiersHint:
-      "Each tier is its own daily alert with its own time. If both times match, you get both notifications.",
+      "Each tier is its own daily alert with its own time. Turn both off and Save to disable expiry alerts.",
     earlyTitle: "Early warning",
     urgentTitle: "Urgent",
     daysLabel: "days",
