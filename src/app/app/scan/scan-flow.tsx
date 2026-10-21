@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { PrimaryButton } from "@/components/auth-forms";
 import { CancelButton } from "@/components/cancel-button";
 import { ConfirmButton } from "@/components/confirm-button";
@@ -13,9 +13,11 @@ import { ExpiryDatePicker } from "@/components/expiry-date-picker";
 import { MobilePageHeader, listPageShellClassName } from "@/components/mobile-page-header";
 import { ProductImage } from "@/components/product-image";
 import { QuantityStepper } from "@/components/quantity-picker";
+import { VoiceRecognitionPanel } from "@/components/voice-recognition-panel";
 import { useT } from "@/components/i18n-provider";
 import { useAppStoreId, useLockStoreSelection } from "@/hooks/use-app-store-id";
 import { useScreenWakeLock } from "@/hooks/use-screen-wake-lock";
+import { useVoiceItemRecorder } from "@/hooks/use-voice-item-recorder";
 import { goBackOrApp, navigateApp, replaceApp } from "@/lib/app-navigation";
 import { appButtonCancelFull } from "@/lib/app-ui";
 import { normalizeBarcode } from "@/lib/barcode";
@@ -25,6 +27,9 @@ import { useWizardStep } from "@/lib/wizard-history";
 import { getPreviousScanStep, type ScanWizardStep } from "@/lib/wizard-steps";
 
 type ScanStep = ScanWizardStep;
+
+/** Mic UI off until voice parse is reliable enough for prod. Backend `/api/voice` stays. */
+const SCAN_VOICE_UI_ENABLED = false;
 
 export function ScanFlow() {
   const router = useRouter();
@@ -62,10 +67,24 @@ export function ScanFlow() {
   const [lookingUp, setLookingUp] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [voiceUiPhase, setVoiceUiPhase] = useState<"recording" | "recognizing">(
+    "recording",
+  );
+  const voiceRecorder = useVoiceItemRecorder();
+  /** Bumped on each new voice attempt so late parses from an older take are ignored. */
+  const voiceRequestIdRef = useRef(0);
+  const voiceAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  const invalidateVoiceAttempt = useCallback(() => {
+    voiceRequestIdRef.current += 1;
+    voiceAbortRef.current?.abort();
+    voiceAbortRef.current = null;
+    voiceRecorder.cancel();
+  }, [voiceRecorder]);
 
   const beginKnownProduct = useCallback(
     (next: {
@@ -101,6 +120,97 @@ export function ScanFlow() {
     },
     [goToStep],
   );
+
+  const beginVoiceEntry = useCallback(
+    (draft: { name: string; quantity: number; expiryDate: string | null }) => {
+      setProduct(null);
+      setBarcode("");
+      setName(draft.name);
+      setEntryImagePath(null);
+      setCapturingPhoto(false);
+      setQuantity(String(Math.max(1, draft.quantity)));
+      setExpiryDate(draft.expiryDate ?? "");
+      setMessage("");
+      // Name + qty/date already filled — land on the confirm (qty/expiry) step.
+      goToStep("date");
+    },
+    [goToStep],
+  );
+
+  function voiceErrorMessage(errorKey: string) {
+    if (errorKey === "permission") return t("scan.voicePermission");
+    if (errorKey === "insecure") return t("scanner.insecureContext");
+    if (errorKey === "unsupported") return t("scan.voiceUnsupported");
+    if (errorKey === "unavailable") return t("scan.voiceUnavailable");
+    return t("scan.voiceCancelled");
+  }
+
+  async function startVoiceCapture(stream: MediaStream) {
+    // Drop any in-flight previous take (back → mic again must not mix results).
+    voiceAbortRef.current?.abort();
+    voiceRecorder.cancel();
+    const requestId = ++voiceRequestIdRef.current;
+    const abort = new AbortController();
+    voiceAbortRef.current = abort;
+
+    setProduct(null);
+    setBarcode("");
+    setName("");
+    setQuantity("1");
+    setExpiryDate("");
+    setEntryImagePath(null);
+    setMessage("");
+    setVoiceUiPhase("recording");
+    goToStep("voice");
+
+    const { dataUrl, clientTranscript, errorKey } =
+      await voiceRecorder.record(stream);
+    if (requestId !== voiceRequestIdRef.current) return;
+    if (!dataUrl) {
+      setMessage(voiceErrorMessage(errorKey));
+      goToStep("scan");
+      return;
+    }
+
+    setVoiceUiPhase("recognizing");
+    try {
+      const response = await fetch("/api/voice/parse-item", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        signal: abort.signal,
+        body: JSON.stringify({
+          audioDataUrl: dataUrl,
+          clientTranscript: clientTranscript || undefined,
+        }),
+      });
+      if (requestId !== voiceRequestIdRef.current) return;
+      const data = (await response.json().catch(() => null)) as {
+        item?: { name?: string; quantity?: number; expiryDate?: string | null };
+        error?: string;
+      } | null;
+      if (requestId !== voiceRequestIdRef.current) return;
+      if (!response.ok || !data?.item?.name) {
+        setMessage(data?.error ?? t("errors.voiceParseFailed"));
+        goToStep("scan");
+        return;
+      }
+      beginVoiceEntry({
+        name: data.item.name,
+        quantity: Number(data.item.quantity) || 1,
+        expiryDate:
+          typeof data.item.expiryDate === "string" && data.item.expiryDate
+            ? data.item.expiryDate
+            : null,
+      });
+    } catch (error) {
+      if (abort.signal.aborted || requestId !== voiceRequestIdRef.current) {
+        return;
+      }
+      setMessage(t("errors.voiceParseFailed"));
+      goToStep("scan");
+    }
+  }
 
   const beginDirectPicture = useCallback(
     (photoDataUrl?: string) => {
@@ -227,7 +337,11 @@ export function ScanFlow() {
   const showBarcode = displayBarcode && !isAdhocBarcode(displayBarcode);
   const previewImage = entryImagePath || product?.imagePath || null;
   const headerTitle =
-    step === "missing" ? t("scan.resultTitle") : t("scan.title");
+    step === "missing"
+      ? t("scan.resultTitle")
+      : step === "voice"
+        ? t("scan.voiceTitle")
+        : t("scan.title");
 
   function skipMissingItem() {
     // Soft-navigating to the same /app/scan URL does nothing — stay on this
@@ -278,6 +392,14 @@ export function ScanFlow() {
             autoStart={!urlBarcode}
             onScan={lookupBarcode}
             onSkipWithoutBarcode={(photo) => beginDirectPicture(photo)}
+            {...(SCAN_VOICE_UI_ENABLED
+              ? {
+                  onVoiceStream: (stream: MediaStream) =>
+                    void startVoiceCapture(stream),
+                  onVoiceError: (errorKey: string) =>
+                    setMessage(voiceErrorMessage(errorKey)),
+                }
+              : {})}
             onCancel={() =>
               goBackOrApp(
                 storeId
@@ -286,6 +408,23 @@ export function ScanFlow() {
               )
             }
           />
+        </div>
+      ) : null}
+
+      {step === "voice" ? (
+        <div className="space-y-3">
+          <VoiceRecognitionPanel phase={voiceUiPhase} />
+          {voiceUiPhase === "recording" ? (
+            <CancelButton
+              onClick={() => {
+                invalidateVoiceAttempt();
+                setMessage("");
+                goToStep("scan");
+              }}
+            >
+              {t("common.cancel")}
+            </CancelButton>
+          ) : null}
         </div>
       ) : null}
 
@@ -447,9 +586,19 @@ export function ScanFlow() {
               />
               <div className="flex min-w-0 flex-1 items-center gap-2">
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-base font-semibold text-foreground">
-                    {displayName}
-                  </p>
+                  {product ? (
+                    <p className="truncate text-base font-semibold text-foreground">
+                      {displayName}
+                    </p>
+                  ) : (
+                    <input
+                      className="w-full rounded-lg border border-input-border bg-input px-2 py-1.5 text-base font-semibold text-foreground"
+                      value={name}
+                      onChange={(event) => setName(event.target.value)}
+                      aria-label={t("scan.enterName")}
+                      placeholder={t("scan.enterName")}
+                    />
+                  )}
                   {showBarcode ? (
                     <p className="mt-0.5 truncate font-mono text-xs text-muted">
                       {displayBarcode}

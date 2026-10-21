@@ -305,9 +305,15 @@ export function UsersPanel({ clients, onRefresh }: Props) {
             <AdminEmptyState message={t("admin.noUsersFound")} />
           ) : (
             users.map((user) => {
-              const registered = new Date(user.createdAt).toLocaleDateString(
+              const registered = new Date(user.createdAt).toLocaleString(
                 dateLocale,
-                { year: "numeric", month: "short", day: "numeric" },
+                {
+                  year: "numeric",
+                  month: "short",
+                  day: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                },
               );
               return (
                 <button

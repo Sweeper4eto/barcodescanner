@@ -94,16 +94,27 @@ function AccountTypeSwitch({
   homeLabel,
   retailLabel,
   groupLabel,
+  homeDisabled = false,
+  homeDisabledHint,
 }: {
   value: "home" | "retail";
   onChange: (value: "home" | "retail") => void;
   homeLabel: string;
   retailLabel: string;
   groupLabel: string;
+  /** Keep Household visible but not selectable (registration). */
+  homeDisabled?: boolean;
+  homeDisabledHint?: string;
 }) {
   const options = [
     { value: "retail" as const, label: retailLabel, Icon: StoreTypeIcon },
-    { value: "home" as const, label: homeLabel, Icon: HomeTypeIcon },
+    {
+      value: "home" as const,
+      label: homeLabel,
+      Icon: HomeTypeIcon,
+      disabled: homeDisabled,
+      disabledHint: homeDisabledHint,
+    },
   ];
 
   return (
@@ -114,6 +125,7 @@ function AccountTypeSwitch({
     >
       {options.map((option) => {
         const selected = option.value === value;
+        const disabled = Boolean(option.disabled);
         const Icon = option.Icon;
         return (
           <button
@@ -121,11 +133,19 @@ function AccountTypeSwitch({
             type="button"
             role="radio"
             aria-checked={selected}
-            onClick={() => onChange(option.value)}
+            aria-disabled={disabled || undefined}
+            disabled={disabled}
+            title={disabled ? option.disabledHint : undefined}
+            onClick={() => {
+              if (disabled) return;
+              onChange(option.value);
+            }}
             className={`inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-sm font-medium transition-colors ${
-              selected
-                ? "bg-primary text-primary-fg shadow-sm"
-                : "text-muted hover:bg-white/5 hover:text-foreground"
+              disabled
+                ? "cursor-not-allowed text-muted/45 opacity-55"
+                : selected
+                  ? "bg-primary text-primary-fg shadow-sm"
+                  : "text-muted hover:bg-white/5 hover:text-foreground"
             }`}
           >
             <Icon className="size-4 shrink-0" />
@@ -669,11 +689,8 @@ export function RegisterForm() {
     const nextConfirm = String(
       formData.get("confirmPassword") ?? confirmPassword,
     );
-    const rawAccountType = String(formData.get("accountType") ?? accountType);
-    const nextAccountType =
-      rawAccountType === "retail" || rawAccountType === "home"
-        ? rawAccountType
-        : accountType;
+    // Household self-signup is disabled — always register as Business.
+    const nextAccountType = "retail" as const;
     const nextOrg = String(
       formData.get("organizationName") ?? organizationName,
     ).trim();
@@ -741,8 +758,10 @@ export function RegisterForm() {
         homeLabel={t("auth.accountTypeHome")}
         retailLabel={t("auth.accountTypeRetail")}
         groupLabel={t("auth.accountType")}
+        homeDisabled
+        homeDisabledHint={t("auth.accountTypeHomeDisabled")}
       />
-      <input type="hidden" name="accountType" value={accountType} />
+      <input type="hidden" name="accountType" value="retail" />
       <AuthIconField
         compact
         label={t("auth.organizationName")}

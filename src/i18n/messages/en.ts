@@ -124,6 +124,7 @@ export const en = {
     accountType: "Account type",
     accountTypeHint: "Business for shops and teams. Household for home use.",
     accountTypeHome: "Household",
+    accountTypeHomeDisabled: "Household signup is temporarily unavailable.",
     accountTypeRetail: "Business",
     organizationName: "Name (optional)",
     organizationNameHint:
@@ -204,6 +205,15 @@ export const en = {
       "Document AI free quota is used up for now. Try again in a couple of hours, or add billing on the Gemini API key.",
     documentAiTryAgainLater:
       "Document reading is busy right now. Please wait about 5 minutes and try again.",
+    voiceAiNotConfigured:
+      "Voice add is not configured. Set GEMINI_API_KEY on the server.",
+    voiceParseFailed: "Could not understand that. Try speaking again clearly.",
+    voiceInvalidAudio: "Could not use that recording. Try again.",
+    voiceTimeout: "Voice recognition took too long. Try a shorter phrase.",
+    voiceQuotaExceeded:
+      "Voice recognition quota is used up for now. Wait a bit or check Gemini API billing, then try again.",
+    voiceTryAgainLater:
+      "Too many voice adds right now. Please wait a few minutes and try again.",
 
     documentImportInvalidRows:
       "Some rows have an invalid quantity or expiry date. Fix highlighted rows and try again.",
@@ -502,6 +512,18 @@ export const en = {
     quantityUnit: "pcs",
     manualQuantity: "Or enter quantity",
     saveToExpiry: "Save to Expiry List",
+    voiceTitle: "Voice add",
+    voiceAria: "Add item by voice",
+    voiceListening: "Listening…",
+    voiceListeningHint: "Say the product name, quantity, and expiry. Stops when you pause.",
+    voiceRecognizing: "Recognizing voice…",
+    voiceRecognizingHint: "Turning your words into an expiry item.",
+    voicePermission:
+      "Microphone permission denied. Allow the mic in your browser or phone settings, then try again.",
+    voiceUnsupported: "Voice recording is not supported in this browser.",
+    voiceUnavailable:
+      "Microphone is unavailable. Close other apps using the mic and try again.",
+    voiceCancelled: "Voice add cancelled.",
   },
   addProduct: {
     title: "New product",

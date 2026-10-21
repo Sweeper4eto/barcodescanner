@@ -684,6 +684,14 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Известия за годност: изключете Ранно и Спешно и Запази — известията се спират, вместо да блокират записа.",
     href: "/app/settings/notifications",
   },
+  {
+    key: "2026-10-register-household-disabled",
+    titleEn:
+      "Registration: Household is shown but unavailable for now — new signups are Business only.",
+    titleBg:
+      "Регистрация: Домакинство се вижда, но временно не може да се избере — новите акаунти са само Бизнес.",
+    href: "/register",
+  },
 ];
 
 

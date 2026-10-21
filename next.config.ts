@@ -15,6 +15,20 @@ const nextConfig: NextConfig = {
       process.env.EXPIRE365_SKIP_TYPECHECK === "1" ||
       process.env.MAGAZIN_SKIP_TYPECHECK === "1",
   },
+  // Explicit allow — some browsers treat missing mic policy as blocked.
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          {
+            key: "Permissions-Policy",
+            value: "camera=(self), microphone=(self), geolocation=()",
+          },
+        ],
+      },
+    ];
+  },
   allowedDevOrigins: [
     "127.0.0.1",
     "localhost",

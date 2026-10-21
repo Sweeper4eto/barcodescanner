@@ -10,6 +10,7 @@ test("scan wizard previous step mapping", () => {
   assert.equal(getPreviousScanStep("date", false), "name");
   assert.equal(getPreviousScanStep("missing", false), "scan");
   assert.equal(getPreviousScanStep("name", false), "scan");
+  assert.equal(getPreviousScanStep("voice", false), "scan");
   assert.equal(getPreviousScanStep("scan", false), null);
 });
 

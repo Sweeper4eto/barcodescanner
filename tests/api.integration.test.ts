@@ -98,13 +98,32 @@ test("POST /api/auth/register creates user and returns English message", async (
     body: JSON.stringify({
       username: "newbie",
       password: "password123",
-      accountType: "home",
+      accountType: "retail",
     }),
   });
 
   assert.equal(response.status, 200);
   assert.equal(data.user.username, "newbie");
   assert.match(data.message, /signed in/i);
+});
+
+test("POST /api/auth/register ignores household and creates business", async () => {
+  const { response, data } = await jsonRequest(registerPost, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      username: "homewannabe",
+      password: "password123",
+      accountType: "home",
+    }),
+  });
+
+  assert.equal(response.status, 200);
+  assert.equal(data.user.username, "homewannabe");
+  const client = await db.client.findFirst({
+    where: { users: { some: { username: "homewannabe" } } },
+  });
+  assert.equal(client?.homeUser, false);
 });
 
 test("POST /api/auth/login sets session for admin", async () => {

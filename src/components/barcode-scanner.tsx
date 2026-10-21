@@ -10,15 +10,18 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { PrimaryButton, SecondaryButton } from "@/components/auth-forms";
 import { CancelButton } from "@/components/cancel-button";
 import { ConfirmButton } from "@/components/confirm-button";
-import { CameraIcon } from "@/components/app-nav-icons";
+import { CameraIcon, FlashlightIcon, MicIcon } from "@/components/app-nav-icons";
 import { appFooterButtonGrid } from "@/lib/app-ui";
-import { FlashlightIcon } from "@/components/app-nav-icons";
 import { useT } from "@/components/i18n-provider";
 import { ScannerViewfinderOverlay } from "@/components/scanner-viewfinder-overlay";
 import { useScreenWakeLock } from "@/hooks/use-screen-wake-lock";
 import { startEnhancedAutoScan, startFastVideoScan, toggleBarcodeTorch, applyBarcodeCameraConstraints, startAutoRefocus, captureScannerPreview } from "@/lib/barcode-camera";
 import { prepareBarcodeDecoders } from "@/lib/barcode-decode";
 import { CrossDecoderBarcodeConsensus, isPlausibleBarcode, normalizeBarcode } from "@/lib/barcode";
+import {
+  requestMicrophoneStream,
+  type VoiceRecorderErrorKey,
+} from "@/hooks/use-voice-item-recorder";
 
 type Props = {
   onScan: (barcode: string) => void | Promise<void>;
@@ -36,6 +39,14 @@ type Props = {
   onDetect?: (barcode: string) => void;
   /** Double-tap the preview to continue without a barcode (passes a live photo when possible). */
   onSkipWithoutBarcode?: (photoDataUrl?: string) => void;
+  /**
+   * Mic under the live preview. Browser mic prompt is requested inside the
+   * button click (iOS needs getUserMedia before any setState), then the granted
+   * stream is passed here.
+   */
+  onVoiceStream?: (stream: MediaStream) => void;
+  onVoiceError?: (errorKey: VoiceRecorderErrorKey) => void;
+  voiceDisabled?: boolean;
 };
 
 const PRODUCT_BARCODE_FORMATS = [
@@ -117,6 +128,18 @@ async function safeStopScanner(scanner: Html5Qrcode | null | undefined): Promise
   } catch {
     // html5-qrcode may throw synchronously if stop runs before start finishes
   }
+}
+
+/** Stop live camera tracks immediately so a following mic getUserMedia can prompt. */
+function releaseScannerMediaTracks(containerId: string): void {
+  const root = document.getElementById(containerId);
+  root?.querySelectorAll("video").forEach((video) => {
+    const stream = video.srcObject;
+    if (stream instanceof MediaStream) {
+      stream.getTracks().forEach((track) => track.stop());
+    }
+    video.srcObject = null;
+  });
 }
 
 async function resetScanner(scanner: Html5Qrcode): Promise<void> {
@@ -344,6 +367,9 @@ export function BarcodeScanner({
   continuousFill = false,
   onDetect,
   onSkipWithoutBarcode,
+  onVoiceStream,
+  onVoiceError,
+  voiceDisabled = false,
 }: Props) {
   const { t } = useT();
   const elementId = useId().replace(/:/g, "");
@@ -612,6 +638,47 @@ export function BarcodeScanner({
           {onSkipWithoutBarcode && !starting ? (
             <p>{t("scanner.doubleTapHint")}</p>
           ) : null}
+        </div>
+      ) : null}
+      {onVoiceStream && (scanning || starting) && !continuousFill ? (
+        <div className="flex justify-center pt-0.5">
+          <button
+            type="button"
+            disabled={voiceDisabled || starting}
+            onClick={() => {
+              // CRITICAL (iOS Safari): getUserMedia must be the first await in this
+              // click handler. setState / camera teardown before it → NotAllowedError
+              // with no system permission dialog.
+              void (async () => {
+                const { stream, errorKey } = await requestMicrophoneStream();
+                if (!stream) {
+                  onVoiceError?.(errorKey || "permission");
+                  return;
+                }
+
+                abortedRef.current = true;
+                scanCleanupRef.current?.();
+                scanCleanupRef.current = null;
+                releaseScannerMediaTracks(elementId);
+                const scanner = scannerRef.current;
+                void safeStopScanner(scanner).finally(() => {
+                  if (scannerRef.current === scanner) {
+                    scannerRef.current = null;
+                  }
+                });
+                setScanning(false);
+                setStarting(false);
+                setTorchOn(false);
+                setTorchAvailable(false);
+                onVoiceStream(stream);
+              })();
+            }}
+            className="inline-flex size-11 items-center justify-center rounded-full border border-primary/45 text-primary disabled:opacity-50"
+            aria-label={t("scan.voiceAria")}
+            title={t("scan.voiceAria")}
+          >
+            <MicIcon className="size-5" />
+          </button>
         </div>
       ) : null}
       {!scanning ? (

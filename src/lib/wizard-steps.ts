@@ -1,4 +1,4 @@
-export type ScanWizardStep = "scan" | "missing" | "name" | "date";
+export type ScanWizardStep = "scan" | "voice" | "missing" | "name" | "date";
 export type AddProductWizardStep = "scan" | "name" | "photo" | "confirm";
 
 export function getPreviousScanStep(
@@ -10,6 +10,7 @@ export function getPreviousScanStep(
       return hasProduct ? "scan" : "name";
     case "name":
     case "missing":
+    case "voice":
       return "scan";
     default:
       return null;

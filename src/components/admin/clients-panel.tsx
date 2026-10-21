@@ -568,10 +568,12 @@ export function ClientsPanel({
   });
 
   function formatRegisteredDate(iso: string) {
-    return new Date(iso).toLocaleDateString(dateLocale, {
+    return new Date(iso).toLocaleString(dateLocale, {
       year: "numeric",
       month: "short",
       day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     });
   }
 

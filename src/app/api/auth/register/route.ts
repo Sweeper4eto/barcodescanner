@@ -15,7 +15,8 @@ const bodySchema = z.object({
   username: z.string().min(1),
   password: z.string().min(1),
   email: z.string().optional(),
-  accountType: z.enum(["home", "retail"]).default("home"),
+  // Accept legacy "home" in the body but never create household via public signup.
+  accountType: z.enum(["home", "retail"]).default("retail"),
   organizationName: z.string().optional(),
 });
 
@@ -42,7 +43,7 @@ export async function POST(request: Request) {
   }
 
   const result = await registerUser(parsed.data.username, parsed.data.password, {
-    accountType: parsed.data.accountType,
+    accountType: "retail",
     organizationName: parsed.data.organizationName,
     email: parsed.data.email,
   });

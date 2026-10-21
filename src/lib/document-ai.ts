@@ -2,7 +2,14 @@ import { readFile } from "node:fs/promises";
 import "dotenv/config";
 import { z } from "zod";
 import { sanitizeDocumentRows } from "@/lib/document-row-sanitize";
+import { resolveDocumentExpiry } from "@/lib/expiry-parse";
 import { resolveLocalUploadPath } from "@/lib/upload";
+
+export {
+  parseDocumentExpiry,
+  parsePrintedExpiry,
+  resolveDocumentExpiry,
+} from "@/lib/expiry-parse";
 
 const rowSchema = z.object({
   name: z.string().optional().nullable(),
@@ -32,97 +39,6 @@ function stripDataUrl(dataUrl: string): { mime: string; base64: string } {
     throw new Error("INVALID_IMAGE");
   }
   return { mime: match[1], base64: match[2] };
-}
-
-function isValidCalendarYmd(year: number, month: number, day: number): boolean {
-  if (month < 1 || month > 12 || day < 1 || day > 31) return false;
-  if (year < 2000 || year > 2100) return false;
-  const date = new Date(Date.UTC(year, month - 1, day));
-  return (
-    date.getUTCFullYear() === year &&
-    date.getUTCMonth() === month - 1 &&
-    date.getUTCDate() === day
-  );
-}
-
-/** Parse common EU/BG date strings into YYYY-MM-DD. */
-export function parseDocumentExpiry(value: string | null | undefined): string | null {
-  if (!value) return null;
-  const raw = value.trim();
-  if (!raw) return null;
-
-  const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
-  if (iso) {
-    const year = Number(iso[1]);
-    const month = Number(iso[2]);
-    const day = Number(iso[3]);
-    if (!isValidCalendarYmd(year, month, day)) return null;
-    return `${iso[1]}-${iso[2]}-${iso[3]}`;
-  }
-
-  // Bulgarian / EU documents use day.month.year (not US month/day).
-  // Allow trailing lot/batch text, e.g. "23.06.2027 L268623".
-  const dmy = /^(\d{1,2})[./\-](\d{1,2})[./\-](\d{2,4})(?:\s+.*)?$/.exec(raw);
-  if (dmy) {
-    const day = Number(dmy[1]);
-    const month = Number(dmy[2]);
-    let year = Number(dmy[3]);
-    if (year < 100) year += 2000;
-    if (!isValidCalendarYmd(year, month, day)) return null;
-    return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-  }
-
-  // ISO date with optional trailing lot text.
-  const isoLoose = /^(\d{4})-(\d{2})-(\d{2})(?:\s+.*)?$/.exec(raw);
-  if (isoLoose) {
-    const year = Number(isoLoose[1]);
-    const month = Number(isoLoose[2]);
-    const day = Number(isoLoose[3]);
-    if (!isValidCalendarYmd(year, month, day)) return null;
-    return `${isoLoose[1]}-${isoLoose[2]}-${isoLoose[3]}`;
-  }
-
-  return null;
-}
-
-
-/** Parse ONLY day.month.year (Bulgarian documents). Never treat as US month/day or ISO. */
-export function parsePrintedExpiry(value: string | null | undefined): string | null {
-  if (!value) return null;
-  const raw = value.trim();
-  if (!raw) return null;
-
-  // Reject ISO-shaped values in the printed field - those belong in expiryDate.
-  if (/^\d{4}-\d{2}-\d{2}/.test(raw)) return null;
-
-  const dmy = /^(\d{1,2})[.\/\-](\d{1,2})[.\/\-](\d{2,4})(?:\s+.*)?$/.exec(raw);
-  if (!dmy) return null;
-  const day = Number(dmy[1]);
-  const month = Number(dmy[2]);
-  let year = Number(dmy[3]);
-  if (year < 100) year += 2000;
-  if (!isValidCalendarYmd(year, month, day)) return null;
-  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-}
-
-/**
- * Prefer the printed DD.MM.YYYY cell (source of truth) over model ISO,
- * which often swaps day/month (01.12 -> 2027-01-12 instead of 2027-12-01).
- *
- * Some models put a valid ISO date only in `expiryPrinted` and leave
- * `expiryDate` null — accept that as a last resort so we do not show
- * "No date found" when the year-month-day value was clearly present.
- */
-export function resolveDocumentExpiry(
-  expiryDate: string | null | undefined,
-  expiryPrinted?: string | null | undefined,
-): string | null {
-  const fromPrinted = parsePrintedExpiry(expiryPrinted);
-  if (fromPrinted) return fromPrinted;
-  const fromExpiryDate = parseDocumentExpiry(expiryDate);
-  if (fromExpiryDate) return fromExpiryDate;
-  // Printed field sometimes holds ISO when expiryDate was left empty.
-  return parseDocumentExpiry(expiryPrinted);
 }
 
 function normalizeQuantity(value: unknown): number {
@@ -326,7 +242,8 @@ DUPLICATE NAMES (normal on warehouse lists — do NOT "fix"):
 - Same name + blank Godnost on row A and a real date on row B is valid — output both as printed.
 
 DATES:
-- Godnost is always DD.MM.YYYY (day first). Copy expiryPrinted exactly as printed (lot text after the date is OK).
+- Godnost is usually DD.MM.YYYY (day first). Copy expiryPrinted exactly as printed (lot text after the date is OK).
+- Month+year only is also valid (MM.YYYY, MM.YY, MM/YY — e.g. 12.2026 or 12.26). Copy as printed; do not invent a day (server uses end of that month).
 - expiryDate must always be null (server converts).
 - Never invent a date. Never swap day/month.
 - Same Godnost on two neighboring products is allowed when both cells really show that date.

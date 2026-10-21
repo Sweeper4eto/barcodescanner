@@ -190,6 +190,46 @@ describe("parseDocumentExpiry", () => {
     assert.equal(parseDocumentExpiry("31.02.2026"), null);
     assert.equal(parseDocumentExpiry("2026-02-31"), null);
   });
+
+  it("treats month+year as end of that month", () => {
+    assert.equal(parseDocumentExpiry("12.2026"), "2026-12-31");
+    assert.equal(parseDocumentExpiry("12.26"), "2026-12-31");
+    assert.equal(parseDocumentExpiry("12/26"), "2026-12-31");
+    assert.equal(parseDocumentExpiry("12-2026"), "2026-12-31");
+    assert.equal(parseDocumentExpiry("2026-12"), "2026-12-31");
+    assert.equal(parseDocumentExpiry("02.26"), "2026-02-28");
+    assert.equal(parseDocumentExpiry("02.2028"), "2028-02-29");
+  });
+
+  it("parses spoken Bulgarian and English dates", () => {
+    assert.equal(parseDocumentExpiry("трети май 2030 година"), "2030-05-03");
+    assert.equal(parseDocumentExpiry("3 май 2030"), "2030-05-03");
+    assert.equal(parseDocumentExpiry("май 2030"), "2030-05-31");
+    assert.equal(parseDocumentExpiry("двадесет и първи декември 2026"), "2026-12-21");
+    assert.equal(parseDocumentExpiry("third of May 2030"), "2030-05-03");
+    assert.equal(parseDocumentExpiry("May 3 2030"), "2030-05-03");
+  });
+
+  it("parses Bulgarian year shorthand (двадесет и пета / 25-та → 2025)", () => {
+    assert.equal(parseDocumentExpiry("трети май двадесет и пета"), "2025-05-03");
+    assert.equal(parseDocumentExpiry("3 май 25-та"), "2025-05-03");
+    assert.equal(parseDocumentExpiry("май двадесет и пета"), "2025-05-31");
+    assert.equal(parseDocumentExpiry("двадесет и пета"), "2025-12-31");
+    assert.equal(parseDocumentExpiry("25-та"), "2025-12-31");
+    assert.equal(parseDocumentExpiry("15 юни 28 ма"), "2028-06-15");
+    assert.equal(parseDocumentExpiry("14-ти месец май 2029 година"), "2029-05-14");
+    assert.equal(parseDocumentExpiry("май месец 2030"), "2030-05-31");
+  });
+
+  it("finds 3ти май 2031 inside a longer spoken phrase", async () => {
+    const { findSpokenDateInText } = await import("../src/lib/expiry-parse");
+    assert.equal(
+      findSpokenDateInText(
+        "тунквана вафла швепс 10 броя 3ти май 2031 година",
+      ),
+      "2031-05-03",
+    );
+  });
 });
 
 describe("resolveDocumentExpiry", () => {
@@ -229,6 +269,12 @@ describe("parsePrintedExpiry", () => {
   it("always reads day first", () => {
     assert.equal(parsePrintedExpiry("01.12.2027"), "2027-12-01");
     assert.equal(parsePrintedExpiry("12.01.2027"), "2027-01-12");
+  });
+
+  it("treats month+year Godnost as end of month", () => {
+    assert.equal(parsePrintedExpiry("12.26"), "2026-12-31");
+    assert.equal(parsePrintedExpiry("12.2026"), "2026-12-31");
+    assert.equal(parsePrintedExpiry("11/26"), "2026-11-30");
   });
 });
 
