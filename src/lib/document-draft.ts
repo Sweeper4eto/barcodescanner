@@ -12,6 +12,127 @@ export type DocumentDraftItem = {
   matchSource: "barcode" | "name" | "articul" | null;
 };
 
+/** One uploaded/captured photo and the OCR rows from it (multi-doc review). */
+export type DocumentPageDraft = {
+  id: string;
+  /** Display label — file name or "Page N". */
+  label: string;
+  imageDataUrl: string;
+  status: "ready" | "processing" | "failed";
+  items: DocumentDraftItem[];
+  error?: string | null;
+};
+
+export function flattenDocumentPageItems(
+  pages: DocumentPageDraft[],
+): DocumentDraftItem[] {
+  return pages.flatMap((page) => page.items);
+}
+
+/** Mark one page as OCR-in-progress; keeps array order and other pages untouched. */
+export function markDocumentPageProcessing(
+  pages: DocumentPageDraft[],
+  pageId: string,
+): DocumentPageDraft[] {
+  return pages.map((page) =>
+    page.id === pageId
+      ? { ...page, status: "processing", error: null }
+      : page,
+  );
+}
+
+/** Restore ready + error after a failed retake/reattach (old items kept). */
+export function setDocumentPageError(
+  pages: DocumentPageDraft[],
+  pageId: string,
+  error: string,
+): DocumentPageDraft[] {
+  return pages.map((page) =>
+    page.id === pageId
+      ? { ...page, status: "ready", error }
+      : page,
+  );
+}
+
+/**
+ * Replace one page's image + OCR rows in place (same index / id).
+ * Other pages are unchanged — used by Retake / Reattach.
+ */
+export function replaceDocumentPageContent(
+  pages: DocumentPageDraft[],
+  pageId: string,
+  next: {
+    imageDataUrl: string;
+    items: DocumentDraftItem[];
+    label?: string;
+  },
+): DocumentPageDraft[] {
+  return pages.map((page) =>
+    page.id === pageId
+      ? {
+          ...page,
+          imageDataUrl: next.imageDataUrl,
+          label: next.label?.trim() || page.label,
+          items: next.items,
+          status: "ready" as const,
+          error: null,
+        }
+      : page,
+  );
+}
+
+export function updateDocumentPageItem(
+  pages: DocumentPageDraft[],
+  itemKey: string,
+  patch: Partial<DocumentDraftItem>,
+): DocumentPageDraft[] {
+  return pages.map((page) => ({
+    ...page,
+    items: page.items.map((item) =>
+      item.key === itemKey ? { ...item, ...patch } : item,
+    ),
+  }));
+}
+
+export function removeDocumentPageItem(
+  pages: DocumentPageDraft[],
+  itemKey: string,
+): DocumentPageDraft[] {
+  return pages.map((page) => ({
+    ...page,
+    items: page.items.filter((item) => item.key !== itemKey),
+  }));
+}
+
+export function removeDocumentPagesItemsWithoutExpiry(
+  pages: DocumentPageDraft[],
+): DocumentPageDraft[] {
+  return pages.map((page) => ({
+    ...page,
+    items: page.items.filter((item) => !draftMissingExpiry(item)),
+  }));
+}
+
+/** Pages that still have at least one row matching search (empty search → all). */
+export function filterDocumentPagesBySearch(
+  pages: DocumentPageDraft[],
+  needle: string,
+): DocumentPageDraft[] {
+  const q = needle.trim();
+  if (!q) return pages;
+  return pages.filter((page) =>
+    page.items.some((item) => draftMatchesSearch(item, q)),
+  );
+}
+
+/** Ready to import: every page idle, at least one row, all rows valid. */
+export function documentPagesCanImport(pages: DocumentPageDraft[]): boolean {
+  if (pages.length === 0) return false;
+  if (pages.some((page) => page.status !== "ready")) return false;
+  const items = flattenDocumentPageItems(pages);
+  return items.length > 0 && items.every((item) => draftItemValid(item));
+}
+
 export type DocumentDraftWarning =
   | "invalidBarcode"
   | "expiryPast"

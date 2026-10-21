@@ -7,7 +7,9 @@ import {
   draftItemValid,
   draftMatchesSearch,
   draftWarnings,
+  flattenDocumentPageItems,
   type DocumentDraftItem,
+  type DocumentPageDraft,
 } from "../src/lib/document-draft";
 
 const base: DocumentDraftItem = {
@@ -128,6 +130,33 @@ describe("document-draft", () => {
     assert.equal(
       computeRowShiftWarningKeys([differentQty, differentFull]).size,
       0,
+    );
+  });
+
+  it("flattenDocumentPageItems keeps page order", () => {
+    const pages: DocumentPageDraft[] = [
+      {
+        id: "p1",
+        label: "a.jpg",
+        imageDataUrl: "data:image/jpeg;base64,AA",
+        status: "ready",
+        items: [{ ...base, key: "a1", name: "From page 1" }],
+      },
+      {
+        id: "p2",
+        label: "b.jpg",
+        imageDataUrl: "data:image/jpeg;base64,BB",
+        status: "ready",
+        items: [
+          { ...base, key: "b1", name: "From page 2a" },
+          { ...base, key: "b2", name: "From page 2b" },
+        ],
+      },
+    ];
+    const flat = flattenDocumentPageItems(pages);
+    assert.deepEqual(
+      flat.map((item) => item.key),
+      ["a1", "b1", "b2"],
     );
   });
 });

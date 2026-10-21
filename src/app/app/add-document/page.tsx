@@ -1,7 +1,14 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Suspense, useEffect, useMemo, useState } from "react";
+import {
+  Suspense,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+} from "react";
 import {
   DocumentNavIcon,
   ExpiryNavIcon,
@@ -12,7 +19,7 @@ import {
 import { CameraCapture, prepareDocumentImage } from "@/components/camera-capture";
 import { assessDocumentPhotoQuality } from "@/lib/document-image";
 import { DocumentDraftDetailSheet } from "@/components/document-draft-detail-sheet";
-import { DocumentDraftListCard } from "@/components/document-draft-list-card";
+import { DocumentPageSection } from "@/components/document-page-section";
 import { DocumentProcessingPanel } from "@/components/document-processing-panel";
 import { LoadingSpinnerBlock } from "@/components/loading-spinner";
 import { LocationConfirmDialog } from "@/components/location-confirm-dialog";
@@ -36,16 +43,32 @@ import { useAppStoreId, useLockStoreSelection } from "@/hooks/use-app-store-id";
 import { useScreenWakeLock } from "@/hooks/use-screen-wake-lock";
 import {
   type DocumentDraftItem,
-  draftItemValid,
-  draftMatchesSearch,
+  type DocumentPageDraft,
+  documentPagesCanImport,
   draftMissingExpiry,
+  filterDocumentPagesBySearch,
+  flattenDocumentPageItems,
+  markDocumentPageProcessing,
+  removeDocumentPageItem,
+  removeDocumentPagesItemsWithoutExpiry,
+  replaceDocumentPageContent,
+  setDocumentPageError,
+  updateDocumentPageItem,
 } from "@/lib/document-draft";
 
 /** Full-height review shell — no horizontal pad (content uses appListInset). */
 const reviewPageShellClassName =
   "mx-auto flex h-[calc(100svh-var(--app-bottom-nav-frame)-env(safe-area-inset-bottom,0px))] min-h-0 w-full max-w-lg flex-col overflow-x-visible pt-1";
 
-type Step = "confirmLocation" | "camera" | "processing" | "review" | "done";
+const MAX_REATTACH_BYTES = 12 * 1024 * 1024;
+
+type Step =
+  | "confirmLocation"
+  | "camera"
+  | "processing"
+  | "review"
+  | "replacePage"
+  | "done";
 
 type ImportResult = { created: number; merged: number };
 type SessionTotals = { scans: number; created: number; merged: number };
@@ -59,6 +82,7 @@ function AddDocumentContent() {
   const router = useRouter();
   const { ready, user } = useAppSession();
   const { storeId } = useAppStoreId();
+  const reattachInputRef = useRef<HTMLInputElement>(null);
 
   const [checking, setChecking] = useState(true);
   const [step, setStep] = useState<Step>("confirmLocation");
@@ -70,14 +94,19 @@ function AddDocumentContent() {
     step === "confirmLocation" ||
       step === "camera" ||
       step === "processing" ||
-      step === "review",
+      step === "review" ||
+      step === "replacePage",
   );
 
   const locationName = useMemo(() => {
     const match = user?.stores.find((store) => store.id === storeId);
     return match?.name ?? storeId;
   }, [storeId, user?.stores]);
-  const [items, setItems] = useState<DocumentDraftItem[]>([]);
+
+  const [pages, setPages] = useState<DocumentPageDraft[]>([]);
+  const [replacePageId, setReplacePageId] = useState<string | null>(null);
+  const [reattachPageId, setReattachPageId] = useState<string | null>(null);
+  const [pageActionBusy, setPageActionBusy] = useState(false);
   const [error, setError] = useState("");
   const [importing, setImporting] = useState(false);
   const [search, setSearch] = useState("");
@@ -96,6 +125,8 @@ function AddDocumentContent() {
   } | null>(null);
   const [failedFiles, setFailedFiles] = useState<string[]>([]);
 
+  const items = useMemo(() => flattenDocumentPageItems(pages), [pages]);
+
   const detailItem = useMemo(
     () => items.find((item) => item.key === detailKey) ?? null,
     [detailKey, items],
@@ -105,6 +136,11 @@ function AddDocumentContent() {
     () => items.find((item) => item.key === removeKey) ?? null,
     [removeKey, items],
   );
+
+  const replacePageIndex = useMemo(() => {
+    if (!replacePageId) return -1;
+    return pages.findIndex((page) => page.id === replacePageId);
+  }, [pages, replacePageId]);
 
   useBrowserBackStack([
     {
@@ -121,6 +157,14 @@ function AddDocumentContent() {
       id: "draft-remove-no-expiry",
       open: confirmRemoveNoExpiry,
       close: () => setConfirmRemoveNoExpiry(false),
+    },
+    {
+      id: "replace-page",
+      open: step === "replacePage",
+      close: () => {
+        setReplacePageId(null);
+        setStep("review");
+      },
     },
   ]);
 
@@ -173,8 +217,8 @@ function AddDocumentContent() {
     });
   }
 
-  function toDraftItems(items: ParsedItem[]): DocumentDraftItem[] {
-    return items.map((item) => ({
+  function toDraftItems(parsed: ParsedItem[]): DocumentDraftItem[] {
+    return parsed.map((item) => ({
       key: newKey(),
       name: item.name ?? "",
       barcode: item.barcode ?? "",
@@ -185,6 +229,21 @@ function AddDocumentContent() {
       productImagePath: item.productImagePath ?? null,
       matchSource: item.matchSource ?? null,
     }));
+  }
+
+  function makePage(
+    dataUrl: string,
+    label: string,
+    draftItems: DocumentDraftItem[],
+  ): DocumentPageDraft {
+    return {
+      id: newKey(),
+      label,
+      imageDataUrl: dataUrl,
+      status: "ready",
+      items: draftItems,
+      error: null,
+    };
   }
 
   /**
@@ -274,29 +333,33 @@ function AddDocumentContent() {
       setStep("camera");
       return;
     }
-    setItems(toDraftItems(result.items));
+    setPages([
+      makePage(dataUrl, t("addDocument.pageLabel", { n: 1 }), toDraftItems(result.items)),
+    ]);
     setSearch("");
     setStep("review");
   }
 
   async function onMultipleCapture(
-    pages: { dataUrl: string; name: string }[],
+    capturePages: { dataUrl: string; name: string }[],
   ) {
-    if (!storeId || pages.length === 0) return;
+    if (!storeId || capturePages.length === 0) return;
     setError("");
     setFailedFiles([]);
     setStep("processing");
-    const collected: DocumentDraftItem[] = [];
+    const collected: DocumentPageDraft[] = [];
     let failed = 0;
-    for (let index = 0; index < pages.length; index += 1) {
-      setProcessingProgress({ current: index + 1, total: pages.length });
-      const page = pages[index];
+    for (let index = 0; index < capturePages.length; index += 1) {
+      setProcessingProgress({ current: index + 1, total: capturePages.length });
+      const page = capturePages[index];
       const label =
         page.name.trim() ||
         t("addDocument.pageLabel", { n: index + 1 });
       const result = await processDocumentImageWithRetry(page.dataUrl);
       if (result.ok) {
-        collected.push(...toDraftItems(result.items));
+        collected.push(
+          makePage(page.dataUrl, label, toDraftItems(result.items)),
+        );
       } else {
         failed += 1;
         setFailedFiles((current) => [...current, label]);
@@ -311,7 +374,7 @@ function AddDocumentContent() {
       return;
     }
 
-    setItems(collected);
+    setPages(collected);
     setSearch("");
     setStep("review");
     setFailedFiles([]);
@@ -319,36 +382,116 @@ function AddDocumentContent() {
       setError(
         t("addDocument.multiPartialFailure", {
           failed,
-          total: pages.length,
+          total: capturePages.length,
         }),
       );
     }
   }
 
-  function updateItem(key: string, patch: Partial<DocumentDraftItem>) {
-    setItems((current) =>
-      current.map((item) => (item.key === key ? { ...item, ...patch } : item)),
+  async function replacePageWithImage(
+    pageId: string,
+    dataUrl: string,
+    label?: string,
+  ) {
+    setError("");
+    setPageActionBusy(true);
+    setPages((current) => markDocumentPageProcessing(current, pageId));
+    setStep("review");
+    setReplacePageId(null);
+
+    const result = await processDocumentImageWithRetry(dataUrl);
+    setPageActionBusy(false);
+
+    if (!result.ok) {
+      setPages((current) => setDocumentPageError(current, pageId, result.error));
+      setError(result.error);
+      return;
+    }
+
+    setPages((current) =>
+      replaceDocumentPageContent(current, pageId, {
+        imageDataUrl: dataUrl,
+        label,
+        items: toDraftItems(result.items),
+      }),
     );
+    if (detailKey) setDetailKey(null);
+  }
+
+  function startRetakePage(pageId: string) {
+    setError("");
+    setReplacePageId(pageId);
+    setStep("replacePage");
+    setCameraSession((n) => n + 1);
+  }
+
+  function startReattachPage(pageId: string) {
+    setError("");
+    setReattachPageId(pageId);
+    reattachInputRef.current?.click();
+  }
+
+  async function onReattachFileSelected(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    const pageId = reattachPageId;
+    setReattachPageId(null);
+    if (!file || !pageId) return;
+
+    if (!/^image\//i.test(file.type) && !/\.(heic|heif|jpe?g|png|webp|gif)$/i.test(file.name)) {
+      setError(t("errors.invalidFileFormat"));
+      return;
+    }
+    if (file.size > MAX_REATTACH_BYTES) {
+      setError(t("errors.fileTooLarge"));
+      return;
+    }
+
+    try {
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          if (typeof reader.result === "string") resolve(reader.result);
+          else reject(new Error("read failed"));
+        };
+        reader.onerror = () => reject(reader.error ?? new Error("read failed"));
+        reader.readAsDataURL(file);
+      });
+      await replacePageWithImage(pageId, dataUrl, file.name);
+    } catch {
+      setError(t("errors.uploadFailed"));
+    }
+  }
+
+  function updateItem(key: string, patch: Partial<DocumentDraftItem>) {
+    setPages((current) => updateDocumentPageItem(current, key, patch));
   }
 
   function removeItem(key: string) {
-    setItems((current) => current.filter((item) => item.key !== key));
+    setPages((current) => removeDocumentPageItem(current, key));
     setRemoveKey(null);
     if (detailKey === key) setDetailKey(null);
   }
 
   function removeItemsWithoutExpiry() {
-    const kept = items.filter((item) => !draftMissingExpiry(item));
-    setItems(kept);
-    if (detailKey && !kept.some((item) => item.key === detailKey)) {
-      setDetailKey(null);
-    }
+    setPages((current) => removeDocumentPagesItemsWithoutExpiry(current));
+    setDetailKey(null);
     setConfirmRemoveNoExpiry(false);
   }
 
-  const filteredItems = useMemo(
-    () => items.filter((item) => draftMatchesSearch(item, search)),
-    [items, search],
+  function clearReviewAndRestart() {
+    setPages([]);
+    setSearch("");
+    setDetailKey(null);
+    setReplacePageId(null);
+    setError("");
+    setStep("camera");
+    setCameraSession((n) => n + 1);
+  }
+
+  const visiblePages = useMemo(
+    () => filterDocumentPagesBySearch(pages, search),
+    [pages, search],
   );
 
   const noExpiryCount = useMemo(
@@ -356,8 +499,7 @@ function AddDocumentContent() {
     [items],
   );
 
-  const canImport =
-    items.length > 0 && items.every((item) => draftItemValid(item));
+  const canImport = !pageActionBusy && documentPagesCanImport(pages);
 
   async function confirmImport() {
     if (!canImport || !storeId || importing) return;
@@ -392,7 +534,7 @@ function AddDocumentContent() {
         created: totals.created + created,
         merged: totals.merged + merged,
       }));
-      setItems([]);
+      setPages([]);
       setSearch("");
       setDetailKey(null);
       setStep("done");
@@ -418,6 +560,14 @@ function AddDocumentContent() {
 
   return (
     <>
+      <input
+        ref={reattachInputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif,.heic,.heif"
+        className="hidden"
+        onChange={(event) => void onReattachFileSelected(event)}
+      />
+
       <div
         className={
           isReviewStep
@@ -430,7 +580,11 @@ function AddDocumentContent() {
             title={
               step === "processing" || step === "done"
                 ? undefined
-                : t("addDocument.title")
+                : step === "replacePage"
+                  ? t("addDocument.replacePageTitle", {
+                      n: Math.max(1, replacePageIndex + 1),
+                    })
+                  : t("addDocument.title")
             }
             sticky
           />
@@ -449,9 +603,9 @@ function AddDocumentContent() {
               if (step !== "camera") return;
               void onCapture(dataUrl);
             }}
-            onMultipleCapture={(pages) => {
+            onMultipleCapture={(pagesBatch) => {
               if (step !== "camera") return;
-              void onMultipleCapture(pages);
+              void onMultipleCapture(pagesBatch);
             }}
             onNewDocument={() => {
               if (step !== "camera") return;
@@ -468,6 +622,28 @@ function AddDocumentContent() {
               navigateApp("/app");
             }}
             key={cameraSession}
+          />
+        </div>
+      ) : null}
+
+      {step === "replacePage" && replacePageId ? (
+        <div className="space-y-3">
+          <p className="text-sm text-muted">{t("addDocument.replacePageHint")}</p>
+          {error ? <p className="text-sm text-error">{error}</p> : null}
+          <CameraCapture
+            variant="document"
+            autoStart
+            allowFileUpload
+            allowMultipleFiles={false}
+            showViewfinder
+            onCapture={(dataUrl) => {
+              void replacePageWithImage(replacePageId, dataUrl);
+            }}
+            onCancel={() => {
+              setReplacePageId(null);
+              setStep("review");
+            }}
+            key={`replace-${replacePageId}-${cameraSession}`}
           />
         </div>
       ) : null}
@@ -499,7 +675,9 @@ function AddDocumentContent() {
                     </span>
                   </div>
                   <p className="mt-1 text-sm text-muted">
-                    {t("addDocument.reviewHint")}
+                    {pages.length > 1
+                      ? t("addDocument.reviewHintMulti", { pages: pages.length })
+                      : t("addDocument.reviewHint")}
                   </p>
                 </div>
               </div>
@@ -515,7 +693,7 @@ function AddDocumentContent() {
                 />
                 <button
                   type="button"
-                  disabled={noExpiryCount === 0}
+                  disabled={noExpiryCount === 0 || pageActionBusy}
                   onClick={() => setConfirmRemoveNoExpiry(true)}
                   title={t("addDocument.removeNoExpiryHint", { count: noExpiryCount })}
                   aria-label={t("addDocument.removeNoExpiryHint", { count: noExpiryCount })}
@@ -529,22 +707,31 @@ function AddDocumentContent() {
               </div>
             </div>
 
-            <div className="space-y-1.5 pt-3">
-              {filteredItems.length === 0 ? (
+            <div className="space-y-3 pt-3">
+              {visiblePages.length === 0 ? (
                 <p className="rounded-xl bg-transparent p-4 text-sm text-muted">
-                  {items.length === 0
+                  {pages.length === 0
                     ? t("addDocument.emptyReview")
                     : t("addDocument.noResults")}
                 </p>
-              ) : null}
-              {filteredItems.map((item) => (
-                <DocumentDraftListCard
-                  key={item.key}
-                  item={item}
-                  onOpen={() => setDetailKey(item.key)}
-                  onRemove={() => setRemoveKey(item.key)}
-                />
-              ))}
+              ) : (
+                visiblePages.map((page) => {
+                  const pageIndex = pages.findIndex((entry) => entry.id === page.id);
+                  return (
+                    <DocumentPageSection
+                      key={page.id}
+                      page={page}
+                      pageIndex={pageIndex >= 0 ? pageIndex : 0}
+                      search={search}
+                      busy={pageActionBusy}
+                      onRetake={() => startRetakePage(page.id)}
+                      onReattach={() => startReattachPage(page.id)}
+                      onOpenItem={(key) => setDetailKey(key)}
+                      onRemoveItem={(key) => setRemoveKey(key)}
+                    />
+                  );
+                })
+              )}
             </div>
           </div>
 
@@ -554,16 +741,13 @@ function AddDocumentContent() {
             <button
               type="button"
               className={appButtonCancelFull}
-              onClick={() => {
-                setItems([]);
-                setSearch("");
-                setDetailKey(null);
-                setError("");
-                setStep("camera");
-              }}
+              disabled={pageActionBusy}
+              onClick={clearReviewAndRestart}
             >
               <RefreshIcon className="size-4 shrink-0" />
-              {t("addDocument.retake")}
+              {pages.length > 1
+                ? t("addDocument.startOver")
+                : t("addDocument.retake")}
             </button>
             <button
               type="button"

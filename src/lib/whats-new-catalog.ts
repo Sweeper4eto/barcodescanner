@@ -692,6 +692,14 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Регистрация: Домакинство се вижда, но временно не може да се избере — новите акаунти са само Бизнес.",
     href: "/register",
   },
+  {
+    key: "2026-10-document-multi-page-sections",
+    titleEn:
+      "Document scan: multi-photo review groups items by photo — Retake or Reattach one page without losing the others.",
+    titleBg:
+      "Скан на документ: при няколко снимки артикулите са по секции — Повтори или Прикачи само една страница, без да губите останалите.",
+    href: "/app/add-document",
+  },
 ];
 
 
