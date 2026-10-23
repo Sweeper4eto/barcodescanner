@@ -113,6 +113,21 @@ export function removeDocumentPagesItemsWithoutExpiry(
   }));
 }
 
+/** Drop missing-expiry rows on one page only; other pages unchanged. */
+export function removeDocumentPageItemsWithoutExpiry(
+  pages: DocumentPageDraft[],
+  pageId: string,
+): DocumentPageDraft[] {
+  return pages.map((page) =>
+    page.id !== pageId
+      ? page
+      : {
+          ...page,
+          items: page.items.filter((item) => !draftMissingExpiry(item)),
+        },
+  );
+}
+
 /** Pages that still have at least one row matching search (empty search → all). */
 export function filterDocumentPagesBySearch(
   pages: DocumentPageDraft[],

@@ -581,16 +581,21 @@ export const en = {
     removeRow: "Remove row",
     removeNoExpiry: "No date",
     removeNoExpiryHint: "Remove {count} rows with no expiry date",
+    removeNoExpiryPageHint:
+      "Remove {count} rows with no expiry date from this photo only",
     removeNoExpiryConfirm:
       "Remove {count} rows that have no expiry date? Rows with a date stay.",
     removeNoExpiryMessage:
       "Remove {item} from the review list? Rows with a date will stay.",
+    removeNoExpiryPageMessage:
+      "Remove {item} from this photo only? Other photos stay unchanged. Rows with a date stay.",
     removeNoExpiryItemLabelOne: "1 row without date",
     removeNoExpiryItemLabel: "{count} rows without date",
     confirmTitle: "Remove from review?",
     confirmMessage:
       "Are you sure you want to remove {item} from the review list?",
     removeNoExpiryTitle: "Remove rows without date?",
+    removeNoExpiryPageTitle: "Remove rows without date from this photo?",
     removeConfirmMessage: "Remove this row from the import list?",
     editItem: "Edit item",
     searchPlaceholder: "Search item or barcode",

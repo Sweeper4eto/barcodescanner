@@ -716,6 +716,14 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Скан на документ: махнахме допълнителната проверка на първи/последни редове, която често блокираше с грешка „по-ясна снимка“.",
     href: "/app/add-document",
   },
+  {
+    key: "2026-10-document-page-no-date",
+    titleEn:
+      "Document review: each photo section has its own No date button next to Retake / Reattach (search-bar button still clears all pages).",
+    titleBg:
+      "Преглед на документ: всяка снимка има бутон Без дата до Повтори / Прикачи (бутонът до търсенето пак чисти всички страници).",
+    href: "/app/add-document",
+  },
 ];
 
 

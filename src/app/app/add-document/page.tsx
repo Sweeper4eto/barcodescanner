@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import {
   Suspense,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -50,6 +51,7 @@ import {
   flattenDocumentPageItems,
   markDocumentPageProcessing,
   removeDocumentPageItem,
+  removeDocumentPageItemsWithoutExpiry,
   removeDocumentPagesItemsWithoutExpiry,
   replaceDocumentPageContent,
   setDocumentPageError,
@@ -83,6 +85,8 @@ function AddDocumentContent() {
   const { ready, user } = useAppSession();
   const { storeId } = useAppStoreId();
   const reattachInputRef = useRef<HTMLInputElement>(null);
+  /** After retake/reattach, keep the review list on that page section. */
+  const restoreReviewPageIdRef = useRef<string | null>(null);
 
   const [checking, setChecking] = useState(true);
   const [step, setStep] = useState<Step>("confirmLocation");
@@ -113,6 +117,9 @@ function AddDocumentContent() {
   const [detailKey, setDetailKey] = useState<string | null>(null);
   const [removeKey, setRemoveKey] = useState<string | null>(null);
   const [confirmRemoveNoExpiry, setConfirmRemoveNoExpiry] = useState(false);
+  const [confirmRemoveNoExpiryPageId, setConfirmRemoveNoExpiryPageId] = useState<
+    string | null
+  >(null);
   const [lastResult, setLastResult] = useState<ImportResult | null>(null);
   const [sessionTotals, setSessionTotals] = useState<SessionTotals>({
     scans: 0,
@@ -420,6 +427,7 @@ function AddDocumentContent() {
 
   function startRetakePage(pageId: string) {
     setError("");
+    restoreReviewPageIdRef.current = pageId;
     setReplacePageId(pageId);
     setStep("replacePage");
     setCameraSession((n) => n + 1);
@@ -427,16 +435,34 @@ function AddDocumentContent() {
 
   function startReattachPage(pageId: string) {
     setError("");
+    restoreReviewPageIdRef.current = pageId;
     setReattachPageId(pageId);
     reattachInputRef.current?.click();
   }
+
+  useLayoutEffect(() => {
+    if (step !== "review") return;
+    const pageId = restoreReviewPageIdRef.current;
+    if (!pageId) return;
+    const el = document.getElementById(`doc-review-page-${pageId}`);
+    if (!el) return;
+    el.scrollIntoView({ block: "start", inline: "nearest", behavior: "auto" });
+    const page = pages.find((entry) => entry.id === pageId);
+    // Drop the pin once that page is idle again so later edits don't yank scroll.
+    if (page?.status === "ready" && !pageActionBusy) {
+      restoreReviewPageIdRef.current = null;
+    }
+  }, [step, pages, pageActionBusy]);
 
   async function onReattachFileSelected(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     event.target.value = "";
     const pageId = reattachPageId;
     setReattachPageId(null);
-    if (!file || !pageId) return;
+    if (!file || !pageId) {
+      if (!file) restoreReviewPageIdRef.current = null;
+      return;
+    }
 
     if (!/^image\//i.test(file.type) && !/\.(heic|heif|jpe?g|png|webp|gif)$/i.test(file.name)) {
       setError(t("errors.invalidFileFormat"));
@@ -479,11 +505,20 @@ function AddDocumentContent() {
     setConfirmRemoveNoExpiry(false);
   }
 
+  function removePageItemsWithoutExpiry(pageId: string) {
+    setPages((current) => removeDocumentPageItemsWithoutExpiry(current, pageId));
+    setDetailKey(null);
+    setConfirmRemoveNoExpiryPageId(null);
+  }
+
   function clearReviewAndRestart() {
+    restoreReviewPageIdRef.current = null;
     setPages([]);
     setSearch("");
     setDetailKey(null);
     setReplacePageId(null);
+    setConfirmRemoveNoExpiry(false);
+    setConfirmRemoveNoExpiryPageId(null);
     setError("");
     setStep("camera");
     setCameraSession((n) => n + 1);
@@ -497,6 +532,24 @@ function AddDocumentContent() {
   const noExpiryCount = useMemo(
     () => items.filter((item) => draftMissingExpiry(item)).length,
     [items],
+  );
+
+  const confirmRemoveNoExpiryPage = useMemo(
+    () =>
+      confirmRemoveNoExpiryPageId
+        ? pages.find((page) => page.id === confirmRemoveNoExpiryPageId) ?? null
+        : null,
+    [confirmRemoveNoExpiryPageId, pages],
+  );
+
+  const pageNoExpiryCount = useMemo(
+    () =>
+      confirmRemoveNoExpiryPage
+        ? confirmRemoveNoExpiryPage.items.filter((item) =>
+            draftMissingExpiry(item),
+          ).length
+        : 0,
+    [confirmRemoveNoExpiryPage],
   );
 
   const canImport = !pageActionBusy && documentPagesCanImport(pages);
@@ -726,6 +779,9 @@ function AddDocumentContent() {
                       busy={pageActionBusy}
                       onRetake={() => startRetakePage(page.id)}
                       onReattach={() => startReattachPage(page.id)}
+                      onRemoveNoExpiry={() =>
+                        setConfirmRemoveNoExpiryPageId(page.id)
+                      }
                       onOpenItem={(key) => setDetailKey(key)}
                       onRemoveItem={(key) => setRemoveKey(key)}
                     />
@@ -906,6 +962,25 @@ function AddDocumentContent() {
           removeLabel={t("expiry.remove")}
           onCancel={() => setConfirmRemoveNoExpiry(false)}
           onConfirm={removeItemsWithoutExpiry}
+        />
+      ) : null}
+      {confirmRemoveNoExpiryPageId && confirmRemoveNoExpiryPage ? (
+        <RemoveConfirmDialog
+          title={t("addDocument.removeNoExpiryPageTitle")}
+          message={t("addDocument.removeNoExpiryPageMessage")}
+          itemLabel={
+            pageNoExpiryCount === 1
+              ? t("addDocument.removeNoExpiryItemLabelOne")
+              : t("addDocument.removeNoExpiryItemLabel", {
+                  count: pageNoExpiryCount,
+                })
+          }
+          cancelLabel={t("expiry.confirmCancel")}
+          removeLabel={t("expiry.remove")}
+          onCancel={() => setConfirmRemoveNoExpiryPageId(null)}
+          onConfirm={() =>
+            removePageItemsWithoutExpiry(confirmRemoveNoExpiryPageId)
+          }
         />
       ) : null}
     </>

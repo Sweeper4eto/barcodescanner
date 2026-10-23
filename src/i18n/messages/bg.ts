@@ -585,16 +585,21 @@ export const bg = {
     removeRow: "Премахни ред",
     removeNoExpiry: "Без дата",
     removeNoExpiryHint: "Премахни {count} реда без срок на годност",
+    removeNoExpiryPageHint:
+      "Премахни {count} реда без срок на годност само от тази снимка",
     removeNoExpiryConfirm:
       "Премахване на {count} реда без срок на годност? Редовете с дата остават.",
     removeNoExpiryMessage:
       "Премахване на {item} от списъка за преглед? Редовете с дата остават.",
+    removeNoExpiryPageMessage:
+      "Премахване на {item} само от тази снимка? Другите снимки остават. Редовете с дата остават.",
     removeNoExpiryItemLabelOne: "1 ред без дата",
     removeNoExpiryItemLabel: "{count} реда без дата",
     confirmTitle: "Премахване от прегледа?",
     confirmMessage:
       "Сигурни ли сте, че искате да премахнете {item} от списъка за преглед?",
     removeNoExpiryTitle: "Премахване на редове без дата?",
+    removeNoExpiryPageTitle: "Премахване на редове без дата от тази снимка?",
     removeConfirmMessage: "Премахване на този ред от списъка?",
     editItem: "Редакция",
     searchPlaceholder: "Търси",

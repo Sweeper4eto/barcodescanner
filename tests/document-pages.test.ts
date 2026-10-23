@@ -6,6 +6,7 @@ import {
   flattenDocumentPageItems,
   markDocumentPageProcessing,
   removeDocumentPageItem,
+  removeDocumentPageItemsWithoutExpiry,
   removeDocumentPagesItemsWithoutExpiry,
   replaceDocumentPageContent,
   setDocumentPageError,
@@ -175,6 +176,28 @@ describe("document multi-page review helpers", () => {
       ["a1", "a2", "b1", "c2"],
     );
     assert.equal(next[2].items.some((row) => row.key === "c1"), false);
+  });
+
+  it("removeDocumentPageItemsWithoutExpiry only clears one page", () => {
+    const pages = [
+      page("p1", [
+        item({ key: "a1", name: "Milk", expiryYmd: "" }),
+        item({ key: "a2", name: "Bread" }),
+      ]),
+      page("p2", [
+        item({ key: "b1", name: "Yogurt", expiryYmd: "" }),
+        item({ key: "b2", name: "Juice" }),
+      ]),
+    ];
+    const next = removeDocumentPageItemsWithoutExpiry(pages, "p1");
+    assert.deepEqual(
+      next[0].items.map((row) => row.key),
+      ["a2"],
+    );
+    assert.deepEqual(
+      next[1].items.map((row) => row.key),
+      ["b1", "b2"],
+    );
   });
 
   it("filterDocumentPagesBySearch hides pages with no matches", () => {

@@ -213,15 +213,20 @@ const SYSTEM_PROMPT = `Extract product lines from a photo of a Bulgarian store d
 Return ONLY compact JSON:
 {"items":[{"name":"...","barcode":null,"articul":"...","expiryPrinted":"DD.MM.YYYY","expiryDate":null,"quantity":1}]}
 
+PHOTO CONDITIONS (common — do NOT "help" by guessing):
+The page may be angled, off-center, dim, glare-lit, or folded/curled on an edge. That never authorizes fixing alignment by moving cells between rows.
+If a cell is hard to read because of angle/light/fold/cut-off → that field is null. NEVER borrow name, articul, quantity, or Godnost from the row above or below to "fill in".
+
 #1 FAILURE TO AVOID — COLUMN ZIP / ROW SHIFT (most common):
 Never read a whole column of names, then a whole column of dates, then zip them.
 For EACH product, look at ONE horizontal band of the table and copy ONLY the cells that belong to that band:
   name + articul + quantity + Godnost (+ barcode if present) → one JSON object → next product.
-If Godnost on a band is blank/unreadable → expiryPrinted null for THAT item only. Do not borrow the date from the band above or below.
+ABSOLUTE RULE — NEVER BORROW: if Godnost (or qty/articul) on a band is blank/unreadable → leave that field null for THAT item only. Do not take the date/qty/SKU from the band above or below — not even when neighbors look empty, similar, or "obvious".
 A lone "1" in/near the Godnost column is NOT a date — use expiryPrinted null (never "1").
 Whole-column shift symptoms (never do this):
 - every item gets the NEXT row's date and the last item has null (dates too high), or
 - a product's real DD.MM.YYYY is written on the row BELOW it and that product has null (dates too low).
+Example of forbidden borrow: date printed on Lavazza's band must NOT appear on the product above (e.g. Био Нектар) with Lavazza left null.
 
 ROW SEPARATOR LINES (optional — only when printed):
 - Some tables draw a horizontal ruling line between product rows; many pages have none. Do not invent lines.
@@ -245,8 +250,8 @@ DATES:
 - Godnost is usually DD.MM.YYYY (day first). Copy expiryPrinted exactly as printed (lot text after the date is OK).
 - Month+year only is also valid (MM.YYYY, MM.YY, MM/YY — e.g. 12.2026 or 12.26). Copy as printed; do not invent a day (server uses end of that month).
 - expiryDate must always be null (server converts).
-- Never invent a date. Never swap day/month.
-- Same Godnost on two neighboring products is allowed when both cells really show that date.
+- Never invent a date. Never swap day/month. Never borrow a date across rows.
+- Same Godnost on two neighboring products is allowed ONLY when both cells really show that date on the photo.
 
 OTHER:
 - Extract every real product on the page. Keep Cyrillic names.

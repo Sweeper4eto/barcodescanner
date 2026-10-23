@@ -8,6 +8,7 @@ import {
   type DocumentDraftItem,
   type DocumentPageDraft,
   draftMatchesSearch,
+  draftMissingExpiry,
 } from "@/lib/document-draft";
 import { appButtonNeutral, appButtonPrimary } from "@/lib/app-ui";
 
@@ -18,6 +19,7 @@ type Props = {
   busy: boolean;
   onRetake: () => void;
   onReattach: () => void;
+  onRemoveNoExpiry: () => void;
   onOpenItem: (key: string) => void;
   onRemoveItem: (key: string) => void;
 };
@@ -29,19 +31,24 @@ export function DocumentPageSection({
   busy,
   onRetake,
   onReattach,
+  onRemoveNoExpiry,
   onOpenItem,
   onRemoveItem,
 }: Props) {
   const { t } = useT();
   const filtered = page.items.filter((item) => draftMatchesSearch(item, search));
   const processing = page.status === "processing";
+  const noExpiryCount = page.items.filter((item) => draftMissingExpiry(item)).length;
   const title = t("addDocument.pageSectionTitle", {
     n: pageIndex + 1,
     count: page.items.length,
   });
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-card-border">
+    <section
+      id={`doc-review-page-${page.id}`}
+      className="overflow-hidden rounded-2xl border border-card-border scroll-mt-2"
+    >
       <div className="flex items-center gap-2 border-b border-card-border px-2 py-2">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
@@ -75,6 +82,21 @@ export function DocumentPageSection({
         >
           <RefreshIcon className="size-3.5 shrink-0" />
           {t("addDocument.reattachPage")}
+        </button>
+        <button
+          type="button"
+          disabled={busy || processing || noExpiryCount === 0}
+          onClick={onRemoveNoExpiry}
+          title={t("addDocument.removeNoExpiryPageHint", { count: noExpiryCount })}
+          aria-label={t("addDocument.removeNoExpiryPageHint", {
+            count: noExpiryCount,
+          })}
+          className="flex h-auto shrink-0 items-center justify-center gap-0.5 self-stretch rounded-xl border border-primary/50 bg-transparent px-2 text-[10px] font-semibold leading-none text-primary disabled:opacity-40"
+        >
+          {t("addDocument.removeNoExpiry")}
+          {noExpiryCount > 0 ? (
+            <span className="tabular-nums">({noExpiryCount})</span>
+          ) : null}
         </button>
       </div>
 
