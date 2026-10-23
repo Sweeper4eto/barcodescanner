@@ -140,6 +140,12 @@ export async function POST(request: Request) {
       storeId: parsed.data.storeId,
     });
 
+    // Log as soon as the photo arrives — if this is missing while the phone
+    // spins, the delay is still on-device (prep/upload), not Gemini.
+    console.log(
+      `document parse: request received store=${parsed.data.storeId} user=${session.username}`,
+    );
+
     try {
       const extractStart = Date.now();
       let rows;

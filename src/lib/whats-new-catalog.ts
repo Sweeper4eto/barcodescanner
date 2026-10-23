@@ -757,11 +757,11 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
     href: "/app/add-document",
   },
   {
-    key: "2026-10-document-fast-photo-prep",
+    key: "2026-10-document-retake-no-hint",
     titleEn:
-      "Document scan: photos prepare much faster before reading (less waiting on Retake).",
+      "Document Retake: removed the hint above the camera so the capture buttons sit higher.",
     titleBg:
-      "Скан на документ: снимките се подготвят много по-бързо преди четене (по-малко чакане при Повтори).",
+      "Повторно снимане на документ: махнат е текстът над камерата, за да са по-високо бутоните.",
     href: "/app/add-document",
   },
 ];

@@ -778,7 +778,6 @@ function AddDocumentContent() {
 
       {step === "replacePage" && replacePageId ? (
         <div className="space-y-3">
-          <p className="text-sm text-muted">{t("addDocument.replacePageHint")}</p>
           {error ? <p className="text-sm text-error">{error}</p> : null}
           <CameraCapture
             variant="document"
