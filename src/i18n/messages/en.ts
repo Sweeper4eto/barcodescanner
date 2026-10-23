@@ -229,6 +229,8 @@ export const en = {
       "The photo is too dark. Retake with more light on the document.",
     documentPhotoTooSmall:
       "The photo resolution is too low. Retake or upload a clearer picture.",
+    documentPhotoUnclear:
+      "We could not verify this document scan. Please retake a clearer, sharper photo of the full page and try again.",
   },
   app: {
     greeting: "Hello,\n{username}",

@@ -42,6 +42,9 @@ function publicOcrError(request: Request, message: string): string {
   if (message === "OCR_CASCADE_EXHAUSTED") {
     return apiT(request, "errors.documentAiTryAgainLater");
   }
+  if (message === "OCR_CONFIRM_UNCLEAR") {
+    return apiT(request, "errors.documentPhotoUnclear");
+  }
   if (
     lower.includes("free_tier") ||
     lower.includes("generate_content_free_tier")

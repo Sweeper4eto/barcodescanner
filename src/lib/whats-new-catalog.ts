@@ -700,6 +700,14 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Скан на документ: при няколко снимки артикулите са по секции — Повтори или Прикачи само една страница, без да губите останалите.",
     href: "/app/add-document",
   },
+  {
+    key: "2026-10-document-ocr-edge-confirm",
+    titleEn:
+      "Document scan: we quickly re-check the first and last rows against the photo (up to two tries) and ask for a clearer picture if they still disagree.",
+    titleBg:
+      "Скан на документ: бързо сверяваме първите и последните редове със снимката (до два опита) и искаме по-ясна снимка, ако пак не съвпадат.",
+    href: "/app/add-document",
+  },
 ];
 
 
