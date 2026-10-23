@@ -83,6 +83,17 @@ describe("document multi-page review helpers", () => {
     );
   });
 
+  it("markDocumentPageProcessing can swap the thumbnail while OCR runs", () => {
+    const next = markDocumentPageProcessing(samplePages(), "p2", {
+      imageDataUrl: "data:image/jpeg;base64,RETAKE",
+      label: "retake.jpg",
+    });
+    assert.equal(next[1].status, "processing");
+    assert.equal(next[1].imageDataUrl, "data:image/jpeg;base64,RETAKE");
+    assert.equal(next[1].label, "retake.jpg");
+    assert.equal(next[0].imageDataUrl, samplePages()[0].imageDataUrl);
+  });
+
   it("setDocumentPageError keeps old items after failed OCR", () => {
     const processing = markDocumentPageProcessing(samplePages(), "p2");
     const failed = setDocumentPageError(processing, "p2", "Could not read");

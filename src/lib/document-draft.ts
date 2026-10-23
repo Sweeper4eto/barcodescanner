@@ -33,12 +33,19 @@ export function flattenDocumentPageItems(
 export function markDocumentPageProcessing(
   pages: DocumentPageDraft[],
   pageId: string,
+  patch?: { imageDataUrl?: string; label?: string },
 ): DocumentPageDraft[] {
-  return pages.map((page) =>
-    page.id === pageId
-      ? { ...page, status: "processing", error: null }
-      : page,
-  );
+  return pages.map((page) => {
+    if (page.id !== pageId) return page;
+    const nextLabel = patch?.label?.trim();
+    return {
+      ...page,
+      status: "processing" as const,
+      error: null,
+      ...(patch?.imageDataUrl ? { imageDataUrl: patch.imageDataUrl } : {}),
+      ...(nextLabel ? { label: nextLabel } : {}),
+    };
+  });
 }
 
 /** Restore ready + error after a failed retake/reattach (old items kept). */

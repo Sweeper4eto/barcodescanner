@@ -502,6 +502,8 @@ export function CameraCapture({
   const [active, setActive] = useState(false);
   const [starting, setStarting] = useState(false);
   const [capturing, setCapturing] = useState(false);
+  /** Next/Continue handed off to parent — keep UI busy until this screen unmounts. */
+  const [submitting, setSubmitting] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [useNativeCapture, setUseNativeCapture] = useState(false);
@@ -511,7 +513,9 @@ export function CameraCapture({
   const documentLayout = variant === "document";
   const showCorners = showViewfinder || documentLayout;
 
-  useScreenWakeLock(active || starting || capturing || Boolean(preview));
+  useScreenWakeLock(
+    active || starting || capturing || submitting || Boolean(preview),
+  );
 
   useEffect(() => {
     // Document flow keeps a live in-app preview so "new scan" / Retake reuse the
@@ -653,8 +657,9 @@ export function CameraCapture({
   }
 
   async function uploadAndContinue() {
-    if (!preview) return;
+    if (!preview || submitting) return;
     // Leaving the camera step — release the stream now.
+    setSubmitting(true);
     stopCamera();
     onCapture(preview);
   }
@@ -825,14 +830,18 @@ export function CameraCapture({
       <button
         type="button"
         onClick={handleNewDocument}
+        disabled={submitting}
         className={appButtonCancelFull}
         aria-label={t("common.back")}
       >
         <BackArrowIcon className="size-4 shrink-0" />
         {t("common.back")}
       </button>
-      <ForwardButton onClick={() => void uploadAndContinue()}>
-        {t("common.next")}
+      <ForwardButton
+        busy={submitting}
+        onClick={() => void uploadAndContinue()}
+      >
+        {submitting ? t("addDocument.processing") : t("common.next")}
       </ForwardButton>
     </div>
   ) : null;
@@ -998,16 +1007,23 @@ export function CameraCapture({
           />
           <div className="flex flex-col gap-2">
             {productSaveFlow ? (
-              <ConfirmButton onClick={() => void uploadAndContinue()}>
+              <ConfirmButton
+                busy={submitting}
+                onClick={() => void uploadAndContinue()}
+              >
                 {t("camera.savePhoto")}
               </ConfirmButton>
             ) : (
-              <ForwardButton onClick={() => void uploadAndContinue()}>
+              <ForwardButton
+                busy={submitting}
+                onClick={() => void uploadAndContinue()}
+              >
                 {t("common.next")}
               </ForwardButton>
             )}
             <SecondaryButton
               onClick={retakePhoto}
+              disabled={submitting}
               icon={<CameraIcon className="size-4 shrink-0" />}
             >
               {productSaveFlow ? t("camera.retakePhoto") : t("camera.newPhoto")}

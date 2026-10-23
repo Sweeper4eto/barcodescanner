@@ -144,61 +144,6 @@ function contentBounds(
   };
 }
 
-function rowProjectionScore(
-  data: Uint8ClampedArray,
-  width: number,
-  height: number,
-): number {
-  const rowInk = new Float64Array(height);
-  for (let y = 0; y < height; y += 1) {
-    let ink = 0;
-    for (let x = 0; x < width; x += 1) {
-      if (toGray(data, (y * width + x) * 4) < 200) ink += 1;
-    }
-    rowInk[y] = ink;
-  }
-  let mean = 0;
-  for (let y = 0; y < height; y += 1) mean += rowInk[y];
-  mean /= height;
-  let variance = 0;
-  for (let y = 0; y < height; y += 1) {
-    const d = rowInk[y] - mean;
-    variance += d * d;
-  }
-  return variance / height;
-}
-
-function estimateSkewDegrees(source: HTMLCanvasElement): number {
-  const probe = document.createElement("canvas");
-  const maxEdge = 480;
-  const scale = Math.min(1, maxEdge / Math.max(source.width, source.height));
-  probe.width = Math.max(1, Math.round(source.width * scale));
-  probe.height = Math.max(1, Math.round(source.height * scale));
-  const pctx = probe.getContext("2d", { willReadFrequently: true });
-  if (!pctx) return 0;
-  pctx.drawImage(source, 0, 0, probe.width, probe.height);
-
-  let bestAngle = 0;
-  let bestScore = -1;
-  for (let angle = -3; angle <= 3; angle += 0.5) {
-    const rotated = document.createElement("canvas");
-    rotated.width = probe.width;
-    rotated.height = probe.height;
-    const rctx = rotated.getContext("2d", { willReadFrequently: true });
-    if (!rctx) continue;
-    rctx.translate(probe.width / 2, probe.height / 2);
-    rctx.rotate((angle * Math.PI) / 180);
-    rctx.drawImage(probe, -probe.width / 2, -probe.height / 2);
-    const sample = rctx.getImageData(0, 0, probe.width, probe.height);
-    const score = rowProjectionScore(sample.data, probe.width, probe.height);
-    if (score > bestScore) {
-      bestScore = score;
-      bestAngle = angle;
-    }
-  }
-  return Math.abs(bestAngle) < 0.25 ? 0 : bestAngle;
-}
-
 function sharpenInPlace(
   data: Uint8ClampedArray,
   width: number,
@@ -243,7 +188,8 @@ function applyDocumentEnhance(ctx: CanvasRenderingContext2D): void {
   ctx.putImageData(imageData, 0, 0);
 }
 
-function cropAndDeskew(
+/** Scale + optional content crop. No skew rotate (that froze Retake on-device). */
+function cropDocumentContent(
   bitmap: ImageBitmap,
   targetWidth: number,
   targetHeight: number,
@@ -260,7 +206,6 @@ function cropAndDeskew(
   const sample = bctx.getImageData(0, 0, targetWidth, targetHeight);
   const bounds = contentBounds(sample.data, targetWidth, targetHeight);
 
-  let working = base;
   if (bounds) {
     const bw = bounds.x1 - bounds.x0 + 1;
     const bh = bounds.y1 - bounds.y0 + 1;
@@ -271,24 +216,11 @@ function cropAndDeskew(
       const cctx = cropped.getContext("2d", { willReadFrequently: true });
       if (!cctx) throw new Error("Could not prepare photo");
       cctx.drawImage(base, bounds.x0, bounds.y0, bw, bh, 0, 0, bw, bh);
-      working = cropped;
+      return cropped;
     }
   }
 
-  const angle = estimateSkewDegrees(working);
-  if (angle === 0) return working;
-
-  const rotated = document.createElement("canvas");
-  rotated.width = working.width;
-  rotated.height = working.height;
-  const rctx = rotated.getContext("2d");
-  if (!rctx) return working;
-  rctx.fillStyle = "#ffffff";
-  rctx.fillRect(0, 0, rotated.width, rotated.height);
-  rctx.translate(rotated.width / 2, rotated.height / 2);
-  rctx.rotate((angle * Math.PI) / 180);
-  rctx.drawImage(working, -working.width / 2, -working.height / 2);
-  return rotated;
+  return base;
 }
 
 export async function prepareDocumentImage(dataUrl: string): Promise<string> {
@@ -316,7 +248,7 @@ export async function prepareDocumentImage(dataUrl: string): Promise<string> {
       );
       const width = Math.max(1, Math.round(bitmap.width * scale));
       const height = Math.max(1, Math.round(bitmap.height * scale));
-      const enhanced = cropAndDeskew(bitmap, width, height);
+      const enhanced = cropDocumentContent(bitmap, width, height);
       const ctx = enhanced.getContext("2d");
       if (!ctx) throw new Error("Could not prepare photo");
       applyDocumentEnhance(ctx);

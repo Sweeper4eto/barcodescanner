@@ -88,6 +88,8 @@ function AddDocumentContent() {
   const reattachInputRef = useRef<HTMLInputElement>(null);
   /** After retake/reattach, keep the review list on that page section. */
   const restoreReviewPageIdRef = useRef<string | null>(null);
+  /** Ignore stale retake/reattach completions when a newer attempt started. */
+  const replaceAttemptRef = useRef(0);
 
   const [checking, setChecking] = useState(true);
   const [step, setStep] = useState<Step>("confirmLocation");
@@ -217,20 +219,36 @@ function AddDocumentContent() {
     | { ok: false; error: string; retryable?: boolean };
 
   async function parseDocument(dataUrl: string, attempt = 0): Promise<Response> {
-    return fetch("/api/documents/parse", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ storeId, dataUrl }),
-    }).then(async (response) => {
+    // Client-side ceiling so a finished server OCR cannot leave the phone spinning
+    // forever when the response never arrives (flaky mobile network / half-open socket).
+    const timeoutMs = 120_000;
+    let response: Response;
+    try {
+      response = await fetch("/api/documents/parse", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ storeId, dataUrl }),
+        signal: AbortSignal.timeout(timeoutMs),
+      });
+    } catch (error) {
       if (
-        attempt < 1 &&
-        (response.status === 502 || response.status === 503 || response.status === 504)
+        error instanceof DOMException &&
+        (error.name === "TimeoutError" || error.name === "AbortError")
       ) {
-        await new Promise((resolve) => setTimeout(resolve, 3000));
-        return parseDocument(dataUrl, attempt + 1);
+        throw new Error(t("errors.documentTimeout"));
       }
-      return response;
-    });
+      throw error;
+    }
+    if (
+      attempt < 1 &&
+      (response.status === 502 ||
+        response.status === 503 ||
+        response.status === 504)
+    ) {
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+      return parseDocument(dataUrl, attempt + 1);
+    }
+    return response;
   }
 
   function toDraftItems(parsed: ParsedItem[]): DocumentDraftItem[] {
@@ -268,6 +286,14 @@ function AddDocumentContent() {
    */
   async function processDocumentImage(dataUrl: string): Promise<ProcessResult> {
     try {
+      // Let React paint the processing / review spinner before heavy canvas work
+      // freezes the main thread (otherwise Retake feels stuck on the still preview).
+      await new Promise<void>((resolve) => {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => resolve());
+        });
+      });
+
       // Local design/testing uses OCR mocks — don't block on photo quality.
       if (process.env.NODE_ENV === "production") {
         const quality = await assessDocumentPhotoQuality(dataUrl);
@@ -409,29 +435,74 @@ function AddDocumentContent() {
     dataUrl: string,
     label?: string,
   ) {
+    const attempt = ++replaceAttemptRef.current;
     setError("");
     setPageActionBusy(true);
-    setPages((current) => markDocumentPageProcessing(current, pageId));
+    // Swap thumbnail immediately so Retake doesn't look frozen on the old photo.
+    setPages((current) =>
+      markDocumentPageProcessing(current, pageId, {
+        imageDataUrl: dataUrl,
+        label,
+      }),
+    );
     setStep("review");
     setReplacePageId(null);
 
-    const result = await processDocumentImageWithRetry(dataUrl);
-    setPageActionBusy(false);
+    try {
+      const result = await processDocumentImageWithRetry(dataUrl);
+      if (attempt !== replaceAttemptRef.current) return;
 
-    if (!result.ok) {
-      setPages((current) => setDocumentPageError(current, pageId, result.error));
-      setError(result.error);
-      return;
+      if (!result.ok) {
+        setPages((current) =>
+          setDocumentPageError(current, pageId, result.error),
+        );
+        setError(result.error);
+        return;
+      }
+
+      let draftItems: DocumentDraftItem[];
+      try {
+        draftItems = toDraftItems(result.items);
+      } catch {
+        const message = t("errors.documentParseFailed");
+        setPages((current) => setDocumentPageError(current, pageId, message));
+        setError(message);
+        return;
+      }
+
+      setPages((current) =>
+        replaceDocumentPageContent(current, pageId, {
+          imageDataUrl: dataUrl,
+          label,
+          items: draftItems,
+        }),
+      );
+      setDetailKey(null);
+    } catch (error) {
+      if (attempt !== replaceAttemptRef.current) return;
+      const message =
+        error instanceof Error && error.message
+          ? error.message
+          : t("errors.documentParseFailed");
+      setPages((current) => setDocumentPageError(current, pageId, message));
+      setError(message);
+    } finally {
+      if (attempt !== replaceAttemptRef.current) return;
+      setPageActionBusy(false);
+      // Safety net: never leave the page spinning after this attempt ends
+      // (hung fetch after server OCR, or a throw between result and setPages).
+      setPages((current) =>
+        current.map((page) =>
+          page.id === pageId && page.status === "processing"
+            ? {
+                ...page,
+                status: "ready" as const,
+                error: page.error ?? t("errors.documentTimeout"),
+              }
+            : page,
+        ),
+      );
     }
-
-    setPages((current) =>
-      replaceDocumentPageContent(current, pageId, {
-        imageDataUrl: dataUrl,
-        label,
-        items: toDraftItems(result.items),
-      }),
-    );
-    if (detailKey) setDetailKey(null);
   }
 
   function startRetakePage(pageId: string) {

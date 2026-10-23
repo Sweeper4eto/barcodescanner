@@ -17,6 +17,11 @@ const FINE_RADIUS = 0.5;
 const FINE_STEP = 0.25;
 /** Below this, treat as flat (do not rewrite the JPEG). */
 const APPLY_MIN_ABS_DEGREES = 0.4;
+/**
+ * Best angle must beat the flat (0°) score by this ratio, otherwise leave as-is.
+ * Without this, noisy pages often “won” at the ±8° search edge.
+ */
+const APPLY_MIN_SCORE_RATIO = 1.08;
 const OUTPUT_JPEG_QUALITY = 90;
 
 export type DocumentDeskewResult = {
@@ -26,10 +31,10 @@ export type DocumentDeskewResult = {
   applied: boolean;
 };
 
+/** Opt-in: prod saw false ±8° “max tilt” hits when this defaulted on. */
 function documentAiDeskewEnabled(): boolean {
   const raw = process.env.DOCUMENT_AI_DESKEW?.trim().toLowerCase();
-  if (raw === "0" || raw === "false" || raw === "off") return false;
-  return true;
+  return raw === "1" || raw === "true" || raw === "on";
 }
 
 export function parseDocumentDataUrl(dataUrl: string): {
@@ -116,10 +121,12 @@ export async function estimateDocumentSkewDegrees(
     .toBuffer({ resolveWithObject: true });
 
   const { width, height } = info;
+  const flatScore = await scoreRotation(data, width, height, 0);
   let bestAngle = 0;
-  let bestScore = -1;
+  let bestScore = flatScore;
 
   for (let angle = COARSE_MIN; angle <= COARSE_MAX + 1e-9; angle += COARSE_STEP) {
+    if (Math.abs(angle) < 1e-9) continue;
     const score = await scoreRotation(data, width, height, angle);
     if (score > bestScore) {
       bestScore = score;
@@ -140,6 +147,7 @@ export async function estimateDocumentSkewDegrees(
   }
 
   if (Math.abs(bestAngle) < APPLY_MIN_ABS_DEGREES) return 0;
+  if (bestScore < flatScore * APPLY_MIN_SCORE_RATIO) return 0;
   // Snap near-zero fine results.
   return Math.round(bestAngle * 100) / 100;
 }
@@ -179,18 +187,23 @@ export async function deskewDocumentDataUrl(
 export async function maybeDeskewDocumentDataUrl(
   dataUrl: string,
 ): Promise<string> {
+  const started = Date.now();
   try {
     const result = await deskewDocumentDataUrl(dataUrl);
+    const ms = Date.now() - started;
     if (result.applied) {
       console.log(
-        `document AI deskew: rotated ${result.angleDegrees.toFixed(2)}°`,
+        `document AI deskew: rotated ${result.angleDegrees.toFixed(2)}° in ${ms}ms`,
       );
       return result.dataUrl;
+    }
+    if (ms >= 50) {
+      console.log(`document AI deskew: skipped (flat/disabled) in ${ms}ms`);
     }
     return dataUrl;
   } catch (error) {
     console.warn(
-      "document AI deskew: skipped",
+      `document AI deskew: skipped after ${Date.now() - started}ms`,
       error instanceof Error ? error.message : error,
     );
     return dataUrl;

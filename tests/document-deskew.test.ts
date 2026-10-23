@@ -85,17 +85,29 @@ describe("document deskew", () => {
     assert.equal(result.dataUrl, dataUrl);
   });
 
-  it("deskewDocumentDataUrl rewrites tilted photos", async () => {
+  it("deskewDocumentDataUrl is opt-in via DOCUMENT_AI_DESKEW", async () => {
     const flat = await makeLinedPage();
     const tilted = await sharp(flat)
       .rotate(6, { background: "#ffffff" })
       .jpeg({ quality: 95 })
       .toBuffer();
     const dataUrl = `data:image/jpeg;base64,${tilted.toString("base64")}`;
-    const result = await deskewDocumentDataUrl(dataUrl);
-    assert.equal(result.applied, true);
-    assert.notEqual(result.dataUrl, dataUrl);
-    assert.ok(result.dataUrl.startsWith("data:image/jpeg;base64,"));
-    assert.notEqual(result.angleDegrees, 0);
+
+    const prev = process.env.DOCUMENT_AI_DESKEW;
+    try {
+      delete process.env.DOCUMENT_AI_DESKEW;
+      const off = await deskewDocumentDataUrl(dataUrl);
+      assert.equal(off.applied, false);
+
+      process.env.DOCUMENT_AI_DESKEW = "1";
+      const on = await deskewDocumentDataUrl(dataUrl);
+      assert.equal(on.applied, true);
+      assert.notEqual(on.dataUrl, dataUrl);
+      assert.ok(on.dataUrl.startsWith("data:image/jpeg;base64,"));
+      assert.notEqual(on.angleDegrees, 0);
+    } finally {
+      if (prev === undefined) delete process.env.DOCUMENT_AI_DESKEW;
+      else process.env.DOCUMENT_AI_DESKEW = prev;
+    }
   });
 });

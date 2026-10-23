@@ -740,6 +740,14 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Преглед на документ: Скан и Годност питат преди изход, за да не загубите незавършен преглед по погрешка.",
     href: "/app/add-document",
   },
+  {
+    key: "2026-10-document-retake-busy-feedback",
+    titleEn:
+      "Document retake: Continue shows reading progress right away, and the spinner always clears when reading finishes.",
+    titleBg:
+      "Повторно снимане на документ: Напред веднага показва четене, и спинерът винаги изчезва когато четенето приключи.",
+    href: "/app/add-document",
+  },
 ];
 
 
