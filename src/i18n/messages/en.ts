@@ -556,6 +556,11 @@ export const en = {
     reviewHint: "Check and confirm the OCR results below.",
     reviewHintMulti:
       "{pages} photos — each section can be retaken or reattached without losing the others.",
+    leaveReviewTitle: "Leave review?",
+    leaveReviewMessage:
+      "You will lose this document review and any edits you have not imported yet.",
+    leaveReviewStay: "Stay",
+    leaveReviewLeave: "Leave",
     retakePage: "Retake",
     reattachPage: "Reattach",
     replacePageTitle: "Replace photo {n}",

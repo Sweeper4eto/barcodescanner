@@ -732,6 +732,14 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Скан на документ: наклонени снимки се изправят на сървъра преди четене (правите снимки не се пипат).",
     href: "/app/add-document",
   },
+  {
+    key: "2026-10-document-leave-review-confirm",
+    titleEn:
+      "Document review: Scan and Expiry ask before leaving so you do not lose an unfinished review by accident.",
+    titleBg:
+      "Преглед на документ: Скан и Годност питат преди изход, за да не загубите незавършен преглед по погрешка.",
+    href: "/app/add-document",
+  },
 ];
 
 

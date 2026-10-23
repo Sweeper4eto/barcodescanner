@@ -12,6 +12,7 @@ import {
 } from "@/components/app-nav-icons";
 import { useT } from "@/components/i18n-provider";
 import { useAppSession } from "@/components/app-session-provider";
+import { useNavigationLeaveRequest } from "@/components/navigation-leave-guard";
 import { useAppStoreId } from "@/components/store-selection-provider";
 
 type Tab = {
@@ -28,6 +29,7 @@ export function AppBottomNav() {
   const { t } = useT();
   const { homeUser } = useAppSession();
   const { storeId, ready: storeReady } = useAppStoreId();
+  const { blocked, requestNavigate } = useNavigationLeaveRequest();
   const [cartCount, setCartCount] = useState(0);
 
   useEffect(() => {
@@ -146,6 +148,11 @@ export function AppBottomNav() {
               className={className}
               aria-current={active ? "page" : undefined}
               prefetch
+              onClick={(event) => {
+                if (active || !blocked) return;
+                if (requestNavigate(tab.href)) return;
+                event.preventDefault();
+              }}
             >
               {content}
             </Link>

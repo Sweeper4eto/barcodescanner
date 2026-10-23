@@ -25,6 +25,7 @@ import { DocumentProcessingPanel } from "@/components/document-processing-panel"
 import { LoadingSpinnerBlock } from "@/components/loading-spinner";
 import { LocationConfirmDialog } from "@/components/location-confirm-dialog";
 import { MobilePageHeader, listPageChromeClassName } from "@/components/mobile-page-header";
+import { useNavigationLeaveGuard } from "@/components/navigation-leave-guard";
 import { RemoveConfirmDialog } from "@/components/remove-confirm-dialog";
 import { SearchField } from "@/components/search-field";
 import { useT } from "@/components/i18n-provider";
@@ -101,6 +102,14 @@ function AddDocumentContent() {
       step === "review" ||
       step === "replacePage",
   );
+
+  // Bottom nav Scan / Expiry would wipe unsaved OCR review — confirm first.
+  useNavigationLeaveGuard(step === "review" || step === "replacePage", {
+    title: t("addDocument.leaveReviewTitle"),
+    message: t("addDocument.leaveReviewMessage"),
+    stayLabel: t("addDocument.leaveReviewStay"),
+    leaveLabel: t("addDocument.leaveReviewLeave"),
+  });
 
   const locationName = useMemo(() => {
     const match = user?.stores.find((store) => store.id === storeId);

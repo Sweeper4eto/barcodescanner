@@ -559,6 +559,11 @@ export const bg = {
     reviewHint: "Проверете и потвърдете резултатите от OCR по-долу.",
     reviewHintMulti:
       "{pages} снимки — всяка секция може да се заснеме или прикачи наново, без да губите останалите.",
+    leaveReviewTitle: "Изход от прегледа?",
+    leaveReviewMessage:
+      "Ще загубите този преглед на документа и всички промени, които още не сте добавили.",
+    leaveReviewStay: "Остани",
+    leaveReviewLeave: "Изход",
     retakePage: "Повтори",
     reattachPage: "Прикачи",
     replacePageTitle: "Замени снимка {n}",
