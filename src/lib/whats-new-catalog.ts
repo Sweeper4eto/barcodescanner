@@ -708,6 +708,14 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Скан на документ: бързо сверяваме първите и последните редове със снимката (до два опита) и искаме по-ясна снимка, ако пак не съвпадат.",
     href: "/app/add-document",
   },
+  {
+    key: "2026-10-document-ocr-edge-confirm-removed",
+    titleEn:
+      "Document scan: removed the extra first/last-row photo check that often blocked scans with “clearer photo” errors.",
+    titleBg:
+      "Скан на документ: махнахме допълнителната проверка на първи/последни редове, която често блокираше с грешка „по-ясна снимка“.",
+    href: "/app/add-document",
+  },
 ];
 
 

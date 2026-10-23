@@ -33,14 +33,6 @@ export type DocumentOcrRow = {
   quantity: number;
 };
 
-/** Compact sample used for the fast top/bottom confirmation pass. */
-export type DocumentOcrConfirmSample = {
-  name: string;
-  articul: string | null;
-  quantity: number;
-  expiryYmd: string | null;
-};
-
 function stripDataUrl(dataUrl: string): { mime: string; base64: string } {
   const match = /^data:([^;]+);base64,([\s\S]+)$/.exec(dataUrl.trim());
   if (!match) {
@@ -216,126 +208,6 @@ function toRows(payload: unknown): DocumentOcrRow[] {
   return sanitized;
 }
 
-export function toConfirmSample(row: DocumentOcrRow): DocumentOcrConfirmSample {
-  return {
-    name: row.name,
-    articul: row.articul,
-    quantity: row.quantity,
-    expiryYmd: row.expiryYmd,
-  };
-}
-
-/** First ≤3 and last ≤3 rows (no overlap when the page is short). */
-export function pickConfirmSampleRows(rows: DocumentOcrRow[]): {
-  top: DocumentOcrConfirmSample[];
-  bottom: DocumentOcrConfirmSample[];
-} {
-  if (rows.length === 0) return { top: [], bottom: [] };
-  if (rows.length <= 3) {
-    return { top: rows.map(toConfirmSample), bottom: [] };
-  }
-  if (rows.length <= 6) {
-    return {
-      top: rows.slice(0, 3).map(toConfirmSample),
-      bottom: rows.slice(3).map(toConfirmSample),
-    };
-  }
-  return {
-    top: rows.slice(0, 3).map(toConfirmSample),
-    bottom: rows.slice(-3).map(toConfirmSample),
-  };
-}
-
-export function normalizeConfirmName(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}]+/gu, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-export function confirmSampleRowMatches(
-  claimed: DocumentOcrConfirmSample,
-  seen: DocumentOcrConfirmSample,
-): boolean {
-  if (claimed.quantity !== seen.quantity) return false;
-  if ((claimed.expiryYmd ?? null) !== (seen.expiryYmd ?? null)) return false;
-  const a = normalizeConfirmName(claimed.name);
-  const b = normalizeConfirmName(seen.name);
-  if (!a || !b) return a === b;
-  return a === b || a.includes(b) || b.includes(a);
-}
-
-export function confirmSamplesMatch(
-  claimed: { top: DocumentOcrConfirmSample[]; bottom: DocumentOcrConfirmSample[] },
-  seen: { top: DocumentOcrConfirmSample[]; bottom: DocumentOcrConfirmSample[] },
-): boolean {
-  if (claimed.top.length !== seen.top.length) return false;
-  if (claimed.bottom.length !== seen.bottom.length) return false;
-  for (let i = 0; i < claimed.top.length; i += 1) {
-    if (!confirmSampleRowMatches(claimed.top[i], seen.top[i])) return false;
-  }
-  for (let i = 0; i < claimed.bottom.length; i += 1) {
-    if (!confirmSampleRowMatches(claimed.bottom[i], seen.bottom[i])) return false;
-  }
-  return true;
-}
-
-function parseConfirmSamples(payload: unknown): {
-  top: DocumentOcrConfirmSample[];
-  bottom: DocumentOcrConfirmSample[];
-} {
-  const parsed = z
-    .object({
-      top: z.array(rowSchema).default([]),
-      bottom: z.array(rowSchema).default([]),
-    })
-    .safeParse(payload);
-  if (!parsed.success) {
-    throw new Error("OCR_CONFIRM_PARSE_FAILED");
-  }
-  const mapSide = (items: z.infer<typeof rowSchema>[]): DocumentOcrConfirmSample[] =>
-    items
-      .map((item) => ({
-        name: item.name?.trim() ?? "",
-        articul: item.articul?.trim() || null,
-        quantity: normalizeQuantity(item.quantity),
-        expiryYmd: resolveDocumentExpiry(item.expiryDate, item.expiryPrinted),
-      }))
-      .filter((row) => row.name || row.articul || row.expiryYmd);
-  return {
-    top: mapSide(parsed.data.top),
-    bottom: mapSide(parsed.data.bottom),
-  };
-}
-
-function documentAiConfirmEnabled(): boolean {
-  const raw = process.env.DOCUMENT_AI_CONFIRM?.trim().toLowerCase();
-  if (raw === "0" || raw === "false" || raw === "off") return false;
-  return true;
-}
-
-function documentAiConfirmTimeoutMs(): number {
-  const raw = process.env.DOCUMENT_AI_CONFIRM_TIMEOUT_MS?.trim();
-  const parsed = raw ? Number(raw) : DEFAULT_CONFIRM_TIMEOUT_MS;
-  if (!Number.isFinite(parsed)) return DEFAULT_CONFIRM_TIMEOUT_MS;
-  return Math.min(60_000, Math.max(5_000, Math.floor(parsed)));
-}
-
-function confirmModelsToTry(): string[] {
-  const preferred =
-    process.env.DOCUMENT_AI_CONFIRM_MODEL?.trim() || DEFAULT_CONFIRM_MODEL;
-  const out: string[] = [];
-  const push = (model: string) => {
-    if (model && !/\s/.test(model) && !out.includes(model)) out.push(model);
-  };
-  push(preferred);
-  push("gemini-3.5-flash-lite");
-  push("gemini-3.1-flash-lite");
-  push("gemini-3.6-flash");
-  return out;
-}
-
 const SYSTEM_PROMPT = `Extract product lines from a photo of a Bulgarian store document (delivery note / izpisvane / expiry list / invoice).
 
 Return ONLY compact JSON:
@@ -388,26 +260,9 @@ OTHER:
 - Page-edge cut-off crumbs (1–2 words with no columns): omit; do not attach a neighbor's qty/date.
 - Final check: for the last 3 items, confirm each name still matches the Godnost printed on its own band.`;
 
-/**
- * Fast second pass: re-read only the first/last few table bands and return them.
- * Used to spot whole-page date/name zip without re-extracting every row.
- */
-const CONFIRM_SYSTEM = `You verify OCR of a Bulgarian store document photo (delivery / expiry list).
-Look ONLY at the FIRST product rows at the top of the table and the LAST product rows at the bottom.
-Do NOT read the middle of the page.
-Return JSON only:
-{"top":[{"name":"...","articul":null,"quantity":1,"expiryPrinted":"DD.MM.YYYY or null"}],"bottom":[...]}
-Rules:
-- Each object is one horizontal product band (name + articul + qty + Godnost).
-- Copy name/qty/Godnost from the photo. expiryPrinted null if that band has no Godnost.
-- Use the claimed lists only as position hints — if the photo disagrees, trust the photo.
-- Return the same counts as claimed (top length and bottom length) when those bands exist.`;
-
 // gemini-3.5-flash is deprecated (Google auto-routes it to 3.6) — call 3.6 by name.
 const DEFAULT_GEMINI_MODEL = "gemini-3.6-flash";
 const DEFAULT_OPENAI_MODEL = "gpt-4o-mini";
-const DEFAULT_CONFIRM_MODEL = "gemini-3.5-flash-lite";
-const DEFAULT_CONFIRM_TIMEOUT_MS = 20_000;
 
 /**
  * Tried in order when the preferred model is busy / unavailable.
@@ -716,13 +571,6 @@ async function extractWithGeminiOnce(
   model: string,
   mime: string,
   base64: string,
-  options?: {
-    systemText?: string;
-    maxOutputTokens?: number;
-    timeoutMs?: number;
-    /** Minimal thinking for a fast confirm pass. */
-    confirmPass?: boolean;
-  },
 ): Promise<string> {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
 
@@ -730,22 +578,19 @@ async function extractWithGeminiOnce(
   // Gemini 3.x: thinkingLevel "low" — less rewriting, lower latency/cost.
   const isGemini3 = /gemini-3/i.test(model);
   const isGemini25 = /gemini-2\.5/i.test(model);
-  const confirmPass = Boolean(options?.confirmPass);
 
   const generationConfig: Record<string, unknown> = {
-    maxOutputTokens: options?.maxOutputTokens ?? 65536,
+    maxOutputTokens: 65536,
     responseMimeType: "application/json",
     temperature: 0,
   };
   if (isGemini25) {
     generationConfig.thinkingConfig = { thinkingBudget: 0 };
   } else if (isGemini3) {
-    generationConfig.thinkingConfig = {
-      thinkingLevel: confirmPass ? "minimal" : "low",
-    };
+    generationConfig.thinkingConfig = { thinkingLevel: "low" };
   }
 
-  const timeoutMs = options?.timeoutMs ?? documentAiFetchTimeoutMs();
+  const timeoutMs = documentAiFetchTimeoutMs();
   let response: Response;
   try {
     response = await fetch(url, {
@@ -757,7 +602,7 @@ async function extractWithGeminiOnce(
           {
             role: "user",
             parts: [
-              { text: options?.systemText ?? SYSTEM_PROMPT },
+              { text: SYSTEM_PROMPT },
               { inlineData: { mimeType: mime, data: base64 } },
             ],
           },
@@ -800,89 +645,6 @@ async function extractWithGeminiOnce(
     throw new Error(`OCR_EMPTY:${candidate?.finishReason || "EMPTY"}`);
   }
   return text;
-}
-
-/**
- * Fast top/bottom confirmation. Returns null if the confirm call itself fails
- * (caller should keep the original OCR rather than blocking the scan).
- */
-async function confirmDocumentEdgesWithGemini(
-  apiKey: string,
-  mime: string,
-  base64: string,
-  claimed: { top: DocumentOcrConfirmSample[]; bottom: DocumentOcrConfirmSample[] },
-): Promise<boolean | null> {
-  const userPrompt = `${CONFIRM_SYSTEM}
-
-Claimed TOP rows (positions 1..${claimed.top.length}):
-${JSON.stringify(claimed.top)}
-
-Claimed BOTTOM rows (last ${claimed.bottom.length}):
-${JSON.stringify(claimed.bottom)}
-
-Re-read those bands from the photo and return {"top":[...],"bottom":[...]}.`;
-
-  const timeoutMs = documentAiConfirmTimeoutMs();
-  let lastError: Error | null = null;
-
-  for (const model of confirmModelsToTry()) {
-    const cooldownReason = isGeminiModelCoolingDown(model);
-    if (cooldownReason) {
-      console.warn(
-        `document AI confirm: model "${model}" skipped (${cooldownReason} cooldown)`,
-      );
-      continue;
-    }
-    const startedAt = Date.now();
-    try {
-      const text = await extractWithGeminiOnce(apiKey, model, mime, base64, {
-        systemText: userPrompt,
-        maxOutputTokens: 2048,
-        timeoutMs,
-        confirmPass: true,
-      });
-      geminiModelCooldown.delete(model);
-      const seen = parseConfirmSamples(extractJsonObject(text));
-      const ok = confirmSamplesMatch(claimed, seen);
-      console.log(
-        `document AI confirm: model "${model}" ${ok ? "match" : "MISMATCH"} in ${Date.now() - startedAt}ms`,
-      );
-      if (!ok && process.env.OCR_DEBUG === "1") {
-        console.warn(
-          "document AI confirm mismatch detail",
-          JSON.stringify({ claimed, seen }),
-        );
-      }
-      return ok;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      lastError = error instanceof Error ? error : new Error(message);
-      console.warn(
-        `document AI confirm: model "${model}" failed in ${Date.now() - startedAt}ms (${message})`,
-      );
-      if (isGeminiFreeTierQuotaError(message)) {
-        markGeminiModelFreeTierExhausted(model, message);
-        continue;
-      }
-      if (
-        isProviderHighDemandError(message) ||
-        isProviderHangTimeoutError(message) ||
-        isUnavailableModelError(message) ||
-        isInvalidArgumentError(message) ||
-        message.startsWith("OCR_EMPTY:") ||
-        message === "OCR_CONFIRM_PARSE_FAILED" ||
-        message === "OCR_PARSE_FAILED"
-      ) {
-        continue;
-      }
-      return null;
-    }
-  }
-
-  console.warn(
-    `document AI confirm: skipped${lastError ? ` (${lastError.message})` : ""}`,
-  );
-  return null;
 }
 
 function isUnavailableModelError(message: string): boolean {
@@ -1086,57 +848,6 @@ async function extractDocumentRowsOnce(
   return toRows(extractJsonObject(text));
 }
 
-/**
- * One confirm round: extract → edge check → on mismatch re-extract → edge check.
- * @returns rows when confirmed (or confirm unavailable), or null if still mismatched.
- */
-async function extractAndConfirmRound(
-  config: { provider: "gemini" | "openai"; apiKey: string; model: string },
-  mime: string,
-  base64: string,
-  round: number,
-): Promise<DocumentOcrRow[] | null> {
-  let rows = await extractDocumentRowsOnce(config, mime, base64);
-  if (rows.length === 0) return rows;
-
-  const claimed = pickConfirmSampleRows(rows);
-  if (claimed.top.length === 0) return rows;
-
-  let confirmed = await confirmDocumentEdgesWithGemini(
-    config.apiKey,
-    mime,
-    base64,
-    claimed,
-  );
-  // Confirm infra failed → keep this extract (do not block the scan).
-  if (confirmed !== false) return rows;
-
-  console.warn(
-    `document AI confirm: round ${round} mismatch — re-extracting full document`,
-  );
-  try {
-    rows = await extractDocumentRowsOnce(config, mime, base64);
-  } catch (error) {
-    console.warn(
-      `document AI confirm: round ${round} re-extract failed; keeping prior rows`,
-      error instanceof Error ? error.message : error,
-    );
-    return null;
-  }
-
-  const claimedAgain = pickConfirmSampleRows(rows);
-  if (claimedAgain.top.length === 0) return rows;
-
-  confirmed = await confirmDocumentEdgesWithGemini(
-    config.apiKey,
-    mime,
-    base64,
-    claimedAgain,
-  );
-  if (confirmed !== false) return rows;
-  return null;
-}
-
 export async function extractDocumentRows(
   dataUrl: string,
 ): Promise<DocumentOcrRow[]> {
@@ -1146,22 +857,7 @@ export async function extractDocumentRows(
   }
 
   const { mime, base64 } = stripDataUrl(dataUrl);
-
-  // Fast Gemini-only edge check: top 3 + bottom 3 vs photo.
-  if (config.provider !== "gemini" || !documentAiConfirmEnabled()) {
-    return extractDocumentRowsOnce(config, mime, base64);
-  }
-
-  // Up to 2 full rounds (extract → confirm → re-extract → confirm).
-  for (let round = 1; round <= 2; round += 1) {
-    const rows = await extractAndConfirmRound(config, mime, base64, round);
-    if (rows) return rows;
-    console.warn(
-      `document AI confirm: round ${round}/2 still mismatched after re-extract`,
-    );
-  }
-
-  throw new Error("OCR_CONFIRM_UNCLEAR");
+  return extractDocumentRowsOnce(config, mime, base64);
 }
 
 export async function extractDocumentRowsFromPath(
