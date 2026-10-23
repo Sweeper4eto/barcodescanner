@@ -724,6 +724,14 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Преглед на документ: всяка снимка има бутон Без дата до Повтори / Прикачи (бутонът до търсенето пак чисти всички страници).",
     href: "/app/add-document",
   },
+  {
+    key: "2026-10-document-server-deskew",
+    titleEn:
+      "Document scan: tilted photos are straightened on the server before reading (flat photos are left as-is).",
+    titleBg:
+      "Скан на документ: наклонени снимки се изправят на сървъра преди четене (правите снимки не се пипат).",
+    href: "/app/add-document",
+  },
 ];
 
 
