@@ -216,7 +216,7 @@ function AddDocumentContent() {
   };
 
   type ProcessResult =
-    | { ok: true; items: ParsedItem[] }
+    | { ok: true; items: ParsedItem[]; preparedDataUrl: string }
     | { ok: false; error: string; retryable?: boolean };
 
   async function parseDocument(dataUrl: string, attempt = 0): Promise<Response> {
@@ -345,7 +345,7 @@ function AddDocumentContent() {
               : t("errors.documentParseFailed"),
         };
       }
-      return { ok: true, items: data.items };
+      return { ok: true, items: data.items, preparedDataUrl: prepared };
     } catch (error) {
       const message = error instanceof Error ? error.message : "";
       // Proxy/browser often drops the socket while the server is still cascading
@@ -376,8 +376,14 @@ function AddDocumentContent() {
       setStep("camera");
       return;
     }
+    // Keep the OCR-sized image in review, not the raw camera/gallery dump —
+    // multi-page sessions otherwise thrash the phone before the next Retake upload.
     setPages([
-      makePage(dataUrl, t("addDocument.pageLabel", { n: 1 }), toDraftItems(result.items)),
+      makePage(
+        result.preparedDataUrl,
+        t("addDocument.pageLabel", { n: 1 }),
+        toDraftItems(result.items),
+      ),
     ]);
     setSearch("");
     setStep("review");
@@ -401,7 +407,7 @@ function AddDocumentContent() {
       const result = await processDocumentImageWithRetry(page.dataUrl);
       if (result.ok) {
         collected.push(
-          makePage(page.dataUrl, label, toDraftItems(result.items)),
+          makePage(result.preparedDataUrl, label, toDraftItems(result.items)),
         );
       } else {
         failed += 1;
@@ -473,7 +479,7 @@ function AddDocumentContent() {
 
       setPages((current) =>
         replaceDocumentPageContent(current, pageId, {
-          imageDataUrl: dataUrl,
+          imageDataUrl: result.preparedDataUrl,
           label,
           items: draftItems,
         }),

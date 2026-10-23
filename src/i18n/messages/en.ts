@@ -564,7 +564,6 @@ export const en = {
     retakePage: "Retake",
     reattachPage: "Reattach",
     replacePageTitle: "Replace photo {n}",
-    replacePageHint: "Take or upload a new photo for this page only. Other pages stay as they are.",
     processingPage: "Reading this photo…",
     emptyPageReview: "No items from this photo. Retake or reattach it.",
     startOver: "Start over",

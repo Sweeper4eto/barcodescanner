@@ -567,8 +567,6 @@ export const bg = {
     retakePage: "Повтори",
     reattachPage: "Прикачи",
     replacePageTitle: "Замени снимка {n}",
-    replacePageHint:
-      "Направете или качете нова снимка само за тази страница. Останалите страници остават.",
     processingPage: "Четене на тази снимка…",
     emptyPageReview: "Няма артикули от тази снимка. Повторете или прикачете наново.",
     startOver: "Отначало",

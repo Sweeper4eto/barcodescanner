@@ -764,6 +764,14 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Повторно снимане на документ: махнат е текстът над камерата, за да са по-високо бутоните.",
     href: "/app/add-document",
   },
+  {
+    key: "2026-10-document-retake-faster-prep",
+    titleEn:
+      "Document Retake: photo prep before reading is much faster when you already have several pages open.",
+    titleBg:
+      "Повторно снимане на документ: подготовката на снимката преди четене е много по-бърза, когато вече имате няколко страници.",
+    href: "/app/add-document",
+  },
 ];
 
 
