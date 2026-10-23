@@ -1,7 +1,6 @@
 import { readFile } from "node:fs/promises";
 import "dotenv/config";
 import { z } from "zod";
-import { maybeDeskewDocumentDataUrl } from "@/lib/document-deskew";
 import { sanitizeDocumentRows } from "@/lib/document-row-sanitize";
 import { resolveDocumentExpiry } from "@/lib/expiry-parse";
 import { resolveLocalUploadPath } from "@/lib/upload";
@@ -862,9 +861,9 @@ export async function extractDocumentRows(
     throw new Error("OCR_NOT_CONFIGURED");
   }
 
-  // Straighten tilted pages on the server before OCR (no-op when flat).
-  const prepared = await maybeDeskewDocumentDataUrl(dataUrl);
-  const { mime, base64 } = stripDataUrl(prepared);
+  // Server deskew (document-deskew.ts) was removed from this path — it slowed
+  // every scan and often forced ±8° rotations. Keep that module opt-in later.
+  const { mime, base64 } = stripDataUrl(dataUrl);
   return extractDocumentRowsOnce(config, mime, base64);
 }
 

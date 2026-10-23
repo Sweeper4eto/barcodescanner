@@ -727,9 +727,9 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
   {
     key: "2026-10-document-server-deskew",
     titleEn:
-      "Document scan: tilted photos are straightened on the server before reading (flat photos are left as-is).",
+      "Document scan: automatic photo straighten was turned off — it was slowing Retake and mis-rotating some pages.",
     titleBg:
-      "Скан на документ: наклонени снимки се изправят на сървъра преди четене (правите снимки не се пипат).",
+      "Скан на документ: автоматичното изправяне на снимки е изключено — забавяше Повтори и обръщаше някои страници грешно.",
     href: "/app/add-document",
   },
   {
@@ -754,6 +754,14 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Document review: Add items stays available after removing No date rows even if another photo is still reading.",
     titleBg:
       "Преглед на документ: Добави стоките остава активен след Без дата, дори ако друга снимка още се чете.",
+    href: "/app/add-document",
+  },
+  {
+    key: "2026-10-document-fast-photo-prep",
+    titleEn:
+      "Document scan: photos prepare much faster before reading (less waiting on Retake).",
+    titleBg:
+      "Скан на документ: снимките се подготвят много по-бързо преди четене (по-малко чакане при Повтори).",
     href: "/app/add-document",
   },
 ];
