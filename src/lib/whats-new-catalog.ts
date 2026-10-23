@@ -748,6 +748,14 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Повторно снимане на документ: Напред веднага показва четене, и спинерът винаги изчезва когато четенето приключи.",
     href: "/app/add-document",
   },
+  {
+    key: "2026-10-document-import-ready-pages",
+    titleEn:
+      "Document review: Add items stays available after removing No date rows even if another photo is still reading.",
+    titleBg:
+      "Преглед на документ: Добави стоките остава активен след Без дата, дори ако друга снимка още се чете.",
+    href: "/app/add-document",
+  },
 ];
 
 

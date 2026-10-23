@@ -47,6 +47,7 @@ import {
   type DocumentDraftItem,
   type DocumentPageDraft,
   documentPagesCanImport,
+  documentPagesImportItems,
   draftMissingExpiry,
   filterDocumentPagesBySearch,
   flattenDocumentPageItems,
@@ -580,13 +581,27 @@ function AddDocumentContent() {
   }
 
   function removeItemsWithoutExpiry() {
-    setPages((current) => removeDocumentPagesItemsWithoutExpiry(current));
+    setPageActionBusy(false);
+    setPages((current) =>
+      removeDocumentPagesItemsWithoutExpiry(current).map((page) =>
+        page.status === "processing"
+          ? { ...page, status: "ready" as const }
+          : page,
+      ),
+    );
     setDetailKey(null);
     setConfirmRemoveNoExpiry(false);
   }
 
   function removePageItemsWithoutExpiry(pageId: string) {
-    setPages((current) => removeDocumentPageItemsWithoutExpiry(current, pageId));
+    setPageActionBusy(false);
+    setPages((current) =>
+      removeDocumentPageItemsWithoutExpiry(current, pageId).map((page) =>
+        page.status === "processing"
+          ? { ...page, status: "ready" as const }
+          : page,
+      ),
+    );
     setDetailKey(null);
     setConfirmRemoveNoExpiryPageId(null);
   }
@@ -636,6 +651,8 @@ function AddDocumentContent() {
 
   async function confirmImport() {
     if (!canImport || !storeId || importing) return;
+    const importItems = documentPagesImportItems(pages);
+    if (importItems.length === 0) return;
     setImporting(true);
     setError("");
     try {
@@ -644,7 +661,7 @@ function AddDocumentContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           storeId,
-          items: items.map((item) => ({
+          items: importItems.map((item) => ({
             name: item.name.trim(),
             barcode: item.barcode.trim() || null,
             articul: item.articul.trim() || null,

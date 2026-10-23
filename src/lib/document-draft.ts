@@ -147,12 +147,25 @@ export function filterDocumentPagesBySearch(
   );
 }
 
-/** Ready to import: every page idle, at least one row, all rows valid. */
+/**
+ * Ready to import: at least one idle page with valid rows.
+ * A stuck/in-flight retake on another page must not block adding the rest
+ * (users often clear “no date” rows while one photo is still spinning).
+ */
 export function documentPagesCanImport(pages: DocumentPageDraft[]): boolean {
-  if (pages.length === 0) return false;
-  if (pages.some((page) => page.status !== "ready")) return false;
-  const items = flattenDocumentPageItems(pages);
+  const readyPages = pages.filter((page) => page.status === "ready");
+  if (readyPages.length === 0) return false;
+  const items = flattenDocumentPageItems(readyPages);
   return items.length > 0 && items.every((item) => draftItemValid(item));
+}
+
+/** Rows that will actually be posted on Add items. */
+export function documentPagesImportItems(
+  pages: DocumentPageDraft[],
+): DocumentDraftItem[] {
+  return flattenDocumentPageItems(
+    pages.filter((page) => page.status === "ready"),
+  );
 }
 
 export type DocumentDraftWarning =

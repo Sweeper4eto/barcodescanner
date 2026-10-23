@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   documentPagesCanImport,
+  documentPagesImportItems,
   filterDocumentPagesBySearch,
   flattenDocumentPageItems,
   markDocumentPageProcessing,
@@ -234,8 +235,19 @@ describe("document multi-page review helpers", () => {
     ];
     assert.equal(documentPagesCanImport(ok), true);
 
+    // One photo still reading must not block importing the other ready pages.
     const processing = markDocumentPageProcessing(ok, "p1");
-    assert.equal(documentPagesCanImport(processing), false);
+    assert.equal(documentPagesCanImport(processing), true);
+    assert.deepEqual(
+      documentPagesImportItems(processing).map((row) => row.key),
+      ["b1"],
+    );
+
+    // Only the in-flight page → nothing to import yet.
+    assert.equal(
+      documentPagesCanImport(markDocumentPageProcessing(ok, "p1").filter((p) => p.id === "p1")),
+      false,
+    );
 
     const missingDate = [
       page("p1", [item({ key: "a1", name: "Milk", expiryYmd: "" })]),
