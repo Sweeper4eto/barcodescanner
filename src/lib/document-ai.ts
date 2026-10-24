@@ -213,11 +213,17 @@ const SYSTEM_PROMPT = `Extract product lines from a photo of a Bulgarian store d
 Return ONLY compact JSON:
 {"items":[{"name":"...","barcode":null,"articul":"...","expiryPrinted":"DD.MM.YYYY","expiryDate":null,"quantity":1}]}
 
+STEP 1 — FIND THE COLUMNS FIRST (before reading any product):
+- Locate the table header row (e.g. №, Наименование / Артикул / Код / Баркод / К-во / Количество / Годност / Срок на годност). Header text is never a product.
+- Fix the horizontal position of each column: name, articul (SKU), barcode (EAN), quantity, Godnost. Not every page has every column — a missing column means that field is null for every item.
+- Then follow each column straight down the page (along the table's tilt if the photo is angled) — a value belongs to a field only if it sits inside that column. Never move a value into a neighboring column.
+- Only after the columns are fixed, go product by product (STEP 2 below).
+
 PHOTO CONDITIONS (common — do NOT "help" by guessing):
 The page may be angled, off-center, dim, glare-lit, or folded/curled on an edge. That never authorizes fixing alignment by moving cells between rows.
 If a cell is hard to read because of angle/light/fold/cut-off → that field is null. NEVER borrow name, articul, quantity, or Godnost from the row above or below to "fill in".
 
-#1 FAILURE TO AVOID — COLUMN ZIP / ROW SHIFT (most common):
+STEP 2 — ROWS. #1 FAILURE TO AVOID — COLUMN ZIP / ROW SHIFT (most common):
 Never read a whole column of names, then a whole column of dates, then zip them.
 For EACH product, look at ONE horizontal band of the table and copy ONLY the cells that belong to that band:
   name + articul + quantity + Godnost (+ barcode if present) → one JSON object → next product.
@@ -587,7 +593,9 @@ async function extractWithGeminiOnce(
   const generationConfig: Record<string, unknown> = {
     maxOutputTokens: 65536,
     responseMimeType: "application/json",
-    temperature: 0,
+    // Google: keep Gemini 3 at the default 1.0 — lower values can loop or
+    // degrade output. Gemini 2.5 stays deterministic for literal copying.
+    temperature: isGemini3 ? 1 : 0,
   };
   if (isGemini25) {
     generationConfig.thinkingConfig = { thinkingBudget: 0 };
@@ -606,9 +614,11 @@ async function extractWithGeminiOnce(
         contents: [
           {
             role: "user",
+            // Image first, rules last — Google's single-image guidance; keeps the
+            // no-borrow rules closest to where the model starts answering.
             parts: [
-              { text: SYSTEM_PROMPT },
               { inlineData: { mimeType: mime, data: base64 } },
+              { text: SYSTEM_PROMPT },
             ],
           },
         ],
@@ -807,12 +817,12 @@ async function extractWithOpenAI(
             role: "user",
             content: [
               {
-                type: "text",
-                text: "Extract all product rows from this document photo.",
-              },
-              {
                 type: "image_url",
                 image_url: { url: `data:${mime};base64,${base64}` },
+              },
+              {
+                type: "text",
+                text: "Extract all product rows from this document photo.",
               },
             ],
           },
