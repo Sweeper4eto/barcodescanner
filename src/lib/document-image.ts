@@ -295,47 +295,16 @@ function approxJpegBytes(dataUrl: string): number {
   return Math.floor(((dataUrl.length - 23) * 3) / 4);
 }
 
-function encodeUnderBudget(
-  source: HTMLCanvasElement,
-  targetBytes: number,
-): string {
-  const qualities = [0.92, 0.9, 0.88, 0.86, 0.84];
-  let working = source;
-  let best = "";
-
-  for (const maxEdge of [Math.max(working.width, working.height), 2200, 2048, 1800]) {
-    const scale = Math.min(1, maxEdge / Math.max(working.width, working.height));
-    if (scale < 1) {
-      const width = Math.max(1, Math.round(working.width * scale));
-      const height = Math.max(1, Math.round(working.height * scale));
-      const smaller = document.createElement("canvas");
-      smaller.width = width;
-      smaller.height = height;
-      const sctx = smaller.getContext("2d");
-      if (!sctx) break;
-      sctx.imageSmoothingEnabled = true;
-      sctx.imageSmoothingQuality = "high";
-      sctx.drawImage(working, 0, 0, width, height);
-      working = smaller;
-    }
-
-    for (const quality of qualities) {
-      best = working.toDataURL("image/jpeg", quality);
-      if (approxJpegBytes(best) <= targetBytes) {
-        return best;
-      }
-    }
-  }
-
-  return best || working.toDataURL("image/jpeg", 0.84);
-}
-
 export async function prepareDocumentImage(dataUrl: string): Promise<string> {
-  // Keep enough resolution for small Godnost digits. Crop/skew/sharpen once —
-  // re-running that per size step froze multi-page Retake on phones before
-  // the OCR request left the device.
+  // Keep enough resolution for small Godnost digits; avoid crushing to 1280.
+  // Full crop/skew/sharpen runs at most 3 times — more passes froze multi-page
+  // Retake on phones before the OCR request left the device.
   const TARGET_BYTES = 3_200_000;
-  const PREPARE_MAX_EDGE = 2560;
+  const STEPS = [
+    { maxEdge: 3200, quality: 0.92 },
+    { maxEdge: 2880, quality: 0.9 },
+    { maxEdge: 2560, quality: 0.88 },
+  ];
 
   const blob = await fetch(dataUrl).then((response) => response.blob());
   const bitmap = await createImageBitmap(blob, {
@@ -343,17 +312,26 @@ export async function prepareDocumentImage(dataUrl: string): Promise<string> {
   });
 
   try {
-    const scale = Math.min(
-      1,
-      PREPARE_MAX_EDGE / Math.max(bitmap.width, bitmap.height),
-    );
-    const width = Math.max(1, Math.round(bitmap.width * scale));
-    const height = Math.max(1, Math.round(bitmap.height * scale));
-    const enhanced = cropAndDeskew(bitmap, width, height);
-    const ctx = enhanced.getContext("2d");
-    if (!ctx) throw new Error("Could not prepare photo");
-    applyDocumentEnhance(ctx);
-    return encodeUnderBudget(enhanced, TARGET_BYTES);
+    let best = dataUrl;
+    for (const step of STEPS) {
+      const scale = Math.min(
+        1,
+        step.maxEdge / Math.max(bitmap.width, bitmap.height),
+      );
+      const width = Math.max(1, Math.round(bitmap.width * scale));
+      const height = Math.max(1, Math.round(bitmap.height * scale));
+      const enhanced = cropAndDeskew(bitmap, width, height);
+      const ctx = enhanced.getContext("2d");
+      if (!ctx) throw new Error("Could not prepare photo");
+      applyDocumentEnhance(ctx);
+      best = enhanced.toDataURL("image/jpeg", step.quality);
+      if (approxJpegBytes(best) <= TARGET_BYTES) {
+        return best;
+      }
+      // Smaller photos already fit at this size; another pass would be identical.
+      if (scale === 1) break;
+    }
+    return best;
   } finally {
     bitmap.close();
   }
