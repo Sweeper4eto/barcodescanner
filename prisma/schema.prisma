@@ -388,6 +388,8 @@ model SupportRequest {
   topic        String
   contact      String?
   message      String
+  /** Admin-only copy of a scanned document photo (`/uploads/…`); admin can delete it. */
+  documentImagePath String?
   status       String   @default("new")
   adminNote    String?
   createdAt    DateTime @default(now())

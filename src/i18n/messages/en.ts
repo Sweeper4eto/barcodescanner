@@ -351,6 +351,11 @@ export const en = {
     topic: "Topic",
     topicBug: "Bug report",
     topicOcr: "OCR issue",
+    topicOcrExpiryAlert: "Scan alert: expiry over 1 month in the past",
+    documentCopy: "Scanned document",
+    deleteDocument: "Delete document",
+    confirmDeleteDocument:
+      "Delete this scanned document from the server? The ticket stays.",
     topicBilling: "Billing",
     topicOther: "Other",
     topicBugShort: "Bug",

@@ -11,6 +11,7 @@ import { useT } from "@/components/i18n-provider";
 import { useAppStoreId } from "@/hooks/use-app-store-id";
 import { navigateApp } from "@/lib/app-navigation";
 import { validateSupportEmail } from "@/lib/register-validation";
+import { formatSupportTicketNumber } from "@/lib/support-ticket";
 
 type Store = { id: string; name: string; active: boolean };
 
@@ -141,11 +142,6 @@ function TopicButton({
   );
 }
 
-function formatTicketDisplay(ticketId: string): string {
-  const short = ticketId.replace(/[^a-zA-Z0-9]/g, "").slice(0, 8).toUpperCase();
-  return short ? `#SUP-${short}` : "#SUP---------";
-}
-
 export default function ContactSupportPage() {
   const { t } = useT();
   const { user, ready: sessionReady } = useAppSession();
@@ -270,7 +266,7 @@ export default function ContactSupportPage() {
               {t("support.ticketLabel").toUpperCase()}
             </p>
             <p className="mt-2 font-mono text-xl font-semibold tracking-wide text-primary">
-              {formatTicketDisplay(ticketId)}
+              {formatSupportTicketNumber(ticketId)}
             </p>
             <p className="mt-2 text-xs leading-relaxed text-muted">
               {t("support.ticketHint")}

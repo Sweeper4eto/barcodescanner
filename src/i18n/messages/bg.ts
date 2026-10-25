@@ -352,6 +352,11 @@ export const bg = {
     topic: "Тема",
     topicBug: "Сигнал за бъг",
     topicOcr: "Проблем със сканиране",
+    topicOcrExpiryAlert: "Сигнал от скан: годност изтекла преди над 1 месец",
+    documentCopy: "Сканиран документ",
+    deleteDocument: "Изтрий документа",
+    confirmDeleteDocument:
+      "Да се изтрие ли сканираният документ от сървъра? Заявката остава.",
     topicBilling: "Плащане",
     topicOther: "Друго",
     topicBugShort: "Бъг",

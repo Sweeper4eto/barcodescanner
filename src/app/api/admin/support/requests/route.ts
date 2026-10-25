@@ -2,6 +2,7 @@ import { requireAdminResponse } from "@/lib/admin-guard";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
+import { deleteLocalUpload } from "@/lib/upload";
 import { apiT } from "@/i18n";
 
 const statusSchema = z.enum(["new", "in_progress", "done"]);
@@ -55,6 +56,7 @@ export async function GET(request: Request) {
       status: row.status,
       contact: row.contact,
       message: row.message,
+      documentImagePath: row.documentImagePath,
       adminNote: row.adminNote,
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
@@ -71,6 +73,8 @@ const patchSchema = z.object({
   id: z.string().min(1),
   status: statusSchema.optional(),
   adminNote: z.string().trim().max(1000).optional(),
+  /** Remove the scanned document copy from disk; the ticket stays. */
+  deleteDocument: z.literal(true).optional(),
 });
 
 export async function PATCH(request: Request) {
@@ -84,6 +88,26 @@ export async function PATCH(request: Request) {
       { error: apiT(request, "errors.invalidData") },
       { status: 400 },
     );
+  }
+
+  if (parsed.data.deleteDocument) {
+    const existing = await db.supportRequest.findUnique({
+      where: { id: parsed.data.id },
+      select: { documentImagePath: true },
+    });
+    if (!existing) {
+      return NextResponse.json(
+        { error: apiT(request, "errors.invalidData") },
+        { status: 404 },
+      );
+    }
+    if (existing.documentImagePath) {
+      await deleteLocalUpload(existing.documentImagePath);
+      await db.supportRequest.update({
+        where: { id: parsed.data.id },
+        data: { documentImagePath: null },
+      });
+    }
   }
 
   const nextStatus = parsed.data.status;

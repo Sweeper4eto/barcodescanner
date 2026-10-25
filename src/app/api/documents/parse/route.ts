@@ -18,6 +18,11 @@ import {
 import { takeDocumentOcrSlot } from "@/lib/document-ocr-rate-limit";
 import { recordDocumentOcrScan } from "@/lib/document-ocr-usage";
 import { notifyAdminsDocumentAiFailure } from "@/lib/document-ai-admin-alert";
+import {
+  createDocumentExpiryAlert,
+  findLongExpiredDocumentRows,
+  readDocumentAlertImage,
+} from "@/lib/document-expiry-alert";
 import { deleteLocalUpload } from "@/lib/upload";
 import { apiT } from "@/i18n";
 
@@ -163,6 +168,18 @@ export async function POST(request: Request) {
         rows = parsed.data.imagePath
           ? await extractDocumentRowsFromPath(parsed.data.imagePath)
           : await extractDocumentRows(parsed.data.dataUrl!);
+        if (findLongExpiredDocumentRows(rows).length > 0) {
+          const image = await readDocumentAlertImage(parsed.data);
+          void createDocumentExpiryAlert({
+            userId: session.userId,
+            username: session.username,
+            clientId: store.clientId,
+            storeId: store.id,
+            storeName: store.name,
+            rows,
+            image,
+          });
+        }
         if (parsed.data.imagePath) {
           await deleteLocalUpload(parsed.data.imagePath);
         }

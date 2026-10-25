@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { PrimaryButton, SecondaryButton } from "@/components/auth-forms";
 import { LoadingSpinnerBlock } from "@/components/loading-spinner";
 import { useT } from "@/components/i18n-provider";
+import { formatSupportTicketNumber } from "@/lib/support-ticket";
 
 type SupportStatus = "new" | "in_progress" | "done";
 
@@ -13,6 +14,7 @@ type SupportRow = {
   status: SupportStatus;
   contact: string | null;
   message: string;
+  documentImagePath: string | null;
   adminNote: string | null;
   createdAt: string;
   updatedAt: string;
@@ -39,6 +41,7 @@ export function SupportRequestsPanel({
   const topicLabel = useCallback(
     (topic: string) => {
       if (topic === "ocr") return t("support.topicOcr");
+      if (topic === "ocr_expiry_alert") return t("support.topicOcrExpiryAlert");
       if (topic === "billing") return t("support.topicBilling");
       if (topic === "other") return t("support.topicOther");
       return t("support.topicBug");
@@ -88,7 +91,10 @@ export function SupportRequestsPanel({
     void load();
   }, [load]);
 
-  async function patchRow(id: string, patch: { status?: SupportStatus; adminNote?: string }) {
+  async function patchRow(
+    id: string,
+    patch: { status?: SupportStatus; adminNote?: string; deleteDocument?: true },
+  ) {
     setSavingId(id);
     setError("");
     try {
@@ -177,7 +183,9 @@ export function SupportRequestsPanel({
                   {new Date(row.createdAt).toLocaleString(dateLocale)}
                 </p>
               </div>
-              <code className="text-xs text-muted">{row.id.slice(0, 10)}</code>
+              <code className="text-xs font-semibold text-foreground">
+                {formatSupportTicketNumber(row.id)}
+              </code>
             </div>
 
             {row.contact ? (
@@ -187,6 +195,36 @@ export function SupportRequestsPanel({
             ) : null}
 
             <p className="mt-2 whitespace-pre-wrap text-sm text-foreground">{row.message}</p>
+
+            {row.documentImagePath ? (
+              <div className="mt-3 space-y-2">
+                <p className="text-xs font-medium text-muted">
+                  {t("support.documentCopy")}
+                </p>
+                <a
+                  href={row.documentImagePath}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="block w-fit"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element -- private /uploads route needs the session cookie */}
+                  <img
+                    src={row.documentImagePath}
+                    alt={t("support.documentCopy")}
+                    className="max-h-64 rounded-lg border border-card-border object-contain"
+                  />
+                </a>
+                <SecondaryButton
+                  onClick={() => {
+                    if (!window.confirm(t("support.confirmDeleteDocument"))) return;
+                    void patchRow(row.id, { deleteDocument: true });
+                  }}
+                  disabled={savingId === row.id}
+                >
+                  {t("support.deleteDocument")}
+                </SecondaryButton>
+              </div>
+            ) : null}
 
             <label className="mt-3 block text-xs font-medium text-muted">
               {t("support.adminNote")}
