@@ -46,6 +46,17 @@ export function findLongExpiredDocumentRows(
   );
 }
 
+function extFromImageHeader(header: string): string {
+  const subtype = header
+    .toLowerCase()
+    .replace(/^data:image\//, "")
+    .split(";")[0]
+    .trim();
+  if (subtype === "jpeg" || subtype === "jpg") return "jpg";
+  if (subtype === "png" || subtype === "webp" || subtype === "gif") return subtype;
+  return "jpg";
+}
+
 /** Bytes of the scanned photo, read before the temporary upload is deleted. */
 export async function readDocumentAlertImage(source: {
   dataUrl?: string;
@@ -53,23 +64,36 @@ export async function readDocumentAlertImage(source: {
 }): Promise<{ buffer: Buffer; ext: string } | null> {
   try {
     if (source.dataUrl) {
-      const match = /^data:image\/([\w+-]+);base64,([\s\S]+)$/.exec(
-        source.dataUrl.trim(),
-      );
-      if (!match) return null;
-      return {
-        buffer: Buffer.from(match[2], "base64"),
-        ext: match[1].toLowerCase(),
-      };
+      // Do not regex the whole multi-MB data URL — that silently fails on V8.
+      const raw = source.dataUrl.trim();
+      const comma = raw.indexOf(",");
+      if (comma < 0 || !raw.toLowerCase().startsWith("data:image/")) {
+        console.error(
+          `document expiry alert: dataUrl not an image (${raw.slice(0, 48)}… len=${raw.length})`,
+        );
+        return null;
+      }
+      const buffer = Buffer.from(raw.slice(comma + 1), "base64");
+      if (!buffer.length) {
+        console.error("document expiry alert: decoded photo is empty");
+        return null;
+      }
+      return { buffer, ext: extFromImageHeader(raw.slice(0, comma)) };
     }
     if (source.imagePath) {
       const filePath = await resolveLocalUploadPath(source.imagePath);
-      if (!filePath) return null;
+      if (!filePath) {
+        console.error(
+          `document expiry alert: temp upload missing ${source.imagePath}`,
+        );
+        return null;
+      }
       return {
         buffer: await readFile(filePath),
-        ext: filePath.split(".").pop()?.toLowerCase() ?? "",
+        ext: filePath.split(".").pop()?.toLowerCase() || "jpg",
       };
     }
+    console.error("document expiry alert: parse body had no dataUrl or imagePath");
   } catch (error) {
     console.error("document expiry alert: reading scanned photo failed", error);
   }
@@ -127,6 +151,13 @@ export async function createDocumentExpiryAlert(input: {
         input.image.buffer,
         input.image.ext,
       );
+      if (!documentImagePath) {
+        console.error(
+          `document expiry alert: save skipped ext=${input.image.ext} bytes=${input.image.buffer.length}`,
+        );
+      }
+    } else {
+      console.error("document expiry alert: no photo bytes to copy");
     }
   } catch (error) {
     console.error("document expiry alert: saving document copy failed", error);

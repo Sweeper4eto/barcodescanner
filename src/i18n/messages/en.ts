@@ -392,6 +392,16 @@ export const en = {
     statusInProgress: "In progress",
     statusDone: "Done",
     adminNote: "Admin note",
+    selectAll: "Select all tickets",
+    selectTicket: "Select ticket {ticket}",
+    selectedCount: "{count} selected",
+    markNew: "Mark new",
+    markInProgress: "Mark in progress",
+    markDone: "Mark done",
+    deleteTickets: "Delete",
+    confirmDeleteTickets:
+      "Delete {count} ticket(s)? Scanned documents on those tickets will be deleted from the server too.",
+    topicOcrExpiryAlertShort: "Scan alert",
   },
   push: {
     title: "Enable expiry alerts",

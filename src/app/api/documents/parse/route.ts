@@ -170,7 +170,7 @@ export async function POST(request: Request) {
           : await extractDocumentRows(parsed.data.dataUrl!);
         if (findLongExpiredDocumentRows(rows).length > 0) {
           const image = await readDocumentAlertImage(parsed.data);
-          void createDocumentExpiryAlert({
+          await createDocumentExpiryAlert({
             userId: session.userId,
             username: session.username,
             clientId: store.clientId,

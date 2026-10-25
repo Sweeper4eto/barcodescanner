@@ -393,6 +393,16 @@ export const bg = {
     statusInProgress: "В процес",
     statusDone: "Готови",
     adminNote: "Бележка от админ",
+    selectAll: "Избери всички заявки",
+    selectTicket: "Избери заявка {ticket}",
+    selectedCount: "{count} избрани",
+    markNew: "Маркирай нови",
+    markInProgress: "Маркирай в процес",
+    markDone: "Маркирай готови",
+    deleteTickets: "Изтрий",
+    confirmDeleteTickets:
+      "Да се изтрият ли {count} заявки? Сканираните документи към тях също ще се изтрият от сървъра.",
+    topicOcrExpiryAlertShort: "Сигнал от скан",
   },
   push: {
     title: "Включи известия за годност",
