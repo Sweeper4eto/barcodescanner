@@ -121,7 +121,7 @@ export function WhatsNewDialog({ ready = true }: Props) {
       onClick={dismiss}
     >
       <div
-        className="relative w-full max-w-[22rem] overflow-hidden rounded-2xl border border-card-border bg-background px-5 pb-5 pt-6 shadow-[0_20px_50px_rgba(0,0,0,0.5)]"
+        className="relative flex max-h-full w-full max-w-[22rem] flex-col overflow-hidden rounded-2xl border border-card-border bg-background px-5 pb-5 pt-6 shadow-[0_20px_50px_rgba(0,0,0,0.5)]"
         onClick={(event) => event.stopPropagation()}
       >
         <div
@@ -129,36 +129,38 @@ export function WhatsNewDialog({ ready = true }: Props) {
           className="pointer-events-none absolute inset-x-0 top-0 h-36 bg-[radial-gradient(ellipse_at_50%_0%,rgb(52_211_153/0.22),transparent_65%)]"
         />
 
-        <div className="relative flex justify-center">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/45 bg-primary/10 px-2.5 py-1 text-[0.65rem] font-bold uppercase tracking-[0.12em] text-primary">
-            <SparkleIcon className="size-3.5" />
-            {t("whatsNew.badge")}
-          </span>
+        <div className="relative shrink-0">
+          <div className="flex justify-center">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/45 bg-primary/10 px-2.5 py-1 text-[0.65rem] font-bold uppercase tracking-[0.12em] text-primary">
+              <SparkleIcon className="size-3.5" />
+              {t("whatsNew.badge")}
+            </span>
+          </div>
+
+          <div className="mt-4 flex justify-center">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/icons/icon-192.png?v=10"
+              alt=""
+              width={88}
+              height={88}
+              className="size-[5.5rem] object-contain"
+              decoding="async"
+            />
+          </div>
+
+          <h2
+            id="whats-new-title"
+            className="mt-3 text-center text-[1.35rem] font-semibold leading-tight text-foreground"
+          >
+            {t("whatsNew.title")}
+          </h2>
+          <p className="mt-2 text-center text-sm leading-relaxed text-muted">
+            {t("whatsNew.headline")}
+          </p>
         </div>
 
-        <div className="relative mt-4 flex justify-center">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/icons/icon-192.png?v=10"
-            alt=""
-            width={88}
-            height={88}
-            className="size-[5.5rem] object-contain"
-            decoding="async"
-          />
-        </div>
-
-        <h2
-          id="whats-new-title"
-          className="relative mt-3 text-center text-[1.35rem] font-semibold leading-tight text-foreground"
-        >
-          {t("whatsNew.title")}
-        </h2>
-        <p className="relative mt-2 text-center text-sm leading-relaxed text-muted">
-          {t("whatsNew.headline")}
-        </p>
-
-        <ul className="relative mt-5 space-y-3">
+        <ul className="relative mt-5 min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]">
           {items.map((item) => (
             <li key={item.id} className="flex items-start gap-2.5">
               <span className="mt-0.5 shrink-0 text-primary">
@@ -181,7 +183,7 @@ export function WhatsNewDialog({ ready = true }: Props) {
           ))}
         </ul>
 
-        <div className="relative mt-6 flex flex-col gap-2.5">
+        <div className="relative mt-6 flex shrink-0 flex-col gap-2.5">
           <button
             type="button"
             onClick={dismiss}

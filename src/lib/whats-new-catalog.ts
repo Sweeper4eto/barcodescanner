@@ -788,6 +788,13 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Подготовката при качване от галерията запазва целия лист дори когато сянката от телефона пада от която и да е страна.",
     href: "/app/add-document",
   },
+  {
+    key: "2026-10-whats-new-dialog-scroll",
+    titleEn:
+      "What’s new: long update lists scroll on the phone so nothing is cut off.",
+    titleBg:
+      "Новости: дългите списъци с промени се превъртат на телефона и нищо не се отрязва.",
+  },
 ];
 
 
