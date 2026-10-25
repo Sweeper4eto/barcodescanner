@@ -780,6 +780,14 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Качване на документ от галерията: подготовката изрязва белия лист, за да не се губи резолюция в масата наоколо.",
     href: "/app/add-document",
   },
+  {
+    key: "2026-10-document-paper-crop-keep-bottom",
+    titleEn:
+      "Document gallery prep keeps the full page even when phone shadow falls on any side.",
+    titleBg:
+      "Подготовката при качване от галерията запазва целия лист дори когато сянката от телефона пада от която и да е страна.",
+    href: "/app/add-document",
+  },
 ];
 
 

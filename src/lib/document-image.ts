@@ -166,37 +166,107 @@ function regionMeanGray(
   return count === 0 ? 0 : sum / count;
 }
 
+/**
+ * Longest run at/above minCover. Short dips (phone shadow across a few rows)
+ * are bridged so we do not cut the page mid-table.
+ */
 function longestCoverRun(
   cover: Float64Array,
   minCover: number,
+  maxGap = 0,
 ): { start: number; end: number } | null {
   let bestStart = 0;
   let bestEnd = -1;
   let bestLen = 0;
   let runStart = -1;
+  let gap = 0;
   for (let i = 0; i <= cover.length; i += 1) {
     const ok = i < cover.length && cover[i] >= minCover;
     if (ok) {
       if (runStart < 0) runStart = i;
+      gap = 0;
       continue;
     }
-    if (runStart >= 0) {
-      const len = i - runStart;
-      if (len > bestLen) {
-        bestLen = len;
-        bestStart = runStart;
-        bestEnd = i - 1;
-      }
-      runStart = -1;
+    if (runStart < 0) continue;
+    gap += 1;
+    if (i < cover.length && gap <= maxGap) continue;
+    const end = i - gap;
+    const len = end - runStart + 1;
+    if (len > bestLen) {
+      bestLen = len;
+      bestStart = runStart;
+      bestEnd = end;
     }
+    runStart = -1;
+    gap = 0;
   }
   if (bestEnd < bestStart) return null;
   return { start: bestStart, end: bestEnd };
 }
 
 /**
- * Find the bright page rectangle so gallery shots on a dark table crop like
- * an in-app viewfinder still (page fills the OCR frame).
+ * Grow a page edge outward while the strip still looks like paper/print
+ * (including phone shadow), not solid dark table. Works for any side.
+ */
+function extendPaperEdge(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  fixed0: number,
+  fixed1: number,
+  start: number,
+  step: 1 | -1,
+  limitExtra: number,
+  pageFloor: number,
+  along: "row" | "col",
+): number {
+  const span = Math.max(1, fixed1 - fixed0 + 1);
+  const maxCoord = along === "row" ? height - 1 : width - 1;
+  const maxSteps = Math.max(12, limitExtra);
+  let pos = start;
+  for (let n = 0; n < maxSteps; n += 1) {
+    const next = pos + step;
+    if (next < 0 || next > maxCoord) break;
+
+    let onPage = 0;
+    let mid = 0;
+    let veryDark = 0;
+    if (along === "row") {
+      for (let x = fixed0; x <= fixed1; x += 1) {
+        const g = toGray(data, (next * width + x) * 4);
+        if (g >= pageFloor) onPage += 1;
+        else if (g >= 55) mid += 1;
+        if (g < 45) veryDark += 1;
+      }
+    } else {
+      for (let y = fixed0; y <= fixed1; y += 1) {
+        const g = toGray(data, (y * width + next) * 4);
+        if (g >= pageFloor) onPage += 1;
+        else if (g >= 55) mid += 1;
+        if (g < 45) veryDark += 1;
+      }
+    }
+
+    const onFrac = onPage / span;
+    const midFrac = mid / span;
+    const darkFrac = veryDark / span;
+    if (darkFrac > 0.88 && onFrac < 0.04) break;
+    if (onFrac > 0.85 && midFrac < 0.02) {
+      pos = next;
+      continue;
+    }
+    if (onFrac >= 0.06 || midFrac >= 0.08) {
+      pos = next;
+      continue;
+    }
+    break;
+  }
+  return pos;
+}
+
+/**
+ * Find the page rectangle so gallery shots on a dark table crop like an
+ * in-app viewfinder still. Shadow anywhere on the page still counts as paper.
  * Returns null when the page already fills most of the frame.
  * Exported for unit tests.
  */
@@ -231,9 +301,17 @@ export function paperBounds(
   // No clear page-vs-table split (Retake already fills the frame, or white desk).
   if (centerMean - cornerMean < 30) return null;
 
+  // Bright white paper (for reference). Soft floor also counts shadowed paper
+  // so a phone shadow on top/side/bottom does not punch a hole in the crop.
   const paperThresh = Math.min(
     200,
     Math.max(140, cornerMean + (centerMean - cornerMean) * 0.35),
+  );
+  // Soft floor: shadowed paper is only a bit above the dark table, often << 6%
+  // of the frame — and the shadow band itself can be a large fraction of the page.
+  const pageFloor = Math.min(
+    paperThresh,
+    Math.max(65, cornerMean + Math.max(18, (centerMean - cornerMean) * 0.15)),
   );
 
   const rowCover = new Float64Array(height);
@@ -241,7 +319,7 @@ export function paperBounds(
   for (let y = 0; y < height; y += 1) {
     let paper = 0;
     for (let x = 0; x < width; x += 1) {
-      if (toGray(data, (y * width + x) * 4) >= paperThresh) {
+      if (toGray(data, (y * width + x) * 4) >= pageFloor) {
         paper += 1;
         colCover[x] += 1;
       }
@@ -250,23 +328,78 @@ export function paperBounds(
   }
   for (let x = 0; x < width; x += 1) colCover[x] /= height;
 
-  // Text makes paper rows only partly bright; table rows stay near 0.
-  const minCover = 0.16;
-  const rowRun = longestCoverRun(rowCover, minCover);
-  const colRun = longestCoverRun(colCover, minCover);
+  // Text makes page rows only partly "on paper"; table rows stay near 0.
+  // Bridge large shadow bands (phone shade can cover well over 6% of the page).
+  const minCover = 0.1;
+  const rowGap = Math.max(8, Math.round(height * 0.18));
+  const colGap = Math.max(6, Math.round(width * 0.14));
+  const rowRun = longestCoverRun(rowCover, minCover, rowGap);
+  const colRun = longestCoverRun(colCover, minCover, colGap);
   if (!rowRun || !colRun) return null;
 
-  const x0 = colRun.start;
-  const x1 = colRun.end;
-  const y0 = rowRun.start;
-  const y1 = rowRun.end;
+  let x0 = colRun.start;
+  let x1 = colRun.end;
+  let y0 = rowRun.start;
+  let y1 = rowRun.end;
+
+  const extraY = Math.max(20, Math.round(height * 0.28));
+  const extraX = Math.max(16, Math.round(width * 0.22));
+  y1 = extendPaperEdge(
+    data,
+    width,
+    height,
+    x0,
+    x1,
+    y1,
+    1,
+    extraY,
+    pageFloor,
+    "row",
+  );
+  y0 = extendPaperEdge(
+    data,
+    width,
+    height,
+    x0,
+    x1,
+    y0,
+    -1,
+    extraY,
+    pageFloor,
+    "row",
+  );
+  x1 = extendPaperEdge(
+    data,
+    width,
+    height,
+    y0,
+    y1,
+    x1,
+    1,
+    extraX,
+    pageFloor,
+    "col",
+  );
+  x0 = extendPaperEdge(
+    data,
+    width,
+    height,
+    y0,
+    y1,
+    x0,
+    -1,
+    extraX,
+    pageFloor,
+    "col",
+  );
+
   const bw = x1 - x0 + 1;
   const bh = y1 - y0 + 1;
   if (bw < width * 0.35 || bh < height * 0.35) return null;
   if (bw * bh >= width * height * 0.92) return null;
 
-  const padX = Math.max(4, Math.round(width * 0.015));
-  const padY = Math.max(4, Math.round(height * 0.015));
+  const padX = Math.max(6, Math.round(width * 0.035));
+  const padY = Math.max(10, Math.round(height * 0.08));
   return {
     x0: Math.max(0, x0 - padX),
     y0: Math.max(0, y0 - padY),
