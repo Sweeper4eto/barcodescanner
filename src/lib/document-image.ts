@@ -109,11 +109,14 @@ export async function assessDocumentPhotoQuality(
   }
 }
 
-function contentBounds(
+type CropBounds = { x0: number; y0: number; x1: number; y1: number };
+
+/** Ink bounding box — trims empty margins when the page already fills the frame. */
+function inkBounds(
   data: Uint8ClampedArray,
   width: number,
   height: number,
-): { x0: number; y0: number; x1: number; y1: number } | null {
+): CropBounds | null {
   let x0 = width;
   let y0 = height;
   let x1 = 0;
@@ -142,6 +145,170 @@ function contentBounds(
     x1: Math.min(width - 1, x1 + padX),
     y1: Math.min(height - 1, y1 + padY),
   };
+}
+
+function regionMeanGray(
+  data: Uint8ClampedArray,
+  width: number,
+  x0: number,
+  y0: number,
+  x1: number,
+  y1: number,
+): number {
+  let sum = 0;
+  let count = 0;
+  for (let y = y0; y < y1; y += 1) {
+    for (let x = x0; x < x1; x += 1) {
+      sum += toGray(data, (y * width + x) * 4);
+      count += 1;
+    }
+  }
+  return count === 0 ? 0 : sum / count;
+}
+
+function longestCoverRun(
+  cover: Float64Array,
+  minCover: number,
+): { start: number; end: number } | null {
+  let bestStart = 0;
+  let bestEnd = -1;
+  let bestLen = 0;
+  let runStart = -1;
+  for (let i = 0; i <= cover.length; i += 1) {
+    const ok = i < cover.length && cover[i] >= minCover;
+    if (ok) {
+      if (runStart < 0) runStart = i;
+      continue;
+    }
+    if (runStart >= 0) {
+      const len = i - runStart;
+      if (len > bestLen) {
+        bestLen = len;
+        bestStart = runStart;
+        bestEnd = i - 1;
+      }
+      runStart = -1;
+    }
+  }
+  if (bestEnd < bestStart) return null;
+  return { start: bestStart, end: bestEnd };
+}
+
+/**
+ * Find the bright page rectangle so gallery shots on a dark table crop like
+ * an in-app viewfinder still (page fills the OCR frame).
+ * Returns null when the page already fills most of the frame.
+ * Exported for unit tests.
+ */
+export function paperBounds(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+): CropBounds | null {
+  const corner = Math.max(4, Math.round(Math.min(width, height) * 0.08));
+  const cornerMean =
+    (regionMeanGray(data, width, 0, 0, corner, corner) +
+      regionMeanGray(data, width, width - corner, 0, width, corner) +
+      regionMeanGray(data, width, 0, height - corner, corner, height) +
+      regionMeanGray(
+        data,
+        width,
+        width - corner,
+        height - corner,
+        width,
+        height,
+      )) /
+    4;
+  const centerMean = regionMeanGray(
+    data,
+    width,
+    Math.floor(width * 0.3),
+    Math.floor(height * 0.3),
+    Math.floor(width * 0.7),
+    Math.floor(height * 0.7),
+  );
+
+  // No clear page-vs-table split (Retake already fills the frame, or white desk).
+  if (centerMean - cornerMean < 30) return null;
+
+  const paperThresh = Math.min(
+    200,
+    Math.max(140, cornerMean + (centerMean - cornerMean) * 0.35),
+  );
+
+  const rowCover = new Float64Array(height);
+  const colCover = new Float64Array(width);
+  for (let y = 0; y < height; y += 1) {
+    let paper = 0;
+    for (let x = 0; x < width; x += 1) {
+      if (toGray(data, (y * width + x) * 4) >= paperThresh) {
+        paper += 1;
+        colCover[x] += 1;
+      }
+    }
+    rowCover[y] = paper / width;
+  }
+  for (let x = 0; x < width; x += 1) colCover[x] /= height;
+
+  // Text makes paper rows only partly bright; table rows stay near 0.
+  const minCover = 0.16;
+  const rowRun = longestCoverRun(rowCover, minCover);
+  const colRun = longestCoverRun(colCover, minCover);
+  if (!rowRun || !colRun) return null;
+
+  const x0 = colRun.start;
+  const x1 = colRun.end;
+  const y0 = rowRun.start;
+  const y1 = rowRun.end;
+  const bw = x1 - x0 + 1;
+  const bh = y1 - y0 + 1;
+  if (bw < width * 0.35 || bh < height * 0.35) return null;
+  if (bw * bh >= width * height * 0.92) return null;
+
+  const padX = Math.max(4, Math.round(width * 0.015));
+  const padY = Math.max(4, Math.round(height * 0.015));
+  return {
+    x0: Math.max(0, x0 - padX),
+    y0: Math.max(0, y0 - padY),
+    x1: Math.min(width - 1, x1 + padX),
+    y1: Math.min(height - 1, y1 + padY),
+  };
+}
+
+function pickCropBounds(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+): CropBounds | null {
+  const paper = paperBounds(data, width, height);
+  if (paper) return paper;
+
+  // Ink trim only when the page already fills the frame. On a dark table,
+  // inkBounds would expand to the table again (the bug we are fixing).
+  const corner = Math.max(4, Math.round(Math.min(width, height) * 0.08));
+  const cornerMean =
+    (regionMeanGray(data, width, 0, 0, corner, corner) +
+      regionMeanGray(data, width, width - corner, 0, width, corner) +
+      regionMeanGray(data, width, 0, height - corner, corner, height) +
+      regionMeanGray(
+        data,
+        width,
+        width - corner,
+        height - corner,
+        width,
+        height,
+      )) /
+    4;
+  const centerMean = regionMeanGray(
+    data,
+    width,
+    Math.floor(width * 0.3),
+    Math.floor(height * 0.3),
+    Math.floor(width * 0.7),
+    Math.floor(height * 0.7),
+  );
+  if (centerMean - cornerMean < 30) return inkBounds(data, width, height);
+  return null;
 }
 
 function rowProjectionScore(
@@ -243,11 +410,60 @@ function applyDocumentEnhance(ctx: CanvasRenderingContext2D): void {
   ctx.putImageData(imageData, 0, 0);
 }
 
+/**
+ * Crop the page first (so 12MP gallery shots don't waste the long edge on the
+ * table), then scale that region up to maxEdge — same effective framing as Retake.
+ */
 function cropAndDeskew(
   bitmap: ImageBitmap,
-  targetWidth: number,
-  targetHeight: number,
-): HTMLCanvasElement {
+  maxEdge: number,
+): { canvas: HTMLCanvasElement; sourceMaxEdge: number } {
+  const probeMax = ANALYSIS_MAX_EDGE;
+  const probeScale = Math.min(
+    1,
+    probeMax / Math.max(bitmap.width, bitmap.height),
+  );
+  const probeW = Math.max(1, Math.round(bitmap.width * probeScale));
+  const probeH = Math.max(1, Math.round(bitmap.height * probeScale));
+  const probe = document.createElement("canvas");
+  probe.width = probeW;
+  probe.height = probeH;
+  const pctx = probe.getContext("2d", { willReadFrequently: true });
+  if (!pctx) throw new Error("Could not prepare photo");
+  pctx.imageSmoothingEnabled = true;
+  pctx.imageSmoothingQuality = "high";
+  pctx.drawImage(bitmap, 0, 0, probeW, probeH);
+
+  const sample = pctx.getImageData(0, 0, probeW, probeH);
+  const bounds = pickCropBounds(sample.data, probeW, probeH);
+
+  let sx = 0;
+  let sy = 0;
+  let sw = bitmap.width;
+  let sh = bitmap.height;
+  if (bounds) {
+    const bw = bounds.x1 - bounds.x0 + 1;
+    const bh = bounds.y1 - bounds.y0 + 1;
+    if (bw * bh < probeW * probeH * 0.92 && bw > 40 && bh > 40) {
+      const inv = 1 / probeScale;
+      sx = Math.max(0, Math.round(bounds.x0 * inv));
+      sy = Math.max(0, Math.round(bounds.y0 * inv));
+      sw = Math.min(bitmap.width - sx, Math.round(bw * inv));
+      sh = Math.min(bitmap.height - sy, Math.round(bh * inv));
+      if (sw < 40 || sh < 40) {
+        sx = 0;
+        sy = 0;
+        sw = bitmap.width;
+        sh = bitmap.height;
+      }
+    }
+  }
+
+  const sourceMaxEdge = Math.max(sw, sh);
+  const scale = Math.min(1, maxEdge / sourceMaxEdge);
+  const targetWidth = Math.max(1, Math.round(sw * scale));
+  const targetHeight = Math.max(1, Math.round(sh * scale));
+
   const base = document.createElement("canvas");
   base.width = targetWidth;
   base.height = targetHeight;
@@ -255,40 +471,22 @@ function cropAndDeskew(
   if (!bctx) throw new Error("Could not prepare photo");
   bctx.imageSmoothingEnabled = true;
   bctx.imageSmoothingQuality = "high";
-  bctx.drawImage(bitmap, 0, 0, targetWidth, targetHeight);
+  bctx.drawImage(bitmap, sx, sy, sw, sh, 0, 0, targetWidth, targetHeight);
 
-  const sample = bctx.getImageData(0, 0, targetWidth, targetHeight);
-  const bounds = contentBounds(sample.data, targetWidth, targetHeight);
-
-  let working = base;
-  if (bounds) {
-    const bw = bounds.x1 - bounds.x0 + 1;
-    const bh = bounds.y1 - bounds.y0 + 1;
-    if (bw * bh < targetWidth * targetHeight * 0.92 && bw > 40 && bh > 40) {
-      const cropped = document.createElement("canvas");
-      cropped.width = bw;
-      cropped.height = bh;
-      const cctx = cropped.getContext("2d", { willReadFrequently: true });
-      if (!cctx) throw new Error("Could not prepare photo");
-      cctx.drawImage(base, bounds.x0, bounds.y0, bw, bh, 0, 0, bw, bh);
-      working = cropped;
-    }
-  }
-
-  const angle = estimateSkewDegrees(working);
-  if (angle === 0) return working;
+  const angle = estimateSkewDegrees(base);
+  if (angle === 0) return { canvas: base, sourceMaxEdge };
 
   const rotated = document.createElement("canvas");
-  rotated.width = working.width;
-  rotated.height = working.height;
+  rotated.width = base.width;
+  rotated.height = base.height;
   const rctx = rotated.getContext("2d");
-  if (!rctx) return working;
+  if (!rctx) return { canvas: base, sourceMaxEdge };
   rctx.fillStyle = "#ffffff";
   rctx.fillRect(0, 0, rotated.width, rotated.height);
   rctx.translate(rotated.width / 2, rotated.height / 2);
   rctx.rotate((angle * Math.PI) / 180);
-  rctx.drawImage(working, -working.width / 2, -working.height / 2);
-  return rotated;
+  rctx.drawImage(base, -base.width / 2, -base.height / 2);
+  return { canvas: rotated, sourceMaxEdge };
 }
 
 function approxJpegBytes(dataUrl: string): number {
@@ -314,13 +512,10 @@ export async function prepareDocumentImage(dataUrl: string): Promise<string> {
   try {
     let best = dataUrl;
     for (const step of STEPS) {
-      const scale = Math.min(
-        1,
-        step.maxEdge / Math.max(bitmap.width, bitmap.height),
+      const { canvas: enhanced, sourceMaxEdge } = cropAndDeskew(
+        bitmap,
+        step.maxEdge,
       );
-      const width = Math.max(1, Math.round(bitmap.width * scale));
-      const height = Math.max(1, Math.round(bitmap.height * scale));
-      const enhanced = cropAndDeskew(bitmap, width, height);
       const ctx = enhanced.getContext("2d");
       if (!ctx) throw new Error("Could not prepare photo");
       applyDocumentEnhance(ctx);
@@ -328,8 +523,8 @@ export async function prepareDocumentImage(dataUrl: string): Promise<string> {
       if (approxJpegBytes(best) <= TARGET_BYTES) {
         return best;
       }
-      // Smaller photos already fit at this size; another pass would be identical.
-      if (scale === 1) break;
+      // Cropped page already fits this maxEdge; smaller maxEdge won't shrink it.
+      if (sourceMaxEdge <= step.maxEdge) break;
     }
     return best;
   } finally {

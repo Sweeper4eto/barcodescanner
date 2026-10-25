@@ -772,7 +772,16 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Повторно снимане на документ: подготовката на снимката преди четене е много по-бърза, когато вече имате няколко страници.",
     href: "/app/add-document",
   },
+  {
+    key: "2026-10-document-gallery-paper-crop",
+    titleEn:
+      "Document upload from gallery: prep now crops to the white page so table background does not waste resolution.",
+    titleBg:
+      "Качване на документ от галерията: подготовката изрязва белия лист, за да не се губи резолюция в масата наоколо.",
+    href: "/app/add-document",
+  },
 ];
+
 
 
 
