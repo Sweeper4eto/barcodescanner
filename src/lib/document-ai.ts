@@ -236,7 +236,8 @@ Example of forbidden borrow: date printed on Lavazza's band must NOT appear on t
 
 ROW SEPARATOR LINES (optional — only when printed):
 - Some tables draw a horizontal ruling line between product rows; many pages have none. Do not invent lines.
-- WHEN a full horizontal separator IS visible between two text bands: treat bands above and below as separate products (never one wrap), even if names/articuls match; each keeps its own qty/Godnost.
+- Lines often fade, break, or start/end short of the full table width (e.g. begin a bit later under the name column, or vanish near the left/right edge). A partial/faint horizontal stroke between bands still counts as a separator — do not require edge-to-edge ink.
+- WHEN a horizontal separator IS visible between two text bands (full or partial/faded): treat bands above and below as separate products (never one wrap), even if names/articuls match; each keeps its own qty/Godnost.
 - WHEN there are no separator lines: still split products by normal table row alignment (one horizontal band of cells → one item). Wrapped name lines without a line between them stay one product.
 
 WRAPPED NAMES (one product, two text lines — only when no separator line between them):
@@ -244,7 +245,7 @@ WRAPPED NAMES (one product, two text lines — only when no separator line betwe
   "сусам, 160г"
 → ONE item: name joins both lines; qty/Godnost from that product's column cells (usually on the first name line).
 Do not emit "сусам, 160г" as its own product.
-If a printed horizontal separator sits between those two text lines, they are NOT a wrap — two products.
+If a printed horizontal separator (including partial/faded) sits between those two text lines, they are NOT a wrap — two products.
 
 DUPLICATE NAMES (normal on warehouse lists — do NOT "fix"):
 - The SAME product name (and often the same articul) can appear on TWO OR MORE consecutive table rows — different quantity and/or Godnost batches.
