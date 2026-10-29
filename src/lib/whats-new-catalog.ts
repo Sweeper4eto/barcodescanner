@@ -870,9 +870,9 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
   {
     key: "2026-10-document-exit-confirms",
     titleEn:
-      "Document scan: Retake keeps your review — Cancel on the live camera returns immediately (nothing to lose). Discarding a still photo still asks for confirmation.",
+      "Document scan: empty camera lets you leave to Add/Expiry with no prompt. Retake keeps your review; Cancel on live camera returns immediately; discarding a still still asks.",
     titleBg:
-      "Сканиране на документ: Повтори запазва прегледа — Отказ на живата камера връща веднага (няма какво да се загуби). Отхвърлянето на снимка пак иска потвърждение.",
+      "Сканиране на документ: празната камера пуска към Добави/Годност без питане. Повтори запазва прегледа; Отказ на живата камера връща веднага; отхвърляне на снимка пак пита.",
     href: "/app/add-document",
   },
   {

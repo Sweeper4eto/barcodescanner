@@ -112,29 +112,6 @@ function AddDocumentContent() {
       step === "replacePage",
   );
 
-  // Bottom nav Add / Expiry would wipe unsaved camera or OCR work — confirm first.
-  useNavigationLeaveGuard(
-    step === "review" ||
-      step === "replacePage" ||
-      step === "camera" ||
-      step === "confirmLocation",
-    {
-      title:
-        step === "review" || step === "replacePage"
-          ? t("addDocument.leaveReviewTitle")
-          : t("addDocument.leaveCameraTitle"),
-      message:
-        step === "review" || step === "replacePage"
-          ? t("addDocument.leaveReviewMessage")
-          : t("addDocument.leaveCameraMessage"),
-      stayLabel: t("addDocument.leaveReviewStay"),
-      leaveLabel:
-        step === "review" || step === "replacePage"
-          ? t("addDocument.leaveReviewLeave")
-          : t("addDocument.leaveCameraConfirm"),
-    },
-  );
-
   const locationName = useMemo(() => {
     const match = user?.stores.find((store) => store.id === storeId);
     return match?.name ?? storeId;
@@ -167,6 +144,18 @@ function AddDocumentContent() {
     total: number;
   } | null>(null);
   const [failedFiles, setFailedFiles] = useState<string[]>([]);
+
+  // Initial empty camera/location: leave freely. Confirm only with review work
+  // (review, page retake, or Scan another while pages are still in memory).
+  const hasDocumentDraft =
+    step === "review" || step === "replacePage" || pages.length > 0;
+  useNavigationLeaveGuard(hasDocumentDraft, {
+    title: t("addDocument.leaveReviewTitle"),
+    message: t("addDocument.leaveReviewMessage"),
+    stayLabel: t("addDocument.leaveReviewStay"),
+    leaveLabel: t("addDocument.leaveReviewLeave"),
+  });
+
   // Re-tap Сканирай: no “Start over?” on location / first camera (live or still).
   // Confirm only on the already-scanned document review, or while retaking a page.
   useEffect(() => {
