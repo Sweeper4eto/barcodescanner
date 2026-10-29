@@ -674,6 +674,7 @@ export const bg = {
     selectedCount: "Избрани: {count}",
     selectItem: "Избери артикул",
     deselectItem: "Премахни избора",
+    selectMax: "Можете да изберете най-много {max} артикула наведнъж.",
     bulkRemove: "Премахни ({count})",
     bulkRemoving: "Премахване…",
     bulkConfirmTitle: "Премахване?",

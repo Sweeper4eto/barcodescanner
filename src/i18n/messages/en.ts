@@ -671,6 +671,7 @@ export const en = {
     selectedCount: "Selected: {count}",
     selectItem: "Select item",
     deselectItem: "Deselect item",
+    selectMax: "You can select up to {max} items at once.",
     bulkRemove: "Remove ({count})",
     bulkRemoving: "Removing…",
     bulkConfirmTitle: "Remove items?",

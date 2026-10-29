@@ -5,6 +5,10 @@ import { logAuditEvent } from "@/lib/audit-log";
 import { requireSession } from "@/lib/auth";
 import { activeInventoryWhere } from "@/lib/inventory";
 import { db } from "@/lib/db";
+import {
+  BULK_REMOVE_MAX_ABSOLUTE,
+  bulkRemoveMaxForClientRole,
+} from "@/lib/expiry-bulk-remove";
 import { isAdhocBarcode } from "@/lib/inventory-entry-display";
 import { deleteLocalProductIfUnused } from "@/lib/local-product";
 import { userCanRemoveExpiry } from "@/lib/expiry-remove-access";
@@ -12,11 +16,9 @@ import { userCanAccessStore } from "@/lib/store-access";
 import { deleteLocalUpload } from "@/lib/upload";
 import { apiT } from "@/i18n";
 
-const MAX_BULK = 50;
-
 const schema = z.object({
   storeId: z.string().min(1),
-  entryIds: z.array(z.string().min(1)).min(1).max(MAX_BULK),
+  entryIds: z.array(z.string().min(1)).min(1).max(BULK_REMOVE_MAX_ABSOLUTE),
 });
 
 export async function POST(request: Request) {
@@ -54,7 +56,21 @@ export async function POST(request: Request) {
     );
   }
 
+  const actor = await db.user.findUnique({
+    where: { id: session.userId },
+    select: { clientRole: true },
+  });
+  const maxBulk = bulkRemoveMaxForClientRole(actor?.clientRole);
   const uniqueIds = [...new Set(parsed.data.entryIds)];
+  if (uniqueIds.length > maxBulk) {
+    return NextResponse.json(
+      {
+        error: apiT(request, "expiry.selectMax", { max: maxBulk }),
+        max: maxBulk,
+      },
+      { status: 400 },
+    );
+  }
   const entries = await db.inventoryEntry.findMany({
     where: {
       id: { in: uniqueIds },

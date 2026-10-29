@@ -24,6 +24,8 @@ export type AppSessionStore = { id: string; name: string; active: boolean };
 type AppSessionUser = {
   username: string;
   homeUser: boolean;
+  /** Account owner vs staff — drives bulk-remove selection caps. */
+  clientRole: "OWNER" | "MEMBER" | null;
   /** Owners always true; members follow the Team expiry-remove setting. */
   canRemoveExpiry: boolean;
   stores: AppSessionStore[];
@@ -90,6 +92,9 @@ export function AppSessionProvider({ children }: { children: ReactNode }) {
 
       const username = String(data.user.username ?? "");
       const homeUser = Boolean(data.user.homeUser);
+      const rawRole = data.user.clientRole;
+      const clientRole: AppSessionUser["clientRole"] =
+        rawRole === "OWNER" || rawRole === "MEMBER" ? rawRole : null;
       const canRemoveExpiry =
         data.user.canRemoveExpiry === undefined
           ? true
@@ -100,7 +105,7 @@ export function AppSessionProvider({ children }: { children: ReactNode }) {
       );
       setState({
         ready: true,
-        user: { username, homeUser, canRemoveExpiry, stores },
+        user: { username, homeUser, clientRole, canRemoveExpiry, stores },
         homeUser,
       });
       syncSelectedStore(stores, username);

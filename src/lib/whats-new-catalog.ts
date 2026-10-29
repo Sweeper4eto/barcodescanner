@@ -811,6 +811,14 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Търсенето в Годност намира всички съвпадащи артикули в обекта — включително тези, които изтичат скоро — дори при много дълъг списък.",
     href: "/app/expiry",
   },
+  {
+    key: "2026-10-expiry-bulk-select-cap",
+    titleEn:
+      "Expiry multi-select stops at 50 items for staff and 150 for owners — you cannot select more than you can remove at once.",
+    titleBg:
+      "Множественият избор в Годност спира на 50 артикула за служители и 150 за собственици — не може да изберете повече, отколкото можете да премахнете наведнъж.",
+    href: "/app/expiry",
+  },
 ];
 
 

@@ -41,6 +41,7 @@ import { ConfirmButton } from "@/components/confirm-button";
 import { DangerRemoveButton } from "@/components/danger-remove-button";
 import { appButtonNeutral, appFooterButtonGrid } from "@/lib/app-ui";
 import { resolveEntryImagePath } from "@/lib/inventory-entry-display";
+import { bulkRemoveMaxForClientRole } from "@/lib/expiry-bulk-remove";
 import {
   EXPIRY_EXPORT_MAX_ITEMS,
   downloadExpirySelectionJpg,
@@ -76,6 +77,7 @@ function ExpiryList() {
   const { t, dateLocale } = useT();
   const { homeUser, user } = useAppSession();
   const canRemoveExpiry = user?.canRemoveExpiry !== false;
+  const selectionLimit = bulkRemoveMaxForClientRole(user?.clientRole);
   const { offsetTop, keyboardInset } = useViewportInsets();
   const { storeId, ready: storeReady } = useAppStoreId();
 
@@ -458,12 +460,20 @@ function ExpiryList() {
   }
 
   function toggleSelected(entryId: string) {
-    setSelectedIds((current) => {
-      const next = { ...current };
-      if (next[entryId]) delete next[entryId];
-      else next[entryId] = true;
-      return next;
-    });
+    if (selectedIds[entryId]) {
+      setSelectedIds((current) => {
+        const next = { ...current };
+        delete next[entryId];
+        return next;
+      });
+      return;
+    }
+    if (Object.keys(selectedIds).length >= selectionLimit) {
+      setFlashTone("success");
+      setFlashMessage(t("expiry.selectMax", { max: selectionLimit }));
+      return;
+    }
+    setSelectedIds((current) => ({ ...current, [entryId]: true }));
   }
 
   async function bulkRemoveSelected() {
@@ -699,6 +709,7 @@ function ExpiryList() {
   const emptyMessage = isSearching ? t("expiry.noResults") : t("expiry.empty");
   const isHomeUser = homeUser === true;
   const selectedCount = Object.keys(selectedIds).length;
+  const selectionAtLimit = selectedCount >= selectionLimit;
   const confirmEntry = confirmId
     ? (entries.find((entry) => entry.id === confirmId) ?? null)
     : null;
@@ -827,6 +838,11 @@ function ExpiryList() {
             favourite={Boolean(favouriteProductIds[entry.product.id])}
             selectionMode={selectionMode}
             selected={Boolean(selectedIds[entry.id])}
+            selectionDisabled={
+              selectionMode &&
+              selectionAtLimit &&
+              !selectedIds[entry.id]
+            }
             canRemove={canRemoveExpiry}
             onOpen={() => setDetailEntry(entry)}
             onRemove={() => setConfirmId(entry.id)}

@@ -34,6 +34,8 @@ type Props = {
   mode?: "full" | "view";
   selectionMode?: boolean;
   selected?: boolean;
+  /** At bulk-select cap: unselected cards stay visible but do not toggle on. */
+  selectionDisabled?: boolean;
   /** When false, hide the × remove control (owner disabled staff remove). */
   canRemove?: boolean;
   onOpen: () => void;
@@ -59,6 +61,7 @@ export function ExpiryListCard({
   mode = "full",
   selectionMode = false,
   selected = false,
+  selectionDisabled = false,
   canRemove = true,
   onOpen,
   onRemove,
@@ -134,7 +137,9 @@ export function ExpiryListCard({
         selected
           ? "border-primary bg-selected"
           : "border-card-border bg-transparent"
-      } ${selectionMode ? "cursor-pointer" : ""}`}
+      } ${selectionMode ? "cursor-pointer" : ""} ${
+        selectionDisabled ? "opacity-45" : ""
+      }`}
       aria-pressed={selectionMode ? selected : undefined}
       onClick={
         selectionMode
