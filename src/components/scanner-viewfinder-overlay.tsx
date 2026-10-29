@@ -2,11 +2,14 @@ type ScannerViewfinderVariant = "barcode" | "document";
 
 export function ScannerViewfinderOverlay({
   variant = "barcode",
-  showScanLine = true,
+  /** Moving line is for barcode only; document framing uses corners alone. */
+  showScanLine,
 }: {
   variant?: ScannerViewfinderVariant;
   showScanLine?: boolean;
 }) {
+  const lineVisible = showScanLine ?? variant !== "document";
+
   return (
     <div className="scanner-overlay" aria-hidden>
       <div
@@ -18,7 +21,7 @@ export function ScannerViewfinderOverlay({
         <span className="scanner-corner scanner-corner-tr" />
         <span className="scanner-corner scanner-corner-bl" />
         <span className="scanner-corner scanner-corner-br" />
-        {showScanLine ? <span className="scanner-line" /> : null}
+        {lineVisible ? <span className="scanner-line" /> : null}
       </div>
     </div>
   );

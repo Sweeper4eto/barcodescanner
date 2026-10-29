@@ -825,7 +825,7 @@ export function CameraCapture({
 
   const documentToolbar = documentLayout && !preview && (
     <div
-      className="fixed inset-x-0 z-30 mx-auto flex w-full max-w-lg items-center gap-2 bg-background/95 px-4 pb-2 pt-1 backdrop-blur-sm supports-[backdrop-filter]:bg-background/90"
+      className="fixed inset-x-0 z-30 mx-auto flex w-full max-w-lg items-end gap-2 bg-background/95 px-4 pb-2 pt-1 backdrop-blur-sm supports-[backdrop-filter]:bg-background/90"
       style={documentToolbarPinStyle}
     >
       <div className="min-w-0 flex-1">

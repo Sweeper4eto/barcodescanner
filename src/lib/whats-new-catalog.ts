@@ -899,6 +899,14 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Камера за документ: бутонът за снимка е тънка рамка от ъгли с икона на камера вътре — без запълнен кръг.",
     href: "/app/add-document",
   },
+  {
+    key: "2026-10-document-no-scan-line",
+    titleEn:
+      "Document camera: no bouncing scan line — that animation is only for barcode scanning. Document framing keeps the corner guides.",
+    titleBg:
+      "Камера за документ: без движеща се линия — тази анимация е само за баркод. За документ остават ъгловите водачи.",
+    href: "/app/add-document",
+  },
 ];
 
 
