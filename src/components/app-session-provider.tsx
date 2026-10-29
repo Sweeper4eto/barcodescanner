@@ -24,6 +24,8 @@ export type AppSessionStore = { id: string; name: string; active: boolean };
 type AppSessionUser = {
   username: string;
   homeUser: boolean;
+  /** Owners always true; members follow the Team expiry-remove setting. */
+  canRemoveExpiry: boolean;
   stores: AppSessionStore[];
 };
 
@@ -88,13 +90,17 @@ export function AppSessionProvider({ children }: { children: ReactNode }) {
 
       const username = String(data.user.username ?? "");
       const homeUser = Boolean(data.user.homeUser);
+      const canRemoveExpiry =
+        data.user.canRemoveExpiry === undefined
+          ? true
+          : Boolean(data.user.canRemoveExpiry);
       writeCachedHomeUser(homeUser);
       const stores: AppSessionStore[] = (data.user.stores ?? []).filter(
         (store: AppSessionStore) => store.active,
       );
       setState({
         ready: true,
-        user: { username, homeUser, stores },
+        user: { username, homeUser, canRemoveExpiry, stores },
         homeUser,
       });
       syncSelectedStore(stores, username);

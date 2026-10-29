@@ -795,6 +795,14 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
     titleBg:
       "Новости: дългите списъци с промени се превъртат на телефона и нищо не се отрязва.",
   },
+  {
+    key: "2026-10-expiry-member-remove-toggle",
+    titleEn:
+      "Team → person details: allow or block removing items from the expiry list (owners always can).",
+    titleBg:
+      "Екип → детайли на човек: разрешете или забранете премахване от списъка със срокове (собствениците винаги могат).",
+    href: "/app/team",
+  },
 ];
 
 

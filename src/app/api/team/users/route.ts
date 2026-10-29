@@ -43,6 +43,7 @@ export async function GET(request: Request) {
       email: true,
       active: true,
       clientRole: true,
+      canRemoveExpiry: true,
       storeLinks: {
         select: {
           store: { select: { id: true, name: true, active: true } },
@@ -65,6 +66,7 @@ export async function GET(request: Request) {
       email: user.email,
       active: user.active,
       clientRole: user.clientRole,
+      canRemoveExpiry: user.canRemoveExpiry,
       stores: user.storeLinks.map((link) => link.store),
     })),
     stores,
@@ -82,6 +84,7 @@ const createSchema = z.object({
   password: z.string().min(1),
   storeIds: z.array(z.string().min(1)).default([]),
   clientRole: z.enum(["OWNER", "MEMBER"]).optional(),
+  canRemoveExpiry: z.boolean().optional(),
 });
 
 export async function POST(request: Request) {
@@ -136,6 +139,8 @@ export async function POST(request: Request) {
     storeIds.push(clientStores[0].id);
   }
 
+  const clientRole =
+    parsed.data.clientRole === "OWNER" ? "OWNER" : "MEMBER";
   const user = await db.user.create({
     data: {
       username,
@@ -143,7 +148,11 @@ export async function POST(request: Request) {
       passwordHash: await hashPassword(parsed.data.password),
       mustChangePassword: true,
       role: "USER",
-      clientRole: parsed.data.clientRole === "OWNER" ? "OWNER" : "MEMBER",
+      clientRole,
+      canRemoveExpiry:
+        clientRole === "OWNER"
+          ? true
+          : (parsed.data.canRemoveExpiry ?? true),
       clientId: owner.clientId,
       storeLinks: {
         create: storeIds.map((storeId) => ({ storeId })),
@@ -155,6 +164,7 @@ export async function POST(request: Request) {
       displayName: true,
       active: true,
       clientRole: true,
+      canRemoveExpiry: true,
       storeLinks: {
         select: { store: { select: { id: true, name: true, active: true } } },
       },
@@ -168,6 +178,7 @@ export async function POST(request: Request) {
       displayName: user.displayName,
       active: user.active,
       clientRole: user.clientRole,
+      canRemoveExpiry: user.canRemoveExpiry,
       stores: user.storeLinks.map((link) => link.store),
     },
   });
@@ -182,6 +193,7 @@ const patchSchema = z.object({
   active: z.boolean().optional(),
   storeIds: z.array(z.string().min(1)).optional(),
   clientRole: z.enum(["OWNER", "MEMBER"]).optional(),
+  canRemoveExpiry: z.boolean().optional(),
 });
 
 export async function PATCH(request: Request) {
@@ -311,6 +323,7 @@ export async function PATCH(request: Request) {
     mustChangePassword?: boolean;
     active?: boolean;
     clientRole?: "OWNER" | "MEMBER";
+    canRemoveExpiry?: boolean;
   } = {};
   if (nextUsername !== undefined) updateData.username = nextUsername;
   if (parsed.data.displayName !== undefined) {
@@ -321,7 +334,15 @@ export async function PATCH(request: Request) {
     updateData.mustChangePassword = true;
   }
   if (parsed.data.active !== undefined) updateData.active = parsed.data.active;
-  if (parsed.data.clientRole !== undefined) updateData.clientRole = parsed.data.clientRole;
+  const nextRole = parsed.data.clientRole ?? target.clientRole;
+  if (parsed.data.clientRole !== undefined) {
+    updateData.clientRole = parsed.data.clientRole;
+  }
+  if (nextRole === "OWNER") {
+    updateData.canRemoveExpiry = true;
+  } else if (parsed.data.canRemoveExpiry !== undefined) {
+    updateData.canRemoveExpiry = parsed.data.canRemoveExpiry;
+  }
 
   if (Object.keys(updateData).length > 0) {
     await db.$transaction(async (tx) => {
@@ -344,6 +365,7 @@ export async function PATCH(request: Request) {
       email: true,
       active: true,
       clientRole: true,
+      canRemoveExpiry: true,
       storeLinks: {
         select: { store: { select: { id: true, name: true, active: true } } },
       },
@@ -358,6 +380,7 @@ export async function PATCH(request: Request) {
       email: updated.email,
       active: updated.active,
       clientRole: updated.clientRole,
+      canRemoveExpiry: updated.canRemoveExpiry,
       stores: updated.storeLinks.map((link) => link.store),
     },
   });

@@ -75,6 +75,7 @@ type Pagination = {
 function ExpiryList() {
   const { t, dateLocale } = useT();
   const { homeUser, user } = useAppSession();
+  const canRemoveExpiry = user?.canRemoveExpiry !== false;
   const { offsetTop, keyboardInset } = useViewportInsets();
   const { storeId, ready: storeReady } = useAppStoreId();
 
@@ -369,8 +370,9 @@ function ExpiryList() {
         body: JSON.stringify({ entryId, storeId }),
       });
       if (!response.ok) {
+        const data = await response.json().catch(() => null);
         setFlashTone("error");
-        setFlashMessage(t("errors.networkError"));
+        setFlashMessage(data?.error ?? t("errors.networkError"));
         return;
       }
       setConfirmId(null);
@@ -825,6 +827,7 @@ function ExpiryList() {
             favourite={Boolean(favouriteProductIds[entry.product.id])}
             selectionMode={selectionMode}
             selected={Boolean(selectedIds[entry.id])}
+            canRemove={canRemoveExpiry}
             onOpen={() => setDetailEntry(entry)}
             onRemove={() => setConfirmId(entry.id)}
             onReducePrice={() => {
@@ -858,7 +861,7 @@ function ExpiryList() {
           />
         ) : null}
 
-        {selectionMode ? (
+        {selectionMode && canRemoveExpiry ? (
           <div className="h-16 shrink-0" aria-hidden />
         ) : null}
       </div>
@@ -904,7 +907,7 @@ function ExpiryList() {
         />
       ) : null}
 
-      {selectionMode ? (
+      {selectionMode && canRemoveExpiry ? (
         <ExpirySelectionFooter
           selectedCount={selectedCount}
           busy={bulkRemoving}

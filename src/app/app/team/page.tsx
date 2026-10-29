@@ -32,6 +32,8 @@ type TeamUser = {
   email: string | null;
   active: boolean;
   clientRole: "OWNER" | "MEMBER" | null;
+  /** Staff may remove expiry items; owners always can regardless. */
+  canRemoveExpiry: boolean;
   stores: Store[];
   /** Scheduled minutes from the 1st of this month through yesterday. */
   hoursThisMonthMin?: number;
@@ -254,6 +256,7 @@ export default function TeamPage() {
   const [scheduleAccess, setScheduleAccess] =
     useState<ScheduleAccess>("private");
   const [scheduleSaving, setScheduleSaving] = useState(false);
+  const [canRemoveExpiry, setCanRemoveExpiry] = useState(true);
 
   const activeStores = useMemo(
     () => stores.filter((store) => store.active),
@@ -293,7 +296,14 @@ export default function TeamPage() {
         setScheduleEnabled(false);
         return;
       }
-      setUsers(data.users ?? []);
+      setUsers(
+        (data.users ?? []).map(
+          (user: TeamUser & { canRemoveExpiry?: boolean }) => ({
+            ...user,
+            canRemoveExpiry: user.canRemoveExpiry !== false,
+          }),
+        ),
+      );
       setStores(data.stores ?? []);
 
       const accessData = await accessRes.json().catch(() => null);
@@ -360,6 +370,7 @@ export default function TeamPage() {
     setPassword("");
     setShowPassword(false);
     setRole("MEMBER");
+    setCanRemoveExpiry(true);
     setStoreIds(
       defaults?.storeIds?.length
         ? defaults.storeIds
@@ -386,6 +397,9 @@ export default function TeamPage() {
     setPassword("");
     setShowPassword(false);
     setRole(user.clientRole === "OWNER" ? "OWNER" : "MEMBER");
+    setCanRemoveExpiry(
+      user.clientRole === "OWNER" ? true : user.canRemoveExpiry !== false,
+    );
     setStoreIds(user.stores.map((store) => store.id));
     setEditingHoursMin(0);
     setError("");
@@ -449,6 +463,7 @@ export default function TeamPage() {
         password,
         storeIds,
         clientRole: role,
+        canRemoveExpiry: role === "OWNER" ? true : canRemoveExpiry,
       }),
     });
     const data = await response.json().catch(() => null);
@@ -477,6 +492,7 @@ export default function TeamPage() {
         displayName: displayName.trim() || null,
         storeIds,
         clientRole: role,
+        canRemoveExpiry: role === "OWNER" ? true : canRemoveExpiry,
         ...(password ? { password, confirmPassword: password } : {}),
       }),
     });
@@ -836,7 +852,10 @@ export default function TeamPage() {
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
-                    onClick={() => setRole("OWNER")}
+                    onClick={() => {
+                      setRole("OWNER");
+                      setCanRemoveExpiry(true);
+                    }}
                     className={`inline-flex items-center justify-center gap-1.5 rounded-xl border px-2 py-2 text-sm font-semibold transition-colors ${
                       role === "OWNER"
                         ? "border-primary bg-selected/50 text-primary"
@@ -860,6 +879,51 @@ export default function TeamPage() {
                   </button>
                 </div>
               </div>
+
+              {role === "MEMBER" ? (
+                <div className="mt-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="min-w-0 text-sm font-medium text-foreground">
+                      {t("team.expiryRemoveLabel")}
+                    </p>
+                    <div
+                      role="radiogroup"
+                      aria-label={t("team.expiryRemoveLabel")}
+                      className="inline-flex shrink-0 rounded-lg border border-card-border p-0.5"
+                    >
+                      {(
+                        [
+                          { value: true, label: t("team.expiryRemoveAllow") },
+                          { value: false, label: t("team.expiryRemoveDeny") },
+                        ] as const
+                      ).map((option) => {
+                        const active = option.value === canRemoveExpiry;
+                        return (
+                          <button
+                            key={String(option.value)}
+                            type="button"
+                            role="radio"
+                            aria-checked={active}
+                            onClick={() => setCanRemoveExpiry(option.value)}
+                            className={`rounded-md px-2.5 py-1.5 text-xs font-semibold transition-colors ${
+                              active
+                                ? "bg-primary/15 text-primary"
+                                : "text-muted hover:text-foreground"
+                            }`}
+                          >
+                            {option.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <p className="mt-1 text-xs leading-snug text-muted">
+                    {canRemoveExpiry
+                      ? t("team.expiryRemoveAllowHint")
+                      : t("team.expiryRemoveDenyHint")}
+                  </p>
+                </div>
+              ) : null}
 
               <div className="mt-2.5">
                 <p className="mb-1 text-sm font-medium text-foreground">{t("team.stores")}</p>

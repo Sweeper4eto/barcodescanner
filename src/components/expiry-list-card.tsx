@@ -34,6 +34,8 @@ type Props = {
   mode?: "full" | "view";
   selectionMode?: boolean;
   selected?: boolean;
+  /** When false, hide the × remove control (owner disabled staff remove). */
+  canRemove?: boolean;
   onOpen: () => void;
   onRemove: () => void;
   onReducePrice: () => void;
@@ -57,6 +59,7 @@ export function ExpiryListCard({
   mode = "full",
   selectionMode = false,
   selected = false,
+  canRemove = true,
   onOpen,
   onRemove,
   onReducePrice,
@@ -304,7 +307,7 @@ export function ExpiryListCard({
           </button>
         </div>
 
-        {!selectionMode && !viewOnly ? (
+        {!selectionMode && !viewOnly && canRemove ? (
           <button
             type="button"
             aria-label={t("expiry.remove")}

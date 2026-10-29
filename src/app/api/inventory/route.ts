@@ -29,6 +29,7 @@ import {
   makeAdhocBarcode,
 } from "@/lib/inventory-entry-display";
 import { deleteLocalProductIfUnused } from "@/lib/local-product";
+import { userCanRemoveExpiry } from "@/lib/expiry-remove-access";
 import { apiT } from "@/i18n";
 
 const createSchema = z.object({
@@ -771,6 +772,13 @@ export async function PATCH(request: Request) {
     }
 
     return NextResponse.json({ entry });
+  }
+
+  if (!(await userCanRemoveExpiry(session.userId))) {
+    return NextResponse.json(
+      { error: apiT(request, "errors.expiryRemoveForbidden") },
+      { status: 403 },
+    );
   }
 
   const removed = await db.inventoryEntry.findFirst({

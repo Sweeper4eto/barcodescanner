@@ -7,6 +7,7 @@ import { activeInventoryWhere } from "@/lib/inventory";
 import { db } from "@/lib/db";
 import { isAdhocBarcode } from "@/lib/inventory-entry-display";
 import { deleteLocalProductIfUnused } from "@/lib/local-product";
+import { userCanRemoveExpiry } from "@/lib/expiry-remove-access";
 import { userCanAccessStore } from "@/lib/store-access";
 import { deleteLocalUpload } from "@/lib/upload";
 import { apiT } from "@/i18n";
@@ -42,6 +43,13 @@ export async function POST(request: Request) {
   if (!store) {
     return NextResponse.json(
       { error: apiT(request, "errors.noStoreAccess") },
+      { status: 403 },
+    );
+  }
+
+  if (!(await userCanRemoveExpiry(session.userId))) {
+    return NextResponse.json(
+      { error: apiT(request, "errors.expiryRemoveForbidden") },
       { status: 403 },
     );
   }

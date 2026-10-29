@@ -28,6 +28,11 @@ model User {
   clientRole          ClientRole?
   active              Boolean     @default(true)
   mustChangePassword  Boolean     @default(false)
+  /**
+   * Staff may remove expiry-list items when true (default).
+   * OWNER users can always remove regardless of this flag.
+   */
+  canRemoveExpiry     Boolean     @default(true)
   clientId            String?
   client              Client?     @relation(fields: [clientId], references: [id], onDelete: SetNull)
   storeLinks          UserStore[]

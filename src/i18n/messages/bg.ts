@@ -160,6 +160,7 @@ export const bg = {
     invalidData: "Невалидни данни",
     unauthorized: "Неоторизиран достъп",
     forbidden: "Забранен достъп",
+    expiryRemoveForbidden: "Нямате право да премахвате продукти от срока.",
     missingBarcode: "Баркодът е задължителен",
     missingStoreId: "Нужен е обект",
     missingClientId: "Нужен е клиент",
@@ -815,6 +816,13 @@ export const bg = {
     schedulePublicHint: "Служителите виждат График на Начало, вие също оттук.",
     openSchedule: "Отвори график",
     scheduleAccessFailed: "Достъпът до графика не можа да се обнови.",
+    expiryRemoveLabel: "Премахване от срока",
+    expiryRemoveAllow: "Разреши",
+    expiryRemoveDeny: "Забрани",
+    expiryRemoveAllowHint:
+      "Този човек може да премахва продукти от списъка със срокове.",
+    expiryRemoveDenyHint:
+      "Този човек не може да премахва от срока. Собствениците винаги могат.",
     aloneHint: "Засега сте само вие в екипа.",
     tapToEdit: "Докоснете човек за редакция.",
     newUser: "Нов потребител",

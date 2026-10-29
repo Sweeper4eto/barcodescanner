@@ -19,6 +19,7 @@ export async function GET(request: Request) {
       active: true,
       clientId: true,
       clientRole: true,
+      canRemoveExpiry: true,
       mustChangePassword: true,
       client: {
         select: {
@@ -56,6 +57,8 @@ export async function GET(request: Request) {
 
   const { client, storeLinks, ...rest } = user;
   const scheduleEnabled = client?.scheduleEnabled ?? true;
+  const canRemoveExpiry =
+    rest.clientRole === "OWNER" || rest.canRemoveExpiry;
 
   return NextResponse.json({
     user: {
@@ -65,6 +68,7 @@ export async function GET(request: Request) {
       scheduleAccess: scheduleEnabled
         ? parseScheduleAccess(client?.scheduleAccess)
         : "disabled",
+      canRemoveExpiry,
       stores: storeLinks.map((link) => link.store),
     },
   });
