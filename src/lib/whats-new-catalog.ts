@@ -854,9 +854,9 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
   {
     key: "2026-10-scan-hide-header-live",
     titleEn:
-      "Document camera: the top header hides while you frame the shot so Capture and other buttons stay on screen; it returns after the photo.",
+      "Document camera: the top header stays hidden while you frame and on the still with Next/Back, so those buttons stay on screen; it returns on the document review.",
     titleBg:
-      "Камера за документ: горният хедър се скрива докато кадрирате, за да останат бутоните на екрана; след снимката се връща.",
+      "Камера за документ: горният хедър остава скрит докато кадрирате и на снимката с Напред/Назад, за да останат бутоните на екрана; връща се при прегледа на документа.",
     href: "/app/add-document",
   },
   {
@@ -881,6 +881,14 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Document (Scan): tapping the tab again while framing or on the first camera still restarts immediately — “Start over?” only on the scanned-document review or while retaking a page.",
     titleBg:
       "Сканирай: повторно докосване на таба докато кадрирате или на първия преглед на снимка рестартира веднага — „Отначало?“ само при преглед на вече сканирания документ или Повтори.",
+    href: "/app/add-document",
+  },
+  {
+    key: "2026-10-scan-toolbar-above-nav",
+    titleEn:
+      "Document camera: capture and Next/Back stay pinned just above the bottom navigation so the shutter circle is never cropped.",
+    titleBg:
+      "Камера за документ: заснемане и Напред/Назад остават закачени точно над долната навигация, за да не се отрязва кръгът за снимка.",
     href: "/app/add-document",
   },
 ];

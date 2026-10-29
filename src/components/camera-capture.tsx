@@ -735,9 +735,9 @@ export function CameraCapture({
       ? "pointer-events-none h-full w-full object-contain"
       : "pointer-events-none max-h-[min(52dvh,24rem)] w-full object-contain";
 
-  // Taller live frame when the page header is hidden during document scan.
+  // Leave room above the pinned toolbar + bottom nav so the capture circle is not cropped.
   const previewShellClass = documentLayout
-    ? "relative mx-auto flex aspect-[3/4] max-h-[min(72dvh,36rem)] w-full items-center justify-center overflow-hidden rounded-2xl border border-card-border bg-black"
+    ? "relative mx-auto flex aspect-[3/4] max-h-[calc(100svh-var(--app-bottom-nav-frame)-env(safe-area-inset-bottom,0px)-5.75rem)] w-full items-center justify-center overflow-hidden rounded-2xl border border-card-border bg-black"
     : compact
       ? "relative mx-auto flex h-[min(28dvh,12.5rem)] w-full items-center justify-center overflow-hidden rounded-xl border border-card-border bg-black"
       : "relative mx-auto flex max-h-[min(52dvh,24rem)] w-full items-center justify-center overflow-hidden rounded-xl border border-card-border bg-black";
@@ -828,8 +828,17 @@ export function CameraCapture({
     }
   }
 
+  const bottomNav =
+    "var(--app-bottom-nav-frame) + env(safe-area-inset-bottom, 0px)";
+  const documentToolbarPinStyle = {
+    bottom: `calc(${bottomNav})`,
+  } as const;
+
   const documentToolbar = documentLayout && !preview && (
-    <div className="flex items-center gap-2 pt-1 pb-3">
+    <div
+      className="fixed inset-x-0 z-30 mx-auto flex w-full max-w-lg items-center gap-2 border-t border-card-border bg-background/95 px-4 pb-2 pt-1 backdrop-blur-sm supports-[backdrop-filter]:bg-background/90"
+      style={documentToolbarPinStyle}
+    >
       <div className="min-w-0 flex-1">
         {onCancel ? (
           <CancelButton disabled={capturing} onClick={requestLeaveCamera}>
@@ -877,7 +886,10 @@ export function CameraCapture({
   );
 
   const documentPreviewToolbar = documentLayout && preview ? (
-    <div className={`${appFooterButtonGrid} pt-1 pb-3`}>
+    <div
+      className={`fixed inset-x-0 z-30 mx-auto w-full max-w-lg border-t border-card-border bg-background/95 px-4 pb-2 pt-1 backdrop-blur-sm supports-[backdrop-filter]:bg-background/90 ${appFooterButtonGrid}`}
+      style={documentToolbarPinStyle}
+    >
       <button
         type="button"
         onClick={requestDiscardPreview}
@@ -896,9 +908,6 @@ export function CameraCapture({
       </ForwardButton>
     </div>
   ) : null;
-
-  const bottomNav =
-    "var(--app-bottom-nav-frame) + env(safe-area-inset-bottom, 0px)";
   const exitConfirmCopy =
     pendingExit === "discardPreview"
       ? {

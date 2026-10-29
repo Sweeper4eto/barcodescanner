@@ -167,9 +167,6 @@ function AddDocumentContent() {
     total: number;
   } | null>(null);
   const [failedFiles, setFailedFiles] = useState<string[]>([]);
-  /** Live camera vs still preview — hide page header while framing the shot. */
-  const [cameraShowingPreview, setCameraShowingPreview] = useState(false);
-
   // Re-tap Сканирай: no “Start over?” on location / first camera (live or still).
   // Confirm only on the already-scanned document review, or while retaking a page.
   useEffect(() => {
@@ -707,7 +704,6 @@ function AddDocumentContent() {
     setConfirmRemoveNoExpiry(false);
     setConfirmRemoveNoExpiryPageId(null);
     setError("");
-    setCameraShowingPreview(false);
     setStep("camera");
     setCameraSession((n) => n + 1);
   }
@@ -716,7 +712,6 @@ function AddDocumentContent() {
     // Retake / re-scan with existing review → Cancel restores that review.
     if (pages.length > 0) {
       setError("");
-      setCameraShowingPreview(false);
       setStep("review");
       return;
     }
@@ -808,7 +803,8 @@ function AddDocumentContent() {
   const isReviewStep = step === "review";
   const showCamera = step === "confirmLocation" || step === "camera";
   const liveCameraStep = showCamera || step === "replacePage";
-  const hideHeaderForLiveCamera = liveCameraStep && !cameraShowingPreview;
+  // Hide header for live framing and the first still (Напред / Назад) — not on review.
+  const hideHeaderForLiveCamera = liveCameraStep;
 
   if (checking) {
     return (
@@ -862,7 +858,6 @@ function AddDocumentContent() {
             allowFileUpload
             allowMultipleFiles
             showViewfinder
-            onPreviewChange={setCameraShowingPreview}
             onCapture={(dataUrl) => {
               if (step !== "camera") return;
               void onCapture(dataUrl);
@@ -893,13 +888,11 @@ function AddDocumentContent() {
             allowFileUpload
             allowMultipleFiles={false}
             showViewfinder
-            onPreviewChange={setCameraShowingPreview}
             onCapture={(dataUrl) => {
               void replacePageWithImage(replacePageId, dataUrl);
             }}
             onCancel={() => {
               setReplacePageId(null);
-              setCameraShowingPreview(false);
               setStep("review");
             }}
             key={`replace-${replacePageId}-${cameraSession}`}
