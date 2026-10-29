@@ -6,8 +6,8 @@ export type AppNavTabId = "expiry" | "add" | "document" | "orders";
 
 /**
  * Whether re-tapping this tab should show “Start over?” first.
- * Default true. Document scan sets false on the live camera / location step —
- * only photo preview and retake need a confirm (camera dialogs cover those).
+ * Default true. Document scan sets false on location / first camera; true on
+ * the already-scanned review list and while retaking a page.
  */
 const tabReselectNeedsConfirm = new Map<AppNavTabId, boolean>();
 

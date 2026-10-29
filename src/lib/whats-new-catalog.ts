@@ -878,9 +878,9 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
   {
     key: "2026-10-document-retap-no-confirm-live",
     titleEn:
-      "Document (Scan): tapping the tab again on the live camera restarts immediately — “Start over?” only when you have a photo preview or are retaking.",
+      "Document (Scan): tapping the tab again while framing or on the first camera still restarts immediately — “Start over?” only on the scanned-document review or while retaking a page.",
     titleBg:
-      "Сканирай: повторно докосване на таба при жива камера рестартира веднага — „Отначало?“ само при преглед на снимка или Повтори.",
+      "Сканирай: повторно докосване на таба докато кадрирате или на първия преглед на снимка рестартира веднага — „Отначало?“ само при преглед на вече сканирания документ или Повтори.",
     href: "/app/add-document",
   },
 ];

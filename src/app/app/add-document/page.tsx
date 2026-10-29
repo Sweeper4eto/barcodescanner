@@ -170,14 +170,13 @@ function AddDocumentContent() {
   /** Live camera vs still preview — hide page header while framing the shot. */
   const [cameraShowingPreview, setCameraShowingPreview] = useState(false);
 
-  // Re-tap Сканирай: no “Start over?” on live camera / location — only photo
-  // preview and retake (replacePage). CameraCapture already confirms discard/retake exit.
+  // Re-tap Сканирай: no “Start over?” on location / first camera (live or still).
+  // Confirm only on the already-scanned document review, or while retaking a page.
   useEffect(() => {
-    const needsConfirm =
-      cameraShowingPreview || step === "replacePage";
+    const needsConfirm = step === "review" || step === "replacePage";
     setTabReselectNeedsConfirm("document", needsConfirm);
     return () => setTabReselectNeedsConfirm("document", true);
-  }, [cameraShowingPreview, step]);
+  }, [step]);
 
   const items = useMemo(() => flattenDocumentPageItems(pages), [pages]);
 
