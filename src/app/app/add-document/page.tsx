@@ -144,11 +144,15 @@ function AddDocumentContent() {
     total: number;
   } | null>(null);
   const [failedFiles, setFailedFiles] = useState<string[]>([]);
+  /** Still with Напред/Назад — flow has started; live empty camera has not. */
+  const [cameraShowingPreview, setCameraShowingPreview] = useState(false);
 
-  // Initial empty camera/location: leave freely. Confirm only with review work
-  // (review, page retake, or Scan another while pages are still in memory).
+  // Empty live camera: leave freely. Confirm once a still, review, or draft exists.
   const hasDocumentDraft =
-    step === "review" || step === "replacePage" || pages.length > 0;
+    cameraShowingPreview ||
+    step === "review" ||
+    step === "replacePage" ||
+    pages.length > 0;
   useNavigationLeaveGuard(hasDocumentDraft, {
     title: t("addDocument.leaveReviewTitle"),
     message: t("addDocument.leaveReviewMessage"),
@@ -156,13 +160,14 @@ function AddDocumentContent() {
     leaveLabel: t("addDocument.leaveReviewLeave"),
   });
 
-  // Re-tap Сканирай: no “Start over?” on location / first camera (live or still).
-  // Confirm only on the already-scanned document review, or while retaking a page.
+  // Re-tap Сканирай: no “Start over?” on empty live camera. Confirm on still
+  // preview, scanned review, or page retake — the flow has already started.
   useEffect(() => {
-    const needsConfirm = step === "review" || step === "replacePage";
+    const needsConfirm =
+      cameraShowingPreview || step === "review" || step === "replacePage";
     setTabReselectNeedsConfirm("document", needsConfirm);
     return () => setTabReselectNeedsConfirm("document", true);
-  }, [step]);
+  }, [step, cameraShowingPreview]);
 
   const items = useMemo(() => flattenDocumentPageItems(pages), [pages]);
 
@@ -847,6 +852,7 @@ function AddDocumentContent() {
             allowFileUpload
             allowMultipleFiles
             showViewfinder
+            onPreviewChange={setCameraShowingPreview}
             onCapture={(dataUrl) => {
               if (step !== "camera") return;
               void onCapture(dataUrl);
@@ -877,11 +883,13 @@ function AddDocumentContent() {
             allowFileUpload
             allowMultipleFiles={false}
             showViewfinder
+            onPreviewChange={setCameraShowingPreview}
             onCapture={(dataUrl) => {
               void replacePageWithImage(replacePageId, dataUrl);
             }}
             onCancel={() => {
               setReplacePageId(null);
+              setCameraShowingPreview(false);
               setStep("review");
             }}
             key={`replace-${replacePageId}-${cameraSession}`}
