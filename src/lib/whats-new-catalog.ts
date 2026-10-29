@@ -870,9 +870,9 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
   {
     key: "2026-10-document-exit-confirms",
     titleEn:
-      "Document scan: Retake keeps your review — Cancel on the camera brings that review back. Discarding a photo still asks for confirmation.",
+      "Document scan: Retake keeps your review — Cancel on the live camera returns immediately (nothing to lose). Discarding a still photo still asks for confirmation.",
     titleBg:
-      "Сканиране на документ: Повтори запазва прегледа — Отказ на камерата връща същия преглед. Отхвърлянето на снимка пак иска потвърждение.",
+      "Сканиране на документ: Повтори запазва прегледа — Отказ на живата камера връща веднага (няма какво да се загуби). Отхвърлянето на снимка пак иска потвърждение.",
     href: "/app/add-document",
   },
   {
@@ -886,9 +886,17 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
   {
     key: "2026-10-scan-toolbar-above-nav",
     titleEn:
-      "Document camera: capture and Next/Back stay pinned just above the bottom navigation so the shutter circle is never cropped.",
+      "Document camera: capture and Next/Back stay pinned just above the bottom navigation so the shutter is never cropped.",
     titleBg:
-      "Камера за документ: заснемане и Напред/Назад остават закачени точно над долната навигация, за да не се отрязва кръгът за снимка.",
+      "Камера за документ: заснемане и Напред/Назад остават закачени точно над долната навигация, за да не се отрязва бутонът за снимка.",
+    href: "/app/add-document",
+  },
+  {
+    key: "2026-10-scan-shutter-frame-camera",
+    titleEn:
+      "Document camera: the shutter is a thin corner frame with a camera icon inside — no filled circle.",
+    titleBg:
+      "Камера за документ: бутонът за снимка е тънка рамка от ъгли с икона на камера вътре — без запълнен кръг.",
     href: "/app/add-document",
   },
 ];

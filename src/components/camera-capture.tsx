@@ -93,14 +93,15 @@ function UploadIcon({ className = "" }: { className?: string }) {
   );
 }
 
-function CaptureIcon({ className = "" }: { className?: string }) {
+/** Thin corner frame for the document shutter (no filled circle). */
+function CaptureFrameIcon({ className = "" }: { className?: string }) {
   return (
     <svg
       viewBox="0 0 24 24"
       className={className}
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.75"
+      strokeWidth="0.9"
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden
@@ -518,9 +519,8 @@ export function CameraCapture({
   const [useNativeCapture, setUseNativeCapture] = useState(false);
   const [platformReady, setPlatformReady] = useState(false);
   /** Document: confirm before leaving live camera or discarding a still preview. */
-  const [pendingExit, setPendingExit] = useState<"leave" | "discardPreview" | null>(
-    null,
-  );
+  /** Only when discarding a still — live Отказ has nothing to lose. */
+  const [pendingExit, setPendingExit] = useState<"discardPreview" | null>(null);
   const autoStartedRef = useRef(false);
   const lastPreviewTapRef = useRef(0);
   const documentLayout = variant === "document";
@@ -735,9 +735,9 @@ export function CameraCapture({
       ? "pointer-events-none h-full w-full object-contain"
       : "pointer-events-none max-h-[min(52dvh,24rem)] w-full object-contain";
 
-  // Leave room above the pinned toolbar + bottom nav so the capture circle is not cropped.
+  // Leave room above the pinned toolbar + bottom nav so the shutter is not cropped.
   const previewShellClass = documentLayout
-    ? "relative mx-auto flex aspect-[3/4] max-h-[calc(100svh-var(--app-bottom-nav-frame)-env(safe-area-inset-bottom,0px)-5.75rem)] w-full items-center justify-center overflow-hidden rounded-2xl border border-card-border bg-black"
+    ? "relative mx-auto flex aspect-[3/4] max-h-[calc(100svh-var(--app-bottom-nav-frame)-env(safe-area-inset-bottom,0px)-7.5rem)] w-full items-center justify-center overflow-hidden rounded-2xl border border-card-border bg-black"
     : compact
       ? "relative mx-auto flex h-[min(28dvh,12.5rem)] w-full items-center justify-center overflow-hidden rounded-xl border border-card-border bg-black"
       : "relative mx-auto flex max-h-[min(52dvh,24rem)] w-full items-center justify-center overflow-hidden rounded-xl border border-card-border bg-black";
@@ -800,12 +800,8 @@ export function CameraCapture({
   );
 
   function requestLeaveCamera() {
-    if (!onCancel) return;
-    if (documentLayout) {
-      setPendingExit("leave");
-      return;
-    }
-    onCancel();
+    // Live camera / retake: no still yet — leave immediately (first scan or review retake).
+    onCancel?.();
   }
 
   function requestDiscardPreview() {
@@ -817,15 +813,8 @@ export function CameraCapture({
   }
 
   function confirmPendingExit() {
-    const action = pendingExit;
     setPendingExit(null);
-    if (action === "leave") {
-      onCancel?.();
-      return;
-    }
-    if (action === "discardPreview") {
-      handleNewDocument();
-    }
+    handleNewDocument();
   }
 
   const bottomNav =
@@ -836,7 +825,7 @@ export function CameraCapture({
 
   const documentToolbar = documentLayout && !preview && (
     <div
-      className="fixed inset-x-0 z-30 mx-auto flex w-full max-w-lg items-center gap-2 border-t border-card-border bg-background/95 px-4 pb-2 pt-1 backdrop-blur-sm supports-[backdrop-filter]:bg-background/90"
+      className="fixed inset-x-0 z-30 mx-auto flex w-full max-w-lg items-center gap-2 bg-background/95 px-4 pb-2 pt-1 backdrop-blur-sm supports-[backdrop-filter]:bg-background/90"
       style={documentToolbarPinStyle}
     >
       <div className="min-w-0 flex-1">
@@ -851,7 +840,7 @@ export function CameraCapture({
         type="button"
         onClick={triggerCapture}
         disabled={starting || capturing}
-        className="flex h-[4.4rem] w-[4.4rem] shrink-0 flex-col items-center rounded-full border-2 border-primary bg-background text-primary disabled:opacity-50"
+        className="relative h-28 w-28 shrink-0 text-primary disabled:opacity-50"
         aria-label={
           capturing
             ? t("scanner.starting")
@@ -860,12 +849,8 @@ export function CameraCapture({
               : t("camera.start")
         }
       >
-        <span className="flex h-full w-full flex-col items-center justify-center gap-0 px-1.5 pt-1 pb-2">
-          <CaptureIcon className="h-10 w-10 shrink-0" />
-          <span className="-mt-0.5 text-[9px] font-medium leading-none">
-            {t("camera.captureShort")}
-          </span>
-        </span>
+        <CaptureFrameIcon className="absolute inset-0 h-full w-full" />
+        <FrameCameraIcon className="absolute left-1/2 top-1/2 h-11 w-11 -translate-x-1/2 -translate-y-1/2" />
       </button>
 
       <div className="min-w-0 flex-1">
@@ -887,7 +872,7 @@ export function CameraCapture({
 
   const documentPreviewToolbar = documentLayout && preview ? (
     <div
-      className={`fixed inset-x-0 z-30 mx-auto w-full max-w-lg border-t border-card-border bg-background/95 px-4 pb-2 pt-1 backdrop-blur-sm supports-[backdrop-filter]:bg-background/90 ${appFooterButtonGrid}`}
+      className={`fixed inset-x-0 z-30 mx-auto w-full max-w-lg bg-background/95 px-4 pb-2 pt-1 backdrop-blur-sm supports-[backdrop-filter]:bg-background/90 ${appFooterButtonGrid}`}
       style={documentToolbarPinStyle}
     >
       <button
@@ -915,13 +900,7 @@ export function CameraCapture({
           message: t("addDocument.discardPhotoMessage"),
           confirm: t("addDocument.discardPhotoConfirm"),
         }
-      : pendingExit === "leave"
-        ? {
-            title: t("addDocument.leaveCameraTitle"),
-            message: t("addDocument.leaveCameraMessage"),
-            confirm: t("addDocument.leaveCameraConfirm"),
-          }
-        : null;
+      : null;
 
   return (
     <div className={`relative space-y-3 ${active && !preview ? "isolate" : ""}`}>
