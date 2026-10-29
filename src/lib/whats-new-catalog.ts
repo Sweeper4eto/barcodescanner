@@ -854,9 +854,9 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
   {
     key: "2026-10-scan-hide-header-live",
     titleEn:
-      "Scan and document camera: the top header hides while you frame the shot so Capture and other buttons stay on screen; it returns after the photo.",
+      "Document camera: the top header hides while you frame the shot so Capture and other buttons stay on screen; it returns after the photo.",
     titleBg:
-      "Сканиране и камера за документ: горният хедър се скрива докато кадрирате, за да останат бутоните на екрана; след снимката се връща.",
+      "Камера за документ: горният хедър се скрива докато кадрирате, за да останат бутоните на екрана; след снимката се връща.",
     href: "/app/add-document",
   },
   {
@@ -873,6 +873,14 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Document scan: Retake keeps your review — Cancel on the camera brings that review back. Discarding a photo still asks for confirmation.",
     titleBg:
       "Сканиране на документ: Повтори запазва прегледа — Отказ на камерата връща същия преглед. Отхвърлянето на снимка пак иска потвърждение.",
+    href: "/app/add-document",
+  },
+  {
+    key: "2026-10-document-retap-no-confirm-live",
+    titleEn:
+      "Document (Scan): tapping the tab again on the live camera restarts immediately — “Start over?” only when you have a photo preview or are retaking.",
+    titleBg:
+      "Сканирай: повторно докосване на таба при жива камера рестартира веднага — „Отначало?“ само при преглед на снимка или Повтори.",
     href: "/app/add-document",
   },
 ];

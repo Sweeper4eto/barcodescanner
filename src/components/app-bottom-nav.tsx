@@ -18,6 +18,7 @@ import { useAppStoreId } from "@/components/store-selection-provider";
 import { useViewportInsets } from "@/hooks/use-viewport-insets";
 import { appButtonDangerFull, appFooterButtonGrid } from "@/lib/app-ui";
 import {
+  getTabReselectNeedsConfirm,
   requestTabReselect,
   type AppNavTabId,
 } from "@/lib/tab-reselect";
@@ -239,10 +240,15 @@ export function AppBottomNav() {
                 aria-current={active ? "page" : undefined}
                 prefetch
                 onClick={(event) => {
-                  // Re-tap active tab → ask before restarting the flow.
+                  // Re-tap active tab → restart (confirm only when the screen says so).
                   if (active) {
                     event.preventDefault();
-                    setPendingStartOver({ tabId: tab.id, href: tab.href });
+                    if (getTabReselectNeedsConfirm(tab.id)) {
+                      setPendingStartOver({ tabId: tab.id, href: tab.href });
+                      return;
+                    }
+                    router.replace(tab.href, { scroll: false });
+                    requestTabReselect(tab.id);
                     return;
                   }
                   if (!blocked) return;

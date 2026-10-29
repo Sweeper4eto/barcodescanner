@@ -47,6 +47,7 @@ import { useBrowserBackStack } from "@/lib/browser-back";
 import { useAppStoreId, useLockStoreSelection } from "@/hooks/use-app-store-id";
 import { useScreenWakeLock } from "@/hooks/use-screen-wake-lock";
 import { useTabReselect } from "@/hooks/use-tab-reselect";
+import { setTabReselectNeedsConfirm } from "@/lib/tab-reselect";
 import {
   type DocumentDraftItem,
   type DocumentPageDraft,
@@ -168,6 +169,15 @@ function AddDocumentContent() {
   const [failedFiles, setFailedFiles] = useState<string[]>([]);
   /** Live camera vs still preview — hide page header while framing the shot. */
   const [cameraShowingPreview, setCameraShowingPreview] = useState(false);
+
+  // Re-tap Сканирай: no “Start over?” on live camera / location — only photo
+  // preview and retake (replacePage). CameraCapture already confirms discard/retake exit.
+  useEffect(() => {
+    const needsConfirm =
+      cameraShowingPreview || step === "replacePage";
+    setTabReselectNeedsConfirm("document", needsConfirm);
+    return () => setTabReselectNeedsConfirm("document", true);
+  }, [cameraShowingPreview, step]);
 
   const items = useMemo(() => flattenDocumentPageItems(pages), [pages]);
 
