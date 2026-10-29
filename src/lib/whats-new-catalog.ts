@@ -803,6 +803,14 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Екип → детайли на човек: разрешете или забранете премахване от списъка със срокове (собствениците винаги могат).",
     href: "/app/team",
   },
+  {
+    key: "2026-10-expiry-search-all-matches",
+    titleEn:
+      "Expiry search finds every matching item in the store — including ones that expire soon — even when the list is very long.",
+    titleBg:
+      "Търсенето в Годност намира всички съвпадащи артикули в обекта — включително тези, които изтичат скоро — дори при много дълъг списък.",
+    href: "/app/expiry",
+  },
 ];
 
 

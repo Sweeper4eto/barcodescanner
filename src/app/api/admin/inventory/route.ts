@@ -62,13 +62,13 @@ export async function GET(request: Request) {
   const orderBy = { expiryDate: "asc" as const };
 
   if (q) {
+    // Same as /api/inventory: never take:N before in-memory search on big stores.
     const candidates = await db.inventoryEntry.findMany({
       where,
       include: { product: true },
       orderBy,
-      take: 1000,
     });
-    const entries = filterInventoryEntriesBySearch(candidates, q).slice(0, 100);
+    const entries = filterInventoryEntriesBySearch(candidates, q).slice(0, 500);
 
     return NextResponse.json({
       store,

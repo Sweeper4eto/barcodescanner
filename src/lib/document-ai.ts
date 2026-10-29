@@ -33,6 +33,20 @@ export type DocumentOcrRow = {
   quantity: number;
 };
 
+/** ISO timestamps so prod PM2 logs can be bucketed by hour (model hangs, cascade, etc.). */
+function documentAiLog(
+  level: "log" | "warn" | "error",
+  message: string,
+  ...extra: unknown[]
+): void {
+  const line = `${new Date().toISOString()} ${message}`;
+  if (extra.length > 0) {
+    console[level](line, ...extra);
+  } else {
+    console[level](line);
+  }
+}
+
 function stripDataUrl(dataUrl: string): { mime: string; base64: string } {
   const match = /^data:([^;]+);base64,([\s\S]+)$/.exec(dataUrl.trim());
   if (!match) {
@@ -128,7 +142,8 @@ function extractJsonObject(text: string): unknown {
     }
   }
 
-  console.error(
+  documentAiLog(
+    "error",
     "document AI JSON parse failed",
     lastError instanceof Error ? lastError.message : lastError,
   );
@@ -568,7 +583,8 @@ async function withProviderRetries<T>(
         attempt < delays.length && isRetryableProviderError(err.message);
       if (!canRetry) throw err;
       const delay = delays[attempt] ?? delays[delays.length - 1];
-      console.warn(
+      documentAiLog(
+        "warn",
         `document AI: ${label} retry ${attempt + 1}/${delays.length} in ${delay}ms (${err.message})`,
       );
       await sleep(delay);
@@ -696,7 +712,8 @@ async function extractWithGemini(
   for (const model of models) {
     const cooldownReason = isGeminiModelCoolingDown(model);
     if (cooldownReason) {
-      console.warn(
+      documentAiLog(
+        "warn",
         `document AI: model "${model}" skipped (${cooldownReason} cooldown)`,
       );
       continue;
@@ -708,30 +725,35 @@ async function extractWithGemini(
         extractWithGeminiOnce(apiKey, model, mime, base64),
       );
       geminiModelCooldown.delete(model);
-      console.log(
+      documentAiLog(
+        "log",
         `document AI: model "${model}" ok in ${Date.now() - startedAt}ms`,
       );
       if (model !== preferredModel) {
-        console.warn(
+        documentAiLog(
+          "warn",
           `document AI: preferred model "${preferredModel}" failed; used "${model}"`,
         );
       }
       return text;
     } catch (error) {
-      console.warn(
+      documentAiLog(
+        "warn",
         `document AI: model "${model}" failed in ${Date.now() - startedAt}ms`,
       );
       const message = error instanceof Error ? error.message : String(error);
       lastError = error instanceof Error ? error : new Error(message);
       if (isGeminiFreeTierQuotaError(message)) {
         markGeminiModelFreeTierExhausted(model, message);
-        console.warn(
+        documentAiLog(
+          "warn",
           `document AI: model "${model}" free-tier quota hit, trying next immediately`,
         );
         continue;
       }
       if (isProviderHighDemandError(message)) {
-        console.warn(
+        documentAiLog(
+          "warn",
           `document AI: model "${model}" high demand/503, trying next immediately`,
         );
         continue;
@@ -739,7 +761,8 @@ async function extractWithGemini(
       if (isProviderHangTimeoutError(message)) {
         hangTimeouts += 1;
         markGeminiModelHangTimeout(model);
-        console.warn(
+        documentAiLog(
+          "warn",
           `document AI: model "${model}" hung/timed out, trying next immediately`,
         );
         // Second silent hang in one scan ≈ another full timeout for nothing — stop.
@@ -752,7 +775,8 @@ async function extractWithGemini(
         message.startsWith("OCR_EMPTY:") ||
         isRetryableProviderError(message)
       ) {
-        console.warn(
+        documentAiLog(
+          "warn",
           `document AI: model "${model}" failed (${message}), trying next`,
         );
         continue;
@@ -761,7 +785,8 @@ async function extractWithGemini(
     }
   }
 
-  console.warn(
+  documentAiLog(
+    "warn",
     `document AI: cascade exhausted${lastError ? ` (${lastError.message})` : ""}`,
   );
   // Distinct code so the API can show a friendly "try again in 5 minutes".

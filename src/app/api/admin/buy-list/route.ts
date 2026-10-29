@@ -54,13 +54,13 @@ export async function GET(request: Request) {
   const orderBy = { enteredAt: "desc" as const };
 
   if (q) {
+    // Do not take:N before search — same pitfall as expiry inventory search.
     const candidates = await db.buyListEntry.findMany({
       where,
       include: { product: true },
       orderBy,
-      take: 1000,
     });
-    const entries = filterInventoryEntriesBySearch(candidates, q).slice(0, 100);
+    const entries = filterInventoryEntriesBySearch(candidates, q).slice(0, 500);
     return NextResponse.json({
       store,
       entries,

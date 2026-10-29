@@ -163,8 +163,19 @@ export EXPIRE365_SKIP_TYPECHECK="${EXPIRE365_SKIP_TYPECHECK:-${MAGAZIN_SKIP_TYPE
 export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=1280}"
 npm run build
 
-echo "==> Restarting PM2..."
-pm2 restart expire365 || pm2 restart magazin || pm2 start npm --name expire365 -- start
+echo "==> Restarting PM2 (keep log timestamps)..."
+# Prefer ecosystem so `time: true` prefixes every log line (needed for OCR hang hour analysis).
+if [[ -f ecosystem.config.cjs ]]; then
+  pm2 startOrReload ecosystem.config.cjs --update-env
+elif [[ -f ecosystem.config.js ]]; then
+  pm2 startOrReload ecosystem.config.js --update-env
+else
+  pm2 restart expire365 --time 2>/dev/null \
+    || pm2 restart magazin --time 2>/dev/null \
+    || pm2 start npm --name expire365 --time -- start \
+    || pm2 start npm --name magazin --time -- start
+fi
+pm2 save 2>/dev/null || true
 
 # Give Node a moment to listen before nginx stops returning the maintenance page.
 sleep 2

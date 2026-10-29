@@ -265,13 +265,15 @@ export async function GET(request: Request) {
   const orderBy = { expiryDate: "asc" as const };
 
   if (q) {
+    // Do not `take` before search: large stores (8k+ rows) ordered by
+    // expiryDate ASC put many old/expired rows first, so a hard take:1000
+    // drops near-term matches (e.g. expires tomorrow) from the candidate pool.
     const candidates = await db.inventoryEntry.findMany({
       where,
       include: inventoryEntryInclude,
       orderBy,
-      take: 1000,
     });
-    const entries = filterInventoryEntriesBySearch(candidates, q).slice(0, 100);
+    const entries = filterInventoryEntriesBySearch(candidates, q).slice(0, 500);
 
     return NextResponse.json({
       entries,

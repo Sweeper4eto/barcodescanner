@@ -28,7 +28,7 @@
 | Публичен URL | https://expire365.com |
 | Хост | Hetzner VPS (`ubuntu-4gb-nbg1-1`, ~38 GB диск) |
 | App dir | още `/var/www/magazin` (преименуване към `/var/www/expire365` не е завършено на сървъра) |
-| PM2 процес | `magazin` |
+| PM2 процес | `magazin` (`time: true` в `ecosystem.config.cjs` — ISO timestamp на всеки log ред) |
 | SQLite | `/var/lib/magazin/data.db` (WAL) |
 | Uploads | `/var/www/magazin/data/uploads` |
 | Сървърни backups | `/var/backups/magazin/` (скриптът приема и `/var/backups/expire365`) |
