@@ -737,7 +737,7 @@ export function CameraCapture({
 
   // Leave room above the pinned toolbar + bottom nav so the shutter is not cropped.
   const previewShellClass = documentLayout
-    ? "relative mx-auto flex aspect-[3/4] max-h-[calc(100svh-var(--app-bottom-nav-frame)-env(safe-area-inset-bottom,0px)-7.5rem)] w-full items-center justify-center overflow-hidden rounded-2xl border border-card-border bg-black"
+    ? "relative mx-auto flex aspect-[3/4] max-h-[calc(100svh-var(--app-bottom-nav-frame)-env(safe-area-inset-bottom,0px)-4.25rem)] w-full items-center justify-center overflow-hidden rounded-2xl border border-card-border bg-black"
     : compact
       ? "relative mx-auto flex h-[min(28dvh,12.5rem)] w-full items-center justify-center overflow-hidden rounded-xl border border-card-border bg-black"
       : "relative mx-auto flex max-h-[min(52dvh,24rem)] w-full items-center justify-center overflow-hidden rounded-xl border border-card-border bg-black";
@@ -825,7 +825,7 @@ export function CameraCapture({
 
   const documentToolbar = documentLayout && !preview && (
     <div
-      className="fixed inset-x-0 z-30 mx-auto flex w-full max-w-lg items-end gap-2 bg-background/95 px-4 pb-2 pt-1 backdrop-blur-sm supports-[backdrop-filter]:bg-background/90"
+      className="fixed inset-x-0 z-30 mx-auto flex w-full max-w-lg items-center gap-2 bg-background/95 px-4 pb-2 pt-1 backdrop-blur-sm supports-[backdrop-filter]:bg-background/90"
       style={documentToolbarPinStyle}
     >
       <div className="min-w-0 flex-1">
@@ -840,7 +840,7 @@ export function CameraCapture({
         type="button"
         onClick={triggerCapture}
         disabled={starting || capturing}
-        className="relative h-28 w-28 shrink-0 text-primary disabled:opacity-50"
+        className="relative h-[2.75rem] w-[2.75rem] shrink-0 text-primary disabled:opacity-50"
         aria-label={
           capturing
             ? t("scanner.starting")
@@ -850,7 +850,7 @@ export function CameraCapture({
         }
       >
         <CaptureFrameIcon className="absolute inset-0 h-full w-full" />
-        <FrameCameraIcon className="absolute left-1/2 top-1/2 h-11 w-11 -translate-x-1/2 -translate-y-1/2" />
+        <FrameCameraIcon className="absolute left-1/2 top-1/2 h-5 w-5 -translate-x-1/2 -translate-y-1/2" />
       </button>
 
       <div className="min-w-0 flex-1">
