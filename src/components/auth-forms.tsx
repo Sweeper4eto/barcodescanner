@@ -233,6 +233,7 @@ export function TextField({
   onChange,
   autoComplete,
   suppressPasswordSuggest = false,
+  revealable = false,
   hint,
   error,
 }: {
@@ -244,26 +245,57 @@ export function TextField({
   autoComplete?: string;
   /** Hide OS / browser strong-password suggestions. */
   suppressPasswordSuggest?: boolean;
+  /** Password fields: show eye toggle to reveal/hide. */
+  revealable?: boolean;
   hint?: string;
   error?: string;
 }) {
+  const { t } = useT();
+  const [revealed, setRevealed] = useState(false);
+  const canReveal = revealable && type === "password";
+  const inputType = canReveal && revealed ? "text" : type;
+
   return (
     <label className="block text-sm font-medium text-foreground">
       {label}
-      <input
-        className={`mt-1 w-full rounded-xl border bg-transparent px-2.5 py-2 text-base text-foreground outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary/40 ${
-          error ? "border-error" : "border-white/15"
-        }`}
-        name={name}
-        type={type}
-        value={value}
-        {...(suppressPasswordSuggest
-          ? passwordNoSuggestProps
-          : { autoComplete })}
-        aria-invalid={error ? true : undefined}
-        onChange={(event) => onChange(event.target.value)}
-        onInput={(event) => onChange(event.currentTarget.value)}
-      />
+      <span className="relative mt-1 block">
+        <input
+          className={`w-full rounded-xl border bg-transparent py-2 text-base text-foreground outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary/40 ${
+            canReveal ? "pl-2.5 pr-11" : "px-2.5"
+          } ${error ? "border-error" : "border-white/15"}`}
+          name={name}
+          type={inputType}
+          value={value}
+          {...(suppressPasswordSuggest
+            ? passwordNoSuggestProps
+            : { autoComplete })}
+          aria-invalid={error ? true : undefined}
+          onChange={(event) => onChange(event.target.value)}
+          onInput={(event) => onChange(event.currentTarget.value)}
+        />
+        {canReveal ? (
+          <button
+            type="button"
+            className="absolute right-1 top-1/2 z-[1] -translate-y-1/2 rounded-lg p-1.5 text-muted hover:text-foreground"
+            aria-label={
+              revealed ? t("auth.hidePassword") : t("auth.showPassword")
+            }
+            aria-pressed={revealed}
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              setRevealed((current) => !current);
+            }}
+          >
+            {revealed ? (
+              <EyeIcon className="size-[1.125rem]" />
+            ) : (
+              <EyeOffIcon className="size-[1.125rem]" />
+            )}
+          </button>
+        ) : null}
+      </span>
       {error ? (
         <span className="mt-1 block text-[0.7rem] font-normal leading-snug text-error">
           {error}

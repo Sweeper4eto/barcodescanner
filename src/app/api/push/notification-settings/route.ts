@@ -5,6 +5,7 @@ import {
   clientDefaultsFromRow,
   expiryNotificationPrefsSchema,
   mergeClientDefaults,
+  messageKeyForExpiryPrefsError,
   prefsFromUserRow,
   prefsHaveNoAlertTiers,
   prefsToUserData,
@@ -74,7 +75,7 @@ export async function PATCH(request: Request) {
   const parsed = expiryNotificationPrefsSchema.safeParse(json);
   if (!parsed.success) {
     return NextResponse.json(
-      { error: apiT(request, "errors.invalidData") },
+      { error: apiT(request, messageKeyForExpiryPrefsError(parsed.error)) },
       { status: 400 },
     );
   }

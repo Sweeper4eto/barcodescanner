@@ -13,12 +13,22 @@ import { useRouter } from "next/navigation";
 import { CancelButton } from "@/components/cancel-button";
 import { useViewportInsets } from "@/hooks/use-viewport-insets";
 import { appButtonDangerFull, appFooterButtonGrid } from "@/lib/app-ui";
+import {
+  requestTabReselect,
+  type AppNavTabId,
+} from "@/lib/tab-reselect";
 
 export type NavigationLeaveGuardCopy = {
   title: string;
   message: string;
   stayLabel: string;
   leaveLabel: string;
+};
+
+type PendingNavigation = {
+  href: string;
+  /** Same-tab restart after confirm (discard unsaved work, remount flow). */
+  reselectTabId?: string;
 };
 
 type NavigationLeaveGuardContextValue = {
@@ -29,7 +39,10 @@ type NavigationLeaveGuardContextValue = {
    * Returns true when navigation may proceed immediately.
    * Returns false when a confirm dialog was opened instead.
    */
-  requestNavigate: (href: string) => boolean;
+  requestNavigate: (
+    href: string,
+    options?: { reselectTabId?: string },
+  ) => boolean;
 };
 
 const NavigationLeaveGuardContext =
@@ -105,12 +118,15 @@ export function NavigationLeaveGuardProvider({
 }) {
   const router = useRouter();
   const [guard, setGuard] = useState<NavigationLeaveGuardCopy | null>(null);
-  const [pendingHref, setPendingHref] = useState<string | null>(null);
+  const [pendingNav, setPendingNav] = useState<PendingNavigation | null>(null);
 
   const requestNavigate = useCallback(
-    (href: string) => {
+    (href: string, options?: { reselectTabId?: string }) => {
       if (!guard) return true;
-      setPendingHref(href);
+      setPendingNav({
+        href,
+        reselectTabId: options?.reselectTabId,
+      });
       return false;
     },
     [guard],
@@ -124,14 +140,19 @@ export function NavigationLeaveGuardProvider({
   return (
     <NavigationLeaveGuardContext.Provider value={value}>
       {children}
-      {guard && pendingHref ? (
+      {guard && pendingNav ? (
         <LeaveConfirmDialog
           copy={guard}
-          onStay={() => setPendingHref(null)}
+          onStay={() => setPendingNav(null)}
           onLeave={() => {
-            const href = pendingHref;
-            setPendingHref(null);
-            router.push(href, { scroll: false });
+            const pending = pendingNav;
+            setPendingNav(null);
+            if (pending.reselectTabId) {
+              router.replace(pending.href, { scroll: false });
+              requestTabReselect(pending.reselectTabId as AppNavTabId);
+              return;
+            }
+            router.push(pending.href, { scroll: false });
           }}
         />
       ) : null}

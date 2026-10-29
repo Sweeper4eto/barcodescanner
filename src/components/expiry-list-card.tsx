@@ -103,6 +103,7 @@ export function ExpiryListCard({
     longPressTimer.current = window.setTimeout(() => {
       longPressTriggered.current = true;
       longPressTimer.current = null;
+      window.getSelection()?.removeAllRanges();
       onLongPressSelect();
     }, LONG_PRESS_MS);
   }
@@ -133,7 +134,7 @@ export function ExpiryListCard({
 
   return (
     <article
-      className={`flex w-full overflow-hidden rounded-xl border transition-colors ${
+      className={`flex w-full touch-manipulation select-none overflow-hidden rounded-xl border transition-colors [-webkit-touch-callout:none] ${
         selected
           ? "border-primary bg-selected"
           : "border-card-border bg-transparent"

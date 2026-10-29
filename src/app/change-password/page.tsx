@@ -96,6 +96,7 @@ function ChangePasswordContent() {
             type="password"
             value={password}
             suppressPasswordSuggest
+            revealable
             onChange={(value) => {
               setPassword(value);
               setPasswordError("");
@@ -109,6 +110,7 @@ function ChangePasswordContent() {
             type="password"
             value={confirmPassword}
             suppressPasswordSuggest
+            revealable
             onChange={(value) => {
               setConfirmPassword(value);
               setConfirmError("");

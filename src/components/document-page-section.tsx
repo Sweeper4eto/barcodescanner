@@ -17,11 +17,15 @@ type Props = {
   pageIndex: number;
   search: string;
   busy: boolean;
+  selectionMode?: boolean;
+  selectedIds?: Record<string, true>;
   onRetake: () => void;
   onReattach: () => void;
   onRemoveNoExpiry: () => void;
   onOpenItem: (key: string) => void;
   onRemoveItem: (key: string) => void;
+  onLongPressSelectItem?: (key: string) => void;
+  onToggleSelectedItem?: (key: string) => void;
 };
 
 export function DocumentPageSection({
@@ -29,11 +33,15 @@ export function DocumentPageSection({
   pageIndex,
   search,
   busy,
+  selectionMode = false,
+  selectedIds = {},
   onRetake,
   onReattach,
   onRemoveNoExpiry,
   onOpenItem,
   onRemoveItem,
+  onLongPressSelectItem,
+  onToggleSelectedItem,
 }: Props) {
   const { t } = useT();
   const filtered = page.items.filter((item) => draftMatchesSearch(item, search));
@@ -64,41 +72,43 @@ export function DocumentPageSection({
         </div>
       </div>
 
-      <div className="flex gap-2 px-2 py-2">
-        <button
-          type="button"
-          disabled={busy || processing}
-          onClick={onRetake}
-          className={`${appButtonPrimary} flex-1 py-2 text-xs`}
-        >
-          <CameraIcon className="size-3.5 shrink-0" />
-          {t("addDocument.retakePage")}
-        </button>
-        <button
-          type="button"
-          disabled={busy || processing}
-          onClick={onReattach}
-          className={`${appButtonNeutral} flex-1 py-2 text-xs`}
-        >
-          <RefreshIcon className="size-3.5 shrink-0" />
-          {t("addDocument.reattachPage")}
-        </button>
-        <button
-          type="button"
-          disabled={busy || processing || noExpiryCount === 0}
-          onClick={onRemoveNoExpiry}
-          title={t("addDocument.removeNoExpiryPageHint", { count: noExpiryCount })}
-          aria-label={t("addDocument.removeNoExpiryPageHint", {
-            count: noExpiryCount,
-          })}
-          className="flex h-auto shrink-0 items-center justify-center gap-0.5 self-stretch rounded-xl border border-primary/50 bg-transparent px-2 text-[10px] font-semibold leading-none text-primary disabled:opacity-40"
-        >
-          {t("addDocument.removeNoExpiry")}
-          {noExpiryCount > 0 ? (
-            <span className="tabular-nums">({noExpiryCount})</span>
-          ) : null}
-        </button>
-      </div>
+      {!selectionMode ? (
+        <div className="flex gap-2 px-2 py-2">
+          <button
+            type="button"
+            disabled={busy || processing}
+            onClick={onRetake}
+            className={`${appButtonPrimary} flex-1 py-2 text-xs`}
+          >
+            <CameraIcon className="size-3.5 shrink-0" />
+            {t("addDocument.retakePage")}
+          </button>
+          <button
+            type="button"
+            disabled={busy || processing}
+            onClick={onReattach}
+            className={`${appButtonNeutral} flex-1 py-2 text-xs`}
+          >
+            <RefreshIcon className="size-3.5 shrink-0" />
+            {t("addDocument.reattachPage")}
+          </button>
+          <button
+            type="button"
+            disabled={busy || processing || noExpiryCount === 0}
+            onClick={onRemoveNoExpiry}
+            title={t("addDocument.removeNoExpiryPageHint", { count: noExpiryCount })}
+            aria-label={t("addDocument.removeNoExpiryPageHint", {
+              count: noExpiryCount,
+            })}
+            className="flex h-auto shrink-0 items-center justify-center gap-0.5 self-stretch rounded-xl border border-primary/50 bg-transparent px-2 text-[10px] font-semibold leading-none text-primary disabled:opacity-40"
+          >
+            {t("addDocument.removeNoExpiry")}
+            {noExpiryCount > 0 ? (
+              <span className="tabular-nums">({noExpiryCount})</span>
+            ) : null}
+          </button>
+        </div>
+      ) : null}
 
       {page.error ? (
         <p className="px-2 pb-2 text-sm text-error">{page.error}</p>
@@ -124,8 +134,20 @@ export function DocumentPageSection({
               <DocumentDraftListCard
                 key={item.key}
                 item={item}
+                selectionMode={selectionMode}
+                selected={Boolean(selectedIds[item.key])}
                 onOpen={() => onOpenItem(item.key)}
                 onRemove={() => onRemoveItem(item.key)}
+                onLongPressSelect={
+                  onLongPressSelectItem
+                    ? () => onLongPressSelectItem(item.key)
+                    : undefined
+                }
+                onToggleSelected={
+                  onToggleSelectedItem
+                    ? () => onToggleSelectedItem(item.key)
+                    : undefined
+                }
               />
             ))
           )}

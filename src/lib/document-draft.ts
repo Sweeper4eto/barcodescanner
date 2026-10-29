@@ -111,6 +111,18 @@ export function removeDocumentPageItem(
   }));
 }
 
+export function removeDocumentPageItems(
+  pages: DocumentPageDraft[],
+  itemKeys: string[],
+): DocumentPageDraft[] {
+  if (itemKeys.length === 0) return pages;
+  const drop = new Set(itemKeys);
+  return pages.map((page) => ({
+    ...page,
+    items: page.items.filter((item) => !drop.has(item.key)),
+  }));
+}
+
 export function removeDocumentPagesItemsWithoutExpiry(
   pages: DocumentPageDraft[],
 ): DocumentPageDraft[] {

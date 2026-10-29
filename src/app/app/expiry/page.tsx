@@ -27,6 +27,7 @@ import { useT } from "@/components/i18n-provider";
 import { useAppSession } from "@/components/app-session-provider";
 import { useAppStoreId, useLockStoreSelection } from "@/hooks/use-app-store-id";
 import { useScreenWakeLock } from "@/hooks/use-screen-wake-lock";
+import { useTabReselect } from "@/hooks/use-tab-reselect";
 import {
   type ExpiryPeriod,
   DEFAULT_EXPIRY_PERIOD,
@@ -802,7 +803,7 @@ function ExpiryList() {
         ) : null}
       </div>
 
-      <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto overscroll-y-contain px-1.5 pb-3.5 pt-3 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:w-0 [&::-webkit-scrollbar]:h-0">
+      <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto overscroll-y-contain px-1.5 pb-3.5 pt-3 select-none [-webkit-touch-callout:none] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:w-0 [&::-webkit-scrollbar]:h-0">
         {loading && page === 1 && entries.length === 0 ? (
           isSearching ? (
             <p className="rounded-xl bg-transparent p-4 text-center text-sm text-muted">
@@ -1021,9 +1022,13 @@ function ExpiryList() {
 }
 
 export default function ExpiryPage() {
+  const [mountKey, setMountKey] = useState(0);
+  const restart = useCallback(() => setMountKey((key) => key + 1), []);
+  useTabReselect("expiry", restart);
+
   return (
     <Suspense>
-      <ExpiryList />
+      <ExpiryList key={mountKey} />
     </Suspense>
   );
 }

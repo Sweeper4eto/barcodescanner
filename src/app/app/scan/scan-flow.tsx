@@ -364,23 +364,30 @@ export function ScanFlow() {
     }
   }
 
+  const hideHeaderForLiveScan =
+    step === "scan" || (step === "name" && capturingPhoto);
+
   return (
     <div
       className={
         step === "date"
           ? listPageShellClassName
-          : "mx-auto min-w-0 max-w-lg overflow-x-visible px-4 pb-6 pt-1"
+          : hideHeaderForLiveScan
+            ? "mx-auto min-w-0 max-w-lg overflow-x-visible px-4 pb-6 pt-[max(0.5rem,env(safe-area-inset-top,0px))]"
+            : "mx-auto min-w-0 max-w-lg overflow-x-visible px-4 pb-6 pt-1"
       }
     >
       {mounted ? (
         <span data-testid="scan-flow-ready" className="sr-only" aria-hidden />
       ) : null}
-      <div className="shrink-0">
-        <MobilePageHeader
-          title={headerTitle}
-          className={step === "date" ? "mb-2" : undefined}
-        />
-      </div>
+      {!hideHeaderForLiveScan ? (
+        <div className="shrink-0">
+          <MobilePageHeader
+            title={headerTitle}
+            className={step === "date" ? "mb-2" : undefined}
+          />
+        </div>
+      ) : null}
 
       {step === "scan" ? (
         <div className="rounded-2xl border border-card-border p-4">

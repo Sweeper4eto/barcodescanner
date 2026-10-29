@@ -1,5 +1,7 @@
 "use client";
 
+import { useRef } from "react";
+import type { PointerEvent as ReactPointerEvent } from "react";
 import { WarningIcon } from "@/components/app-nav-icons";
 import { ProductImage } from "@/components/product-image";
 import { useT } from "@/components/i18n-provider";
@@ -10,10 +12,16 @@ import {
   draftMissingName,
 } from "@/lib/document-draft";
 
+const LONG_PRESS_MS = 450;
+
 type Props = {
   item: DocumentDraftItem;
+  selectionMode?: boolean;
+  selected?: boolean;
   onOpen: () => void;
   onRemove: () => void;
+  onLongPressSelect?: () => void;
+  onToggleSelected?: () => void;
 };
 
 const missingExpiryBadgeClass =
@@ -27,8 +35,12 @@ const neutralDaysBadgeClass =
 
 export function DocumentDraftListCard({
   item,
+  selectionMode = false,
+  selected = false,
   onOpen,
   onRemove,
+  onLongPressSelect,
+  onToggleSelected,
 }: Props) {
   const { t, dateLocale } = useT();
   const missingExpiry = draftMissingExpiry(item);
@@ -63,16 +75,98 @@ export function DocumentDraftListCard({
       ? expiredBadgeClass
       : neutralDaysBadgeClass;
 
+  const longPressTimer = useRef<number | null>(null);
+  const longPressTriggered = useRef(false);
+  const pointerStart = useRef<{ x: number; y: number } | null>(null);
+
+  function clearLongPress() {
+    if (longPressTimer.current !== null) {
+      window.clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  }
+
+  function handlePointerDown(event: ReactPointerEvent) {
+    if (selectionMode || !onLongPressSelect) return;
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    longPressTriggered.current = false;
+    pointerStart.current = { x: event.clientX, y: event.clientY };
+    clearLongPress();
+    longPressTimer.current = window.setTimeout(() => {
+      longPressTriggered.current = true;
+      longPressTimer.current = null;
+      window.getSelection()?.removeAllRanges();
+      onLongPressSelect();
+    }, LONG_PRESS_MS);
+  }
+
+  function handlePointerMove(event: ReactPointerEvent) {
+    if (!pointerStart.current || longPressTimer.current === null) return;
+    const dx = Math.abs(event.clientX - pointerStart.current.x);
+    const dy = Math.abs(event.clientY - pointerStart.current.y);
+    if (dx > 10 || dy > 10) clearLongPress();
+  }
+
+  function handlePointerEnd() {
+    clearLongPress();
+    pointerStart.current = null;
+  }
+
+  function handleMainClick() {
+    if (longPressTriggered.current) {
+      longPressTriggered.current = false;
+      return;
+    }
+    if (selectionMode) {
+      onToggleSelected?.();
+      return;
+    }
+    onOpen();
+  }
+
   return (
-    <article className="flex w-full overflow-hidden rounded-xl border border-card-border bg-transparent">
+    <article
+      className={`flex w-full touch-manipulation select-none overflow-hidden rounded-xl border transition-colors [-webkit-touch-callout:none] ${
+        selected
+          ? "border-primary bg-selected"
+          : "border-card-border bg-transparent"
+      } ${selectionMode ? "cursor-pointer" : ""}`}
+      aria-pressed={selectionMode ? selected : undefined}
+      onClick={
+        selectionMode
+          ? () => {
+              if (longPressTriggered.current) {
+                longPressTriggered.current = false;
+                return;
+              }
+              onToggleSelected?.();
+            }
+          : undefined
+      }
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerEnd}
+      onPointerCancel={handlePointerEnd}
+      onPointerLeave={handlePointerEnd}
+      onContextMenu={(event) => {
+        if (onLongPressSelect) event.preventDefault();
+      }}
+    >
       <div className={`w-1 shrink-0 self-stretch ${stripeClass}`} aria-hidden />
 
       <div className="flex min-w-0 flex-1 items-start gap-1 px-1 py-1">
         <button
           type="button"
-          aria-label={t("addDocument.editItem")}
+          aria-label={
+            selectionMode ? t("expiry.selectItem") : t("addDocument.editItem")
+          }
           className="flex min-w-0 flex-1 items-center gap-1.5 self-center text-left"
-          onClick={onOpen}
+          onClick={(event) => {
+            if (selectionMode) {
+              event.stopPropagation();
+            }
+            handleMainClick();
+          }}
         >
           <ProductImage
             src={item.productImagePath}
@@ -155,17 +249,19 @@ export function DocumentDraftListCard({
           </div>
         </button>
 
-        <button
-          type="button"
-          aria-label={t("expiry.remove")}
-          className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-md border border-card-border bg-transparent text-base leading-none text-muted"
-          onClick={(event) => {
-            event.stopPropagation();
-            onRemove();
-          }}
-        >
-          ×
-        </button>
+        {!selectionMode ? (
+          <button
+            type="button"
+            aria-label={t("expiry.remove")}
+            className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-md border border-card-border bg-transparent text-base leading-none text-muted"
+            onClick={(event) => {
+              event.stopPropagation();
+              onRemove();
+            }}
+          >
+            ×
+          </button>
+        ) : null}
       </div>
     </article>
   );

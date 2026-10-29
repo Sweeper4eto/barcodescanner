@@ -53,32 +53,49 @@ export const SYSTEM_DEFAULT_PREFS: ExpiryNotificationPrefs = {
 
 const timePattern = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
-export const expiryNotificationPrefsSchema = z
-  .object({
-    earlyEnabled: z.boolean(),
-    earlyDays: z.number().int().min(1).max(90),
-    urgentEnabled: z.boolean(),
-    urgentDays: z.number().int().min(0).max(90),
-    schedule: z.literal("daily"),
-    /** Early warning clock time */
-    time1: z.string().regex(timePattern),
-    /** Urgent clock time */
-    time2: z.string().regex(timePattern),
-    minIntervalHours: z.number().int().min(6).max(168),
-    quietHoursEnabled: z.boolean(),
-    quietHoursStart: z.string().regex(timePattern),
-    quietHoursEnd: z.string().regex(timePattern),
-    timezone: z.string().min(1).max(64),
-    storeIds: z.array(z.string().min(1)).nullable(),
-  })
-  // Both tiers off is allowed — that means "no expiry digests" (alerts off).
-  .refine(
-    (value) =>
-      !value.earlyEnabled ||
-      !value.urgentEnabled ||
-      value.earlyDays >= value.urgentDays,
-    { message: "Early warning days must be >= urgent days" },
-  );
+export const expiryNotificationPrefsSchema = z.object({
+  earlyEnabled: z.boolean(),
+  /** Day window is independent of urgentDays — labels are names only. */
+  earlyDays: z.number().int().min(0).max(90),
+  urgentEnabled: z.boolean(),
+  urgentDays: z.number().int().min(0).max(90),
+  schedule: z.literal("daily"),
+  /** Early warning clock time */
+  time1: z.string().regex(timePattern),
+  /** Urgent clock time */
+  time2: z.string().regex(timePattern),
+  minIntervalHours: z.number().int().min(6).max(168),
+  quietHoursEnabled: z.boolean(),
+  quietHoursStart: z.string().regex(timePattern),
+  quietHoursEnd: z.string().regex(timePattern),
+  timezone: z.string().min(1).max(64),
+  storeIds: z.array(z.string().min(1)).nullable(),
+});
+
+/** Map Zod failures to a pushSettings.* message key for clear UI/API errors. */
+export function messageKeyForExpiryPrefsError(
+  error: z.ZodError,
+):
+  | "pushSettings.invalidEarlyDays"
+  | "pushSettings.invalidUrgentDays"
+  | "pushSettings.invalidTime"
+  | "pushSettings.invalidTimezone"
+  | "pushSettings.invalidStores"
+  | "pushSettings.invalidInterval"
+  | "pushSettings.invalidSettings" {
+  for (const issue of error.issues) {
+    const path = issue.path[0];
+    if (path === "earlyDays") return "pushSettings.invalidEarlyDays";
+    if (path === "urgentDays") return "pushSettings.invalidUrgentDays";
+    if (path === "time1" || path === "time2") {
+      return "pushSettings.invalidTime";
+    }
+    if (path === "timezone") return "pushSettings.invalidTimezone";
+    if (path === "storeIds") return "pushSettings.invalidStores";
+    if (path === "minIntervalHours") return "pushSettings.invalidInterval";
+  }
+  return "pushSettings.invalidSettings";
+}
 
 /** True when the user has turned off every digest tier (alerts effectively off). */
 export function prefsHaveNoAlertTiers(
@@ -462,11 +479,11 @@ export function formatPrefsSummary(
   },
 ): string {
   const parts: string[] = [];
-  if (prefs.earlyEnabled) {
-    parts.push(`${labels.earlyDays(prefs.earlyDays)} · ${labels.time(prefs.time1)}`);
-  }
   if (prefs.urgentEnabled) {
     parts.push(`${labels.urgentDays(prefs.urgentDays)} · ${labels.time(prefs.time2)}`);
+  }
+  if (prefs.earlyEnabled) {
+    parts.push(`${labels.earlyDays(prefs.earlyDays)} · ${labels.time(prefs.time1)}`);
   }
   if (parts.length === 0) return labels.off;
   if (prefs.storeIds && prefs.storeIds.length > 0) {
@@ -478,7 +495,7 @@ export function formatPrefsSummary(
 }
 
 export const clientDefaultsSchema = z.object({
-  earlyDays: z.number().int().min(1).max(90).nullable().optional(),
+  earlyDays: z.number().int().min(0).max(90).nullable().optional(),
   urgentDays: z.number().int().min(0).max(90).nullable().optional(),
   schedule: z.literal("daily").nullable().optional(),
   time1: z.string().regex(timePattern).nullable().optional(),

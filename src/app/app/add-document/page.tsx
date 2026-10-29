@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import {
   Suspense,
+  useCallback,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -22,6 +23,7 @@ import { assessDocumentPhotoQuality } from "@/lib/document-image";
 import { DocumentDraftDetailSheet } from "@/components/document-draft-detail-sheet";
 import { DocumentPageSection } from "@/components/document-page-section";
 import { DocumentProcessingPanel } from "@/components/document-processing-panel";
+import { ExpirySelectionFooter } from "@/components/expiry-selection-chrome";
 import { LoadingSpinnerBlock } from "@/components/loading-spinner";
 import { LocationConfirmDialog } from "@/components/location-confirm-dialog";
 import { MobilePageHeader, listPageChromeClassName } from "@/components/mobile-page-header";
@@ -33,6 +35,7 @@ import { useAppSession } from "@/components/app-session-provider";
 import { goBackOrApp, navigateApp } from "@/lib/app-navigation";
 import {
   appButtonCancelFull,
+  appButtonNeutral,
   appButtonPrimaryFull,
   appButtonNeutralFull,
   appFooterButtonGrid,
@@ -43,6 +46,7 @@ import {
 import { useBrowserBackStack } from "@/lib/browser-back";
 import { useAppStoreId, useLockStoreSelection } from "@/hooks/use-app-store-id";
 import { useScreenWakeLock } from "@/hooks/use-screen-wake-lock";
+import { useTabReselect } from "@/hooks/use-tab-reselect";
 import {
   type DocumentDraftItem,
   type DocumentPageDraft,
@@ -53,6 +57,7 @@ import {
   flattenDocumentPageItems,
   markDocumentPageProcessing,
   removeDocumentPageItem,
+  removeDocumentPageItems,
   removeDocumentPageItemsWithoutExpiry,
   removeDocumentPagesItemsWithoutExpiry,
   replaceDocumentPageContent,
@@ -106,13 +111,28 @@ function AddDocumentContent() {
       step === "replacePage",
   );
 
-  // Bottom nav Scan / Expiry would wipe unsaved OCR review — confirm first.
-  useNavigationLeaveGuard(step === "review" || step === "replacePage", {
-    title: t("addDocument.leaveReviewTitle"),
-    message: t("addDocument.leaveReviewMessage"),
-    stayLabel: t("addDocument.leaveReviewStay"),
-    leaveLabel: t("addDocument.leaveReviewLeave"),
-  });
+  // Bottom nav Add / Expiry would wipe unsaved camera or OCR work — confirm first.
+  useNavigationLeaveGuard(
+    step === "review" ||
+      step === "replacePage" ||
+      step === "camera" ||
+      step === "confirmLocation",
+    {
+      title:
+        step === "review" || step === "replacePage"
+          ? t("addDocument.leaveReviewTitle")
+          : t("addDocument.leaveCameraTitle"),
+      message:
+        step === "review" || step === "replacePage"
+          ? t("addDocument.leaveReviewMessage")
+          : t("addDocument.leaveCameraMessage"),
+      stayLabel: t("addDocument.leaveReviewStay"),
+      leaveLabel:
+        step === "review" || step === "replacePage"
+          ? t("addDocument.leaveReviewLeave")
+          : t("addDocument.leaveCameraConfirm"),
+    },
+  );
 
   const locationName = useMemo(() => {
     const match = user?.stores.find((store) => store.id === storeId);
@@ -128,6 +148,9 @@ function AddDocumentContent() {
   const [search, setSearch] = useState("");
   const [detailKey, setDetailKey] = useState<string | null>(null);
   const [removeKey, setRemoveKey] = useState<string | null>(null);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Record<string, true>>({});
+  const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false);
   const [confirmRemoveNoExpiry, setConfirmRemoveNoExpiry] = useState(false);
   const [confirmRemoveNoExpiryPageId, setConfirmRemoveNoExpiryPageId] = useState<
     string | null
@@ -143,6 +166,8 @@ function AddDocumentContent() {
     total: number;
   } | null>(null);
   const [failedFiles, setFailedFiles] = useState<string[]>([]);
+  /** Live camera vs still preview — hide page header while framing the shot. */
+  const [cameraShowingPreview, setCameraShowingPreview] = useState(false);
 
   const items = useMemo(() => flattenDocumentPageItems(pages), [pages]);
 
@@ -171,6 +196,20 @@ function AddDocumentContent() {
       id: "draft-remove",
       open: removeKey !== null,
       close: () => setRemoveKey(null),
+    },
+    {
+      id: "draft-bulk-confirm",
+      open: bulkConfirmOpen,
+      close: () => setBulkConfirmOpen(false),
+    },
+    {
+      id: "draft-selection",
+      open: selectionMode,
+      close: () => {
+        setSelectionMode(false);
+        setSelectedIds({});
+        setBulkConfirmOpen(false);
+      },
     },
     {
       id: "draft-remove-no-expiry",
@@ -586,6 +625,40 @@ function AddDocumentContent() {
     if (detailKey === key) setDetailKey(null);
   }
 
+  function exitSelectionMode() {
+    setSelectionMode(false);
+    setSelectedIds({});
+    setBulkConfirmOpen(false);
+  }
+
+  function enterSelectionWith(itemKey: string) {
+    setDetailKey(null);
+    setRemoveKey(null);
+    setSelectionMode(true);
+    setSelectedIds({ [itemKey]: true });
+  }
+
+  function toggleSelected(itemKey: string) {
+    if (selectedIds[itemKey]) {
+      setSelectedIds((current) => {
+        const next = { ...current };
+        delete next[itemKey];
+        return next;
+      });
+      return;
+    }
+    setSelectedIds((current) => ({ ...current, [itemKey]: true }));
+  }
+
+  function bulkRemoveSelected() {
+    const keys = Object.keys(selectedIds);
+    if (keys.length === 0) return;
+    const drop = new Set(keys);
+    setPages((current) => removeDocumentPageItems(current, keys));
+    setDetailKey((current) => (current && drop.has(current) ? null : current));
+    exitSelectionMode();
+  }
+
   function removeItemsWithoutExpiry() {
     setPageActionBusy(false);
     setPages((current) =>
@@ -612,17 +685,37 @@ function AddDocumentContent() {
     setConfirmRemoveNoExpiryPageId(null);
   }
 
-  function clearReviewAndRestart() {
+  /**
+   * Full retake from review: keep current pages so Cancel on the camera
+   * can return to the same review instead of discarding it.
+   */
+  function startFullRetake() {
     restoreReviewPageIdRef.current = null;
-    setPages([]);
     setSearch("");
     setDetailKey(null);
     setReplacePageId(null);
+    exitSelectionMode();
     setConfirmRemoveNoExpiry(false);
     setConfirmRemoveNoExpiryPageId(null);
     setError("");
+    setCameraShowingPreview(false);
     setStep("camera");
     setCameraSession((n) => n + 1);
+  }
+
+  function cancelCamera() {
+    // Retake / re-scan with existing review → Cancel restores that review.
+    if (pages.length > 0) {
+      setError("");
+      setCameraShowingPreview(false);
+      setStep("review");
+      return;
+    }
+    if (step === "confirmLocation") {
+      goBackOrApp("/app");
+      return;
+    }
+    navigateApp("/app");
   }
 
   const visiblePages = useMemo(
@@ -654,6 +747,7 @@ function AddDocumentContent() {
   );
 
   const canImport = !pageActionBusy && documentPagesCanImport(pages);
+  const selectedCount = Object.keys(selectedIds).length;
 
   async function confirmImport() {
     if (!canImport || !storeId || importing) return;
@@ -693,6 +787,7 @@ function AddDocumentContent() {
       setPages([]);
       setSearch("");
       setDetailKey(null);
+      exitSelectionMode();
       setStep("done");
     } catch {
       setError(t("errors.saveFailed"));
@@ -702,6 +797,9 @@ function AddDocumentContent() {
   }
 
   const isReviewStep = step === "review";
+  const showCamera = step === "confirmLocation" || step === "camera";
+  const liveCameraStep = showCamera || step === "replacePage";
+  const hideHeaderForLiveCamera = liveCameraStep && !cameraShowingPreview;
 
   if (checking) {
     return (
@@ -711,8 +809,6 @@ function AddDocumentContent() {
       </div>
     );
   }
-
-  const showCamera = step === "confirmLocation" || step === "camera";
 
   return (
     <>
@@ -728,10 +824,12 @@ function AddDocumentContent() {
         className={
           isReviewStep
             ? reviewPageShellClassName
-            : "mx-auto min-w-0 max-w-lg overflow-x-visible px-4 pb-5 pt-1"
+            : hideHeaderForLiveCamera
+              ? "mx-auto min-w-0 max-w-lg overflow-x-visible px-4 pb-5 pt-[max(0.5rem,env(safe-area-inset-top,0px))]"
+              : "mx-auto min-w-0 max-w-lg overflow-x-visible px-4 pb-5 pt-1"
         }
       >
-        {!isReviewStep ? (
+        {!isReviewStep && !hideHeaderForLiveCamera ? (
           <MobilePageHeader
             title={
               step === "processing" || step === "done"
@@ -755,6 +853,7 @@ function AddDocumentContent() {
             allowFileUpload
             allowMultipleFiles
             showViewfinder
+            onPreviewChange={setCameraShowingPreview}
             onCapture={(dataUrl) => {
               if (step !== "camera") return;
               void onCapture(dataUrl);
@@ -770,13 +869,7 @@ function AddDocumentContent() {
               // if the child could not reuse a live stream.
               setCameraSession((n) => n + 1);
             }}
-            onCancel={() => {
-              if (step === "confirmLocation") {
-                goBackOrApp("/app");
-                return;
-              }
-              navigateApp("/app");
-            }}
+            onCancel={cancelCamera}
             key={cameraSession}
           />
         </div>
@@ -791,11 +884,13 @@ function AddDocumentContent() {
             allowFileUpload
             allowMultipleFiles={false}
             showViewfinder
+            onPreviewChange={setCameraShowingPreview}
             onCapture={(dataUrl) => {
               void replacePageWithImage(replacePageId, dataUrl);
             }}
             onCancel={() => {
               setReplacePageId(null);
+              setCameraShowingPreview(false);
               setStep("review");
             }}
             key={`replace-${replacePageId}-${cameraSession}`}
@@ -814,52 +909,80 @@ function AddDocumentContent() {
       {step === "review" ? (
         <>
           <div className={`${listPageChromeClassName} ${appListInset}`}>
-            <MobilePageHeader className="mb-0 border-0 pb-0" />
+            <MobilePageHeader
+              className="mb-0 border-0 pb-0"
+              title={
+                selectionMode
+                  ? t("addDocument.selectedCount", { count: selectedCount })
+                  : undefined
+              }
+              action={
+                selectionMode ? (
+                  <button
+                    type="button"
+                    className={`${appButtonNeutral} px-2.5 py-1.5 text-xs`}
+                    onClick={exitSelectionMode}
+                  >
+                    {t("expiry.confirmCancel")}
+                  </button>
+                ) : undefined
+              }
+            />
           </div>
 
-          <div className={`min-h-0 flex-1 overflow-y-auto overscroll-y-contain ${appListInset} pb-3 pt-3 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:w-0 [&::-webkit-scrollbar]:h-0`}>
+          <div className={`min-h-0 flex-1 overflow-y-auto overscroll-y-contain ${appListInset} pb-3 pt-3 select-none [-webkit-touch-callout:none] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:w-0 [&::-webkit-scrollbar]:h-0`}>
             <div className="space-y-3">
-              <div className="flex items-start gap-2">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-2xl font-semibold text-foreground">
-                      {t("addDocument.reviewTitle")}
-                    </h2>
-                    <span className="inline-flex min-w-7 items-center justify-center rounded-full bg-primary px-2 py-0.5 text-sm font-bold tabular-nums text-primary-fg">
-                      {items.length}
-                    </span>
+              {!selectionMode ? (
+                <div className="flex items-start gap-2">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-2xl font-semibold text-foreground">
+                        {t("addDocument.reviewTitle")}
+                      </h2>
+                      <span className="inline-flex min-w-7 items-center justify-center rounded-full bg-primary px-2 py-0.5 text-sm font-bold tabular-nums text-primary-fg">
+                        {items.length}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-sm text-muted">
+                      {pages.length > 1
+                        ? t("addDocument.reviewHintMulti", {
+                            pages: pages.length,
+                          })
+                        : t("addDocument.reviewHint")}
+                    </p>
                   </div>
-                  <p className="mt-1 text-sm text-muted">
-                    {pages.length > 1
-                      ? t("addDocument.reviewHintMulti", { pages: pages.length })
-                      : t("addDocument.reviewHint")}
-                  </p>
                 </div>
-              </div>
+              ) : null}
               {error ? <p className="text-sm text-error">{error}</p> : null}
 
-              <div className="flex items-center gap-1.5">
-                <SearchField
-                  value={search}
-                  onChange={setSearch}
-                  placeholder={t("addDocument.searchPlaceholder")}
-                  aria-label={t("addDocument.searchPlaceholder")}
-                  inputClassName={appSearchInput}
-                />
-                <button
-                  type="button"
-                  disabled={noExpiryCount === 0 || pageActionBusy}
-                  onClick={() => setConfirmRemoveNoExpiry(true)}
-                  title={t("addDocument.removeNoExpiryHint", { count: noExpiryCount })}
-                  aria-label={t("addDocument.removeNoExpiryHint", { count: noExpiryCount })}
-                  className="flex h-9 shrink-0 items-center justify-center gap-1 rounded-lg border border-primary/50 bg-transparent px-2 text-[10px] font-medium leading-none text-primary disabled:opacity-40"
-                >
-                  {t("addDocument.removeNoExpiry")}
-                  {noExpiryCount > 0 ? (
-                    <span className="tabular-nums">({noExpiryCount})</span>
-                  ) : null}
-                </button>
-              </div>
+              {!selectionMode ? (
+                <div className="flex items-center gap-1.5">
+                  <SearchField
+                    value={search}
+                    onChange={setSearch}
+                    placeholder={t("addDocument.searchPlaceholder")}
+                    aria-label={t("addDocument.searchPlaceholder")}
+                    inputClassName={appSearchInput}
+                  />
+                  <button
+                    type="button"
+                    disabled={noExpiryCount === 0 || pageActionBusy}
+                    onClick={() => setConfirmRemoveNoExpiry(true)}
+                    title={t("addDocument.removeNoExpiryHint", {
+                      count: noExpiryCount,
+                    })}
+                    aria-label={t("addDocument.removeNoExpiryHint", {
+                      count: noExpiryCount,
+                    })}
+                    className="flex h-9 shrink-0 items-center justify-center gap-1 rounded-lg border border-primary/50 bg-transparent px-2 text-[10px] font-medium leading-none text-primary disabled:opacity-40"
+                  >
+                    {t("addDocument.removeNoExpiry")}
+                    {noExpiryCount > 0 ? (
+                      <span className="tabular-nums">({noExpiryCount})</span>
+                    ) : null}
+                  </button>
+                </div>
+              ) : null}
             </div>
 
             <div className="space-y-3 pt-3">
@@ -879,6 +1002,8 @@ function AddDocumentContent() {
                       pageIndex={pageIndex >= 0 ? pageIndex : 0}
                       search={search}
                       busy={pageActionBusy}
+                      selectionMode={selectionMode}
+                      selectedIds={selectedIds}
                       onRetake={() => startRetakePage(page.id)}
                       onReattach={() => startReattachPage(page.id)}
                       onRemoveNoExpiry={() =>
@@ -886,39 +1011,58 @@ function AddDocumentContent() {
                       }
                       onOpenItem={(key) => setDetailKey(key)}
                       onRemoveItem={(key) => setRemoveKey(key)}
+                      onLongPressSelectItem={enterSelectionWith}
+                      onToggleSelectedItem={toggleSelected}
                     />
                   );
                 })
               )}
             </div>
+
+            {selectionMode ? (
+              <div className="h-16 shrink-0" aria-hidden />
+            ) : null}
           </div>
 
-          <div
-            className={`shrink-0 ${appListInset} border-t border-card-border bg-background pt-3 pb-2 ${appFooterButtonGrid}`}
-          >
-            <button
-              type="button"
-              className={appButtonCancelFull}
-              disabled={pageActionBusy}
-              onClick={clearReviewAndRestart}
+          {!selectionMode ? (
+            <div
+              className={`shrink-0 ${appListInset} border-t border-card-border bg-background pt-3 pb-2 ${appFooterButtonGrid}`}
             >
-              <RefreshIcon className="size-4 shrink-0" />
-              {pages.length > 1
-                ? t("addDocument.startOver")
-                : t("addDocument.retake")}
-            </button>
-            <button
-              type="button"
-              disabled={!canImport || importing}
-              className={`${appButtonPrimaryFull} disabled:opacity-50`}
-              onClick={() => void confirmImport()}
-            >
-              {!importing ? (
-                <ExpiryNavIcon className="size-4 shrink-0" />
-              ) : null}
-              {importing ? t("addDocument.importing") : t("addDocument.confirmImport")}
-            </button>
-          </div>
+              <button
+                type="button"
+                className={appButtonCancelFull}
+                disabled={pageActionBusy}
+                onClick={startFullRetake}
+              >
+                <RefreshIcon className="size-4 shrink-0" />
+                {pages.length > 1
+                  ? t("addDocument.startOver")
+                  : t("addDocument.retake")}
+              </button>
+              <button
+                type="button"
+                disabled={!canImport || importing}
+                className={`${appButtonPrimaryFull} disabled:opacity-50`}
+                onClick={() => void confirmImport()}
+              >
+                {!importing ? (
+                  <ExpiryNavIcon className="size-4 shrink-0" />
+                ) : null}
+                {importing
+                  ? t("addDocument.importing")
+                  : t("addDocument.confirmImport")}
+              </button>
+            </div>
+          ) : null}
+
+          {selectionMode ? (
+            <ExpirySelectionFooter
+              selectedCount={selectedCount}
+              busy={false}
+              onCancel={exitSelectionMode}
+              onRemove={() => setBulkConfirmOpen(true)}
+            />
+          ) : null}
         </>
       ) : null}
 
@@ -1049,6 +1193,17 @@ function AddDocumentContent() {
           onConfirm={() => removeItem(removeKey)}
         />
       ) : null}
+      {bulkConfirmOpen ? (
+        <RemoveConfirmDialog
+          title={t("addDocument.bulkConfirmTitle")}
+          message={t("addDocument.bulkConfirmMessage")}
+          itemLabel={t("addDocument.bulkConfirmItems", { count: selectedCount })}
+          cancelLabel={t("expiry.confirmCancel")}
+          removeLabel={t("expiry.bulkRemove", { count: selectedCount })}
+          onCancel={() => setBulkConfirmOpen(false)}
+          onConfirm={bulkRemoveSelected}
+        />
+      ) : null}
       {confirmRemoveNoExpiry ? (
         <RemoveConfirmDialog
           title={t("addDocument.removeNoExpiryTitle")}
@@ -1090,9 +1245,13 @@ function AddDocumentContent() {
 }
 
 export default function AddDocumentPage() {
+  const [mountKey, setMountKey] = useState(0);
+  const restart = useCallback(() => setMountKey((key) => key + 1), []);
+  useTabReselect("document", restart);
+
   return (
     <Suspense>
-      <AddDocumentContent />
+      <AddDocumentContent key={mountKey} />
     </Suspense>
   );
 }

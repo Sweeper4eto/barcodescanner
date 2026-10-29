@@ -209,6 +209,28 @@ test("schema allows both alert tiers off (turns alerts off)", () => {
   );
 });
 
+test("schema allows urgent window longer than early (independent day counts)", () => {
+  const parsed = expiryNotificationPrefsSchema.safeParse({
+    ...SYSTEM_DEFAULT_PREFS,
+    earlyDays: 3,
+    urgentDays: 7,
+    storeIds: null,
+  });
+  assert.equal(parsed.success, true);
+});
+
+test("schema rejects day counts outside 0–90 with a clear path", () => {
+  const parsed = expiryNotificationPrefsSchema.safeParse({
+    ...SYSTEM_DEFAULT_PREFS,
+    earlyDays: 91,
+    storeIds: null,
+  });
+  assert.equal(parsed.success, false);
+  if (!parsed.success) {
+    assert.equal(parsed.error.issues[0]?.path[0], "earlyDays");
+  }
+});
+
 test("shouldSendTierNow sends nothing when both tiers are off", () => {
   const prefs = prefsFromUserRow({
     ...baseRow,

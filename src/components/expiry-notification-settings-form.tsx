@@ -10,6 +10,8 @@ import { useT } from "@/components/i18n-provider";
 import { appButtonPrimaryFull, appFormInput } from "@/lib/app-ui";
 import type { ExpiryNotificationPrefs } from "@/lib/expiry-notification-prefs";
 import {
+  expiryNotificationPrefsSchema,
+  messageKeyForExpiryPrefsError,
   prefsHaveNoAlertTiers,
   snapTimeToStep,
 } from "@/lib/expiry-notification-prefs";
@@ -236,6 +238,11 @@ export function ExpiryNotificationSettingsForm() {
         schedule: "daily" as const,
         storeIds: storeMode === "all" ? null : prefs.storeIds ?? [],
       };
+      const localCheck = expiryNotificationPrefsSchema.safeParse(payload);
+      if (!localCheck.success) {
+        setError(t(messageKeyForExpiryPrefsError(localCheck.error)));
+        return;
+      }
       const turningAlertsOff = prefsHaveNoAlertTiers(prefs);
       const response = await fetch("/api/push/notification-settings", {
         method: "PATCH",
@@ -307,35 +314,7 @@ export function ExpiryNotificationSettingsForm() {
 
       <div className="space-y-3 pb-8">
         <Section title={t("pushSettings.tiers")} hint={t("pushSettings.tiersHint")}>
-          <div className="rounded-xl border border-primary/35 bg-primary/5 p-3">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-sm font-medium text-primary">{t("pushSettings.earlyTitle")}</p>
-              </div>
-              <Toggle
-                checked={prefs.earlyEnabled}
-                onChange={(earlyEnabled) => patch({ earlyEnabled })}
-                label={t("pushSettings.earlyTitle")}
-              />
-            </div>
-            <DayChips
-              value={prefs.earlyDays}
-              onChange={(earlyDays) => patch({ earlyDays })}
-              customLabel={t("pushSettings.customDays")}
-              daysLabel={t("pushSettings.daysLabel")}
-            />
-            {prefs.earlyEnabled ? (
-              <div className="mt-3">
-                <NotifyTimeSelect
-                  label={t("pushSettings.timeLabel")}
-                  value={prefs.time1}
-                  onChange={(time1) => patch({ time1: snapTimeToStep(time1) })}
-                />
-              </div>
-            ) : null}
-          </div>
-
-          <div className="mt-3 rounded-xl border border-danger/40 bg-danger/5 p-3">
+          <div className="rounded-xl border border-danger/40 bg-danger/5 p-3">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-sm font-medium text-danger">{t("pushSettings.urgentTitle")}</p>
@@ -358,6 +337,34 @@ export function ExpiryNotificationSettingsForm() {
                   label={t("pushSettings.timeLabel")}
                   value={prefs.time2}
                   onChange={(time2) => patch({ time2: snapTimeToStep(time2) })}
+                />
+              </div>
+            ) : null}
+          </div>
+
+          <div className="mt-3 rounded-xl border border-primary/35 bg-primary/5 p-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium text-primary">{t("pushSettings.earlyTitle")}</p>
+              </div>
+              <Toggle
+                checked={prefs.earlyEnabled}
+                onChange={(earlyEnabled) => patch({ earlyEnabled })}
+                label={t("pushSettings.earlyTitle")}
+              />
+            </div>
+            <DayChips
+              value={prefs.earlyDays}
+              onChange={(earlyDays) => patch({ earlyDays })}
+              customLabel={t("pushSettings.customDays")}
+              daysLabel={t("pushSettings.daysLabel")}
+            />
+            {prefs.earlyEnabled ? (
+              <div className="mt-3">
+                <NotifyTimeSelect
+                  label={t("pushSettings.timeLabel")}
+                  value={prefs.time1}
+                  onChange={(time1) => patch({ time1: snapTimeToStep(time1) })}
                 />
               </div>
             ) : null}

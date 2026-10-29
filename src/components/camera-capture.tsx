@@ -5,14 +5,17 @@ import { PrimaryButton, SecondaryButton } from "@/components/auth-forms";
 import { CancelButton } from "@/components/cancel-button";
 import { ConfirmButton } from "@/components/confirm-button";
 import { ForwardButton } from "@/components/forward-button";
-import {
-  BackArrowIcon,
-  CameraIcon,
-} from "@/components/app-nav-icons";
+import { BackArrowIcon, CameraIcon } from "@/components/app-nav-icons";
 import { useT } from "@/components/i18n-provider";
 import { ScannerViewfinderOverlay } from "@/components/scanner-viewfinder-overlay";
 import { useScreenWakeLock } from "@/hooks/use-screen-wake-lock";
-import { appButtonCancelFull, appButtonPrimaryFull, appFooterButtonGrid } from "@/lib/app-ui";
+import { useViewportInsets } from "@/hooks/use-viewport-insets";
+import {
+  appButtonCancelFull,
+  appButtonDangerFull,
+  appButtonPrimaryFull,
+  appFooterButtonGrid,
+} from "@/lib/app-ui";
 
 type Props = {
   onCapture: (dataUrl: string) => void;
@@ -64,6 +67,11 @@ type Props = {
    * When true, Cancel is labeled “Keep old picture” (discard the new shot).
    */
   keepOldPicture?: boolean;
+  /**
+   * Fired when the still-preview step appears or is cleared (live camera again).
+   * Parents can hide chrome (page header) while the live view needs the space.
+   */
+  onPreviewChange?: (showingPreview: boolean) => void;
 };
 
 function UploadIcon({ className = "" }: { className?: string }) {
@@ -492,6 +500,7 @@ export function CameraCapture({
   captureOnPreviewTap = true,
   confirmMode = "next",
   keepOldPicture = false,
+  onPreviewChange,
 }: Props) {
   const { t } = useT();
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -508,14 +517,26 @@ export function CameraCapture({
   const [error, setError] = useState("");
   const [useNativeCapture, setUseNativeCapture] = useState(false);
   const [platformReady, setPlatformReady] = useState(false);
+  /** Document: confirm before leaving live camera or discarding a still preview. */
+  const [pendingExit, setPendingExit] = useState<"leave" | "discardPreview" | null>(
+    null,
+  );
   const autoStartedRef = useRef(false);
   const lastPreviewTapRef = useRef(0);
   const documentLayout = variant === "document";
   const showCorners = showViewfinder || documentLayout;
+  const { offsetTop, keyboardInset } = useViewportInsets();
 
   useScreenWakeLock(
     active || starting || capturing || submitting || Boolean(preview),
   );
+
+  useEffect(() => {
+    onPreviewChange?.(Boolean(preview));
+    return () => {
+      onPreviewChange?.(false);
+    };
+  }, [preview, onPreviewChange]);
 
   useEffect(() => {
     // Document flow keeps a live in-app preview so "new scan" / Retake reuse the
@@ -714,8 +735,9 @@ export function CameraCapture({
       ? "pointer-events-none h-full w-full object-contain"
       : "pointer-events-none max-h-[min(52dvh,24rem)] w-full object-contain";
 
+  // Taller live frame when the page header is hidden during document scan.
   const previewShellClass = documentLayout
-    ? "relative mx-auto flex aspect-[3/4] max-h-[min(58dvh,28rem)] w-full items-center justify-center overflow-hidden rounded-2xl border border-card-border bg-black"
+    ? "relative mx-auto flex aspect-[3/4] max-h-[min(72dvh,36rem)] w-full items-center justify-center overflow-hidden rounded-2xl border border-card-border bg-black"
     : compact
       ? "relative mx-auto flex h-[min(28dvh,12.5rem)] w-full items-center justify-center overflow-hidden rounded-xl border border-card-border bg-black"
       : "relative mx-auto flex max-h-[min(52dvh,24rem)] w-full items-center justify-center overflow-hidden rounded-xl border border-card-border bg-black";
@@ -777,11 +799,40 @@ export function CameraCapture({
     </>
   );
 
+  function requestLeaveCamera() {
+    if (!onCancel) return;
+    if (documentLayout) {
+      setPendingExit("leave");
+      return;
+    }
+    onCancel();
+  }
+
+  function requestDiscardPreview() {
+    if (documentLayout) {
+      setPendingExit("discardPreview");
+      return;
+    }
+    handleNewDocument();
+  }
+
+  function confirmPendingExit() {
+    const action = pendingExit;
+    setPendingExit(null);
+    if (action === "leave") {
+      onCancel?.();
+      return;
+    }
+    if (action === "discardPreview") {
+      handleNewDocument();
+    }
+  }
+
   const documentToolbar = documentLayout && !preview && (
     <div className="flex items-center gap-2 pt-1 pb-3">
       <div className="min-w-0 flex-1">
         {onCancel ? (
-          <CancelButton disabled={capturing} onClick={onCancel}>
+          <CancelButton disabled={capturing} onClick={requestLeaveCamera}>
             {t("common.cancel")}
           </CancelButton>
         ) : null}
@@ -829,7 +880,7 @@ export function CameraCapture({
     <div className={`${appFooterButtonGrid} pt-1 pb-3`}>
       <button
         type="button"
-        onClick={handleNewDocument}
+        onClick={requestDiscardPreview}
         disabled={submitting}
         className={appButtonCancelFull}
         aria-label={t("common.back")}
@@ -845,6 +896,23 @@ export function CameraCapture({
       </ForwardButton>
     </div>
   ) : null;
+
+  const bottomNav =
+    "var(--app-bottom-nav-frame) + env(safe-area-inset-bottom, 0px)";
+  const exitConfirmCopy =
+    pendingExit === "discardPreview"
+      ? {
+          title: t("addDocument.discardPhotoTitle"),
+          message: t("addDocument.discardPhotoMessage"),
+          confirm: t("addDocument.discardPhotoConfirm"),
+        }
+      : pendingExit === "leave"
+        ? {
+            title: t("addDocument.leaveCameraTitle"),
+            message: t("addDocument.leaveCameraMessage"),
+            confirm: t("addDocument.leaveCameraConfirm"),
+          }
+        : null;
 
   return (
     <div className={`relative space-y-3 ${active && !preview ? "isolate" : ""}`}>
@@ -1052,6 +1120,58 @@ export function CameraCapture({
       )}
 
       <canvas ref={canvasRef} className="hidden" />
+
+      {exitConfirmCopy ? (
+        <div
+          className="fixed inset-x-0 z-[70] flex items-center justify-center bg-black/60 px-5"
+          style={{
+            top: offsetTop,
+            bottom: `calc(${bottomNav} + ${keyboardInset}px)`,
+          }}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="camera-exit-confirm-title"
+          onClick={() => setPendingExit(null)}
+        >
+          <div
+            className="w-full max-w-[22rem] rounded-2xl border border-card-border bg-background px-5 pb-5 pt-6 shadow-[0_20px_50px_rgba(0,0,0,0.5)]"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex justify-center">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/icons/icon-192.png?v=10"
+                alt=""
+                width={112}
+                height={112}
+                className="size-28 object-contain"
+                decoding="async"
+              />
+            </div>
+            <h2
+              id="camera-exit-confirm-title"
+              className="mt-4 text-center text-[1.35rem] font-semibold leading-tight text-foreground"
+            >
+              {exitConfirmCopy.title}
+            </h2>
+            <p className="mt-3 text-center text-[0.95rem] leading-relaxed text-muted">
+              {exitConfirmCopy.message}
+            </p>
+            <div className={`mt-6 ${appFooterButtonGrid}`}>
+              <CancelButton onClick={() => setPendingExit(null)}>
+                {t("app.startOverStay")}
+              </CancelButton>
+              <button
+                type="button"
+                className={appButtonDangerFull}
+                onClick={confirmPendingExit}
+              >
+                {exitConfirmCopy.confirm}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

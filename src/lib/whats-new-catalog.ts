@@ -819,6 +819,62 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Множественият избор в Годност спира на 50 артикула за служители и 150 за собственици — не може да изберете повече, отколкото можете да премахнете наведнъж.",
     href: "/app/expiry",
   },
+  {
+    key: "2026-10-push-urgent-first",
+    titleEn:
+      "Notification settings: Urgent alerts are listed above Early reminders.",
+    titleBg:
+      "Настройки на известия: Спешните са над ранните напомняния.",
+    href: "/app/settings/notifications",
+  },
+  {
+    key: "2026-10-push-independent-day-windows",
+    titleEn:
+      "Expiry alerts: Urgent and Early day windows are independent — e.g. Urgent 7 days and Early 3 days both work.",
+    titleBg:
+      "Известия за годност: дните за Спешно и Ранно са независими — например Спешно 7 дни и Ранно 3 дни работят заедно.",
+    href: "/app/settings/notifications",
+  },
+  {
+    key: "2026-10-document-review-multiselect",
+    titleEn:
+      "Document review: long-press rows to multi-select and remove several at once (same as Expiry). Lists no longer select page text while you hold.",
+    titleBg:
+      "Преглед на документ: задръжте ред за множествен избор и премахване на няколко наведнъж (като в Годност). Списъците вече не маркират текст при задържане.",
+    href: "/app/add-document",
+  },
+  {
+    key: "2026-10-change-password-show-hide",
+    titleEn:
+      "Choose a new password: show or hide what you type with the eye icon, same as login and register.",
+    titleBg:
+      "Избор на нова парола: покажете или скрийте въведеното с иконата око, както при вход и регистрация.",
+    href: "/change-password",
+  },
+  {
+    key: "2026-10-scan-hide-header-live",
+    titleEn:
+      "Scan and document camera: the top header hides while you frame the shot so Capture and other buttons stay on screen; it returns after the photo.",
+    titleBg:
+      "Сканиране и камера за документ: горният хедър се скрива докато кадрирате, за да останат бутоните на екрана; след снимката се връща.",
+    href: "/app/add-document",
+  },
+  {
+    key: "2026-10-nav-retap-restarts",
+    titleEn:
+      "Tap Add, Document, or Expiry again while you are already there — confirm “Start over?” to restart that screen from the beginning.",
+    titleBg:
+      "Докоснете отново Добави, Документ или Годност, докато сте там — потвърдете „Отначало?“, за да рестартирате екрана.",
+    href: "/app/scan",
+  },
+  {
+    key: "2026-10-document-exit-confirms",
+    titleEn:
+      "Document scan: Retake keeps your review — Cancel on the camera brings that review back. Discarding a photo still asks for confirmation.",
+    titleBg:
+      "Сканиране на документ: Повтори запазва прегледа — Отказ на камерата връща същия преглед. Отхвърлянето на снимка пак иска потвърждение.",
+    href: "/app/add-document",
+  },
 ];
 
 
