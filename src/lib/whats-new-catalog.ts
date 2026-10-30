@@ -870,17 +870,17 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
   {
     key: "2026-10-document-exit-confirms",
     titleEn:
-      "Document scan: empty live camera — leave or re-tap Document with no prompt. After a still (Next/Back), review, or retake, leaving or re-tapping asks before discarding.",
+      "Document scan: prompts only after the flow has started (still, review, page retake, or draft pages). Empty camera leaves freely; review Retake / Start over asks first.",
     titleBg:
-      "Сканиране на документ: празна жива камера — напускане или повторен таб без питане. След снимка (Напред/Назад), преглед или Повтори, напускане или повторен таб пита преди отхвърляне.",
+      "Сканиране на документ: пита само след като потокът е започнал (снимка, преглед, Повтори страница или чернова). Празна камера без питане; Повтори / Отначало от прегледа пита първо.",
     href: "/app/add-document",
   },
   {
     key: "2026-10-document-retap-no-confirm-live",
     titleEn:
-      "Document (Scan): re-tap while only framing restarts immediately. Once you have a still preview, a scanned review, or a page retake, “Start over?” asks first.",
+      "Document (Scan): re-tap restarts immediately only before anything is captured. After the flow has started, “Start over?” asks first.",
     titleBg:
-      "Сканирай: повторен таб само докато кадрирате рестартира веднага. След преглед на снимка, сканиран документ или Повтори — първо „Отначало?“.",
+      "Сканирай: повторен таб рестартира веднага само преди да има заснето. След като потокът е започнал — първо „Отначало?“.",
     href: "/app/add-document",
   },
   {

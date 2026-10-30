@@ -606,6 +606,8 @@ export const en = {
     processingPage: "Reading this photo…",
     emptyPageReview: "No items from this photo. Retake or reattach it.",
     startOver: "Start over",
+    confirmRetakeMessage:
+      "Leave this review and open the camera again? A new photo replaces {item}.",
     matched: "Matched",
     unmatched: "New",
     missingInfo: "Missing info",

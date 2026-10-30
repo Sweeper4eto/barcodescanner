@@ -144,30 +144,30 @@ function AddDocumentContent() {
     total: number;
   } | null>(null);
   const [failedFiles, setFailedFiles] = useState<string[]>([]);
-  /** Still with Напред/Назад — flow has started; live empty camera has not. */
+  /** Still with Напред/Назад — part of “flow started”. */
   const [cameraShowingPreview, setCameraShowingPreview] = useState(false);
+  /** Footer Retake / Start over from review — only offered after flow started. */
+  const [confirmFullRetake, setConfirmFullRetake] = useState(false);
 
-  // Empty live camera: leave freely. Confirm once a still, review, or draft exists.
-  const hasDocumentDraft =
+  // One rule: confirm only after the scan flow has started.
+  // Not started = empty live camera / location. Started = still preview,
+  // OCR review, page retake, or draft pages still in memory.
+  const flowStarted =
     cameraShowingPreview ||
     step === "review" ||
     step === "replacePage" ||
     pages.length > 0;
-  useNavigationLeaveGuard(hasDocumentDraft, {
+  useNavigationLeaveGuard(flowStarted, {
     title: t("addDocument.leaveReviewTitle"),
     message: t("addDocument.leaveReviewMessage"),
     stayLabel: t("addDocument.leaveReviewStay"),
     leaveLabel: t("addDocument.leaveReviewLeave"),
   });
 
-  // Re-tap Сканирай: no “Start over?” on empty live camera. Confirm on still
-  // preview, scanned review, or page retake — the flow has already started.
   useEffect(() => {
-    const needsConfirm =
-      cameraShowingPreview || step === "review" || step === "replacePage";
-    setTabReselectNeedsConfirm("document", needsConfirm);
+    setTabReselectNeedsConfirm("document", flowStarted);
     return () => setTabReselectNeedsConfirm("document", true);
-  }, [step, cameraShowingPreview]);
+  }, [flowStarted]);
 
   const items = useMemo(() => flattenDocumentPageItems(pages), [pages]);
 
@@ -690,6 +690,7 @@ function AddDocumentContent() {
    * can return to the same review instead of discarding it.
    */
   function startFullRetake() {
+    setConfirmFullRetake(false);
     restoreReviewPageIdRef.current = null;
     setSearch("");
     setDetailKey(null);
@@ -1031,7 +1032,7 @@ function AddDocumentContent() {
                 type="button"
                 className={appButtonCancelFull}
                 disabled={pageActionBusy}
-                onClick={startFullRetake}
+                onClick={() => setConfirmFullRetake(true)}
               >
                 <RefreshIcon className="size-4 shrink-0" />
                 {pages.length > 1
@@ -1178,6 +1179,22 @@ function AddDocumentContent() {
           item={detailItem}
           onClose={() => setDetailKey(null)}
           onSave={(patch) => updateItem(detailItem.key, patch)}
+        />
+      ) : null}
+
+      {confirmFullRetake ? (
+        <RemoveConfirmDialog
+          title={t("app.startOverTitle")}
+          message={t("addDocument.confirmRetakeMessage")}
+          itemLabel={t("addDocument.cancelReviewItemLabel")}
+          cancelLabel={t("app.startOverStay")}
+          removeLabel={
+            pages.length > 1
+              ? t("addDocument.startOver")
+              : t("addDocument.retake")
+          }
+          onCancel={() => setConfirmFullRetake(false)}
+          onConfirm={startFullRetake}
         />
       ) : null}
 

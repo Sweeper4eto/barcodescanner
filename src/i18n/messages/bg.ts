@@ -610,6 +610,8 @@ export const bg = {
     processingPage: "Четене на тази снимка…",
     emptyPageReview: "Няма артикули от тази снимка. Повторете или прикачете наново.",
     startOver: "Отначало",
+    confirmRetakeMessage:
+      "Да се напусне този преглед и да се отвори камерата отново? Нова снимка заменя {item}.",
     matched: "Намерен",
     unmatched: "Нов",
     missingInfo: "Липсва информация",

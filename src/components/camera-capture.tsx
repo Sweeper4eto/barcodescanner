@@ -125,7 +125,7 @@ function FrameCameraIcon({ className = "" }: { className?: string }) {
       className={className}
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.5"
+      strokeWidth="0.9"
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden
