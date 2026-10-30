@@ -854,8 +854,8 @@ export function CameraCapture({
         }
       >
         <CaptureFrameIcon className="absolute inset-0 h-full w-full" />
-        {/* Center of the bottom-aligned frame (midpoint of y=11..24 in the SVG). */}
-        <FrameCameraIcon className="absolute left-1/2 top-[72.9%] h-11 w-11 -translate-x-1/2 -translate-y-1/2" />
+        {/* Midpoint of the frame arms (y=11..22.5 → 16.75/24). */}
+        <FrameCameraIcon className="absolute left-1/2 top-[69.8%] h-11 w-11 -translate-x-1/2 -translate-y-1/2" />
       </button>
 
       <div className="min-w-0 self-end">
