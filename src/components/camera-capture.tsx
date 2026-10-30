@@ -95,8 +95,8 @@ function UploadIcon({ className = "" }: { className?: string }) {
 
 /**
  * Thin corner frame for the document shutter (no filled circle).
- * Same arm length as before — shifted down so bottom corners sit on the
- * shared baseline with Отказ / Качване (not floating above them).
+ * Bottom-weighted so corners share the Отказ / Качване baseline.
+ * Stroke matches the lighter look of the old edge-clipped bottoms (~half of 0.9).
  */
 function CaptureFrameIcon({ className = "" }: { className?: string }) {
   return (
@@ -105,15 +105,15 @@ function CaptureFrameIcon({ className = "" }: { className?: string }) {
       className={className}
       fill="none"
       stroke="currentColor"
-      strokeWidth="0.9"
+      strokeWidth="0.45"
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden
     >
-      <path d="M5.5 15V11h4" />
-      <path d="M18.5 15V11h-4" />
-      <path d="M5.5 20v4h4" />
-      <path d="M18.5 20v4h-4" />
+      <path d="M5.5 14.5V11h4" />
+      <path d="M18.5 14.5V11h-4" />
+      <path d="M5.5 19.5v3h4" />
+      <path d="M18.5 19.5v3h-4" />
     </svg>
   );
 }
@@ -125,7 +125,7 @@ function FrameCameraIcon({ className = "" }: { className?: string }) {
       className={className}
       fill="none"
       stroke="currentColor"
-      strokeWidth="0.9"
+      strokeWidth="0.45"
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden
