@@ -23,6 +23,7 @@ export async function GET(request: Request) {
       mustChangePassword: true,
       client: {
         select: {
+          active: true,
           homeUser: true,
           scheduleEnabled: true,
           scheduleAccess: true,
@@ -40,6 +41,11 @@ export async function GET(request: Request) {
   });
 
   if (!user || !user.active) {
+    return NextResponse.json({ user: null });
+  }
+
+  if (user.role === "USER" && user.clientId && !user.client?.active) {
+    await clearSessionCookie(request);
     return NextResponse.json({ user: null });
   }
 

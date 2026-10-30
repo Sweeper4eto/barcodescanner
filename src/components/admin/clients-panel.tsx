@@ -357,6 +357,7 @@ export function ClientsPanel({
       setSavedEdit(snapshot);
       setSaveMessage(t("admin.saveSuccess"));
       await loadClients(query);
+      if (selectedId) await loadStores(selectedId);
       onRefresh();
     } finally {
       setSaving(false);
@@ -975,15 +976,23 @@ export function ClientsPanel({
                           }
                         />
                       </AdminField>
-                      <label className="flex items-center gap-2 text-sm text-foreground">
+                      <label className="flex items-start gap-2 text-sm text-foreground">
                         <input
                           type="checkbox"
+                          className="mt-0.5"
                           checked={edit.active}
                           onChange={(event) =>
                             setEdit({ ...edit, active: event.target.checked })
                           }
                         />
-                        {t("admin.activeClient")}
+                        <span>
+                          <span className="block font-semibold">
+                            {t("admin.activeClient")}
+                          </span>
+                          <span className="mt-0.5 block text-xs text-muted">
+                            {t("admin.activeClientHint")}
+                          </span>
+                        </span>
                       </label>
 
                       {!edit.homeUser ? (
@@ -1146,6 +1155,7 @@ export function ClientsPanel({
                                 key={store.id}
                                 store={store}
                                 homeUser={Boolean(selectedClient?.homeUser)}
+                                clientActive={Boolean(selectedClient?.active)}
                                 onToggle={() => void toggleStore(store)}
                                 onDelete={() => void deleteStore(store.id)}
                                 onSaved={() => selectedId && void loadStores(selectedId)}
@@ -1286,12 +1296,14 @@ export function ClientsPanel({
 function StoreCard({
   store,
   homeUser,
+  clientActive,
   onToggle,
   onDelete,
   onSaved,
 }: {
   store: Store;
   homeUser: boolean;
+  clientActive: boolean;
   onToggle: () => void;
   onDelete: () => void;
   onSaved: () => void;
@@ -1308,6 +1320,7 @@ function StoreCard({
   const [savedForm, setSavedForm] = useState(form);
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState("");
+  const showDisabled = !store.active || !clientActive;
 
   const storeDirty =
     editing &&
@@ -1368,7 +1381,11 @@ function StoreCard({
 
   return (
     <div
-      className={`rounded-xl border border-card-border bg-background p-3 ${!store.active ? "opacity-60" : ""}`}
+      className={`rounded-xl border bg-background p-3 ${
+        showDisabled
+          ? "border-danger-border bg-red-950/20"
+          : "border-card-border"
+      }`}
     >
       {editing ? (
         <div className="space-y-2">
@@ -1425,12 +1442,23 @@ function StoreCard({
         </div>
       ) : (
         <>
-          <Link
-            href={`/admin/expiry?storeId=${encodeURIComponent(store.id)}`}
-            className="block font-medium text-foreground hover:text-primary hover:underline"
-          >
-            {store.name}
-          </Link>
+          <div className="flex items-start justify-between gap-2">
+            <Link
+              href={`/admin/expiry?storeId=${encodeURIComponent(store.id)}`}
+              className={`block font-medium hover:underline ${
+                showDisabled
+                  ? "text-error hover:text-error"
+                  : "text-foreground hover:text-primary"
+              }`}
+            >
+              {store.name}
+            </Link>
+            {showDisabled ? (
+              <span className="shrink-0 rounded-full border border-danger-border bg-red-950/40 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-error">
+                {t("admin.locationDisabledBadge")}
+              </span>
+            ) : null}
+          </div>
           <p className="text-xs text-muted">{store.address}</p>
           <p className="text-xs text-muted">{store.phone}</p>
           <p className="text-xs text-muted">{store.additionalInfo}</p>

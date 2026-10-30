@@ -2,7 +2,12 @@ import { requireAdminResponse } from "@/lib/admin-guard";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { logAuditEvent } from "@/lib/audit-log";
-import { auditClientCreated, auditClientDeleted, auditClientUpdated } from "@/lib/audit-details";
+import {
+  auditClientCreated,
+  auditClientDeleted,
+  auditClientUpdated,
+  auditJoin,
+} from "@/lib/audit-details";
 import { db } from "@/lib/db";
 import { clientDefaultsSchema, clientDefaultsToData } from "@/lib/expiry-notification-prefs";
 import { startOfBillingMonth } from "@/lib/payment-status";
@@ -213,7 +218,29 @@ export async function PATCH(request: Request) {
     where: { id },
     data: { ...data, ...defaultsPatch, ...paymentsSincePatch, ...referralPatch },
   });
-  await logAuditEvent(request, admin, "client_updated", auditClientUpdated(before, client));
+
+  let locationsCascaded: "disabled" | "enabled" | null = null;
+  if (data.active !== undefined && data.active !== before.active) {
+    await db.store.updateMany({
+      where: { clientId: id },
+      data: { active: data.active },
+    });
+    locationsCascaded = data.active ? "enabled" : "disabled";
+  }
+
+  await logAuditEvent(
+    request,
+    admin,
+    "client_updated",
+    auditJoin([
+      auditClientUpdated(before, client),
+      locationsCascaded === "disabled"
+        ? "locations cascaded disabled"
+        : locationsCascaded === "enabled"
+          ? "locations cascaded enabled"
+          : null,
+    ]),
+  );
   return NextResponse.json({ client });
 }
 

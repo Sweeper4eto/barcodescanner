@@ -187,7 +187,7 @@ export async function loginUser(
   if (user.role === "USER" && user.clientId) {
     const client = await db.client.findUnique({ where: { id: user.clientId } });
     if (!client?.active) {
-      return { ok: false, errorKey: "auth.clientDeactivated" };
+      return { ok: false, errorKey: "auth.accountDeactivated" };
     }
     const { clientRequiresPayment } = await import("@/lib/app-config");
     if (await clientRequiresPayment(user.clientId)) {
@@ -276,6 +276,7 @@ export async function requireSession(options?: {
       role: true,
       clientId: true,
       username: true,
+      client: { select: { active: true } },
     },
   });
   if (!user?.active) {
@@ -286,6 +287,11 @@ export async function requireSession(options?: {
   }
 
   if (user.role === "USER" && user.clientId) {
+    if (!user.client?.active) {
+      const { clearSessionCookie } = await import("@/lib/session");
+      await clearSessionCookie();
+      throw new Error("UNAUTHORIZED");
+    }
     const { clientRequiresPayment } = await import("@/lib/app-config");
     if (await clientRequiresPayment(user.clientId)) {
       const { clearSessionCookie } = await import("@/lib/session");

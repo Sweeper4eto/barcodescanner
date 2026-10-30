@@ -146,10 +146,12 @@ export const en = {
     passwordStrengthStrong: "Strong",
     usernameTaken: "This username is already taken",
     invalidCredentials: "Invalid username or password",
-    accountDeactivated: "Account is deactivated. Contact an administrator.",
+    accountDeactivated:
+      "Your account is disabled. Contact customer support or call +359 887 628 654.",
     noClientAssigned:
       "You are not assigned to a client. Please contact an administrator.",
-    clientDeactivated: "Client is deactivated. Contact an administrator.",
+    clientDeactivated:
+      "Your account is disabled. Contact customer support or call +359 887 628 654.",
     paymentRequired:
       "Payment is required for this account. Contact an administrator.",
     tooManyAttempts:
@@ -1053,7 +1055,10 @@ export const en = {
       "On by default. When off, this account cannot use the schedule (Team, Home, and API).",
     paymentStandingFree: "Free (fee ≤ 0)",
     editClient: "Edit client",
-    activeClient: "Active client",
+    activeClient: "Account active",
+    activeClientHint:
+      "When off, all locations are disabled and users cannot log in.",
+    locationDisabledBadge: "Disabled",
     homeUser: "Household account",
     homeUserHint: "Users assigned to this client inherit this setting.",
     notificationDefaults: "Default expiry alerts",
