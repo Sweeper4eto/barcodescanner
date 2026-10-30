@@ -9,7 +9,10 @@ import { LanguageSwitch } from "@/components/language-switch";
 import { useT } from "@/components/i18n-provider";
 import { MenuSelect } from "@/components/menu-select";
 import { MobileI18nProvider } from "@/components/mobile-i18n-provider";
-import { validateSupportEmail } from "@/lib/register-validation";
+import {
+  validateSupportEmail,
+  validateSupportPhone,
+} from "@/lib/register-validation";
 
 type Topic = "bug" | "ocr" | "billing" | "other";
 
@@ -17,6 +20,7 @@ function ContactPageContent() {
   const { t } = useT();
   const [topic, setTopic] = useState<Topic>("other");
   const [contact, setContact] = useState("");
+  const [phone, setPhone] = useState("");
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
@@ -37,6 +41,11 @@ function ContactPageContent() {
       setError(t(emailError));
       return;
     }
+    const phoneError = validateSupportPhone(phone);
+    if (phoneError) {
+      setError(t(phoneError));
+      return;
+    }
     setSending(true);
     setError("");
     try {
@@ -47,6 +56,7 @@ function ContactPageContent() {
           guest: true,
           topic,
           contact: contact.trim().toLowerCase(),
+          phone: phone.trim(),
           message: message.trim(),
         }),
       });
@@ -59,6 +69,7 @@ function ContactPageContent() {
       setTicketId(String(data?.ticketId ?? ""));
       setMessage("");
       setContact("");
+      setPhone("");
     } catch {
       setError(t("errors.saveFailed"));
     } finally {
@@ -117,6 +128,20 @@ function ContactPageContent() {
         </label>
 
         <label className="block text-sm font-medium text-foreground">
+          {t("support.phone")}
+          <input
+            type="tel"
+            inputMode="tel"
+            className="mt-1 w-full rounded-xl border border-input-border bg-input px-3 py-2 text-base text-foreground"
+            value={phone}
+            required
+            autoComplete="tel"
+            placeholder={t("support.phonePlaceholder")}
+            onChange={(event) => setPhone(event.target.value)}
+          />
+        </label>
+
+        <label className="block text-sm font-medium text-foreground">
           {t("support.message")}
           <textarea
             className="mt-1 min-h-28 w-full rounded-xl border border-input-border bg-input px-3 py-2 text-base text-foreground"
@@ -142,7 +167,8 @@ function ContactPageContent() {
             disabled={
               sending ||
               !message.trim() ||
-              Boolean(validateSupportEmail(contact))
+              Boolean(validateSupportEmail(contact)) ||
+              Boolean(validateSupportPhone(phone))
             }
             icon={<SendIcon className="size-4 shrink-0" />}
           >

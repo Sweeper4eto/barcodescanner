@@ -10,7 +10,10 @@ import { useAppSession } from "@/components/app-session-provider";
 import { useT } from "@/components/i18n-provider";
 import { useAppStoreId } from "@/hooks/use-app-store-id";
 import { navigateApp } from "@/lib/app-navigation";
-import { validateSupportEmail } from "@/lib/register-validation";
+import {
+  validateSupportEmail,
+  validateSupportPhone,
+} from "@/lib/register-validation";
 import { formatSupportTicketNumber } from "@/lib/support-ticket";
 
 type Store = { id: string; name: string; active: boolean };
@@ -73,6 +76,17 @@ function MailIcon({ className = "size-4" }: { className?: string }) {
     <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden>
       <rect x="3" y="5" width="18" height="14" rx="2" />
       <path d="m3 7 9 6 9-6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function PhoneIcon({ className = "size-4" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden>
+      <path
+        d="M8.5 4.5h3.2l1.1 3.2-1.7 1.1a11 11 0 0 0 4.1 4.1l1.1-1.7 3.2 1.1v3.2a1.5 1.5 0 0 1-1.5 1.5A13.5 13.5 0 0 1 5 6a1.5 1.5 0 0 1 1.5-1.5Z"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
@@ -158,6 +172,7 @@ export default function ContactSupportPage() {
     }
   }, []);
   const [contact, setContact] = useState("");
+  const [phone, setPhone] = useState("");
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
@@ -191,6 +206,11 @@ export default function ContactSupportPage() {
       setError(t(emailError));
       return;
     }
+    const phoneError = validateSupportPhone(phone);
+    if (phoneError) {
+      setError(t(phoneError));
+      return;
+    }
 
     setSending(true);
     setError("");
@@ -202,6 +222,7 @@ export default function ContactSupportPage() {
           topic,
           storeId: storeId || null,
           contact: contact.trim().toLowerCase(),
+          phone: phone.trim(),
           message: trimmed,
         }),
       });
@@ -214,6 +235,7 @@ export default function ContactSupportPage() {
       setTicketId(String(data?.ticketId ?? ""));
       setMessage("");
       setContact("");
+      setPhone("");
     } catch {
       setError(t("errors.networkError"));
     } finally {
@@ -298,9 +320,17 @@ export default function ContactSupportPage() {
       </div>
 
       <div className="relative z-0 mb-3 flex items-center justify-between gap-3">
-        <h1 className="min-w-0 flex-1 text-[1.35rem] font-semibold leading-tight tracking-tight text-foreground">
-          {t("support.title")}
-        </h1>
+        <div className="min-w-0 flex-1">
+          <h1 className="text-[1.35rem] font-semibold leading-tight tracking-tight text-foreground">
+            {t("support.title")}
+          </h1>
+          <a
+            href="tel:+359887628654"
+            className="mt-1 inline-block text-sm font-medium text-primary"
+          >
+            +359 887 628 654
+          </a>
+        </div>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src="/landing/brand-mark.png?v=3"
@@ -371,6 +401,25 @@ export default function ContactSupportPage() {
         </label>
 
         <label className="block text-sm font-medium text-foreground">
+          {t("support.phone")}
+          <span className="relative mt-1 block">
+            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted">
+              <PhoneIcon className="size-4" />
+            </span>
+            <input
+              type="tel"
+              inputMode="tel"
+              required
+              autoComplete="tel"
+              className="w-full rounded-xl border border-input-border bg-input py-2 pl-10 pr-3 text-base text-foreground outline-none transition-colors placeholder:text-muted focus:border-primary focus:ring-1 focus:ring-primary/40"
+              value={phone}
+              placeholder={t("support.phonePlaceholder")}
+              onChange={(event) => setPhone(event.target.value)}
+            />
+          </span>
+        </label>
+
+        <label className="block text-sm font-medium text-foreground">
           {t("support.message")}
           <span className="relative mt-1 block">
             <span className="pointer-events-none absolute left-3 top-2.5 text-muted">
@@ -396,7 +445,8 @@ export default function ContactSupportPage() {
           disabled={
             sending ||
             message.trim().length < MESSAGE_MIN ||
-            Boolean(validateSupportEmail(contact))
+            Boolean(validateSupportEmail(contact)) ||
+            Boolean(validateSupportPhone(phone))
           }
           icon={<SendIcon className="size-4 shrink-0" />}
         >

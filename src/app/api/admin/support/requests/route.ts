@@ -64,6 +64,7 @@ export async function GET(request: Request) {
       topic: row.topic,
       status: row.status,
       contact: row.contact,
+      phone: row.phone,
       message: row.message,
       documentImagePath: row.documentImagePath,
       adminNote: row.adminNote,

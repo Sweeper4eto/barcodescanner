@@ -6,13 +6,17 @@ import { userCanAccessStore } from "@/lib/store-access";
 import { apiT } from "@/i18n";
 import {
   normalizeSupportEmail,
+  normalizeSupportPhone,
+  SUPPORT_PHONE_MAX,
   validateSupportEmail,
+  validateSupportPhone,
 } from "@/lib/register-validation";
 
 const createSchema = z.object({
   topic: z.enum(["bug", "ocr", "billing", "other"]),
   storeId: z.string().min(1).optional().nullable(),
   contact: z.string().trim().max(120).optional().nullable(),
+  phone: z.string().trim().max(SUPPORT_PHONE_MAX).optional().nullable(),
   message: z.string().trim().min(8).max(2000),
   guest: z.boolean().optional(),
 });
@@ -39,6 +43,15 @@ export async function POST(request: Request) {
     }
 
     const contact = normalizeSupportEmail(rawContact);
+    const rawPhone = parsed.data.phone?.trim() ?? "";
+    const phoneError = validateSupportPhone(rawPhone);
+    if (phoneError) {
+      return NextResponse.json(
+        { error: apiT(request, phoneError) },
+        { status: 400 },
+      );
+    }
+    const phone = normalizeSupportPhone(rawPhone);
 
     if (asGuest) {
       const row = await db.supportRequest.create({
@@ -48,6 +61,7 @@ export async function POST(request: Request) {
           storeId: null,
           topic: parsed.data.topic,
           contact,
+          phone,
           message: parsed.data.message.trim(),
         },
         select: { id: true, createdAt: true },
@@ -85,6 +99,7 @@ export async function POST(request: Request) {
         storeId,
         topic: parsed.data.topic,
         contact,
+        phone,
         message: parsed.data.message.trim(),
       },
       select: { id: true, createdAt: true },

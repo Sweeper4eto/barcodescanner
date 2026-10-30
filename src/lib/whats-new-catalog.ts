@@ -907,6 +907,14 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Камера за документ: без движеща се линия — тази анимация е само за баркод. За документ остават ъгловите водачи.",
     href: "/app/add-document",
   },
+  {
+    key: "2026-10-support-phone-field",
+    titleEn:
+      "Contact support: our phone is shown under the title, and yours is required on the form.",
+    titleBg:
+      "Поддръжка: телефонът ни е под заглавието, а вашият е задължителен във формата.",
+    href: "/app/contact",
+  },
 ];
 
 

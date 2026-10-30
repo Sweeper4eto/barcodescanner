@@ -392,6 +392,7 @@ model SupportRequest {
   store        Store?   @relation(fields: [storeId], references: [id], onDelete: SetNull)
   topic        String
   contact      String?
+  phone        String?
   message      String
   /** Admin-only copy of a scanned document photo (`/uploads/…`); admin can delete it. */
   documentImagePath String?

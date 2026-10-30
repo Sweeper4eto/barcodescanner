@@ -49,6 +49,22 @@ export function validateSupportEmail(email: string): MessageKey | null {
   return null;
 }
 
+export const SUPPORT_PHONE_MAX = 40;
+
+export function normalizeSupportPhone(phone: string): string {
+  return phone.trim().replace(/\s+/g, " ");
+}
+
+export function validateSupportPhone(phone: string): MessageKey | null {
+  const normalized = normalizeSupportPhone(phone);
+  if (!normalized) return "support.phoneRequired";
+  if (normalized.length > SUPPORT_PHONE_MAX) return "support.phoneTooLong";
+  const digits = normalized.replace(/\D/g, "");
+  if (digits.length < 7 || digits.length > 15) return "support.phoneInvalid";
+  if (!/^[+\d][\d\s()./-]*$/.test(normalized)) return "support.phoneInvalid";
+  return null;
+}
+
 export function validateOptionalOrgName(name: string): MessageKey | null {
   if (name.trim().length > ORG_NAME_MAX) return "auth.organizationNameTooLong";
   return null;

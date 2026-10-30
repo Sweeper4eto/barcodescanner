@@ -13,6 +13,7 @@ type SupportRow = {
   topic: string;
   status: SupportStatus;
   contact: string | null;
+  phone: string | null;
   message: string;
   documentImagePath: string | null;
   adminNote: string | null;
@@ -345,6 +346,11 @@ export function SupportRequestsPanel({
                     {row.contact ? (
                       <p className="text-xs text-muted">
                         {t("support.contact")}: {row.contact}
+                      </p>
+                    ) : null}
+                    {row.phone ? (
+                      <p className="text-xs text-muted">
+                        {t("support.phone")}: {row.phone}
                       </p>
                     ) : null}
                     <p className="whitespace-pre-wrap text-sm text-foreground">
