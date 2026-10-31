@@ -1,8 +1,12 @@
 import { requireAdminResponse } from "@/lib/admin-guard";
 import { NextResponse } from "next/server";
-import { paymentAmount } from "@/lib/expiry";
 import { db } from "@/lib/db";
-import { sumLocationFees } from "@/lib/location-fees";
+import {
+  expectedPaymentAmount,
+  qualifyingReferralWhere,
+  suggestedReferralDiscount,
+  sumLocationFees,
+} from "@/lib/location-fees";
 import { paymentReferenceFor } from "@/lib/payment-reference";
 import { apiT } from "@/i18n";
 
@@ -42,6 +46,9 @@ export async function GET(request: Request) {
           where: { active: true },
           select: { monthlyFee: true },
         },
+        _count: {
+          select: { referrals: { where: qualifyingReferralWhere } },
+        },
       },
       orderBy: { name: "asc" },
     }),
@@ -53,7 +60,12 @@ export async function GET(request: Request) {
   const rows = clients.map((client) => {
     const activeStoreCount = client.stores.length;
     const locationsFeeTotal = sumLocationFees(client.stores);
-    const expectedAmount = paymentAmount(locationsFeeTotal, 0);
+    const referralCount = client._count.referrals;
+    const referralDiscount = suggestedReferralDiscount(referralCount);
+    const expectedAmount = expectedPaymentAmount(
+      locationsFeeTotal,
+      referralCount,
+    );
     const payment = paymentByClient.get(client.id);
     return {
       client: {
@@ -61,9 +73,12 @@ export async function GET(request: Request) {
         name: client.name,
         locationsFeeTotal,
         paymentsRequired: client.paymentsRequired,
+        referralCount,
       },
       activeStoreCount,
       expectedAmount,
+      referralCount,
+      referralDiscount,
       paymentReference: paymentReferenceFor(client.id, year, month),
       paid: Boolean(payment),
       payment: payment ?? null,

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import {
   billingStartPeriod,
+  countStandingUnpaidMonths,
   countUnpaidMonths,
   hasOverdueUnpaidMonths,
   isPaymentAccessBlocked,
@@ -33,29 +34,26 @@ describe("payment standing", () => {
     assert.equal(unpaid, 1);
   });
 
-  test("standing colors map unpaid counts", () => {
+  test("standing maps past unpaid and current-month due", () => {
+    const base = {
+      homeUser: false,
+      paymentsRequired: true,
+      expectedAmount: 40,
+    };
     assert.equal(
-      paymentStandingFromUnpaid(0, {
-        homeUser: false,
-        paymentsRequired: true,
-        expectedAmount: 40,
-      }),
+      paymentStandingFromUnpaid(0, { ...base, currentMonthPaid: true }),
       "current",
     );
     assert.equal(
-      paymentStandingFromUnpaid(1, {
-        homeUser: false,
-        paymentsRequired: true,
-        expectedAmount: 40,
-      }),
+      paymentStandingFromUnpaid(0, { ...base, currentMonthPaid: false }),
+      "due",
+    );
+    assert.equal(
+      paymentStandingFromUnpaid(1, { ...base, currentMonthPaid: false }),
       "behind1",
     );
     assert.equal(
-      paymentStandingFromUnpaid(2, {
-        homeUser: false,
-        paymentsRequired: true,
-        expectedAmount: 40,
-      }),
+      paymentStandingFromUnpaid(2, { ...base, currentMonthPaid: false }),
       "behind2plus",
     );
     assert.equal(
@@ -63,6 +61,7 @@ describe("payment standing", () => {
         homeUser: true,
         paymentsRequired: true,
         expectedAmount: 40,
+        currentMonthPaid: false,
       }),
       "exempt",
     );
@@ -71,6 +70,7 @@ describe("payment standing", () => {
         homeUser: false,
         paymentsRequired: false,
         expectedAmount: 40,
+        currentMonthPaid: false,
       }),
       "exempt",
     );
@@ -79,14 +79,55 @@ describe("payment standing", () => {
         homeUser: false,
         paymentsRequired: true,
         expectedAmount: 0,
+        currentMonthPaid: false,
       }),
       "exempt",
     );
   });
 
-  test("sort rank puts red first", () => {
+  test("standing unpaid ignores current month for overdue count", () => {
+    assert.equal(
+      countStandingUnpaidMonths({
+        billingStart: { year: 2026, month: 11 },
+        current: { year: 2026, month: 11 },
+        paidKeys: new Set(),
+      }),
+      0,
+    );
+    assert.equal(
+      paymentStandingFromUnpaid(0, {
+        homeUser: false,
+        paymentsRequired: true,
+        expectedAmount: 40,
+        currentMonthPaid: false,
+      }),
+      "due",
+    );
+  });
+
+  test("standing unpaid counts past month only when current also open", () => {
+    assert.equal(
+      countStandingUnpaidMonths({
+        billingStart: { year: 2026, month: 10 },
+        current: { year: 2026, month: 11 },
+        paidKeys: new Set(),
+      }),
+      1,
+    );
+    assert.equal(
+      countStandingUnpaidMonths({
+        billingStart: { year: 2026, month: 10 },
+        current: { year: 2026, month: 11 },
+        paidKeys: new Set([periodKey(2026, 10)]),
+      }),
+      0,
+    );
+  });
+
+  test("sort rank puts overdue first then due then current", () => {
     assert.ok(standingSortRank("behind2plus") < standingSortRank("behind1"));
-    assert.ok(standingSortRank("behind1") < standingSortRank("current"));
+    assert.ok(standingSortRank("behind1") < standingSortRank("due"));
+    assert.ok(standingSortRank("due") < standingSortRank("current"));
     assert.ok(standingSortRank("current") < standingSortRank("exempt"));
   });
 });

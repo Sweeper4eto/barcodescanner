@@ -971,6 +971,22 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Собственици: мекото напомняне за плащане винаги се появява на 1-во, 15-о и 22-ро число, докато месецът не е платен.",
     href: "/app/billing",
   },
+  {
+    key: "2026-11-billing-referral-discount",
+    titleEn:
+      "Billing amount due subtracts €5 per referral that is an active account with active locations.",
+    titleBg:
+      "Дължимата сума намалява с 5 € за всяка препоръка, която е активен акаунт с активни обекти.",
+    href: "/app/billing",
+  },
+  {
+    key: "2026-11-billing-due-vs-paid",
+    titleEn:
+      "Billing shows Payment due while this month is unpaid; Paid up to date only after this month is paid.",
+    titleBg:
+      "Плащания показва „Дължимо плащане“, докато месецът не е платен; „Платено до момента“ е само след плащане за месеца.",
+    href: "/app/billing",
+  },
 ];
 
 

@@ -1,6 +1,9 @@
-import { paymentAmount } from "@/lib/expiry";
 import { db } from "@/lib/db";
-import { sumLocationFees } from "@/lib/location-fees";
+import {
+  expectedPaymentAmount,
+  qualifyingReferralWhere,
+  sumLocationFees,
+} from "@/lib/location-fees";
 import {
   billingStartPeriod,
   isPaymentAccessBlocked,
@@ -31,11 +34,17 @@ export async function clientRequiresPayment(
       createdAt: true,
       stores: { where: { active: true }, select: { monthlyFee: true } },
       payments: { select: { year: true, month: true } },
+      _count: {
+        select: { referrals: { where: qualifyingReferralWhere } },
+      },
     },
   });
   if (!client?.active) return false;
 
-  const expectedAmount = paymentAmount(sumLocationFees(client.stores), 0);
+  const expectedAmount = expectedPaymentAmount(
+    sumLocationFees(client.stores),
+    client._count.referrals,
+  );
   const billingStart = billingStartPeriod({
     paymentsRequired: client.paymentsRequired,
     paymentsRequiredSince: client.paymentsRequiredSince,

@@ -345,10 +345,13 @@ export const bg = {
     monthOpen: "{month} {year} може да се плати по всяко време",
     nextMonthHint:
       "Плащане за следващ месец може да бъде направено по всяко време.",
-    behindOneHint: "Един таксуван месец все още не е платен.",
-    behindManyHint: "Два или повече таксувани месеца не са платени. Достъпът може да е ограничен.",
+    dueHint: "Абонаментът за този месец все още не е платен. Можете да платите по всяко време.",
+    behindOneHint: "Един минал таксуван месец все още не е платен. Достъпът може да е ограничен.",
+    behindManyHint: "Два или повече минали таксувани месеца не са платени. Достъпът може да е ограничен.",
     thisMonth: "Този месец",
     locationsFee: "{count} обекта · {breakdown}",
+    referralDiscount:
+      "Отстъпка от препоръки −{amount} € ({count} × {per} €)",
     history: "История на плащанията",
     historyEmpty: "Все още няма таксувани месеци.",
     paid: "Платено",
@@ -1165,7 +1168,7 @@ export const bg = {
       "Очаквана сума: {amount} {currency} ({stores} обекта · такси {fee} {currency})",
     discountPlaceholder: "Отстъпка ({currency})",
     referralDiscountHint:
-      "Предложено от препоръки: {amount} {currency} ({count} × {per} €). Можете да я промените.",
+      "Включена от активни препоръки с активни обекти: {amount} {currency} ({count} × {per} €). Можете да я промените при запис.",
     notesPlaceholder: "Бележки",
     finalAmount: "Крайна сума: {amount} {currency}",
     markAsPaid: "Маркирай като платено",
@@ -1189,11 +1192,12 @@ export const bg = {
     unpayMonth: "Премахни",
     noPaymentsYet: "Все още няма записани плащания.",
     paymentStandingHint:
-      "Всеки ред е един клиент (всички обекти). Включвайте плащанията по клиент. Зелено = платено / плащания изключени / такса ≤ 0. Неутрално = само текущият месец е неплатен (достъпът остава). Червено = 2+ неплатени месеца / просрочен минал месец (достъпът е заключен). Домакинствата не плащат.",
+      "Всеки ред е един клиент (всички обекти). Включвайте плащанията по клиент. Зелено = този месец е платен. Неутрално = този месец все още дължим (достъпът остава). Кехлибар/червено = неплатен минал месец(и) (достъпът е заключен). Домакинствата не плащат.",
     paymentStandingCurrent: "Платено до момента",
-    paymentStandingBehind1: "1 неплатен месец",
-    paymentStandingBehind2plus: "2+ неплатени месеца",
-    paymentStandingBehindN: "{count} неплатени месеца",
+    paymentStandingDue: "Дължимо плащане",
+    paymentStandingBehind1: "1 просрочен месец",
+    paymentStandingBehind2plus: "2+ просрочени месеца",
+    paymentStandingBehindN: "{count} просрочени месеца",
     paymentClientStores:
       "{active}/{total} обекта · {amount} {currency}/мес.",
     paymentCoversAllStores:

@@ -5,7 +5,12 @@ import { auditPaymentRecorded } from "@/lib/audit-details";
 import { logAuditEvent } from "@/lib/audit-log";
 import { paymentAmount } from "@/lib/expiry";
 import { db } from "@/lib/db";
-import { sumLocationFees } from "@/lib/location-fees";
+import {
+  expectedPaymentAmount,
+  qualifyingReferralWhere,
+  suggestedReferralDiscount,
+  sumLocationFees,
+} from "@/lib/location-fees";
 import { apiT } from "@/i18n";
 import {
   parsePaymentReference,
@@ -16,7 +21,7 @@ import {
   addMonths,
   billingStartPeriod,
   comparePeriods,
-  countUnpaidMonths,
+  countStandingUnpaidMonths,
   monthsInclusive,
   paymentStandingFromUnpaid,
   periodFromDate,
@@ -28,7 +33,8 @@ const paymentSchema = z.object({
   clientId: z.string().min(1),
   year: z.number().int(),
   month: z.number().int().min(1).max(12),
-  discount: z.number().nonnegative().default(0),
+  /** Omit to apply the qualifying referral discount automatically. */
+  discount: z.number().nonnegative().optional(),
   notes: z.string().optional(),
 });
 
@@ -106,7 +112,9 @@ export async function GET(request: Request) {
       include: {
         stores: { select: { id: true, active: true, monthlyFee: true } },
         payments: { select: { year: true, month: true } },
-        _count: { select: { referrals: true } },
+        _count: {
+          select: { referrals: { where: qualifyingReferralWhere } },
+        },
       },
       orderBy: { name: "asc" },
     });
@@ -115,7 +123,11 @@ export async function GET(request: Request) {
       const activeStores = client.stores.filter((s) => s.active);
       const activeStoreCount = activeStores.length;
       const locationsFeeTotal = sumLocationFees(activeStores);
-      const expectedAmount = paymentAmount(locationsFeeTotal, 0);
+      const referralCount = client._count.referrals;
+      const expectedAmount = expectedPaymentAmount(
+        locationsFeeTotal,
+        referralCount,
+      );
       const paidKeys = new Set(
         client.payments.map((p) => periodKey(p.year, p.month)),
       );
@@ -130,16 +142,20 @@ export async function GET(request: Request) {
       });
       const unpaidMonths =
         tracksPayments && start
-          ? countUnpaidMonths({
+          ? countStandingUnpaidMonths({
               billingStart: start,
-              through,
+              current: through,
               paidKeys,
             })
           : 0;
+      const currentMonthPaid =
+        !tracksPayments ||
+        paidKeys.has(periodKey(through.year, through.month));
       const standing = paymentStandingFromUnpaid(unpaidMonths, {
         homeUser: client.homeUser,
         paymentsRequired: client.paymentsRequired,
         expectedAmount,
+        currentMonthPaid,
       });
       return {
         client: {
@@ -149,12 +165,14 @@ export async function GET(request: Request) {
           homeUser: client.homeUser,
           paymentsRequired: client.paymentsRequired,
           locationsFeeTotal,
-          referralCount: client._count.referrals,
+          referralCount,
           createdAt: client.createdAt.toISOString(),
         },
         activeStoreCount,
         storeCount: client.stores.length,
         expectedAmount,
+        referralCount,
+        referralDiscount: suggestedReferralDiscount(referralCount),
         unpaidMonths,
         standing,
       };
@@ -176,7 +194,7 @@ export async function GET(request: Request) {
         stores: { orderBy: { name: "asc" } },
         referredBy: { select: { id: true, name: true, active: true } },
         referrals: {
-          where: { active: true },
+          where: qualifyingReferralWhere,
           select: { id: true, name: true },
           orderBy: { name: "asc" },
         },
@@ -201,7 +219,12 @@ export async function GET(request: Request) {
     const activeStores = client.stores.filter((s) => s.active);
     const activeStoreCount = activeStores.length;
     const locationsFeeTotal = sumLocationFees(activeStores);
-    const expectedAmount = paymentAmount(locationsFeeTotal, 0);
+    const referralCount = client.referrals.length;
+    const referralDiscount = suggestedReferralDiscount(referralCount);
+    const expectedAmount = expectedPaymentAmount(
+      locationsFeeTotal,
+      referralCount,
+    );
     const tracksPayments =
       !client.homeUser &&
       client.paymentsRequired &&
@@ -213,16 +236,20 @@ export async function GET(request: Request) {
     });
     const unpaidMonths =
       tracksPayments && start
-        ? countUnpaidMonths({
+        ? countStandingUnpaidMonths({
             billingStart: start,
-            through,
+            current: through,
             paidKeys,
           })
         : 0;
+    const currentMonthPaid =
+      !tracksPayments ||
+      paidKeys.has(periodKey(through.year, through.month));
     const standing = paymentStandingFromUnpaid(unpaidMonths, {
       homeUser: client.homeUser,
       paymentsRequired: client.paymentsRequired,
       expectedAmount,
+      currentMonthPaid,
     });
 
     const historyEnd = addMonths(through, 3);
@@ -263,6 +290,8 @@ export async function GET(request: Request) {
       activeStoreCount,
       locationsFeeTotal,
       expectedAmount,
+      referralCount,
+      referralDiscount,
       unpaidMonths,
       standing,
       billingStart: start,
@@ -300,7 +329,12 @@ export async function POST(request: Request) {
 
   const client = await db.client.findUnique({
     where: { id: parsed.data.clientId },
-    include: { stores: { where: { active: true } } },
+    include: {
+      stores: { where: { active: true } },
+      _count: {
+        select: { referrals: { where: qualifyingReferralWhere } },
+      },
+    },
   });
   if (!client) {
     return NextResponse.json(
@@ -311,7 +345,10 @@ export async function POST(request: Request) {
 
   const activeStoreCount = client.stores.length;
   const locationsFeeTotal = sumLocationFees(client.stores);
-  const amountPaid = paymentAmount(locationsFeeTotal, parsed.data.discount);
+  const discount =
+    parsed.data.discount ??
+    suggestedReferralDiscount(client._count.referrals);
+  const amountPaid = paymentAmount(locationsFeeTotal, discount);
 
   const payment = await db.payment.upsert({
     where: {
@@ -327,14 +364,14 @@ export async function POST(request: Request) {
       month: parsed.data.month,
       activeStoreCount,
       feePerStore: locationsFeeTotal,
-      discount: parsed.data.discount,
+      discount,
       amountPaid,
       notes: parsed.data.notes,
     },
     update: {
       activeStoreCount,
       feePerStore: locationsFeeTotal,
-      discount: parsed.data.discount,
+      discount,
       amountPaid,
       notes: parsed.data.notes,
       paidAt: new Date(),
@@ -351,7 +388,7 @@ export async function POST(request: Request) {
       month: parsed.data.month,
       activeStoreCount,
       feePerStore: locationsFeeTotal,
-      discount: parsed.data.discount,
+      discount,
       amountPaid,
       notes: parsed.data.notes,
     }),

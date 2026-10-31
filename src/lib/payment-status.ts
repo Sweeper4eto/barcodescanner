@@ -1,6 +1,18 @@
 export type BillingPeriod = { year: number; month: number };
 
-export type PaymentStanding = "current" | "behind1" | "behind2plus" | "exempt";
+/**
+ * - current: this month paid, no past unpaid
+ * - due: this month still open (not overdue / not locked)
+ * - behind1: 1 past billed month unpaid (locked)
+ * - behind2plus: 2+ past billed months unpaid (locked)
+ * - exempt: household / payments off / nothing to collect
+ */
+export type PaymentStanding =
+  | "current"
+  | "due"
+  | "behind1"
+  | "behind2plus"
+  | "exempt";
 
 export function periodKey(year: number, month: number): string {
   return `${year}-${month}`;
@@ -74,6 +86,27 @@ export function countUnpaidMonths(options: {
 }
 
 /**
+ * Unpaid months that affect standing / overdue (past months only).
+ * Current calendar month may stay open without counting as behind.
+ * Example: billing starts Nov → Nov unpaid → 0; Oct unpaid in Nov → 1.
+ */
+export function countStandingUnpaidMonths(options: {
+  billingStart: BillingPeriod;
+  current: BillingPeriod;
+  paidKeys: ReadonlySet<string>;
+}): number {
+  const through = addMonths(options.current, -1);
+  if (comparePeriods(options.billingStart, through) > 0) {
+    return 0;
+  }
+  return countUnpaidMonths({
+    billingStart: options.billingStart,
+    through,
+    paidKeys: options.paidKeys,
+  });
+}
+
+/**
  * True when any billed month *before* the current month is still unpaid.
  * Current month may stay unpaid without locking (pay anytime this month).
  * Example: payments on from Oct → lock starts Nov 1 if Oct is unpaid.
@@ -83,17 +116,7 @@ export function hasOverdueUnpaidMonths(options: {
   current: BillingPeriod;
   paidKeys: ReadonlySet<string>;
 }): boolean {
-  const through = addMonths(options.current, -1);
-  if (comparePeriods(options.billingStart, through) > 0) {
-    return false;
-  }
-  return (
-    countUnpaidMonths({
-      billingStart: options.billingStart,
-      through,
-      paidKeys: options.paidKeys,
-    }) > 0
-  );
+  return countStandingUnpaidMonths(options) > 0;
 }
 
 /** Pure access gate used by clientRequiresPayment. */
@@ -121,11 +144,14 @@ export function isPaymentAccessBlocked(options: {
 }
 
 export function paymentStandingFromUnpaid(
-  unpaidMonths: number,
+  /** Past billed months still unpaid (excludes the current calendar month). */
+  pastUnpaidMonths: number,
   options: {
     homeUser: boolean;
     paymentsRequired: boolean;
     expectedAmount: number;
+    /** When false, current month still needs payment (shows as due if not behind). */
+    currentMonthPaid: boolean;
   },
 ): PaymentStanding {
   if (options.homeUser) return "exempt";
@@ -133,9 +159,10 @@ export function paymentStandingFromUnpaid(
   if (!options.paymentsRequired || options.expectedAmount <= 0) {
     return "exempt";
   }
-  if (unpaidMonths <= 0) return "current";
-  if (unpaidMonths === 1) return "behind1";
-  return "behind2plus";
+  if (pastUnpaidMonths >= 2) return "behind2plus";
+  if (pastUnpaidMonths === 1) return "behind1";
+  if (!options.currentMonthPaid) return "due";
+  return "current";
 }
 
 export function standingSortRank(standing: PaymentStanding): number {
@@ -144,9 +171,11 @@ export function standingSortRank(standing: PaymentStanding): number {
       return 0;
     case "behind1":
       return 1;
-    case "current":
+    case "due":
       return 2;
-    case "exempt":
+    case "current":
       return 3;
+    case "exempt":
+      return 4;
   }
 }

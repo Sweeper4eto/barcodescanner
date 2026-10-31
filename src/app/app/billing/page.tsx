@@ -28,9 +28,11 @@ type BillingMonth = {
 
 type BillingPayload = {
   enabled: boolean;
-  standing: "current" | "behind1" | "behind2plus" | "exempt";
+  standing: "current" | "due" | "behind1" | "behind2plus" | "exempt";
   unpaidMonths?: number;
   expectedAmount: number;
+  referralCount?: number;
+  referralDiscount?: number;
   activeStoreCount: number;
   locationsFeeTotal: number;
   currentMonthPaid: boolean;
@@ -129,23 +131,27 @@ export default function BillingPage() {
       ? "border-danger/50 text-danger"
       : standing === "behind1"
         ? "border-warning-fg/40 text-warning-fg"
-        : "border-primary/45 text-primary";
+        : standing === "due"
+          ? "border-warning-fg/40 text-warning-fg"
+          : "border-primary/45 text-primary";
 
   const statusTitle =
-    standing === "behind2plus"
+    standing === "behind2plus" || standing === "behind1"
       ? t("billing.statusOverdue")
-      : standing === "behind1"
+      : standing === "due"
         ? t("billing.statusDue")
         : t("billing.statusUpToDate");
 
   const statusHint =
     data && standing === "current"
       ? t("billing.nextMonthHint")
-      : data && standing === "behind1"
-        ? t("billing.behindOneHint")
-        : data && standing === "behind2plus"
-          ? t("billing.behindManyHint")
-          : "";
+      : data && standing === "due"
+        ? t("billing.dueHint")
+        : data && standing === "behind1"
+          ? t("billing.behindOneHint")
+          : data && standing === "behind2plus"
+            ? t("billing.behindManyHint")
+            : "";
 
   const feeParts =
     data?.feeBreakdown?.map((s) => formatEuro(s.monthlyFee)).join(" + ") ?? "";
@@ -172,7 +178,7 @@ export default function BillingPage() {
             className={`rounded-2xl border border-card-border border-l-4 px-3.5 py-3 ${statusTone}`}
           >
             <div className="flex items-start gap-2.5">
-              {standing === "current" ? (
+              {standing === "current" || standing === "exempt" ? (
                 <CheckIcon className="mt-0.5 size-5 shrink-0" />
               ) : (
                 <WarnIcon className="mt-0.5 size-5 shrink-0" />
@@ -208,6 +214,17 @@ export default function BillingPage() {
                 breakdown: feeParts || formatEuro(data.locationsFeeTotal),
               })}
             </p>
+            {(data.referralDiscount ?? 0) > 0 ? (
+              <p className="mt-1 text-xs text-muted">
+                {t("billing.referralDiscount", {
+                  amount: String(
+                    Math.round((data.referralDiscount ?? 0) * 100) / 100,
+                  ),
+                  count: String(data.referralCount ?? 0),
+                  per: "5",
+                })}
+              </p>
+            ) : null}
           </div>
 
           <div>

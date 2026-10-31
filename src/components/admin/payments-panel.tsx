@@ -13,6 +13,10 @@ import {
   appButtonNeutral,
   appButtonPrimary,
 } from "@/lib/app-ui";
+import {
+  REFERRAL_DISCOUNT_EUR,
+  suggestedReferralDiscount,
+} from "@/lib/location-fees";
 import { looksLikePaymentReference } from "@/lib/payment-reference";
 import {
   addMonths,
@@ -29,6 +33,7 @@ type CalendarRow = {
     name: string;
     locationsFeeTotal: number;
     paymentsRequired?: boolean;
+    referralCount?: number;
   };
   activeStoreCount: number;
   expectedAmount: number;
@@ -61,9 +66,12 @@ type StatusRow = {
 type ClientDetail = {
   client: StatusRow["client"] & { createdAt?: string };
   stores: { id: string; name: string; active: boolean; monthlyFee?: number }[];
+  referrals?: { id: string; name: string }[];
   activeStoreCount: number;
   locationsFeeTotal?: number;
   expectedAmount: number;
+  referralCount?: number;
+  referralDiscount?: number;
   unpaidMonths: number;
   standing: PaymentStanding;
   billingStart?: BillingPeriod | null;
@@ -128,8 +136,10 @@ function standingRowClass(
   switch (standing) {
     case "current":
       return `border-success-border bg-success-bg ${ring}`;
-    case "behind1":
+    case "due":
       return `border-card-border bg-transparent ${ring}`;
+    case "behind1":
+      return `border-[var(--urgency-warning-border)] bg-warning-bg ${ring}`;
     case "behind2plus":
       return `border-danger-border bg-red-950/40 ${ring}`;
     case "exempt":
@@ -214,7 +224,10 @@ export function PaymentsPanel({
       const paidThis = data.payments.find(
         (p) => p.year === markYear && p.month === markMonth,
       );
-      const nextDiscount = String(paidThis?.discount ?? 0);
+      const nextDiscount = String(
+        paidThis?.discount ??
+          suggestedReferralDiscount(data.referrals?.length ?? 0),
+      );
       const nextNotes = paidThis?.notes ?? "";
       setDiscount(nextDiscount);
       setNotes(nextNotes);
@@ -334,6 +347,8 @@ export function PaymentsPanel({
     switch (row.standing) {
       case "current":
         return t("admin.paymentStandingCurrent");
+      case "due":
+        return t("admin.paymentStandingDue");
       case "behind1":
         return t("admin.paymentStandingBehind1");
       case "behind2plus":
@@ -351,7 +366,10 @@ export function PaymentsPanel({
 
   function selectMonthClient(id: string) {
     const row = rows.find((entry) => entry.client.id === id);
-    const nextDiscount = String(row?.payment?.discount ?? 0);
+    const nextDiscount = String(
+      row?.payment?.discount ??
+        suggestedReferralDiscount(row?.client.referralCount ?? 0),
+    );
     const nextNotes = row?.payment?.notes ?? "";
     setSelectedClientId(id);
     setDiscount(nextDiscount);
@@ -552,6 +570,9 @@ export function PaymentsPanel({
                 {t("admin.paymentStandingCurrent")}
               </span>
               <span className="rounded-lg border border-card-border px-2 py-1">
+                {t("admin.paymentStandingDue")}
+              </span>
+              <span className="rounded-lg border border-[var(--urgency-warning-border)] bg-warning-bg px-2 py-1">
                 {t("admin.paymentStandingBehind1")}
               </span>
               <span className="rounded-lg border border-danger-border bg-red-950/40 px-2 py-1 text-error">
@@ -726,12 +747,36 @@ export function PaymentsPanel({
                 </div>
 
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <input
-                    className={adminInputClass}
-                    placeholder={t("admin.discountPlaceholder", { currency })}
-                    value={discount}
-                    onChange={(event) => setDiscount(event.target.value)}
-                  />
+                  <div className="space-y-2">
+                    <input
+                      className={adminInputClass}
+                      placeholder={t("admin.discountPlaceholder", { currency })}
+                      value={discount}
+                      onChange={(event) => setDiscount(event.target.value)}
+                    />
+                    {(detail.referralCount ??
+                      detail.referrals?.length ??
+                      0) > 0 ? (
+                      <p className="text-xs text-muted">
+                        {t("admin.referralDiscountHint", {
+                          count:
+                            detail.referralCount ??
+                            detail.referrals?.length ??
+                            0,
+                          per: REFERRAL_DISCOUNT_EUR,
+                          amount: (
+                            detail.referralDiscount ??
+                            suggestedReferralDiscount(
+                              detail.referralCount ??
+                                detail.referrals?.length ??
+                                0,
+                            )
+                          ).toFixed(0),
+                          currency,
+                        })}
+                      </p>
+                    ) : null}
+                  </div>
                   <input
                     className={adminInputClass}
                     placeholder={t("admin.notesPlaceholder")}
@@ -744,7 +789,9 @@ export function PaymentsPanel({
                   {t("admin.finalAmount", {
                     amount: Math.max(
                       0,
-                      detail.expectedAmount - (Number(discount) || 0),
+                      (detail.locationsFeeTotal ??
+                        detail.client.locationsFeeTotal) -
+                        (Number(discount) || 0),
                     ).toFixed(2),
                     currency,
                   })}
@@ -806,7 +853,10 @@ export function PaymentsPanel({
                                 setMarkYear(period.year);
                                 setMarkMonth(period.month);
                                 const nextDiscount = String(
-                                  payment?.discount ?? 0,
+                                  payment?.discount ??
+                                    suggestedReferralDiscount(
+                                      detail.referrals?.length ?? 0,
+                                    ),
                                 );
                                 const nextNotes = payment?.notes ?? "";
                                 setDiscount(nextDiscount);
@@ -951,12 +1001,26 @@ export function PaymentsPanel({
                 </p>
               ) : null}
               <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                <input
-                  className={adminInputClass}
-                  placeholder={t("admin.discountPlaceholder", { currency })}
-                  value={discount}
-                  onChange={(event) => setDiscount(event.target.value)}
-                />
+                <div className="space-y-2">
+                  <input
+                    className={adminInputClass}
+                    placeholder={t("admin.discountPlaceholder", { currency })}
+                    value={discount}
+                    onChange={(event) => setDiscount(event.target.value)}
+                  />
+                  {(selectedMonthRow.client.referralCount ?? 0) > 0 ? (
+                    <p className="text-xs text-muted">
+                      {t("admin.referralDiscountHint", {
+                        count: selectedMonthRow.client.referralCount ?? 0,
+                        per: REFERRAL_DISCOUNT_EUR,
+                        amount: suggestedReferralDiscount(
+                          selectedMonthRow.client.referralCount ?? 0,
+                        ).toFixed(0),
+                        currency,
+                      })}
+                    </p>
+                  ) : null}
+                </div>
                 <input
                   className={adminInputClass}
                   placeholder={t("admin.notesPlaceholder")}
@@ -968,7 +1032,8 @@ export function PaymentsPanel({
                 {t("admin.finalAmount", {
                   amount: Math.max(
                     0,
-                    selectedMonthRow.expectedAmount - (Number(discount) || 0),
+                    selectedMonthRow.client.locationsFeeTotal -
+                      (Number(discount) || 0),
                   ).toFixed(2),
                   currency,
                 })}

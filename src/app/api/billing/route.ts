@@ -1,13 +1,17 @@
 import { NextResponse } from "next/server";
 import { requireClientOwner } from "@/lib/client-owner";
 import { db } from "@/lib/db";
-import { paymentAmount } from "@/lib/expiry";
-import { sumLocationFees } from "@/lib/location-fees";
+import {
+  expectedPaymentAmount,
+  qualifyingReferralWhere,
+  suggestedReferralDiscount,
+  sumLocationFees,
+} from "@/lib/location-fees";
 import {
   addMonths,
   billingStartPeriod,
   comparePeriods,
-  countUnpaidMonths,
+  countStandingUnpaidMonths,
   monthsInclusive,
   paymentStandingFromUnpaid,
   periodFromDate,
@@ -37,6 +41,9 @@ export async function GET(request: Request) {
         select: { year: true, month: true, amountPaid: true, paidAt: true },
         orderBy: [{ year: "desc" }, { month: "desc" }],
       },
+      _count: {
+        select: { referrals: { where: qualifyingReferralWhere } },
+      },
     },
   });
 
@@ -49,7 +56,12 @@ export async function GET(request: Request) {
 
   const activeStores = client.stores.filter((s) => s.active);
   const locationsFeeTotal = sumLocationFees(activeStores);
-  const expectedAmount = paymentAmount(locationsFeeTotal, 0);
+  const referralCount = client._count.referrals;
+  const referralDiscount = suggestedReferralDiscount(referralCount);
+  const expectedAmount = expectedPaymentAmount(
+    locationsFeeTotal,
+    referralCount,
+  );
   const enabled =
     !client.homeUser && client.paymentsRequired && expectedAmount > 0;
 
@@ -58,6 +70,8 @@ export async function GET(request: Request) {
       enabled: false,
       standing: "exempt" as const,
       expectedAmount,
+      referralCount,
+      referralDiscount,
       activeStoreCount: activeStores.length,
       locationsFeeTotal,
       currentMonthPaid: false,
@@ -88,17 +102,20 @@ export async function GET(request: Request) {
   );
   const unpaidMonths =
     start != null
-      ? countUnpaidMonths({
+      ? countStandingUnpaidMonths({
           billingStart: start,
-          through: current,
+          current,
           paidKeys,
         })
       : 0;
 
+  const currentKey = periodKey(current.year, current.month);
+  const currentMonthPaid = paidKeys.has(currentKey);
   const standing = paymentStandingFromUnpaid(unpaidMonths, {
     homeUser: client.homeUser,
     paymentsRequired: client.paymentsRequired,
     expectedAmount,
+    currentMonthPaid,
   });
 
   const historyStart =
@@ -121,7 +138,6 @@ export async function GET(request: Request) {
     })
     .reverse();
 
-  const currentKey = periodKey(current.year, current.month);
   const feeBreakdown = activeStores.map((s) => ({
     id: s.id,
     name: s.name,
@@ -133,6 +149,8 @@ export async function GET(request: Request) {
     standing,
     unpaidMonths,
     expectedAmount,
+    referralCount,
+    referralDiscount,
     activeStoreCount: activeStores.length,
     locationsFeeTotal,
     currentMonthPaid: paidKeys.has(currentKey),

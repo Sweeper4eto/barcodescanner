@@ -344,10 +344,13 @@ export const en = {
     monthOpen: "{month} {year} can be paid anytime",
     nextMonthHint:
       "Payment for the next month can be made at any time.",
-    behindOneHint: "One billed month is still unpaid.",
-    behindManyHint: "Two or more billed months are unpaid. Access may be limited.",
+    dueHint: "This month’s subscription is still unpaid. You can pay anytime.",
+    behindOneHint: "One past billed month is still unpaid. Access may be limited.",
+    behindManyHint: "Two or more past billed months are unpaid. Access may be limited.",
     thisMonth: "This month",
     locationsFee: "{count} locations · {breakdown}",
+    referralDiscount:
+      "Referral discount −€{amount} ({count} × €{per})",
     history: "Payment history",
     historyEmpty: "No billing months yet.",
     paid: "Paid",
@@ -1156,7 +1159,7 @@ export const en = {
       "Expected amount: {amount} {currency} ({stores} locations · fees {fee} {currency})",
     discountPlaceholder: "Discount ({currency})",
     referralDiscountHint:
-      "Suggested from referrals: {amount} {currency} ({count} × {per} €). You can change it.",
+      "Included from active referrals with active locations: {amount} {currency} ({count} × {per} €). You can change it when recording.",
     notesPlaceholder: "Notes",
     finalAmount: "Final amount: {amount} {currency}",
     markAsPaid: "Mark as paid",
@@ -1181,11 +1184,12 @@ export const en = {
     unpayMonth: "Unpay",
     noPaymentsYet: "No payments recorded yet.",
     paymentStandingHint:
-      "Each row is one client (all locations). Turn on payments per client. Green = paid up / payments off / fee ≤ 0. Neutral = only the current month unpaid (still allowed). Red = 2+ months unpaid / past month overdue (access locked). Households never pay.",
+      "Each row is one client (all locations). Turn on payments per client. Green = this month paid. Neutral = this month still due (allowed). Amber/red = past month(s) unpaid (access locked). Households never pay.",
     paymentStandingCurrent: "Paid up to date",
-    paymentStandingBehind1: "1 month unpaid",
-    paymentStandingBehind2plus: "2+ months unpaid",
-    paymentStandingBehindN: "{count} months unpaid",
+    paymentStandingDue: "Payment due",
+    paymentStandingBehind1: "1 month overdue",
+    paymentStandingBehind2plus: "2+ months overdue",
+    paymentStandingBehindN: "{count} months overdue",
     paymentClientStores:
       "{active}/{total} locations · {amount} {currency}/mo",
     paymentCoversAllStores:

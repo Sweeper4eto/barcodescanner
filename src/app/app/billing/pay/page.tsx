@@ -23,6 +23,8 @@ import {
 type BillingPayload = {
   enabled: boolean;
   expectedAmount: number;
+  referralCount?: number;
+  referralDiscount?: number;
   paymentReference?: string;
 };
 
@@ -36,6 +38,8 @@ type MethodId = "bank" | "revolut";
 export default function BillingPayPage() {
   const { t } = useT();
   const [amountDue, setAmountDue] = useState<number | null>(null);
+  const [referralCount, setReferralCount] = useState(0);
+  const [referralDiscount, setReferralDiscount] = useState(0);
   const [paymentReference, setPaymentReference] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -62,6 +66,8 @@ export default function BillingPayPage() {
           return;
         }
         setAmountDue(json.expectedAmount);
+        setReferralCount(json.referralCount ?? 0);
+        setReferralDiscount(json.referralDiscount ?? 0);
         setPaymentReference(json.paymentReference ?? "");
       } catch {
         if (!cancelled) setError(t("billing.loadFailed"));
@@ -100,6 +106,15 @@ export default function BillingPayPage() {
             <p className="mt-1 text-3xl font-semibold text-foreground">
               {formatEuro(amountDue)}
             </p>
+            {referralDiscount > 0 ? (
+              <p className="mt-1 text-xs text-muted">
+                {t("billing.referralDiscount", {
+                  amount: String(Math.round(referralDiscount * 100) / 100),
+                  count: String(referralCount),
+                  per: "5",
+                })}
+              </p>
+            ) : null}
           </div>
 
           <div className="space-y-2">

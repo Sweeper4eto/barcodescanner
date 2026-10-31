@@ -499,8 +499,15 @@ export function ClientsPanel({
     }
     if (standing === "behind1") {
       return (
-        <span className="rounded-full border border-card-border px-2 py-0.5 text-[10px] text-warning-fg">
+        <span className="rounded-full border border-[var(--urgency-warning-border)] bg-warning-bg px-2 py-0.5 text-[10px] text-warning-fg">
           {t("admin.paymentStandingBehind1")}
+        </span>
+      );
+    }
+    if (standing === "due") {
+      return (
+        <span className="rounded-full border border-card-border px-2 py-0.5 text-[10px] text-muted">
+          {t("admin.paymentStandingDue")}
         </span>
       );
     }
@@ -536,6 +543,9 @@ export function ClientsPanel({
     if (standing === "behind1") {
       return <span className="mt-1 size-2 shrink-0 rounded-full bg-warning-fg" title={t("admin.paymentStandingBehind1")} />;
     }
+    if (standing === "due") {
+      return <span className="mt-1 size-2 shrink-0 rounded-full bg-muted" title={t("admin.paymentStandingDue")} />;
+    }
     if (standing === "exempt" || (info != null && info.expectedAmount <= 0)) {
       return <span className="mt-1 size-2 shrink-0 rounded-full bg-warning-fg" title={t("admin.paymentStandingFree")} />;
     }
@@ -565,7 +575,12 @@ export function ClientsPanel({
   });
   const watchClients = visibleClients.filter((client) => {
     const info = standingByClient[client.id];
-    return Boolean(info && !client.homeUser && client.paymentsRequired && info.standing === "behind1");
+    return Boolean(
+      info &&
+        !client.homeUser &&
+        client.paymentsRequired &&
+        info.standing === "due",
+    );
   });
 
   function formatRegisteredDate(iso: string) {
