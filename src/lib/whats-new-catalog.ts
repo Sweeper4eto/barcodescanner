@@ -963,6 +963,14 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Плащане с Revolut: „Отвори в Revolut“ води към профила за плащане; сумата и основанието копирайте както досега.",
     href: "/app/billing/pay",
   },
+  {
+    key: "2026-10-billing-reminder-force-days",
+    titleEn:
+      "Owners: the soft billing reminder always returns on the 1st, 15th, and 22nd while the month is unpaid.",
+    titleBg:
+      "Собственици: мекото напомняне за плащане винаги се появява на 1-во, 15-о и 22-ро число, докато месецът не е платен.",
+    href: "/app/billing",
+  },
 ];
 
 

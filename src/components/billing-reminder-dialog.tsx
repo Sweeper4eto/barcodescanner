@@ -9,7 +9,7 @@ import { useAppSession } from "@/components/app-session-provider";
 import { useT } from "@/components/i18n-provider";
 import { useViewportInsets } from "@/hooks/use-viewport-insets";
 import {
-  isBillingReminderSnoozed,
+  shouldShowBillingReminder,
   snoozeBillingReminder,
 } from "@/lib/billing-reminder";
 import { navigateApp } from "@/lib/app-navigation";
@@ -57,7 +57,7 @@ export function BillingReminderDialog({
         const year = data.currentYear;
         const month = data.currentMonth;
         if (typeof year !== "number" || typeof month !== "number") return;
-        if (isBillingReminderSnoozed(year, month)) return;
+        if (!shouldShowBillingReminder(year, month)) return;
         setPeriod({ year, month });
         setOpen(true);
       } catch {

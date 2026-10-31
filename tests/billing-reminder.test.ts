@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import { afterEach, describe, test } from "node:test";
 import {
   BILLING_REMINDER_SNOOZE_MS,
+  isBillingReminderForceDay,
   isBillingReminderSnoozed,
+  shouldShowBillingReminder,
   snoozeBillingReminder,
 } from "../src/lib/billing-reminder";
 
@@ -77,5 +79,27 @@ describe("billing reminder snooze", () => {
       false,
     );
     assert.equal(memory.has(SNOOZE_KEY), false);
+  });
+
+  test("force days are the 1st, 15th, and 22nd", () => {
+    assert.equal(isBillingReminderForceDay(new Date(2026, 9, 1)), true);
+    assert.equal(isBillingReminderForceDay(new Date(2026, 9, 15)), true);
+    assert.equal(isBillingReminderForceDay(new Date(2026, 9, 22)), true);
+    assert.equal(isBillingReminderForceDay(new Date(2026, 9, 10)), false);
+  });
+
+  test("force days show the reminder even while snoozed", () => {
+    installStorageMock();
+    const forceDay = new Date(2026, 9, 15, 12, 0, 0).getTime();
+    snoozeBillingReminder(2026, 10, forceDay - 60_000);
+    assert.equal(isBillingReminderSnoozed(2026, 10, forceDay), true);
+    assert.equal(shouldShowBillingReminder(2026, 10, forceDay), true);
+  });
+
+  test("non-force days still respect snooze", () => {
+    installStorageMock();
+    const midMonth = new Date(2026, 9, 10, 12, 0, 0).getTime();
+    snoozeBillingReminder(2026, 10, midMonth - 60_000);
+    assert.equal(shouldShowBillingReminder(2026, 10, midMonth), false);
   });
 });
