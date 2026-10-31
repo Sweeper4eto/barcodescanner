@@ -81,24 +81,47 @@ describe("billing reminder snooze", () => {
     assert.equal(memory.has(SNOOZE_KEY), false);
   });
 
-  test("force days are the 1st, 15th, and 22nd", () => {
-    assert.equal(isBillingReminderForceDay(new Date(2026, 9, 1)), true);
-    assert.equal(isBillingReminderForceDay(new Date(2026, 9, 15)), true);
-    assert.equal(isBillingReminderForceDay(new Date(2026, 9, 22)), true);
-    assert.equal(isBillingReminderForceDay(new Date(2026, 9, 10)), false);
+  test("force days are the 1st, 15th, and 22nd in Sofia", () => {
+    assert.equal(
+      isBillingReminderForceDay(new Date("2026-11-01T10:00:00.000Z")),
+      true,
+    );
+    assert.equal(
+      isBillingReminderForceDay(new Date("2026-10-15T09:00:00.000Z")),
+      true,
+    );
+    assert.equal(
+      isBillingReminderForceDay(new Date("2026-10-22T09:00:00.000Z")),
+      true,
+    );
+    assert.equal(
+      isBillingReminderForceDay(new Date("2026-10-10T09:00:00.000Z")),
+      false,
+    );
   });
 
-  test("force days show the reminder even while snoozed", () => {
+  test("force days re-show after a snooze from an earlier day", () => {
     installStorageMock();
-    const forceDay = new Date(2026, 9, 15, 12, 0, 0).getTime();
-    snoozeBillingReminder(2026, 10, forceDay - 60_000);
+    const dayBefore = Date.parse("2026-10-14T10:00:00.000Z");
+    const forceDay = Date.parse("2026-10-15T09:00:00.000Z");
+    snoozeBillingReminder(2026, 10, dayBefore);
     assert.equal(isBillingReminderSnoozed(2026, 10, forceDay), true);
     assert.equal(shouldShowBillingReminder(2026, 10, forceDay), true);
   });
 
+  test("Not now on a force day still hides for the rest of that day", () => {
+    installStorageMock();
+    const forceDay = Date.parse("2026-11-01T10:00:00.000Z");
+    snoozeBillingReminder(2026, 11, forceDay);
+    assert.equal(
+      shouldShowBillingReminder(2026, 11, forceDay + 60_000),
+      false,
+    );
+  });
+
   test("non-force days still respect snooze", () => {
     installStorageMock();
-    const midMonth = new Date(2026, 9, 10, 12, 0, 0).getTime();
+    const midMonth = Date.parse("2026-10-10T09:00:00.000Z");
     snoozeBillingReminder(2026, 10, midMonth - 60_000);
     assert.equal(shouldShowBillingReminder(2026, 10, midMonth), false);
   });
