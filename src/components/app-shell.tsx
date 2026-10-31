@@ -5,19 +5,15 @@ import { usePathname, useRouter } from "next/navigation";
 import { AppBottomNav } from "@/components/app-bottom-nav";
 import { useAppSession } from "@/components/app-session-provider";
 import { NavigationLeaveGuardProvider } from "@/components/navigation-leave-guard";
+import { PaymentLockGate } from "@/components/payment-lock-gate";
 import { registerAppSoftNavigate } from "@/lib/app-navigation";
 import { clearStoredStoreId } from "@/lib/store-selection";
+import { isPathAllowedWhenPaymentLocked } from "@/lib/payment-lock";
 
 /** Routes available with zero assigned locations (homepage + support + billing). */
 function isAllowedWithoutStore(pathname: string): boolean {
   if (pathname === "/app" || pathname === "/app/") return true;
-  if (pathname === "/app/contact" || pathname.startsWith("/app/contact/")) {
-    return true;
-  }
-  if (pathname === "/app/billing" || pathname.startsWith("/app/billing/")) {
-    return true;
-  }
-  return false;
+  return isPathAllowedWhenPaymentLocked(pathname);
 }
 
 function RequireLocationGuard({ children }: { children: ReactNode }) {
@@ -88,7 +84,9 @@ export function AppShell({ children }: { children: ReactNode }) {
         by ~4rem and painted Android's scrollbar thumb on every /app screen.
       */}
       <div className="box-border min-h-svh min-w-0 max-w-[100vw] pb-[calc(var(--app-bottom-nav-frame)+env(safe-area-inset-bottom,0px))]">
-        <RequireLocationGuard>{children}</RequireLocationGuard>
+        <PaymentLockGate>
+          <RequireLocationGuard>{children}</RequireLocationGuard>
+        </PaymentLockGate>
       </div>
       <AppBottomNav />
     </NavigationLeaveGuardProvider>

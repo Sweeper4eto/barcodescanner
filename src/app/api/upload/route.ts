@@ -6,7 +6,7 @@ import { apiT } from "@/i18n";
 export async function POST(request: Request) {
   let session;
   try {
-    session = await requireSession();
+    session = await requireSession({ allowWhenPaymentLocked: true });
   } catch {
     return NextResponse.json(
       { error: apiT(request, "errors.unauthorized") },

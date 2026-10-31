@@ -74,7 +74,10 @@ export async function POST(request: Request) {
       });
     }
 
-    const session = await requireSession({ allowMustChangePassword: true });
+    const session = await requireSession({
+      allowMustChangePassword: true,
+      allowWhenPaymentLocked: true,
+    });
     const user = await db.user.findUnique({
       where: { id: session.userId },
       select: { clientId: true },

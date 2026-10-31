@@ -22,8 +22,8 @@ type AuditEntry = {
   id: string;
   userId: string;
   username: string;
-  /** Account owner username(s) for the acting user's client (admin only). */
-  accountOwner: string | null;
+  /** Business/household account name for the acting user (admin only). */
+  accountName: string | null;
   event: string;
   ipAddress: string;
   deviceInfo: string;
@@ -518,9 +518,9 @@ export function AuditLogPanel() {
                         <p className="truncate text-sm font-semibold text-foreground">
                           {whoWhere || "—"}
                         </p>
-                        {entry.accountOwner ? (
+                        {entry.accountName ? (
                           <p className="mt-0.5 truncate text-xs text-muted">
-                            {t("admin.clientOwner")}: {entry.accountOwner}
+                            {t("admin.auditAccount")}: {entry.accountName}
                           </p>
                         ) : null}
                         <time
@@ -591,9 +591,9 @@ export function AuditLogPanel() {
                         <td className="px-4 py-3 text-foreground">
                           <div className="min-w-0">
                             <p className="font-medium">{entry.username}</p>
-                            {entry.accountOwner ? (
+                            {entry.accountName ? (
                               <p className="mt-0.5 text-xs text-muted">
-                                {t("admin.clientOwner")}: {entry.accountOwner}
+                                {t("admin.auditAccount")}: {entry.accountName}
                               </p>
                             ) : null}
                           </div>

@@ -107,7 +107,8 @@ export function AppBottomNav() {
   const pathname = usePathname();
   const router = useRouter();
   const { t } = useT();
-  const { homeUser } = useAppSession();
+  const { homeUser, user } = useAppSession();
+  const paymentLocked = Boolean(user?.paymentLocked);
   const { storeId, ready: storeReady } = useAppStoreId();
   const { blocked, requestNavigate } = useNavigationLeaveRequest();
   const [cartCount, setCartCount] = useState(0);
@@ -191,6 +192,10 @@ export function AppBottomNav() {
     setPendingStartOver(null);
     router.replace(href, { scroll: false });
     requestTabReselect(tabId);
+  }
+
+  if (paymentLocked) {
+    return null;
   }
 
   return (

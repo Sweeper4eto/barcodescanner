@@ -6,8 +6,10 @@ import { SecondaryButton } from "@/components/auth-forms";
 import { BackArrowIcon } from "@/components/app-nav-icons";
 import { LoadingSpinnerBlock } from "@/components/loading-spinner";
 import { MobilePageHeader } from "@/components/mobile-page-header";
+import { useAppSession } from "@/components/app-session-provider";
 import { useT } from "@/components/i18n-provider";
 import {
+  appButtonPrimary,
   appButtonPrimaryFull,
   appChromeInset,
   appListInset,
@@ -82,6 +84,8 @@ function WarnIcon({ className = "size-5" }: { className?: string }) {
 
 export default function BillingPage() {
   const { t, monthName } = useT();
+  const { user } = useAppSession();
+  const paymentLocked = Boolean(user?.paymentLocked);
   const [data, setData] = useState<BillingPayload | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -135,21 +139,13 @@ export default function BillingPage() {
         : t("billing.statusUpToDate");
 
   const statusHint =
-    data && standing === "current" && data.currentMonthPaid
-      ? t("billing.monthPaid", {
-          month: monthName(data.currentMonth ?? 1),
-          year: String(data.currentYear ?? ""),
-        })
-      : data && standing === "current" && !data.currentMonthPaid
-        ? t("billing.monthOpen", {
-            month: monthName(data.currentMonth ?? 1),
-            year: String(data.currentYear ?? ""),
-          })
-        : data && standing === "behind1"
-          ? t("billing.behindOneHint")
-          : data && standing === "behind2plus"
-            ? t("billing.behindManyHint")
-            : "";
+    data && standing === "current"
+      ? t("billing.nextMonthHint")
+      : data && standing === "behind1"
+        ? t("billing.behindOneHint")
+        : data && standing === "behind2plus"
+          ? t("billing.behindManyHint")
+          : "";
 
   const feeParts =
     data?.feeBreakdown?.map((s) => formatEuro(s.monthlyFee)).join(" + ") ?? "";
@@ -194,9 +190,18 @@ export default function BillingPage() {
             <p className="text-xs font-medium text-muted">
               {t("billing.thisMonth")}
             </p>
-            <p className="mt-1 text-3xl font-semibold text-foreground">
-              {formatEuro(data.expectedAmount)}
-            </p>
+            <div className="mt-1 flex items-center justify-between gap-3">
+              <p className="min-w-0 text-3xl font-semibold text-foreground">
+                {formatEuro(data.expectedAmount)}
+              </p>
+              <button
+                type="button"
+                className={`${appButtonPrimary} shrink-0`}
+                onClick={() => navigateApp("/app/billing/pay")}
+              >
+                {t("billing.pay")}
+              </button>
+            </div>
             <p className="mt-1 text-xs text-muted">
               {t("billing.locationsFee", {
                 count: String(data.activeStoreCount),
@@ -238,21 +243,23 @@ export default function BillingPage() {
             </div>
           </div>
 
-          <Link
-            href="/app/contact?topic=billing"
-            className={`${appButtonPrimaryFull} mt-1`}
-          >
-            {t("billing.contact")}
-          </Link>
-
-          <div className="pt-1">
-            <SecondaryButton
-              onClick={() => navigateApp("/app")}
-              icon={<BackArrowIcon className="size-4 shrink-0" />}
+          {paymentLocked ? (
+            <Link
+              href="/app/contact?topic=billing"
+              className={`${appButtonPrimaryFull} mt-1`}
             >
-              {t("common.back")}
-            </SecondaryButton>
-          </div>
+              {t("app.contact")}
+            </Link>
+          ) : (
+            <div className="pt-1">
+              <SecondaryButton
+                onClick={() => navigateApp("/app")}
+                icon={<BackArrowIcon className="size-4 shrink-0" />}
+              >
+                {t("common.back")}
+              </SecondaryButton>
+            </div>
+          )}
         </div>
       ) : null}
     </div>

@@ -6,6 +6,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { LoadingSpinnerBlock } from "@/components/loading-spinner";
 import { MobilePageHeader, appPageClassName } from "@/components/mobile-page-header";
 import { PushNotifications } from "@/components/push-notifications";
+import { BillingReminderDialog } from "@/components/billing-reminder-dialog";
 import { WhatsNewDialog } from "@/components/whats-new-dialog";
 import { useT } from "@/components/i18n-provider";
 import { useAppSession } from "@/components/app-session-provider";
@@ -172,6 +173,7 @@ export default function AppHomePage() {
   const [schedulePublic, setSchedulePublic] = useState(false);
   const [bootstrapped, setBootstrapped] = useState(false);
   const [sessionMissing, setSessionMissing] = useState(false);
+  const [whatsNewSettled, setWhatsNewSettled] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -349,7 +351,19 @@ export default function AppHomePage() {
         ) : null}
 
         <PushNotifications />
-        <WhatsNewDialog ready={bootstrapped && !sessionMissing} />
+        <WhatsNewDialog
+          ready={bootstrapped && !sessionMissing}
+          onSettled={() => setWhatsNewSettled(true)}
+        />
+        <BillingReminderDialog
+          ready={
+            bootstrapped &&
+            !sessionMissing &&
+            isOwner &&
+            billingEnabled
+          }
+          allowAfterWhatsNew={whatsNewSettled}
+        />
       </div>
 
       <footer className="mt-6 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 border-t border-card-border pt-4 text-sm">

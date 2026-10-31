@@ -296,7 +296,11 @@ export default function ContactSupportPage() {
           </div>
 
           <div className="mt-6 w-full">
-            <PrimaryButton onClick={() => navigateApp("/app")}>
+            <PrimaryButton
+              onClick={() =>
+                navigateApp(user?.paymentLocked ? "/app/billing" : "/app")
+              }
+            >
               <span className="inline-flex items-center justify-center gap-1.5">
                 <span aria-hidden>←</span>
                 {t("support.backToHome")}
@@ -459,7 +463,9 @@ export default function ContactSupportPage() {
         </p>
 
         <SecondaryButton
-          onClick={() => navigateApp("/app")}
+          onClick={() =>
+            navigateApp(user?.paymentLocked ? "/app/billing" : "/app")
+          }
           icon={<BackArrowIcon className="size-4 shrink-0" />}
         >
           {t("common.back")}

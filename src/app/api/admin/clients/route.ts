@@ -11,6 +11,7 @@ import {
 import { db } from "@/lib/db";
 import { clientDefaultsSchema, clientDefaultsToData } from "@/lib/expiry-notification-prefs";
 import { startOfBillingMonth } from "@/lib/payment-status";
+import { normalizeSearchText, searchTextIncludes } from "@/lib/search-text";
 import { apiT } from "@/i18n";
 
 export async function GET(request: Request) {
@@ -18,21 +19,12 @@ export async function GET(request: Request) {
   if (admin instanceof NextResponse) return admin;
 
   const { searchParams } = new URL(request.url);
-  const q = searchParams.get("q")?.trim();
+  const q = normalizeSearchText(searchParams.get("q") ?? "");
   const businessOnly = searchParams.get("businessOnly") === "1";
 
   const clients = await db.client.findMany({
     where: {
       ...(businessOnly ? { homeUser: false } : {}),
-      ...(q
-        ? {
-            OR: [
-              { name: { contains: q } },
-              { phone: { contains: q } },
-              { additionalInfo: { contains: q } },
-            ],
-          }
-        : {}),
     },
     orderBy: { name: "asc" },
     include: {
@@ -46,7 +38,17 @@ export async function GET(request: Request) {
     },
   });
 
-  return NextResponse.json({ clients });
+  // JS match: SQLite LIKE is ASCII-only case-insensitive (Bulgarian needs Unicode fold).
+  const filtered = !q
+    ? clients
+    : clients.filter(
+        (client) =>
+          searchTextIncludes(client.name, q) ||
+          searchTextIncludes(client.phone, q) ||
+          searchTextIncludes(client.additionalInfo, q),
+      );
+
+  return NextResponse.json({ clients: filtered });
 }
 
 const clientSchema = z.object({

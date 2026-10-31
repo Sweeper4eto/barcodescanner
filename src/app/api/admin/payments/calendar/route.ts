@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { paymentAmount } from "@/lib/expiry";
 import { db } from "@/lib/db";
 import { sumLocationFees } from "@/lib/location-fees";
+import { paymentReferenceFor } from "@/lib/payment-reference";
 import { apiT } from "@/i18n";
 
 export async function GET(request: Request) {
@@ -63,6 +64,7 @@ export async function GET(request: Request) {
       },
       activeStoreCount,
       expectedAmount,
+      paymentReference: paymentReferenceFor(client.id, year, month),
       paid: Boolean(payment),
       payment: payment ?? null,
     };

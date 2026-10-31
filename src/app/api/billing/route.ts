@@ -13,6 +13,7 @@ import {
   periodFromDate,
   periodKey,
 } from "@/lib/payment-status";
+import { paymentReferenceFor } from "@/lib/payment-reference";
 import { apiT } from "@/i18n";
 
 const HISTORY_MONTH_CAP = 36;
@@ -20,7 +21,7 @@ const HISTORY_MONTH_CAP = 36;
 export async function GET(request: Request) {
   let session;
   try {
-    session = await requireClientOwner();
+    session = await requireClientOwner({ allowWhenPaymentLocked: true });
   } catch {
     return NextResponse.json(
       { error: apiT(request, "errors.forbidden") },
@@ -137,6 +138,11 @@ export async function GET(request: Request) {
     currentMonthPaid: paidKeys.has(currentKey),
     currentYear: current.year,
     currentMonth: current.month,
+    paymentReference: paymentReferenceFor(
+      client.id,
+      current.year,
+      current.month,
+    ),
     feeBreakdown,
     months,
   });

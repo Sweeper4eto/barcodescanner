@@ -10,6 +10,7 @@ import {
   minimartStatusSchema,
   type MinimartVisitStatus,
 } from "@/lib/minimart-locator";
+import { normalizeSearchText, searchTextIncludes } from "@/lib/search-text";
 
 const clientInclude = {
   client: { select: { id: true, name: true, homeUser: true } },
@@ -82,29 +83,30 @@ export async function GET(request: Request) {
   if (session instanceof NextResponse) return session;
 
   const url = new URL(request.url);
-  const q = (url.searchParams.get("q") ?? "").trim().toLowerCase();
+  const q = normalizeSearchText(url.searchParams.get("q") ?? "");
   const statusParam = (url.searchParams.get("status") ?? "").trim();
   const statusFilter =
     statusParam && isMinimartVisitStatus(statusParam) ? statusParam : null;
 
-  const stores = await db.minimartLocatorStore.findMany({
+  const storesRaw = await db.minimartLocatorStore.findMany({
     where: {
       ...(statusFilter ? { status: statusFilter } : null),
-      ...(q
-        ? {
-            OR: [
-              { city: { contains: q } },
-              { street: { contains: q } },
-              { title: { contains: q } },
-              { comment: { contains: q } },
-              { client: { name: { contains: q } } },
-            ],
-          }
-        : null),
     },
     include: clientInclude,
     orderBy: [{ city: "asc" }, { street: "asc" }],
   });
+
+  // JS match: SQLite LIKE is ASCII-only case-insensitive (Bulgarian needs Unicode fold).
+  const stores = !q
+    ? storesRaw
+    : storesRaw.filter(
+        (store) =>
+          searchTextIncludes(store.city, q) ||
+          searchTextIncludes(store.street, q) ||
+          searchTextIncludes(store.title, q) ||
+          searchTextIncludes(store.comment, q) ||
+          searchTextIncludes(store.client?.name, q),
+      );
 
   const statusCounts = {
     NOT_VISITED: 0,

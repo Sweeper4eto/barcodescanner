@@ -915,6 +915,54 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Поддръжка: телефонът ни е под заглавието, а вашият е задължителен във формата.",
     href: "/app/contact",
   },
+  {
+    key: "2026-10-owner-billing-reminder",
+    titleEn:
+      "Owners: a soft billing reminder can appear on Home when the month is still open. Not now hides it for a week; Billing has the details.",
+    titleBg:
+      "Собственици: на Начало може да се появи меко напомняне за плащане, когато месецът все още е отворен. Не сега го скрива за седмица; детайлите са в Плащания.",
+    href: "/app/billing",
+  },
+  {
+    key: "2026-10-billing-pay-button",
+    titleEn:
+      "Billing: clearer paid-up status, Pay beside this month’s amount, and a scrollable payment history.",
+    titleBg:
+      "Плащания: по-ясен статус „Всичко е платено“, бутон Плащане до сумата за месеца и история с превъртане.",
+    href: "/app/billing",
+  },
+  {
+    key: "2026-10-payment-soft-lock",
+    titleEn:
+      "If a full month is unpaid, owners are taken to Billing (and Contact); other staff see a short message and can close to sign out.",
+    titleBg:
+      "Ако има неплатен пълен месец, собствениците отиват в Плащания (и Поддръжка); служителите виждат кратко съобщение и със Затвори излизат от акаунта.",
+    href: "/app/billing",
+  },
+  {
+    key: "2026-10-pay-methods-page",
+    titleEn:
+      "Pay: see the amount due, then choose Bank Transfer or Revolut — each opens details you can copy.",
+    titleBg:
+      "Плащане: виждате дължимата сума и избирате банков превод или Revolut — всеки отваря детайли за копиране.",
+    href: "/app/billing/pay",
+  },
+  {
+    key: "2026-10-payment-reference",
+    titleEn:
+      "Pay: each transfer shows a unique payment reference (основание) for your account and month — copy it into the bank transfer.",
+    titleBg:
+      "Плащане: при превод виждате уникално основание за вашия акаунт и месец — копирайте го в банковия превод.",
+    href: "/app/billing/pay",
+  },
+  {
+    key: "2026-10-revolut-open-link",
+    titleEn:
+      "Pay with Revolut: Open in Revolut jumps straight to the payment profile; still copy amount and reference.",
+    titleBg:
+      "Плащане с Revolut: „Отвори в Revolut“ води към профила за плащане; сумата и основанието копирайте както досега.",
+    href: "/app/billing/pay",
+  },
 ];
 
 

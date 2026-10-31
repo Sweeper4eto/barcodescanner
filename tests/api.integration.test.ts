@@ -1407,7 +1407,7 @@ test("payments calendar and mark paid APIs", async () => {
   assert.equal(markPaid.data.payment.amountPaid, 20);
 });
 
-test("payment enforcement blocks unpaid retail login when overdue", async () => {
+test("payment soft-lock still allows login; /me reports paymentLocked when overdue", async () => {
   const client = await seedClientWithStore(db);
   const user = await seedUserWithAccess(db, client.id, client.stores[0].id);
 
@@ -1431,18 +1431,26 @@ test("payment enforcement blocks unpaid retail login when overdue", async () => 
   });
   const graceLogin = await loginUser(user.username, "password123");
   assert.equal(graceLogin.ok, true);
+  if (graceLogin.ok) {
+    await setMockSession(graceLogin.token);
+    const graceMe = await jsonRequest(meGet);
+    assert.equal(graceMe.response.status, 200);
+    assert.equal(graceMe.data.user?.paymentLocked, false);
+  }
 
-  // Simulate next month with previous month still unpaid → locked.
+  // Simulate next month with previous month still unpaid → soft-locked (login ok).
   const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
   await db.client.update({
     where: { id: client.id },
     data: { paymentsRequiredSince: prev },
   });
-  const blocked = await loginUser(user.username, "password123");
-  assert.equal(blocked.ok, false);
-  if (!blocked.ok) {
-    assert.equal(blocked.code, "PAYMENT_REQUIRED");
-  }
+  const lockedLogin = await loginUser(user.username, "password123");
+  assert.equal(lockedLogin.ok, true);
+  if (!lockedLogin.ok) return;
+  await setMockSession(lockedLogin.token);
+  const lockedMe = await jsonRequest(meGet);
+  assert.equal(lockedMe.response.status, 200);
+  assert.equal(lockedMe.data.user?.paymentLocked, true);
 
   const adminLogin = await loginUser("admin", "admin123");
   assert.equal(adminLogin.ok, true);
@@ -1463,6 +1471,11 @@ test("payment enforcement blocks unpaid retail login when overdue", async () => 
 
   const allowed = await loginUser(user.username, "password123");
   assert.equal(allowed.ok, true);
+  if (allowed.ok) {
+    await setMockSession(allowed.token);
+    const clearedMe = await jsonRequest(meGet);
+    assert.equal(clearedMe.data.user?.paymentLocked, false);
+  }
 
   await db.client.update({
     where: { id: client.id },

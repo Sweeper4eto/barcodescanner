@@ -1,5 +1,11 @@
 import { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
+import {
+  normalizeSearchText,
+  sqlContainsPattern,
+  sqlFoldColumn,
+  sqlPrefixPattern,
+} from "@/lib/search-text";
 
 export type AdminProductListItem = {
   id: string;
@@ -28,6 +34,9 @@ function isBarcodeLike(q: string): boolean {
  *
  * Avoids COUNT(*) and ORDER BY on contains-matches — those force a full
  * table scan + sort on SQLite and make Items search unusable.
+ *
+ * Name match uses Unicode fold so Bulgarian Cyrillic is case-insensitive
+ * (SQLite LIKE alone only folds ASCII).
  */
 export async function searchAdminProducts(
   q: string | undefined,
@@ -41,6 +50,7 @@ export async function searchAdminProducts(
   // Exclude synthetic no-barcode (NB…) rows — those are store-local scaffolding,
   // not shared catalog products.
   const catalogOnly = Prisma.sql`AND barcode NOT LIKE 'NB%'`;
+  const nameFolded = sqlFoldColumn("name");
 
   if (!needle) {
     const rows = await db.product.findMany({
@@ -75,11 +85,12 @@ export async function searchAdminProducts(
     };
   }
 
-  const namePrefix = `${needle}%`;
+  const foldedNeedle = normalizeSearchText(needle);
+  const namePrefix = sqlPrefixPattern(foldedNeedle);
   const prefixRows = await db.$queryRaw<AdminProductListItem[]>(Prisma.sql`
     SELECT id, name, barcode, imagePath
     FROM Product
-    WHERE name LIKE ${namePrefix}
+    WHERE ${nameFolded} LIKE ${namePrefix}
       ${catalogOnly}
     ORDER BY name
     LIMIT ${take} OFFSET ${skip}
@@ -105,11 +116,12 @@ export async function searchAdminProducts(
       ? Prisma.sql`AND id NOT IN (${Prisma.join(prefixRows.map((row) => row.id))})`
       : Prisma.empty;
 
-  const contains = `%${needle}%`;
+  const contains = sqlContainsPattern(foldedNeedle);
+  const barcodeContains = `%${needle}%`;
   const extraRows = await db.$queryRaw<AdminProductListItem[]>(Prisma.sql`
     SELECT id, name, barcode, imagePath
     FROM Product
-    WHERE (name LIKE ${contains} OR barcode LIKE ${contains})
+    WHERE (${nameFolded} LIKE ${contains} OR barcode LIKE ${barcodeContains})
       ${catalogOnly}
     ${excludeSql}
     ORDER BY name

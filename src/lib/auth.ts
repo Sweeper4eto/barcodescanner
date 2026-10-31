@@ -189,14 +189,8 @@ export async function loginUser(
     if (!client?.active) {
       return { ok: false, errorKey: "auth.accountDeactivated" };
     }
-    const { clientRequiresPayment } = await import("@/lib/app-config");
-    if (await clientRequiresPayment(user.clientId)) {
-      return {
-        ok: false,
-        code: "PAYMENT_REQUIRED",
-        errorKey: "auth.paymentRequired",
-      };
-    }
+    // Overdue payment no longer blocks login. Owners are soft-locked to
+    // Billing/Contact; members see an in-app dialog and can log out.
   }
 
   const payload: SessionPayload = {
@@ -262,6 +256,8 @@ export async function changeOwnPassword(
 
 export async function requireSession(options?: {
   allowMustChangePassword?: boolean;
+  /** Billing, contact/support, and similar while the account is payment-locked. */
+  allowWhenPaymentLocked?: boolean;
 }): Promise<SessionPayload> {
   const session = await getSession();
   if (!session) {
@@ -292,11 +288,13 @@ export async function requireSession(options?: {
       await clearSessionCookie();
       throw new Error("UNAUTHORIZED");
     }
-    const { clientRequiresPayment } = await import("@/lib/app-config");
-    if (await clientRequiresPayment(user.clientId)) {
-      const { clearSessionCookie } = await import("@/lib/session");
-      await clearSessionCookie();
-      throw new Error("PAYMENT_REQUIRED");
+    if (!options?.allowWhenPaymentLocked) {
+      const { clientRequiresPayment } = await import("@/lib/app-config");
+      if (await clientRequiresPayment(user.clientId)) {
+        // Keep the session cookie — owners need Billing/Contact; members
+        // dismiss via the in-app lock dialog.
+        throw new Error("PAYMENT_REQUIRED");
+      }
     }
   }
 

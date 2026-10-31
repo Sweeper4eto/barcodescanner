@@ -49,17 +49,10 @@ export async function GET(request: Request) {
     return NextResponse.json({ user: null });
   }
 
-  if (
+  const paymentLocked =
     user.role === "USER" &&
-    user.clientId &&
-    (await clientRequiresPayment(user.clientId))
-  ) {
-    await clearSessionCookie(request);
-    return NextResponse.json({
-      user: null,
-      code: "PAYMENT_REQUIRED",
-    });
-  }
+    Boolean(user.clientId) &&
+    (await clientRequiresPayment(user.clientId!));
 
   const { client, storeLinks, ...rest } = user;
   const scheduleEnabled = client?.scheduleEnabled ?? true;
@@ -75,6 +68,7 @@ export async function GET(request: Request) {
         ? parseScheduleAccess(client?.scheduleAccess)
         : "disabled",
       canRemoveExpiry,
+      paymentLocked,
       stores: storeLinks.map((link) => link.store),
     },
   });

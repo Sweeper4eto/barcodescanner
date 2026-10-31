@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { appButtonNeutralFull } from "@/lib/app-ui";
 import { CheckIcon } from "@/components/app-nav-icons";
 import { useT } from "@/components/i18n-provider";
@@ -59,13 +59,27 @@ function CheckDotIcon({ className = "size-4" }: { className?: string }) {
 
 type Props = {
   ready?: boolean;
+  /** Fires once when the dialog will not show, or after the user dismisses it. */
+  onSettled?: () => void;
 };
 
-export function WhatsNewDialog({ ready = true }: Props) {
+export function WhatsNewDialog({ ready = true, onSettled }: Props) {
   const { t } = useT();
   const { offsetTop, keyboardInset } = useViewportInsets();
   const [items, setItems] = useState<WhatsNewPublicItem[]>([]);
   const [open, setOpen] = useState(false);
+  const settledRef = useRef(false);
+  const onSettledRef = useRef(onSettled);
+
+  useEffect(() => {
+    onSettledRef.current = onSettled;
+  }, [onSettled]);
+
+  function settle() {
+    if (settledRef.current) return;
+    settledRef.current = true;
+    onSettledRef.current?.();
+  }
 
   useEffect(() => {
     if (!ready) return;
@@ -80,15 +94,24 @@ export function WhatsNewDialog({ ready = true }: Props) {
         }
 
         const response = await fetch("/api/whats-new");
-        if (!response.ok) return;
+        if (!response.ok) {
+          if (!cancelled) settle();
+          return;
+        }
         const data = (await response.json()) as { items?: WhatsNewPublicItem[] };
         if (cancelled) return;
         const next = data.items ?? [];
         setItems(next);
         if (next.length > 0) setOpen(true);
-        else if (shouldOfferPwaInstall()) markPwaInstallOffered();
+        else {
+          if (shouldOfferPwaInstall()) markPwaInstallOffered();
+          settle();
+        }
       } catch {
-        if (!cancelled && shouldOfferPwaInstall()) markPwaInstallOffered();
+        if (!cancelled) {
+          if (shouldOfferPwaInstall()) markPwaInstallOffered();
+          settle();
+        }
       }
     }
 
@@ -106,6 +129,7 @@ export function WhatsNewDialog({ ready = true }: Props) {
     });
     setOpen(false);
     if (shouldOfferPwaInstall()) markPwaInstallOffered();
+    settle();
   }
 
   if (!open || items.length === 0) return null;

@@ -82,7 +82,7 @@ test("buildAuditLogWhere combines client and username", () => {
   });
 });
 
-test("buildAuditLogWhere combines event group with free text", () => {
+test("buildAuditLogWhere applies event group; free text q is handled in queryAuditLog", () => {
   const where = buildAuditLogWhere({
     filter: "inventory",
     q: "Milk",
@@ -91,7 +91,8 @@ test("buildAuditLogWhere combines event group with free text", () => {
   assert.ok(where.AND);
   const and = where.AND as Array<Record<string, unknown>>;
   assert.ok(and.some((clause) => "event" in clause));
-  assert.ok(and.some((clause) => "OR" in clause));
+  // Unicode-aware free-text match runs in queryAuditLog, not here.
+  assert.ok(!and.some((clause) => "OR" in clause));
 });
 
 test("buildAuditLogWhere intersects filter with owner activity allowlist", () => {

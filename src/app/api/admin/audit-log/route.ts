@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import {
   type AuditAccountKind,
   type AuditFilter,
-  attachAccountOwnersToAuditEntries,
+  attachAccountNamesToAuditEntries,
   getAuditFilterOptions,
   queryAuditLog,
   serializeAuditEntries,
@@ -53,7 +53,7 @@ export async function GET(request: Request) {
         : Promise.resolve(null),
     ]);
 
-    const entries = await attachAccountOwnersToAuditEntries(
+    const entries = await attachAccountNamesToAuditEntries(
       serializeAuditEntries(result.entries),
     );
 

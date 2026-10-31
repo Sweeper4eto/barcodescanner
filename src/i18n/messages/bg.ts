@@ -154,7 +154,7 @@ export const bg = {
     clientDeactivated:
       "Акаунтът ви е деактивиран. Свържете се с поддръжката или се обадете на +359 887 628 654.",
     paymentRequired:
-      "За този акаунт е нужно плащане. Свържете се с администратор.",
+      "За този акаунт е нужно плащане. Влезте като собственик, за да отворите Плащания.",
     tooManyAttempts:
       "Твърде много неуспешни опити за вход. Опитайте отново след няколко минути.",
   },
@@ -343,6 +343,8 @@ export const bg = {
     statusOverdue: "Просрочено плащане",
     monthPaid: "{month} {year} е платено",
     monthOpen: "{month} {year} може да се плати по всяко време",
+    nextMonthHint:
+      "Плащане за следващ месец може да бъде направено по всяко време.",
     behindOneHint: "Един таксуван месец все още не е платен.",
     behindManyHint: "Два или повече таксувани месеца не са платени. Достъпът може да е ограничен.",
     thisMonth: "Този месец",
@@ -352,6 +354,34 @@ export const bg = {
     paid: "Платено",
     due: "Дължимо",
     contact: "Пишете ни за плащане",
+    pay: "Плащане",
+    payTitle: "Плащане",
+    paySubtitle: "Дължима сума и начини за плащане",
+    payAmountDue: "Дължима сума",
+    payMethods: "Начини за плащане",
+    payBankTransfer: "Банков превод",
+    payRevolut: "Revolut",
+    payRecipient: "Получател",
+    payRevolutUser: "Revolut потребител",
+    payIban: "IBAN",
+    payBic: "BIC/SWIFT",
+    payBankName: "Банка",
+    payAmount: "Сума",
+    payReference: "Основание",
+    payCopy: "Копирай",
+    payCopied: "Копирано",
+    payClose: "Затвори",
+    payOpenRevolut: "Отвори в Revolut",
+    memberLockTitle: "Приложението е недостъпно",
+    memberLockBody:
+      "В момента не може да ползвате приложението, моля обърнете се към собственика на акаунта.",
+    memberLockClose: "Затвори",
+    reminderBadge: "Кратка бележка",
+    reminderTitle: "Абонамент за {month}",
+    reminderBody:
+      "Напомняне, че месечният план все още не е отбелязан като платен. При готовност от Ваша страна, сумата и начините за плащане са в Плащане.",
+    reminderGo: "Към плащания",
+    reminderLater: "Не сега",
   },
   support: {
     title: "Свържи се с поддръжката",
@@ -1102,6 +1132,7 @@ export const bg = {
     storesRow: "Обекти: {names}",
     clientOwner: "Собственик на акаунта",
     clientOwnerHint: "Тук или от съществуващ собственик в Екип.",
+    auditAccount: "Account",
     ownerBadge: "Собственик",
     activeUser: "Активен потребител",
     setPassword: "Задай парола",
@@ -1152,6 +1183,10 @@ export const bg = {
     billingMonth: "Месец",
     billingYear: "Година",
     paymentHistory: "История на плащанията",
+    paymentHistoryRangeHint:
+      "Всички месеци от началото на таксуването до 3 месеца напред. Плати или премахни на всеки ред.",
+    payMonth: "Плати",
+    unpayMonth: "Премахни",
     noPaymentsYet: "Все още няма записани плащания.",
     paymentStandingHint:
       "Всеки ред е един клиент (всички обекти). Включвайте плащанията по клиент. Зелено = платено / плащания изключени / такса ≤ 0. Неутрално = само текущият месец е неплатен (достъпът остава). Червено = 2+ неплатени месеца / просрочен минал месец (достъпът е заключен). Домакинствата не плащат.",
@@ -1163,6 +1198,14 @@ export const bg = {
       "{active}/{total} обекта · {amount} {currency}/мес.",
     paymentCoversAllStores:
       "Всяко плащане е за целия клиент (всички обекти за този месец).",
+    paymentReference: "Основание",
+    paymentReferencePlaceholder: "E365-XXXX-YYYYMM-XXXX",
+    paymentReferenceSearch: "Намери",
+    paymentReferenceInvalid: "Това не изглежда като валидно основание.",
+    paymentReferenceNotFound: "Няма клиент с това основание.",
+    paymentReferenceSearchHint:
+      "Поставете кода Основание (E365-…) от банковия превод, за да отворите клиента и месеца.",
+    paymentReferenceFound: "Намерен {name} · {month} {year}",
     saveSuccess: "Промените са запазени успешно.",
     saving: "Записване…",
     items: "Артикули",

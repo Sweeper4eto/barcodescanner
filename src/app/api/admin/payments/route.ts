@@ -8,8 +8,16 @@ import { db } from "@/lib/db";
 import { sumLocationFees } from "@/lib/location-fees";
 import { apiT } from "@/i18n";
 import {
+  parsePaymentReference,
+  paymentReferenceFor,
+  resolvePaymentReference,
+} from "@/lib/payment-reference";
+import {
+  addMonths,
   billingStartPeriod,
+  comparePeriods,
   countUnpaidMonths,
+  monthsInclusive,
   paymentStandingFromUnpaid,
   periodFromDate,
   periodKey,
@@ -33,6 +41,64 @@ export async function GET(request: Request) {
   const month = Number(searchParams.get("month"));
   const clientId = (searchParams.get("clientId") ?? "").trim();
   const statusList = searchParams.get("status") === "1";
+  const referenceQuery = (searchParams.get("reference") ?? "").trim();
+
+  if (referenceQuery) {
+    if (!parsePaymentReference(referenceQuery)) {
+      return NextResponse.json(
+        { error: apiT(request, "admin.paymentReferenceInvalid") },
+        { status: 400 },
+      );
+    }
+    const clients = await db.client.findMany({
+      select: {
+        id: true,
+        name: true,
+        active: true,
+        homeUser: true,
+      },
+      orderBy: { name: "asc" },
+    });
+    const hit = resolvePaymentReference(
+      referenceQuery,
+      clients.map((c) => c.id),
+    );
+    if (!hit) {
+      return NextResponse.json(
+        { error: apiT(request, "admin.paymentReferenceNotFound") },
+        { status: 404 },
+      );
+    }
+    const client = clients.find((c) => c.id === hit.clientId)!;
+    const payment = await db.payment.findUnique({
+      where: {
+        clientId_year_month: {
+          clientId: hit.clientId,
+          year: hit.year,
+          month: hit.month,
+        },
+      },
+      select: {
+        id: true,
+        amountPaid: true,
+        discount: true,
+        notes: true,
+        paidAt: true,
+      },
+    });
+    return NextResponse.json({
+      client,
+      year: hit.year,
+      month: hit.month,
+      paymentReference: paymentReferenceFor(
+        hit.clientId,
+        hit.year,
+        hit.month,
+      ),
+      paid: Boolean(payment),
+      payment,
+    });
+  }
 
   if (statusList) {
     const through = periodFromDate(new Date());
@@ -159,6 +225,22 @@ export async function GET(request: Request) {
       expectedAmount,
     });
 
+    const historyEnd = addMonths(through, 3);
+    const historyStart =
+      start ??
+      periodFromDate(client.createdAt);
+    // Include any recorded payments before billing start (legacy / manual).
+    let refStart = historyStart;
+    for (const payment of allPayments) {
+      const period = { year: payment.year, month: payment.month };
+      if (comparePeriods(period, refStart) < 0) refStart = period;
+    }
+    const paymentReferences: Record<string, string> = {};
+    for (const period of monthsInclusive(refStart, historyEnd)) {
+      paymentReferences[periodKey(period.year, period.month)] =
+        paymentReferenceFor(client.id, period.year, period.month);
+    }
+
     return NextResponse.json({
       client: {
         id: client.id,
@@ -183,7 +265,11 @@ export async function GET(request: Request) {
       expectedAmount,
       unpaidMonths,
       standing,
-      payments: allPayments.slice(0, 36),
+      billingStart: start,
+      historyStart: refStart,
+      historyEnd,
+      paymentReferences,
+      payments: allPayments,
     });
   }
 

@@ -28,6 +28,8 @@ type AppSessionUser = {
   clientRole: "OWNER" | "MEMBER" | null;
   /** Owners always true; members follow the Team expiry-remove setting. */
   canRemoveExpiry: boolean;
+  /** True when a prior billed month is unpaid (soft lock). */
+  paymentLocked: boolean;
   stores: AppSessionStore[];
 };
 
@@ -99,13 +101,21 @@ export function AppSessionProvider({ children }: { children: ReactNode }) {
         data.user.canRemoveExpiry === undefined
           ? true
           : Boolean(data.user.canRemoveExpiry);
+      const paymentLocked = Boolean(data.user.paymentLocked);
       writeCachedHomeUser(homeUser);
       const stores: AppSessionStore[] = (data.user.stores ?? []).filter(
         (store: AppSessionStore) => store.active,
       );
       setState({
         ready: true,
-        user: { username, homeUser, clientRole, canRemoveExpiry, stores },
+        user: {
+          username,
+          homeUser,
+          clientRole,
+          canRemoveExpiry,
+          paymentLocked,
+          stores,
+        },
         homeUser,
       });
       syncSelectedStore(stores, username);

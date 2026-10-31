@@ -11,6 +11,7 @@ import {
   syncDenormalizedUsername,
   usernameIsTaken,
 } from "@/lib/rename-username";
+import { normalizeSearchText, searchTextIncludes } from "@/lib/search-text";
 import { apiT } from "@/i18n";
 
 export async function GET(request: Request) {
@@ -18,7 +19,7 @@ export async function GET(request: Request) {
   if (admin instanceof NextResponse) return admin;
 
   const { searchParams } = new URL(request.url);
-  const q = searchParams.get("q")?.trim();
+  const q = normalizeSearchText(searchParams.get("q") ?? "");
   const clientIdFilter = searchParams.get("clientId")?.trim() || null;
   const page = Math.max(1, Number.parseInt(searchParams.get("page") ?? "1", 10) || 1);
   const pageSize = Math.min(
@@ -26,23 +27,55 @@ export async function GET(request: Request) {
     Math.max(1, Number.parseInt(searchParams.get("pageSize") ?? "20", 10) || 20),
   );
 
-  const searchOr = q
-    ? {
-        OR: [
-          { username: { contains: q } },
-          { email: { contains: q } },
-          { client: { name: { contains: q } } },
-          { storeLinks: { some: { store: { name: { contains: q } } } } },
-        ],
-      }
-    : null;
+  const where = clientIdFilter ? { clientId: clientIdFilter } : undefined;
 
-  const where =
-    clientIdFilter && searchOr
-      ? { AND: [{ clientId: clientIdFilter }, searchOr] }
-      : clientIdFilter
-        ? { clientId: clientIdFilter }
-        : searchOr ?? undefined;
+  const userSelect = {
+    id: true,
+    username: true,
+    email: true,
+    role: true,
+    active: true,
+    clientId: true,
+    clientRole: true,
+    createdAt: true,
+    client: { select: { id: true, name: true } },
+    storeLinks: {
+      select: { store: { select: { id: true, name: true, clientId: true } } },
+      orderBy: { store: { name: "asc" as const } },
+    },
+  } as const;
+
+  // When searching, filter in JS so Bulgarian Cyrillic is case-insensitive
+  // (SQLite LIKE only folds ASCII). Admin user counts stay small enough.
+  if (q) {
+    const allUsers = await db.user.findMany({
+      where,
+      orderBy: { username: "asc" },
+      select: userSelect,
+    });
+    const matched = allUsers.filter((user) => {
+      if (searchTextIncludes(user.username, q)) return true;
+      if (searchTextIncludes(user.email, q)) return true;
+      if (searchTextIncludes(user.client?.name, q)) return true;
+      return user.storeLinks.some((link) =>
+        searchTextIncludes(link.store.name, q),
+      );
+    });
+    const total = matched.length;
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+    const pageUsers = matched.slice((page - 1) * pageSize, page * pageSize);
+    return NextResponse.json({
+      users: pageUsers.map((user) => ({
+        ...user,
+        stores: user.storeLinks.map((link) => link.store),
+        storeLinks: undefined,
+      })),
+      total,
+      page,
+      pageSize,
+      totalPages,
+    });
+  }
 
   const [users, total] = await Promise.all([
     db.user.findMany({
@@ -50,21 +83,7 @@ export async function GET(request: Request) {
       orderBy: { username: "asc" },
       skip: (page - 1) * pageSize,
       take: pageSize,
-      select: {
-        id: true,
-        username: true,
-        email: true,
-        role: true,
-        active: true,
-        clientId: true,
-        clientRole: true,
-        createdAt: true,
-        client: { select: { id: true, name: true } },
-        storeLinks: {
-          select: { store: { select: { id: true, name: true, clientId: true } } },
-          orderBy: { store: { name: "asc" } },
-        },
-      },
+      select: userSelect,
     }),
     db.user.count({ where }),
   ]);

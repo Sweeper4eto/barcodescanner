@@ -1,6 +1,11 @@
+import { Prisma } from "@/generated/prisma/client";
 import { AUDIT_DETAILS_MAX } from "@/lib/audit-details";
 import { db } from "@/lib/db";
-import type { Prisma } from "@/generated/prisma/client";
+import {
+  normalizeSearchText,
+  sqlContainsPattern,
+  sqlFoldColumn,
+} from "@/lib/search-text";
 
 export type AuditEvent =
   | "login"
@@ -255,18 +260,8 @@ export function buildAuditLogWhere(query: AuditLogQuery): Prisma.AuditLogWhereIn
     and.push({ ipAddress: { contains: ip } });
   }
 
-  const q = query.q?.trim();
-  if (q) {
-    and.push({
-      OR: [
-        { username: { contains: q } },
-        { event: { contains: q } },
-        { details: { contains: q } },
-        { ipAddress: { contains: q } },
-        { deviceInfo: { contains: q } },
-      ],
-    });
-  }
+  // Free-text `q` is applied in queryAuditLog with Unicode-aware matching
+  // (SQLite LIKE is ASCII-only case-insensitive).
 
   if (query.dateFrom) {
     const timeFrom = query.timeFrom ? parseAuditTime(query.timeFrom) : null;
@@ -374,13 +369,30 @@ export async function queryAuditLog(query: AuditLogQuery) {
     : 20;
   let page = query.page && query.page >= 1 ? Math.floor(query.page) : 1;
   const where = buildAuditLogWhere(query);
+  const needle = normalizeSearchText(query.q ?? "");
 
-  const total = await db.auditLog.count({ where });
+  let textWhere: Prisma.AuditLogWhereInput = where;
+  if (needle) {
+    const pattern = sqlContainsPattern(needle);
+    const matched = await db.$queryRaw<Array<{ id: string }>>(Prisma.sql`
+      SELECT id FROM AuditLog
+      WHERE ${sqlFoldColumn("username")} LIKE ${pattern}
+         OR ${sqlFoldColumn("event")} LIKE ${pattern}
+         OR ${sqlFoldColumn("details")} LIKE ${pattern}
+         OR ${sqlFoldColumn("ipAddress")} LIKE ${pattern}
+         OR ${sqlFoldColumn("deviceInfo")} LIKE ${pattern}
+    `);
+    textWhere = {
+      AND: [where, { id: { in: matched.map((row) => row.id) } }],
+    };
+  }
+
+  const total = await db.auditLog.count({ where: textWhere });
   const totalPages = total === 0 ? 1 : Math.ceil(total / pageSize);
   if (page > totalPages) page = totalPages;
 
   const entries = await db.auditLog.findMany({
-    where,
+    where: textWhere,
     orderBy: [{ occurredAt: "desc" }, { id: "desc" }],
     skip: (page - 1) * pageSize,
     take: pageSize,
@@ -408,10 +420,10 @@ export function serializeAuditEntries(
   }));
 }
 
-/** Admin-only: resolve account owner username(s) for each entry's acting user. */
-export async function attachAccountOwnersToAuditEntries<
+/** Admin-only: resolve business/household account name for each entry's acting user. */
+export async function attachAccountNamesToAuditEntries<
   T extends { userId: string },
->(entries: T[]): Promise<Array<T & { accountOwner: string | null }>> {
+>(entries: T[]): Promise<Array<T & { accountName: string | null }>> {
   if (entries.length === 0) {
     return [];
   }
@@ -419,43 +431,17 @@ export async function attachAccountOwnersToAuditEntries<
   const userIds = [...new Set(entries.map((entry) => entry.userId))];
   const actors = await db.user.findMany({
     where: { id: { in: userIds } },
-    select: { id: true, clientId: true },
+    select: {
+      id: true,
+      client: { select: { name: true } },
+    },
   });
-  const clientIdByUserId = new Map(
-    actors.map((row) => [row.id, row.clientId] as const),
+  const accountNameByUserId = new Map(
+    actors.map((row) => [row.id, row.client?.name ?? null] as const),
   );
-  const clientIds = [
-    ...new Set(
-      actors
-        .map((row) => row.clientId)
-        .filter((id): id is string => Boolean(id)),
-    ),
-  ];
 
-  const ownersByClientId = new Map<string, string[]>();
-  if (clientIds.length > 0) {
-    const owners = await db.user.findMany({
-      where: {
-        clientId: { in: clientIds },
-        clientRole: "OWNER",
-      },
-      select: { clientId: true, username: true },
-      orderBy: { username: "asc" },
-    });
-    for (const owner of owners) {
-      if (!owner.clientId) continue;
-      const list = ownersByClientId.get(owner.clientId) ?? [];
-      list.push(owner.username);
-      ownersByClientId.set(owner.clientId, list);
-    }
-  }
-
-  return entries.map((entry) => {
-    const clientId = clientIdByUserId.get(entry.userId) ?? null;
-    const ownerNames = clientId ? ownersByClientId.get(clientId) : undefined;
-    return {
-      ...entry,
-      accountOwner: ownerNames?.length ? ownerNames.join(", ") : null,
-    };
-  });
+  return entries.map((entry) => ({
+    ...entry,
+    accountName: accountNameByUserId.get(entry.userId) ?? null,
+  }));
 }

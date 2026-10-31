@@ -8,8 +8,20 @@ import {
 } from "@/components/admin/admin-ui";
 import { useT } from "@/components/i18n-provider";
 import { MenuSelect } from "@/components/menu-select";
-import { appButtonNeutral } from "@/lib/app-ui";
-import type { PaymentStanding } from "@/lib/payment-status";
+import {
+  appButtonDanger,
+  appButtonNeutral,
+  appButtonPrimary,
+} from "@/lib/app-ui";
+import { looksLikePaymentReference } from "@/lib/payment-reference";
+import {
+  addMonths,
+  comparePeriods,
+  monthsInclusive,
+  periodFromDate,
+  type BillingPeriod,
+  type PaymentStanding,
+} from "@/lib/payment-status";
 
 type CalendarRow = {
   client: {
@@ -20,6 +32,7 @@ type CalendarRow = {
   };
   activeStoreCount: number;
   expectedAmount: number;
+  paymentReference?: string;
   paid: boolean;
   payment: {
     discount: number;
@@ -53,6 +66,10 @@ type ClientDetail = {
   expectedAmount: number;
   unpaidMonths: number;
   standing: PaymentStanding;
+  billingStart?: BillingPeriod | null;
+  historyStart?: BillingPeriod;
+  historyEnd?: BillingPeriod;
+  paymentReferences?: Record<string, string>;
   payments: {
     id: string;
     year: number;
@@ -160,6 +177,12 @@ export function PaymentsPanel({
   const [saveMessage, setSaveMessage] = useState("");
   const [markYear, setMarkYear] = useState(now.getFullYear());
   const [markMonth, setMarkMonth] = useState(now.getMonth() + 1);
+  const [referenceQuery, setReferenceQuery] = useState("");
+  const [referenceMessage, setReferenceMessage] = useState<{
+    tone: "ok" | "error";
+    text: string;
+  } | null>(null);
+  const [referenceSearching, setReferenceSearching] = useState(false);
 
   const currency = t("common.currency");
 
@@ -224,6 +247,68 @@ export function PaymentsPanel({
       return true;
     });
   }, [statusRows, clientQuery, accountFilter]);
+
+  async function searchByPaymentReference() {
+    const query = referenceQuery.trim();
+    setReferenceMessage(null);
+    if (!query) {
+      setReferenceMessage({
+        tone: "error",
+        text: t("admin.paymentReferenceInvalid"),
+      });
+      return;
+    }
+    if (!looksLikePaymentReference(query)) {
+      setReferenceMessage({
+        tone: "error",
+        text: t("admin.paymentReferenceInvalid"),
+      });
+      return;
+    }
+    setReferenceSearching(true);
+    try {
+      const response = await fetch(
+        `/api/admin/payments?reference=${encodeURIComponent(query)}`,
+      );
+      const data = (await response.json()) as {
+        error?: string;
+        client?: { id: string; name: string; homeUser?: boolean };
+        year?: number;
+        month?: number;
+      };
+      if (!response.ok || !data.client || !data.year || !data.month) {
+        setReferenceMessage({
+          tone: "error",
+          text: data.error ?? t("admin.paymentReferenceNotFound"),
+        });
+        return;
+      }
+      setView("clients");
+      setAccountFilter("all");
+      setClientQuery("");
+      setSelectedClientId(data.client.id);
+      setMarkYear(data.year);
+      setMarkMonth(data.month);
+      setYear(data.year);
+      setMonth(data.month);
+      setSaveMessage("");
+      setReferenceMessage({
+        tone: "ok",
+        text: t("admin.paymentReferenceFound", {
+          name: data.client.name,
+          month: monthName(data.month),
+          year: data.year,
+        }),
+      });
+    } catch {
+      setReferenceMessage({
+        tone: "error",
+        text: t("admin.paymentReferenceNotFound"),
+      });
+    } finally {
+      setReferenceSearching(false);
+    }
+  }
 
   useEffect(() => {
     if (
@@ -306,8 +391,13 @@ export function PaymentsPanel({
     }
   }
 
-  async function markPaid() {
-    if (!selectedClientId || !paymentDirty) return;
+  async function markPaid(override?: { year: number; month: number }) {
+    if (!selectedClientId) return;
+    const targetYear =
+      override?.year ?? (view === "month" ? year : markYear);
+    const targetMonth =
+      override?.month ?? (view === "month" ? month : markMonth);
+    if (!override && !paymentDirty) return;
     setSaving(true);
     setSaveMessage("");
     try {
@@ -316,8 +406,8 @@ export function PaymentsPanel({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           clientId: selectedClientId,
-          year: view === "month" ? year : markYear,
-          month: view === "month" ? month : markMonth,
+          year: targetYear,
+          month: targetMonth,
           discount: Number(discount) || 0,
           notes: notes || undefined,
         }),
@@ -326,6 +416,10 @@ export function PaymentsPanel({
         setSaveMessage(t("errors.saveFailed"));
         return;
       }
+      if (view === "clients") {
+        setMarkYear(targetYear);
+        setMarkMonth(targetMonth);
+      }
       await refreshAfterPaymentChange();
       setSavedPayment({ discount, notes });
       setSaveMessage(t("admin.saveSuccess"));
@@ -333,6 +427,23 @@ export function PaymentsPanel({
       setSaving(false);
     }
   }
+
+  const historyMonths = useMemo(() => {
+    if (!detail) return [] as BillingPeriod[];
+    const through = periodFromDate(new Date());
+    const end = detail.historyEnd ?? addMonths(through, 3);
+    let start: BillingPeriod =
+      detail.historyStart ??
+      detail.billingStart ??
+      (detail.client.createdAt
+        ? periodFromDate(new Date(detail.client.createdAt))
+        : addMonths(through, -11));
+    for (const payment of detail.payments) {
+      const period = { year: payment.year, month: payment.month };
+      if (comparePeriods(period, start) < 0) start = period;
+    }
+    return monthsInclusive(start, end).reverse();
+  }, [detail]);
 
   async function unmarkPaid(y: number, m: number) {
     if (!selectedClientId) return;
@@ -384,6 +495,53 @@ export function PaymentsPanel({
           </button>
         ))}
       </div>
+
+      <section className="rounded-2xl border border-card-border p-4">
+        <AdminField label={t("admin.paymentReference")}>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch">
+            <input
+              value={referenceQuery}
+              onChange={(event) => {
+                setReferenceQuery(event.target.value);
+                setReferenceMessage(null);
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  void searchByPaymentReference();
+                }
+              }}
+              className={`${adminInputClass} font-mono`}
+              placeholder={t("admin.paymentReferencePlaceholder")}
+              spellCheck={false}
+              autoCapitalize="characters"
+              autoComplete="off"
+            />
+            <button
+              type="button"
+              className={`${appButtonPrimary} shrink-0 sm:px-4`}
+              disabled={referenceSearching}
+              onClick={() => void searchByPaymentReference()}
+            >
+              {referenceSearching
+                ? t("common.loading")
+                : t("admin.paymentReferenceSearch")}
+            </button>
+          </div>
+        </AdminField>
+        <p className="mt-1.5 text-xs text-muted">
+          {t("admin.paymentReferenceSearchHint")}
+        </p>
+        {referenceMessage ? (
+          <p
+            className={`mt-1.5 text-xs ${
+              referenceMessage.tone === "ok" ? "text-primary" : "text-error"
+            }`}
+          >
+            {referenceMessage.text}
+          </p>
+        ) : null}
+      </section>
 
       {view === "clients" ? (
         <div className="space-y-4">
@@ -512,6 +670,20 @@ export function PaymentsPanel({
                   <p className="mt-1 text-xs text-muted">
                     {t("admin.paymentCoversAllStores")}
                   </p>
+                  {detail.paymentReferences?.[
+                    periodKey(markYear, markMonth)
+                  ] ? (
+                    <p className="mt-2 rounded-xl border border-card-border px-3 py-2 font-mono text-xs text-foreground">
+                      <span className="block text-[0.65rem] font-sans font-medium text-muted">
+                        {t("admin.paymentReference")}
+                      </span>
+                      {
+                        detail.paymentReferences[
+                          periodKey(markYear, markMonth)
+                        ]
+                      }
+                    </p>
+                  ) : null}
                   {onOpenAccount ? (
                     <button
                       type="button"
@@ -601,23 +773,94 @@ export function PaymentsPanel({
                   <h4 className="mb-2 text-sm font-semibold text-foreground">
                     {t("admin.paymentHistory")}
                   </h4>
-                  {detail.payments.length === 0 ? (
+                  <p className="mb-2 text-xs text-muted">
+                    {t("admin.paymentHistoryRangeHint")}
+                  </p>
+                  {historyMonths.length === 0 ? (
                     <p className="text-sm text-muted">{t("admin.noPaymentsYet")}</p>
                   ) : (
-                    <ul className="space-y-1.5">
-                      {detail.payments.map((payment) => (
-                        <li
-                          key={payment.id}
-                          className="flex items-center justify-between gap-2 rounded-xl border border-success-border bg-success-bg px-3 py-2 text-sm"
-                        >
-                          <span>
-                            {monthName(payment.month)} {payment.year}
-                          </span>
-                          <span className="tabular-nums">
-                            {payment.amountPaid.toFixed(2)} {currency}
-                          </span>
-                        </li>
-                      ))}
+                    <ul className="max-h-[min(28rem,55vh)] space-y-1.5 overflow-y-auto overscroll-y-contain">
+                      {historyMonths.map((period) => {
+                        const key = periodKey(period.year, period.month);
+                        const payment = detail.payments.find(
+                          (p) =>
+                            p.year === period.year && p.month === period.month,
+                        );
+                        const paid = Boolean(payment);
+                        const selected =
+                          markYear === period.year &&
+                          markMonth === period.month;
+                        return (
+                          <li
+                            key={key}
+                            className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-sm ${
+                              paid
+                                ? "border-success-border bg-success-bg"
+                                : "border-card-border bg-transparent"
+                            } ${selected ? "ring-2 ring-primary" : ""}`}
+                          >
+                            <button
+                              type="button"
+                              className="min-w-0 flex-1 text-left"
+                              onClick={() => {
+                                setMarkYear(period.year);
+                                setMarkMonth(period.month);
+                                const nextDiscount = String(
+                                  payment?.discount ?? 0,
+                                );
+                                const nextNotes = payment?.notes ?? "";
+                                setDiscount(nextDiscount);
+                                setNotes(nextNotes);
+                                setSavedPayment({
+                                  discount: nextDiscount,
+                                  notes: nextNotes,
+                                });
+                                setSaveMessage("");
+                              }}
+                            >
+                              <span className="block font-medium text-foreground">
+                                {monthName(period.month)} {period.year}
+                              </span>
+                              <span className="text-xs tabular-nums text-muted">
+                                {paid
+                                  ? t("admin.paid", {
+                                      amount: (
+                                        payment?.amountPaid ?? 0
+                                      ).toFixed(2),
+                                      currency,
+                                    })
+                                  : t("admin.unpaid")}
+                              </span>
+                            </button>
+                            {paid ? (
+                              <button
+                                type="button"
+                                disabled={saving}
+                                className={`${appButtonDanger} shrink-0 px-2.5 py-1.5 text-xs`}
+                                onClick={() =>
+                                  void unmarkPaid(period.year, period.month)
+                                }
+                              >
+                                {t("admin.unpayMonth")}
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                disabled={saving}
+                                className={`${appButtonPrimary} shrink-0 px-2.5 py-1.5 text-xs`}
+                                onClick={() =>
+                                  void markPaid({
+                                    year: period.year,
+                                    month: period.month,
+                                  })
+                                }
+                              >
+                                {t("admin.payMonth")}
+                              </button>
+                            )}
+                          </li>
+                        );
+                      })}
                     </ul>
                   )}
                 </div>
@@ -676,6 +919,11 @@ export function PaymentsPanel({
                         })
                       : t("admin.unpaid")}
                   </p>
+                  {row.paymentReference ? (
+                    <p className="mt-1 break-all font-mono text-[0.65rem] text-muted">
+                      {row.paymentReference}
+                    </p>
+                  ) : null}
                 </button>
               ))}
             </div>
@@ -694,6 +942,14 @@ export function PaymentsPanel({
                   fee: selectedMonthRow.client.locationsFeeTotal.toFixed(2),
                 })}
               </p>
+              {selectedMonthRow.paymentReference ? (
+                <p className="mt-2 rounded-xl border border-card-border px-3 py-2 font-mono text-xs text-foreground">
+                  <span className="block text-[0.65rem] font-sans font-medium text-muted">
+                    {t("admin.paymentReference")}
+                  </span>
+                  {selectedMonthRow.paymentReference}
+                </p>
+              ) : null}
               <div className="mt-3 grid gap-3 sm:grid-cols-2">
                 <input
                   className={adminInputClass}

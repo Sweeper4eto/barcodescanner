@@ -16,10 +16,12 @@ export async function isOnlyClientOwner(userId: string, clientId: string): Promi
   return owners.length === 1 && owners[0]?.id === userId;
 }
 
-export async function requireClientOwner(): Promise<
-  SessionPayload & { clientId: string }
-> {
-  const session = await requireSession();
+export async function requireClientOwner(options?: {
+  allowWhenPaymentLocked?: boolean;
+}): Promise<SessionPayload & { clientId: string }> {
+  const session = await requireSession({
+    allowWhenPaymentLocked: options?.allowWhenPaymentLocked,
+  });
   if (session.role !== "USER" || !session.clientId) {
     throw new Error("FORBIDDEN");
   }
