@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import {
   expectedPaymentAmount,
-  qualifyingReferralWhere,
+  qualifyingReferralInclude,
   sumLocationFees,
 } from "@/lib/location-fees";
 import {
@@ -32,23 +32,24 @@ export async function clientRequiresPayment(
       paymentsRequired: true,
       paymentsRequiredSince: true,
       createdAt: true,
+      updatedAt: true,
       stores: { where: { active: true }, select: { monthlyFee: true } },
       payments: { select: { year: true, month: true } },
-      _count: {
-        select: { referrals: { where: qualifyingReferralWhere } },
-      },
+      referrals: qualifyingReferralInclude,
     },
   });
   if (!client?.active) return false;
 
   const expectedAmount = expectedPaymentAmount(
     sumLocationFees(client.stores),
-    client._count.referrals,
+    client.referrals.length,
   );
   const billingStart = billingStartPeriod({
     paymentsRequired: client.paymentsRequired,
     paymentsRequiredSince: client.paymentsRequiredSince,
     createdAt: client.createdAt,
+    updatedAt: client.updatedAt,
+    now,
   });
   const paidKeys = new Set(
     client.payments.map((p) => periodKey(p.year, p.month)),

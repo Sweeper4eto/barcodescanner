@@ -1192,6 +1192,8 @@ export const en = {
     paymentStandingBehindN: "{count} months overdue",
     paymentClientStores:
       "{active}/{total} locations · {amount} {currency}/mo",
+    paymentClientReferralDiscount:
+      "incl. −{discount} {currency} referral ({count})",
     paymentCoversAllStores:
       "Each payment covers the whole client (all locations for that month).",
     paymentReference: "Payment reference (основание)",

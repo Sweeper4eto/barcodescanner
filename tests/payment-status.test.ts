@@ -8,6 +8,7 @@ import {
   isPaymentAccessBlocked,
   monthsInclusive,
   paymentStandingFromUnpaid,
+  periodFromDate,
   periodKey,
   standingSortRank,
 } from "../src/lib/payment-status";
@@ -130,14 +131,54 @@ describe("payment standing", () => {
     assert.ok(standingSortRank("due") < standingSortRank("current"));
     assert.ok(standingSortRank("current") < standingSortRank("exempt"));
   });
+
+  test("billing month uses Europe/Sofia, not UTC server local", () => {
+    // 2026-10-31 22:30 UTC = 2026-11-01 00:30 in Sofia
+    const sofiaAlreadyNovember = new Date("2026-10-31T22:30:00.000Z");
+    assert.deepEqual(periodFromDate(sofiaAlreadyNovember), {
+      year: 2026,
+      month: 11,
+    });
+    // Still October in Sofia
+    const sofiaStillOctober = new Date("2026-10-31T20:30:00.000Z");
+    assert.deepEqual(periodFromDate(sofiaStillOctober), {
+      year: 2026,
+      month: 10,
+    });
+  });
 });
 
 describe("payment overdue lock", () => {
   test("billingStartPeriod uses paymentsRequiredSince when set", () => {
     const start = billingStartPeriod({
       paymentsRequired: true,
-      paymentsRequiredSince: new Date(2026, 9, 1), // Oct
-      createdAt: new Date(2026, 0, 15),
+      paymentsRequiredSince: new Date("2026-10-01T12:00:00.000Z"),
+      createdAt: new Date("2026-01-15T12:00:00.000Z"),
+      now: new Date("2026-10-15T12:00:00.000Z"),
+    });
+    assert.deepEqual(start, { year: 2026, month: 10 });
+  });
+
+  test("billingStartPeriod repairs UTC skew for new payers", () => {
+    // Stored as October 1st, but account was written after Sofia rolled to November.
+    const start = billingStartPeriod({
+      paymentsRequired: true,
+      paymentsRequiredSince: new Date("2026-10-01T00:00:00.000Z"),
+      createdAt: new Date("2025-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-10-31T22:30:00.000Z"), // Nov 1 Sofia
+      now: new Date("2026-10-31T22:30:00.000Z"),
+    });
+    assert.deepEqual(start, { year: 2026, month: 11 });
+  });
+
+  test("billingStartPeriod keeps real prior-month starts", () => {
+    // Enabled in October (updatedAt still October) — still owes from October.
+    const start = billingStartPeriod({
+      paymentsRequired: true,
+      paymentsRequiredSince: new Date("2026-10-01T00:00:00.000Z"),
+      createdAt: new Date("2025-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-10-15T12:00:00.000Z"),
+      now: new Date("2026-11-01T12:00:00.000Z"),
     });
     assert.deepEqual(start, { year: 2026, month: 10 });
   });

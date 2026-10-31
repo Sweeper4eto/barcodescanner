@@ -1200,6 +1200,8 @@ export const bg = {
     paymentStandingBehindN: "{count} просрочени месеца",
     paymentClientStores:
       "{active}/{total} обекта · {amount} {currency}/мес.",
+    paymentClientReferralDiscount:
+      "вкл. −{discount} {currency} от препоръки ({count})",
     paymentCoversAllStores:
       "Всяко плащане е за целия клиент (всички обекти за този месец).",
     paymentReference: "Основание",

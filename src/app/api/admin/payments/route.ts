@@ -7,6 +7,7 @@ import { paymentAmount } from "@/lib/expiry";
 import { db } from "@/lib/db";
 import {
   expectedPaymentAmount,
+  qualifyingReferralInclude,
   qualifyingReferralWhere,
   suggestedReferralDiscount,
   sumLocationFees,
@@ -23,9 +24,11 @@ import {
   comparePeriods,
   countStandingUnpaidMonths,
   monthsInclusive,
+  needsPaymentsRequiredSinceRepair,
   paymentStandingFromUnpaid,
   periodFromDate,
   periodKey,
+  startOfBillingMonth,
   standingSortRank,
 } from "@/lib/payment-status";
 
@@ -107,23 +110,50 @@ export async function GET(request: Request) {
   }
 
   if (statusList) {
-    const through = periodFromDate(new Date());
+    const now = new Date();
+    const through = periodFromDate(now);
     const clients = await db.client.findMany({
       include: {
         stores: { select: { id: true, active: true, monthlyFee: true } },
         payments: { select: { year: true, month: true } },
-        _count: {
-          select: { referrals: { where: qualifyingReferralWhere } },
-        },
+        referrals: qualifyingReferralInclude,
       },
       orderBy: { name: "asc" },
     });
+
+    const sinceRepairs: Array<{ id: string; paymentsRequiredSince: Date }> =
+      [];
+    for (const client of clients) {
+      if (
+        needsPaymentsRequiredSinceRepair({
+          paymentsRequired: client.paymentsRequired,
+          paymentsRequiredSince: client.paymentsRequiredSince,
+          createdAt: client.createdAt,
+          updatedAt: client.updatedAt,
+          now,
+        })
+      ) {
+        const repaired = startOfBillingMonth(now);
+        sinceRepairs.push({ id: client.id, paymentsRequiredSince: repaired });
+        client.paymentsRequiredSince = repaired;
+      }
+    }
+    if (sinceRepairs.length > 0) {
+      await Promise.all(
+        sinceRepairs.map((row) =>
+          db.client.update({
+            where: { id: row.id },
+            data: { paymentsRequiredSince: row.paymentsRequiredSince },
+          }),
+        ),
+      );
+    }
 
     const rows = clients.map((client) => {
       const activeStores = client.stores.filter((s) => s.active);
       const activeStoreCount = activeStores.length;
       const locationsFeeTotal = sumLocationFees(activeStores);
-      const referralCount = client._count.referrals;
+      const referralCount = client.referrals.length;
       const expectedAmount = expectedPaymentAmount(
         locationsFeeTotal,
         referralCount,
@@ -139,6 +169,8 @@ export async function GET(request: Request) {
         paymentsRequired: client.paymentsRequired,
         paymentsRequiredSince: client.paymentsRequiredSince,
         createdAt: client.createdAt,
+        updatedAt: client.updatedAt,
+        now,
       });
       const unpaidMonths =
         tracksPayments && start
@@ -215,7 +247,8 @@ export async function GET(request: Request) {
     const paidKeys = new Set(
       allPayments.map((p) => periodKey(p.year, p.month)),
     );
-    const through = periodFromDate(new Date());
+    const now = new Date();
+    const through = periodFromDate(now);
     const activeStores = client.stores.filter((s) => s.active);
     const activeStoreCount = activeStores.length;
     const locationsFeeTotal = sumLocationFees(activeStores);
@@ -229,10 +262,28 @@ export async function GET(request: Request) {
       !client.homeUser &&
       client.paymentsRequired &&
       expectedAmount > 0;
+    let paymentsRequiredSince = client.paymentsRequiredSince;
+    if (
+      needsPaymentsRequiredSinceRepair({
+        paymentsRequired: client.paymentsRequired,
+        paymentsRequiredSince: client.paymentsRequiredSince,
+        createdAt: client.createdAt,
+        updatedAt: client.updatedAt,
+        now,
+      })
+    ) {
+      paymentsRequiredSince = startOfBillingMonth(now);
+      await db.client.update({
+        where: { id: client.id },
+        data: { paymentsRequiredSince },
+      });
+    }
     const start = billingStartPeriod({
       paymentsRequired: client.paymentsRequired,
-      paymentsRequiredSince: client.paymentsRequiredSince,
+      paymentsRequiredSince,
       createdAt: client.createdAt,
+      updatedAt: client.updatedAt,
+      now,
     });
     const unpaidMonths =
       tracksPayments && start
@@ -331,9 +382,7 @@ export async function POST(request: Request) {
     where: { id: parsed.data.clientId },
     include: {
       stores: { where: { active: true } },
-      _count: {
-        select: { referrals: { where: qualifyingReferralWhere } },
-      },
+      referrals: qualifyingReferralInclude,
     },
   });
   if (!client) {
@@ -347,7 +396,7 @@ export async function POST(request: Request) {
   const locationsFeeTotal = sumLocationFees(client.stores);
   const discount =
     parsed.data.discount ??
-    suggestedReferralDiscount(client._count.referrals);
+    suggestedReferralDiscount(client.referrals.length);
   const amountPaid = paymentAmount(locationsFeeTotal, discount);
 
   const payment = await db.payment.upsert({

@@ -55,10 +55,13 @@ type StatusRow = {
     homeUser: boolean;
     paymentsRequired: boolean;
     locationsFeeTotal: number;
+    referralCount?: number;
   };
   activeStoreCount: number;
   storeCount: number;
   expectedAmount: number;
+  referralCount?: number;
+  referralDiscount?: number;
   unpaidMonths: number;
   standing: PaymentStanding;
 };
@@ -642,6 +645,20 @@ export function PaymentsPanel({
                               amount: row.expectedAmount.toFixed(2),
                               currency,
                             })}
+                        {!row.client.homeUser &&
+                        (row.referralDiscount ?? 0) > 0 ? (
+                          <>
+                            <br />
+                            {t("admin.paymentClientReferralDiscount", {
+                              discount: (row.referralDiscount ?? 0).toFixed(0),
+                              count:
+                                row.referralCount ??
+                                row.client.referralCount ??
+                                0,
+                              currency,
+                            })}
+                          </>
+                        ) : null}
                       </span>
                     </span>
                     <span

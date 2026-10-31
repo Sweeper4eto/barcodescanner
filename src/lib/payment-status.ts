@@ -1,6 +1,12 @@
 export type BillingPeriod = { year: number; month: number };
 
 /**
+ * Billing calendar (amount due, standing, lock) uses Bulgaria time, not server UTC.
+ * Otherwise late evening / early morning around month boundaries mis-labels “this month”.
+ */
+export const BILLING_TIME_ZONE = "Europe/Sofia";
+
+/**
  * - current: this month paid, no past unpaid
  * - due: this month still open (not overdue / not locked)
  * - behind1: 1 past billed month unpaid (locked)
@@ -24,31 +30,90 @@ export function comparePeriods(a: BillingPeriod, b: BillingPeriod): number {
 }
 
 export function addMonths(period: BillingPeriod, delta: number): BillingPeriod {
-  const date = new Date(period.year, period.month - 1 + delta, 1);
-  return { year: date.getFullYear(), month: date.getMonth() + 1 };
+  const index = period.year * 12 + (period.month - 1) + delta;
+  const year = Math.floor(index / 12);
+  const month = index - year * 12 + 1;
+  return { year, month };
 }
 
-export function periodFromDate(date: Date): BillingPeriod {
-  return { year: date.getFullYear(), month: date.getMonth() + 1 };
+/** Calendar year/month in the billing timezone (default Europe/Sofia). */
+export function periodFromDate(
+  date: Date,
+  timeZone: string = BILLING_TIME_ZONE,
+): BillingPeriod {
+  const ymd = date.toLocaleDateString("en-CA", { timeZone });
+  const [yearText, monthText] = ymd.split("-");
+  const year = Number(yearText);
+  const month = Number(monthText);
+  if (!Number.isFinite(year) || !Number.isFinite(month)) {
+    return { year: date.getUTCFullYear(), month: date.getUTCMonth() + 1 };
+  }
+  return { year, month };
 }
 
-/** Local calendar month start used when payments are turned on. */
-export function startOfBillingMonth(date = new Date()): Date {
-  return new Date(date.getFullYear(), date.getMonth(), 1);
+/**
+ * First moment of the billing month in UTC (noon UTC on the 1st), so storing /
+ * reading the date does not slip into the previous Sofia calendar month.
+ */
+export function startOfBillingMonth(
+  date = new Date(),
+  timeZone: string = BILLING_TIME_ZONE,
+): Date {
+  const { year, month } = periodFromDate(date, timeZone);
+  return new Date(Date.UTC(year, month - 1, 1, 12, 0, 0));
 }
 
 /**
  * First month that counts toward unpaid standing / overdue lock.
  * Prefer paymentsRequiredSince; fall back to createdAt for legacy rows.
+ *
+ * Also repairs UTC month-start skew: payments turned on just after Sofia
+ * midnight can be stored as the previous month's 1st (server still on UTC).
+ * If the row was last written in the current Sofia month and the stored start
+ * is exactly the previous month, billing starts this month instead — so new
+ * payers are not charged for the prior month.
  */
 export function billingStartPeriod(options: {
   paymentsRequired: boolean;
   paymentsRequiredSince: Date | null | undefined;
   createdAt: Date;
+  /** Client.updatedAt — used to detect “enabled this Sofia month” skew. */
+  updatedAt?: Date | null;
+  now?: Date;
 }): BillingPeriod | null {
   if (!options.paymentsRequired) return null;
   const since = options.paymentsRequiredSince ?? options.createdAt;
-  return periodFromDate(since);
+  const now = options.now ?? new Date();
+  const start = periodFromDate(since);
+  const current = periodFromDate(now);
+  if (comparePeriods(start, current) >= 0) return start;
+
+  const updatedAt = options.updatedAt;
+  if (!updatedAt) return start;
+
+  const updated = periodFromDate(updatedAt);
+  const previous = addMonths(current, -1);
+  if (
+    comparePeriods(updated, current) === 0 &&
+    comparePeriods(start, previous) === 0
+  ) {
+    return current;
+  }
+  return start;
+}
+
+/** True when stored paymentsRequiredSince should be advanced to the Sofia month start. */
+export function needsPaymentsRequiredSinceRepair(options: {
+  paymentsRequired: boolean;
+  paymentsRequiredSince: Date | null | undefined;
+  createdAt: Date;
+  updatedAt?: Date | null;
+  now?: Date;
+}): boolean {
+  if (!options.paymentsRequired || !options.paymentsRequiredSince) return false;
+  const raw = periodFromDate(options.paymentsRequiredSince);
+  const effective = billingStartPeriod(options);
+  return effective != null && comparePeriods(raw, effective) < 0;
 }
 
 /** Inclusive list of calendar months from start through end. */

@@ -16,6 +16,12 @@ export const qualifyingReferralWhere = {
   stores: { some: { active: true } },
 } as const;
 
+/** Include shape for counting qualifying referrals in app code (not only `_count`). */
+export const qualifyingReferralInclude = {
+  where: qualifyingReferralWhere,
+  select: { id: true },
+} as const;
+
 /**
  * True when a loaded referral earns the discount.
  * If `stores` is omitted, the list is assumed already filtered.

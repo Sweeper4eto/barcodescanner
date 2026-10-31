@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import {
   expectedPaymentAmount,
-  qualifyingReferralWhere,
+  qualifyingReferralInclude,
   suggestedReferralDiscount,
   sumLocationFees,
 } from "@/lib/location-fees";
@@ -46,9 +46,7 @@ export async function GET(request: Request) {
           where: { active: true },
           select: { monthlyFee: true },
         },
-        _count: {
-          select: { referrals: { where: qualifyingReferralWhere } },
-        },
+        referrals: qualifyingReferralInclude,
       },
       orderBy: { name: "asc" },
     }),
@@ -60,7 +58,7 @@ export async function GET(request: Request) {
   const rows = clients.map((client) => {
     const activeStoreCount = client.stores.length;
     const locationsFeeTotal = sumLocationFees(client.stores);
-    const referralCount = client._count.referrals;
+    const referralCount = client.referrals.length;
     const referralDiscount = suggestedReferralDiscount(referralCount);
     const expectedAmount = expectedPaymentAmount(
       locationsFeeTotal,

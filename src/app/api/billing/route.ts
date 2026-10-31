@@ -3,7 +3,7 @@ import { requireClientOwner } from "@/lib/client-owner";
 import { db } from "@/lib/db";
 import {
   expectedPaymentAmount,
-  qualifyingReferralWhere,
+  qualifyingReferralInclude,
   suggestedReferralDiscount,
   sumLocationFees,
 } from "@/lib/location-fees";
@@ -13,9 +13,11 @@ import {
   comparePeriods,
   countStandingUnpaidMonths,
   monthsInclusive,
+  needsPaymentsRequiredSinceRepair,
   paymentStandingFromUnpaid,
   periodFromDate,
   periodKey,
+  startOfBillingMonth,
 } from "@/lib/payment-status";
 import { paymentReferenceFor } from "@/lib/payment-reference";
 import { apiT } from "@/i18n";
@@ -41,9 +43,7 @@ export async function GET(request: Request) {
         select: { year: true, month: true, amountPaid: true, paidAt: true },
         orderBy: [{ year: "desc" }, { month: "desc" }],
       },
-      _count: {
-        select: { referrals: { where: qualifyingReferralWhere } },
-      },
+      referrals: qualifyingReferralInclude,
     },
   });
 
@@ -56,7 +56,7 @@ export async function GET(request: Request) {
 
   const activeStores = client.stores.filter((s) => s.active);
   const locationsFeeTotal = sumLocationFees(activeStores);
-  const referralCount = client._count.referrals;
+  const referralCount = client.referrals.length;
   const referralDiscount = suggestedReferralDiscount(referralCount);
   const expectedAmount = expectedPaymentAmount(
     locationsFeeTotal,
@@ -84,11 +84,30 @@ export async function GET(request: Request) {
     });
   }
 
-  const current = periodFromDate(new Date());
+  const now = new Date();
+  const current = periodFromDate(now);
+  let paymentsRequiredSince = client.paymentsRequiredSince;
+  if (
+    needsPaymentsRequiredSinceRepair({
+      paymentsRequired: client.paymentsRequired,
+      paymentsRequiredSince: client.paymentsRequiredSince,
+      createdAt: client.createdAt,
+      updatedAt: client.updatedAt,
+      now,
+    })
+  ) {
+    paymentsRequiredSince = startOfBillingMonth(now);
+    await db.client.update({
+      where: { id: client.id },
+      data: { paymentsRequiredSince },
+    });
+  }
   const start = billingStartPeriod({
     paymentsRequired: client.paymentsRequired,
-    paymentsRequiredSince: client.paymentsRequiredSince,
+    paymentsRequiredSince,
     createdAt: client.createdAt,
+    updatedAt: client.updatedAt,
+    now,
   });
 
   const paidByKey = new Map(
