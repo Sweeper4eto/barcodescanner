@@ -93,6 +93,7 @@ export function MinimartLocatorPanel() {
   const [clients, setClients] = useState<ClientOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const [osmImporting, setOsmImporting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -438,6 +439,40 @@ export function MinimartLocatorPanel() {
     }
   }
 
+  async function importFromOsm() {
+    setOsmImporting(true);
+    setMessage("");
+    setError("");
+    try {
+      const response = await fetch("/api/admin/minimart-locator", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "syncOsm" }),
+      });
+      const data = (await response.json()) as {
+        upserted?: number;
+        count?: number;
+        error?: string;
+      };
+      if (!response.ok) {
+        setError(data.error ?? t("admin.minimartOsmImportFailed"));
+        return;
+      }
+      fittedRef.current = false;
+      setMessage(
+        t("admin.minimartOsmImportOk", {
+          upserted: data.upserted ?? 0,
+          count: data.count ?? 0,
+        }),
+      );
+      await load();
+    } catch {
+      setError(t("errors.networkError"));
+    } finally {
+      setOsmImporting(false);
+    }
+  }
+
   async function saveDraft() {
     if (!draft) return;
     if (!draft.city.trim()) {
@@ -655,9 +690,19 @@ export function MinimartLocatorPanel() {
                 type="button"
                 className={adminActionButtonClass}
                 onClick={() => void syncFromMinimart()}
-                disabled={syncing}
+                disabled={syncing || osmImporting}
               >
                 {syncing ? t("admin.minimartSyncing") : t("admin.minimartSync")}
+              </button>
+              <button
+                type="button"
+                className={adminActionButtonClass}
+                onClick={() => void importFromOsm()}
+                disabled={syncing || osmImporting}
+              >
+                {osmImporting
+                  ? t("admin.minimartOsmImporting")
+                  : t("admin.minimartOsmImport")}
               </button>
             </div>
           </div>

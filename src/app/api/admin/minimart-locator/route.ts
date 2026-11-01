@@ -10,6 +10,10 @@ import {
   minimartStatusSchema,
   type MinimartVisitStatus,
 } from "@/lib/minimart-locator";
+import {
+  OSM_ATTRIBUTION,
+  fetchOsmBulgariaRetailStores,
+} from "@/lib/osm-locator";
 import { normalizeSearchText, searchTextIncludes } from "@/lib/search-text";
 
 const clientInclude = {
@@ -195,17 +199,73 @@ const createSchema = z.object({
 });
 
 const syncSchema = z.object({
-  action: z.literal("sync").optional(),
+  action: z.enum(["sync", "syncOsm"]).optional(),
 });
 
-/** Create a manual pin, or sync public Minimart stores. */
+async function upsertLocatorRows(
+  rows: Array<{
+    externalId: string;
+    title: string;
+    street: string;
+    city: string;
+    postalCode: string | null;
+    country: string | null;
+    lat: number;
+    lng: number;
+    phone: string | null;
+    website: string | null;
+    openHoursJson: string | null;
+    slug: string | null;
+  }>,
+) {
+  const now = new Date();
+  let upserted = 0;
+  for (const row of rows) {
+    await db.minimartLocatorStore.upsert({
+      where: { externalId: row.externalId },
+      create: {
+        ...row,
+        status: "NOT_VISITED",
+        comment: "",
+        syncedAt: now,
+      },
+      update: {
+        title: row.title,
+        street: row.street,
+        city: row.city,
+        postalCode: row.postalCode,
+        country: row.country,
+        lat: row.lat,
+        lng: row.lng,
+        phone: row.phone,
+        website: row.website,
+        openHoursJson: row.openHoursJson,
+        slug: row.slug,
+        syncedAt: now,
+        // Keep status, comment, and clientId untouched on sync.
+      },
+    });
+    upserted += 1;
+  }
+  const count = await db.minimartLocatorStore.count();
+  const acceptedCount = await db.minimartLocatorStore.count({
+    where: { status: "ACCEPTED" },
+  });
+  return { upserted, count, acceptedCount };
+}
+
+/** Create a manual pin, sync Minimart, or import OSM Bulgaria retail POIs. */
 export async function POST(request: Request) {
   const session = await requireAdminResponse(request);
   if (session instanceof NextResponse) return session;
 
   const json = await request.json().catch(() => ({}));
+  const action =
+    json && typeof json === "object"
+      ? (json as { action?: string }).action
+      : undefined;
 
-  if (json && typeof json === "object" && (json as { action?: string }).action === "create") {
+  if (action === "create") {
     const parsed = createSchema.safeParse(json);
     if (!parsed.success) {
       return NextResponse.json(
@@ -247,49 +307,29 @@ export async function POST(request: Request) {
     );
   }
 
+  if (action === "syncOsm") {
+    try {
+      const remote = await fetchOsmBulgariaRetailStores();
+      const result = await upsertLocatorRows(remote);
+      return NextResponse.json({
+        source: OSM_ATTRIBUTION,
+        ...result,
+      });
+    } catch (error) {
+      console.error("osm locator import failed", error);
+      return NextResponse.json(
+        { error: apiT(request, "admin.minimartOsmImportFailed") },
+        { status: 502 },
+      );
+    }
+  }
+
   try {
     const remote = await fetchMinimartAslStores();
-    const now = new Date();
-    let upserted = 0;
-
-    for (const row of remote) {
-      await db.minimartLocatorStore.upsert({
-        where: { externalId: row.externalId },
-        create: {
-          ...row,
-          status: "NOT_VISITED",
-          comment: "",
-          syncedAt: now,
-        },
-        update: {
-          title: row.title,
-          street: row.street,
-          city: row.city,
-          postalCode: row.postalCode,
-          country: row.country,
-          lat: row.lat,
-          lng: row.lng,
-          phone: row.phone,
-          website: row.website,
-          openHoursJson: row.openHoursJson,
-          slug: row.slug,
-          syncedAt: now,
-          // Keep status, comment, and clientId untouched on sync.
-        },
-      });
-      upserted += 1;
-    }
-
-    const count = await db.minimartLocatorStore.count();
-    const acceptedCount = await db.minimartLocatorStore.count({
-      where: { status: "ACCEPTED" },
-    });
-
+    const result = await upsertLocatorRows(remote);
     return NextResponse.json({
       source: ASL_SOURCE,
-      upserted,
-      count,
-      acceptedCount,
+      ...result,
     });
   } catch (error) {
     console.error("minimart locator sync failed", error);

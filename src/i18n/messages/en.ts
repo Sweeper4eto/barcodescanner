@@ -1238,15 +1238,22 @@ export const en = {
     minimartLocatorTab: "Minimart locator",
     minimartLocator: "Minimart locator stores",
     minimartLocatorHint:
-      "Map of Minimart (and your own) pins. Sync from mini-mart.bg, or Place pin. Link a pin to a Business account (one account can cover several pins). Default is Not visited (normal pin). Accepted = green, Thinking = yellow, Rejected = red.",
+      "Map of Minimart, OpenStreetMap retail/kiosk pins, and your own pins. Sync Minimart, Import from OSM (Bulgaria), or Place pin. Link a pin to a Business account (one account can cover several pins). Default is Not visited. Accepted = green, Thinking = yellow, Rejected = red. Map data © OpenStreetMap.",
     minimartSync: "Sync from Minimart",
     minimartSyncing: "Syncing…",
     minimartSyncOk: "Synced {upserted} stores ({count} total).",
     minimartSyncFailed: "Could not sync Minimart stores.",
+    minimartOsmImport: "Import from OSM (Bulgaria)",
+    minimartOsmImporting: "Importing from OSM…",
+    minimartOsmImportOk:
+      "Imported {upserted} OSM places ({count} total on map). © OpenStreetMap.",
+    minimartOsmImportFailed:
+      "Could not import from OpenStreetMap. Try again in a minute.",
     minimartSearchPlaceholder: "City, street, comment, account…",
     minimartFilterAll: "All",
     minimartCounts: "{total} shown · {accepted} already active",
-    minimartEmpty: "No stores yet. Sync from Minimart or Place pin on the map.",
+    minimartEmpty:
+      "No stores yet. Sync Minimart, Import from OSM, or Place pin on the map.",
     minimartTools: "Search & filters",
     minimartToolsShow: "Show search & filters",
     minimartToolsHide: "Hide search & filters",

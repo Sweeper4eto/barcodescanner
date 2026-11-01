@@ -1246,15 +1246,22 @@ export const bg = {
     minimartLocatorTab: "Minimart локатор",
     minimartLocator: "Minimart обекти (локатор)",
     minimartLocatorHint:
-      "Карта с Minimart и ваши пинове. Sync от mini-mart.bg или „Постави пин“. Свържете пин с бизнес акаунт (един акаунт може да покрива няколко пина). По подразбиране: Не посетен (нормален пин). Вече активен = зелено, Мисля = жълто, Отхвърлен = червено.",
+      "Карта с Minimart, OpenStreetMap магазини/киоски и ваши пинове. Sync Minimart, „Импорт от OSM (България)“ или „Постави пин“. Свържете пин с бизнес акаунт (един акаунт може да покрива няколко пина). По подразбиране: Не посетен. Вече активен = зелено, Мисля = жълто, Отхвърлен = червено. Данни от картата © OpenStreetMap.",
     minimartSync: "Синхронизирай от Minimart",
     minimartSyncing: "Синхронизация…",
     minimartSyncOk: "Синхронизирани {upserted} обекта ({count} общо).",
     minimartSyncFailed: "Неуспешна синхронизация на Minimart обекти.",
+    minimartOsmImport: "Импорт от OSM (България)",
+    minimartOsmImporting: "Импорт от OSM…",
+    minimartOsmImportOk:
+      "Импортирани {upserted} обекта от OSM ({count} общо на картата). © OpenStreetMap.",
+    minimartOsmImportFailed:
+      "Импортът от OpenStreetMap не успя. Опитайте след минута.",
     minimartSearchPlaceholder: "Град, улица, коментар, акаунт…",
     minimartFilterAll: "Всички",
     minimartCounts: "{total} показани · {accepted} вече активни",
-    minimartEmpty: "Няма обекти. Sync от Minimart или поставете пин на картата.",
+    minimartEmpty:
+      "Няма обекти. Sync Minimart, импорт от OSM или поставете пин на картата.",
     minimartTools: "Търсене и филтри",
     minimartToolsShow: "Покажи търсене и филтри",
     minimartToolsHide: "Скрий търсене и филтри",
