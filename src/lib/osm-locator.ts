@@ -1,4 +1,5 @@
 import { createReadStream, createWriteStream, promises as fs } from "node:fs";
+import { createRequire } from "node:module";
 import path from "node:path";
 import { pipeline } from "node:stream/promises";
 import { Transform } from "node:stream";
@@ -309,8 +310,13 @@ export async function ensureBulgariaOsmPbf(
 
 type ParseOsmFactory = () => NodeJS.ReadWriteStream;
 
-async function loadOsmPbfParser(): Promise<ParseOsmFactory> {
-  const mod = (await import("osm-pbf-parser")) as {
+/**
+ * Load via createRequire from the app root so .proto files resolve under
+ * node_modules (Next/webpack must not rewrite those paths into .next/chunks).
+ */
+function loadOsmPbfParser(): ParseOsmFactory {
+  const require = createRequire(path.join(process.cwd(), "package.json"));
+  const mod = require("osm-pbf-parser") as {
     default?: ParseOsmFactory;
   } & ParseOsmFactory;
   return typeof mod === "function" ? mod : mod.default!;
@@ -321,7 +327,7 @@ export async function parseOsmPbfRetailStores(
   pbfPath: string,
   options?: { parseFactory?: ParseOsmFactory },
 ): Promise<MinimartStoreUpsert[]> {
-  const parseFactory = options?.parseFactory ?? (await loadOsmPbfParser());
+  const parseFactory = options?.parseFactory ?? loadOsmPbfParser();
   const byId = new Map<string, MinimartStoreUpsert>();
 
   const collect = new Transform({

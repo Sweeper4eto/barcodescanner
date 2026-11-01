@@ -9,8 +9,8 @@ const fromEnv =
 // and you get a white screen after login.
 const nextConfig: NextConfig = {
   reactCompiler: true,
-  // sharp is used for server-side document deskew before OCR.
-  serverExternalPackages: ["sharp"],
+  // sharp: document deskew. osm-pbf-parser/protobufjs: load .proto files from disk at runtime.
+  serverExternalPackages: ["sharp", "osm-pbf-parser", "protobufjs"],
   // Production VPS builds (4GB) OOM during Next's typecheck; validate runs tsc locally.
   typescript: {
     ignoreBuildErrors:
