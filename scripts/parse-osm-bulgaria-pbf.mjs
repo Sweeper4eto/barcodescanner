@@ -39,10 +39,25 @@ function isRetail(tags) {
   return Boolean(tags.shop && SHOPS.has(tags.shop));
 }
 
+function cleanText(value) {
+  return String(value ?? "")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#0*39;/g, "'")
+    .replace(/&amp;/gi, "&")
+    .replace(/"([^"]+)"/g, "$1")
+    .replace(/'([^']+)'/g, "$1")
+    .replace(/[ \t]+/g, " ")
+    .replace(/\s+,/g, ",")
+    .replace(/,\s*/g, ", ")
+    .replace(/\.([A-ZА-ЯЁІЇЄ])/g, ". $1")
+    .trim();
+}
+
 function firstTag(tags, keys) {
   for (const key of keys) {
     const value = tags?.[key]?.trim?.() ?? "";
-    if (value) return value;
+    if (value) return cleanText(value);
   }
   return "";
 }

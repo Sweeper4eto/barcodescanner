@@ -1,7 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { Map as LeafletMap, Marker as LeafletMarker } from "leaflet";
+import type {
+  CircleMarker as LeafletCircleMarker,
+  Map as LeafletMap,
+  Marker as LeafletMarker,
+} from "leaflet";
 import { useT } from "@/components/i18n-provider";
 import {
   AdminField,
@@ -105,11 +109,16 @@ export function MinimartLocatorPanel() {
   const [placeMode, setPlaceMode] = useState(false);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [isNewPin, setIsNewPin] = useState(false);
+  const [mapReady, setMapReady] = useState(false);
 
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<LeafletMap | null>(null);
-  const markersRef = useRef<Map<string, LeafletMarker>>(new Map());
+  /** Canvas dots for the full set — DOM markers at 4k+ are too slow. */
+  const markersRef = useRef<Map<string, LeafletCircleMarker>>(new Map());
+  const selectedMarkerRef = useRef<LeafletMarker | null>(null);
   const leafletRef = useRef<typeof import("leaflet") | null>(null);
+  const canvasRendererRef = useRef<import("leaflet").Canvas | null>(null);
+  const storesByIdRef = useRef<Map<string, MinimartStoreRow>>(new Map());
   const fittedRef = useRef(false);
   const placeModeRef = useRef(placeMode);
   const detailsRef = useRef<HTMLDivElement>(null);
@@ -169,6 +178,10 @@ export function MinimartLocatorPanel() {
   useEffect(() => {
     placeModeRef.current = placeMode;
   }, [placeMode]);
+
+  useEffect(() => {
+    storesByIdRef.current = new Map(stores.map((store) => [store.id, store]));
+  }, [stores]);
 
   useEffect(() => {
     let cancelled = false;
@@ -269,7 +282,9 @@ export function MinimartLocatorPanel() {
       const map = L.map(mapRef.current, {
         center: [42.7, 25.4],
         zoom: 7,
+        preferCanvas: true,
       });
+      canvasRendererRef.current = L.canvas({ padding: 0.5 });
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         attribution: "&copy; OpenStreetMap",
         maxZoom: 19,
@@ -298,18 +313,29 @@ export function MinimartLocatorPanel() {
       });
 
       mapInstance.current = map;
+      setMapReady(true);
     }
 
     void ensureMap();
     return () => {
       cancelled = true;
+      setMapReady(false);
+      selectedMarkerRef.current?.remove();
+      selectedMarkerRef.current = null;
+      for (const marker of markersRef.current.values()) marker.remove();
+      markersRef.current.clear();
+      mapInstance.current?.remove();
+      mapInstance.current = null;
+      canvasRendererRef.current = null;
+      leafletRef.current = null;
     };
   }, [t]);
 
   useEffect(() => {
     const map = mapInstance.current;
     const L = leafletRef.current;
-    if (!map || !L) return;
+    const renderer = canvasRendererRef.current;
+    if (!map || !L || !renderer) return;
 
     const nextIds = new Set(stores.map((s) => s.id));
     for (const [id, marker] of markersRef.current) {
@@ -319,22 +345,21 @@ export function MinimartLocatorPanel() {
       }
     }
 
-    for (const store of stores) {
-      const icon =
-        store.status === "NOT_VISITED"
-          ? new L.Icon.Default()
-          : L.divIcon({
-              className: "minimart-status-marker",
-              html: statusMarkerHtml(store.status),
-              iconSize: [16, 16],
-              iconAnchor: [8, 8],
-            });
+    const selectedOrDraftId = isNewPin ? null : selectedId;
 
+    for (const store of stores) {
+      const color = MINIMART_STATUS_COLORS[store.status];
+      const isSelected = selectedOrDraftId === store.id;
       let marker = markersRef.current.get(store.id);
       if (!marker) {
-        marker = L.marker([store.lat, store.lng], {
-          draggable: true,
-          icon,
+        marker = L.circleMarker([store.lat, store.lng], {
+          renderer,
+          radius: 6,
+          weight: 1,
+          color: "#ffffff",
+          opacity: 1,
+          fillColor: color,
+          fillOpacity: 0.92,
         });
         marker.addTo(map);
         marker.on("click", () => {
@@ -347,34 +372,18 @@ export function MinimartLocatorPanel() {
             });
           });
         });
-        marker.on("dragend", () => {
-          const pos = marker!.getLatLng();
-          setIsNewPin(false);
-          setSelectedId(store.id);
-          setDraft((current) => ({
-            title: current?.title ?? store.title,
-            street: current?.street ?? store.street,
-            city: current?.city ?? store.city,
-            status: current?.status ?? store.status,
-            comment: current?.comment ?? store.comment,
-            clientId:
-              current?.clientId !== undefined
-                ? current.clientId
-                : store.clientId,
-            lat: pos.lat,
-            lng: pos.lng,
-          }));
-        });
         markersRef.current.set(store.id, marker);
       } else {
         marker.setLatLng([store.lat, store.lng]);
-        marker.setIcon(icon);
       }
-      const label = store.city || store.title;
-      marker.bindTooltip(
-        `${statusLabel(store.status)} · ${label} · ${store.street || "—"}`,
-        { direction: "top" },
-      );
+      // Hide the canvas dot under the selected/draggable pin.
+      marker.setStyle({
+        fillColor: color,
+        radius: isSelected ? 8 : 6,
+        weight: isSelected ? 2 : 1,
+        opacity: isSelected ? 0 : 1,
+        fillOpacity: isSelected ? 0 : 0.92,
+      });
     }
 
     if (!fittedRef.current && stores.length > 0) {
@@ -385,7 +394,56 @@ export function MinimartLocatorPanel() {
       fittedRef.current = true;
     }
     requestAnimationFrame(() => map.invalidateSize());
-  }, [stores, statusLabel]);
+  }, [stores, selectedId, isNewPin, mapReady]);
+
+  // One DOM marker for the selected/new pin (draggable). Keeps 4k pins on canvas.
+  useEffect(() => {
+    const map = mapInstance.current;
+    const L = leafletRef.current;
+    if (!map || !L) return;
+
+    if (!draft) {
+      selectedMarkerRef.current?.remove();
+      selectedMarkerRef.current = null;
+      return;
+    }
+
+    const icon = L.divIcon({
+      className: "minimart-status-marker",
+      html: statusMarkerHtml(draft.status),
+      iconSize: [18, 18],
+      iconAnchor: [9, 9],
+    });
+
+    let marker = selectedMarkerRef.current;
+    if (!marker) {
+      marker = L.marker([draft.lat, draft.lng], {
+        draggable: true,
+        icon,
+        zIndexOffset: 1000,
+      });
+      marker.addTo(map);
+      marker.on("dragend", () => {
+        const pos = marker!.getLatLng();
+        setDraft((current) =>
+          current
+            ? { ...current, lat: pos.lat, lng: pos.lng }
+            : current,
+        );
+      });
+      selectedMarkerRef.current = marker;
+    } else {
+      marker.setLatLng([draft.lat, draft.lng]);
+      marker.setIcon(icon);
+    }
+
+    const store = selectedId ? storesByIdRef.current.get(selectedId) : null;
+    const label = draft.city || draft.title || store?.title || "Pin";
+    marker.bindTooltip(
+      `${statusLabel(draft.status)} · ${label} · ${draft.street || "—"}`,
+      { direction: "top" },
+    );
+  }, [draft, selectedId, statusLabel, mapReady]);
 
   useEffect(() => {
     const map = mapInstance.current;

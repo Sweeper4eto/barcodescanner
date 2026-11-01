@@ -6,6 +6,7 @@ import {
   mapAslStoreToUpsert,
   MINIMART_STATUS_COLORS,
   MINIMART_STATUSES,
+  normalizeLocatorText,
 } from "../src/lib/minimart-locator";
 
 test("mapAslStoreToUpsert maps ASL payload fields", () => {
@@ -38,6 +39,45 @@ test("mapAslStoreToUpsert rejects invalid coordinates", () => {
     lng: "y",
   });
   assert.equal(mapAslStoreToUpsert(parsed), null);
+});
+
+test("normalizeLocatorText strips ASL HTML entities and wrapping quotes", () => {
+  assert.equal(
+    normalizeLocatorText(
+      'р-н &quot;Триадица&quot;, кв. &quot;Манастирски ливади&quot;, ул. &quot;Васил Стефанов&quot; №55',
+    ),
+    "р-н Триадица, кв. Манастирски ливади, ул. Васил Стефанов №55",
+  );
+  assert.equal(
+    normalizeLocatorText("ул. &#039;Марко Балабанов&#039; № 1"),
+    "ул. Марко Балабанов № 1",
+  );
+  assert.equal(
+    normalizeLocatorText("ж.к.&quot;Меден Рудник&quot;, ул. 1"),
+    "ж.к. Меден Рудник, ул. 1",
+  );
+  assert.equal(
+    normalizeLocatorText("район &quot;Надежда&quot; , ул. Тест  5"),
+    "район Надежда, ул. Тест 5",
+  );
+});
+
+test("mapAslStoreToUpsert cleans encoded street text", () => {
+  const parsed = aslStoreSchema.parse({
+    id: 452,
+    title: "Minimart",
+    street:
+      'р-н &quot;Триадица&quot;, ул. &quot;Васил Стефанов&quot; №55',
+    city: "София",
+    lat: 42.7,
+    lng: 23.3,
+  });
+  const row = mapAslStoreToUpsert(parsed);
+  assert.ok(row);
+  assert.equal(
+    row.street,
+    "р-н Триадица, ул. Васил Стефанов №55",
+  );
 });
 
 test("minimart status colors cover all statuses", () => {

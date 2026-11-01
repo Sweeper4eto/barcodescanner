@@ -8,6 +8,7 @@ import {
   fetchMinimartAslStores,
   isMinimartVisitStatus,
   minimartStatusSchema,
+  normalizeLocatorText,
   type MinimartVisitStatus,
 } from "@/lib/minimart-locator";
 import {
@@ -44,10 +45,12 @@ function serialize(store: {
   return {
     id: store.id,
     externalId: store.externalId,
-    title: store.title,
-    street: store.street,
-    city: store.city,
-    postalCode: store.postalCode,
+    title: normalizeLocatorText(store.title),
+    street: normalizeLocatorText(store.street),
+    city: normalizeLocatorText(store.city),
+    postalCode: store.postalCode
+      ? normalizeLocatorText(store.postalCode) || null
+      : null,
     lat: store.lat,
     lng: store.lng,
     status,
@@ -227,32 +230,44 @@ async function upsertLocatorRows(
   for (let i = 0; i < rows.length; i += batchSize) {
     const batch = rows.slice(i, i + batchSize);
     await db.$transaction(
-      batch.map((row) =>
-        db.minimartLocatorStore.upsert({
-          where: { externalId: row.externalId },
+      batch.map((row) => {
+        const cleaned = {
+          ...row,
+          title: normalizeLocatorText(row.title) || row.title,
+          street: normalizeLocatorText(row.street),
+          city: normalizeLocatorText(row.city),
+          postalCode: row.postalCode
+            ? normalizeLocatorText(row.postalCode) || null
+            : null,
+          country: row.country
+            ? normalizeLocatorText(row.country) || null
+            : null,
+        };
+        return db.minimartLocatorStore.upsert({
+          where: { externalId: cleaned.externalId },
           create: {
-            ...row,
+            ...cleaned,
             status: "NOT_VISITED",
             comment: "",
             syncedAt: now,
           },
           update: {
-            title: row.title,
-            street: row.street,
-            city: row.city,
-            postalCode: row.postalCode,
-            country: row.country,
-            lat: row.lat,
-            lng: row.lng,
-            phone: row.phone,
-            website: row.website,
-            openHoursJson: row.openHoursJson,
-            slug: row.slug,
+            title: cleaned.title,
+            street: cleaned.street,
+            city: cleaned.city,
+            postalCode: cleaned.postalCode,
+            country: cleaned.country,
+            lat: cleaned.lat,
+            lng: cleaned.lng,
+            phone: cleaned.phone,
+            website: cleaned.website,
+            openHoursJson: cleaned.openHoursJson,
+            slug: cleaned.slug,
             syncedAt: now,
             // Keep status, comment, and clientId untouched on sync.
           },
-        }),
-      ),
+        });
+      }),
     );
     upserted += batch.length;
   }

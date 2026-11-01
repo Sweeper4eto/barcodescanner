@@ -59,6 +59,47 @@ export type MinimartStoreUpsert = {
   slug: string | null;
 };
 
+/** Decode common HTML entities from ASL / CMS address dumps. */
+export function decodeBasicHtmlEntities(value: string): string {
+  return value
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&quot;/gi, '"')
+    .replace(/&apos;/gi, "'")
+    .replace(/&#0*39;/g, "'")
+    .replace(/&#x0*27;/gi, "'")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&#(\d+);/g, (_, digits: string) => {
+      const code = Number(digits);
+      return Number.isFinite(code) ? String.fromCharCode(code) : "";
+    })
+    .replace(/&#x([0-9a-f]+);/gi, (_, hex: string) => {
+      const code = Number.parseInt(hex, 16);
+      return Number.isFinite(code) ? String.fromCharCode(code) : "";
+    });
+}
+
+/**
+ * Clean locator address/title text: HTML entities, wrapping ASCII quotes,
+ * and messy whitespace from Minimart ASL dumps.
+ */
+export function normalizeLocatorText(value: string): string {
+  let text = decodeBasicHtmlEntities(String(value ?? ""));
+  text = text.replace(/\u00a0/g, " ");
+  // Drop ASCII quotes that wrapped street/district names after entity decode.
+  text = text.replace(/"([^"]+)"/g, "$1");
+  text = text.replace(/'([^']+)'/g, "$1");
+  text = text.replace(/[ \t\f\v]+/g, " ");
+  text = text.replace(/\s+,/g, ",");
+  text = text.replace(/,\s*/g, ", ");
+  text = text.replace(/\s+\./g, ".");
+  // "ж.к.Младост" → "ж.к. Младост" (only before a capital letter; keep ж.к.)
+  text = text.replace(/\.([A-ZА-ЯЁІЇЄ])/g, ". $1");
+  text = text.replace(/,\s*,+/g, ",");
+  return text.trim();
+}
+
 export function mapAslStoreToUpsert(raw: AslStore): MinimartStoreUpsert | null {
   const lat = Number(raw.lat);
   const lng = Number(raw.lng);
@@ -67,15 +108,15 @@ export function mapAslStoreToUpsert(raw: AslStore): MinimartStoreUpsert | null {
 
   return {
     externalId: raw.id,
-    title: (raw.title || "Minimart").trim() || "Minimart",
-    street: (raw.street || "").trim(),
-    city: (raw.city || "").trim(),
-    postalCode: raw.postal_code?.trim() || null,
-    country: raw.country?.trim() || null,
+    title: normalizeLocatorText(raw.title || "Minimart") || "Minimart",
+    street: normalizeLocatorText(raw.street || ""),
+    city: normalizeLocatorText(raw.city || ""),
+    postalCode: normalizeLocatorText(raw.postal_code || "") || null,
+    country: normalizeLocatorText(raw.country || "") || null,
     lat,
     lng,
-    phone: raw.phone?.trim() || null,
-    website: raw.website?.trim() || null,
+    phone: (raw.phone || "").trim() || null,
+    website: (raw.website || "").trim() || null,
     openHoursJson: raw.open_hours?.trim() || null,
     slug: raw.slug?.trim() || null,
   };

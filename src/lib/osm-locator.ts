@@ -5,7 +5,10 @@ import { pipeline } from "node:stream/promises";
 import { Transform } from "node:stream";
 import { Readable } from "node:stream";
 import { promisify } from "node:util";
-import type { MinimartStoreUpsert } from "@/lib/minimart-locator";
+import {
+  normalizeLocatorText,
+  type MinimartStoreUpsert,
+} from "@/lib/minimart-locator";
 
 const execFileAsync = promisify(execFile);
 
@@ -157,10 +160,10 @@ export function mapOsmElementToUpsert(
 
   return {
     externalId: osmExternalId(element.type, element.id),
-    title,
-    street,
-    city,
-    postalCode,
+    title: normalizeLocatorText(title) || title,
+    street: normalizeLocatorText(street),
+    city: normalizeLocatorText(city),
+    postalCode: postalCode ? normalizeLocatorText(postalCode) || null : null,
     country: "Bulgaria",
     lat: coords.lat,
     lng: coords.lng,
