@@ -16,6 +16,9 @@ import {
 } from "@/lib/osm-locator";
 import { normalizeSearchText, searchTextIncludes } from "@/lib/search-text";
 
+/** Geofabrik PBF download (~180MB) + parse can take several minutes on first import. */
+export const maxDuration = 300;
+
 const clientInclude = {
   client: { select: { id: true, name: true, homeUser: true } },
 } as const;
@@ -254,7 +257,7 @@ async function upsertLocatorRows(
   return { upserted, count, acceptedCount };
 }
 
-/** Create a manual pin, sync Minimart, or import OSM Bulgaria retail POIs. */
+/** Create a manual pin, sync Minimart, or import OSM Bulgaria retail POIs (Geofabrik PBF). */
 export async function POST(request: Request) {
   const session = await requireAdminResponse(request);
   if (session instanceof NextResponse) return session;

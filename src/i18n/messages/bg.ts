@@ -1252,11 +1252,11 @@ export const bg = {
     minimartSyncOk: "Синхронизирани {upserted} обекта ({count} общо).",
     minimartSyncFailed: "Неуспешна синхронизация на Minimart обекти.",
     minimartOsmImport: "Импорт от OSM (България)",
-    minimartOsmImporting: "Импорт от OSM…",
+    minimartOsmImporting: "Импорт от OSM (първият път може да отнеме няколко минути)…",
     minimartOsmImportOk:
-      "Импортирани {upserted} обекта от OSM ({count} общо на картата). © OpenStreetMap.",
+      "Импортирани {upserted} обекта от OSM ({count} общо на картата). © OpenStreetMap / Geofabrik.",
     minimartOsmImportFailed:
-      "Импортът от OpenStreetMap не успя. Опитайте след минута.",
+      "Импортът от OpenStreetMap не успя. Проверете диск/мрежа на сървъра и опитайте пак.",
     minimartSearchPlaceholder: "Град, улица, коментар, акаунт…",
     minimartFilterAll: "Всички",
     minimartCounts: "{total} показани · {accepted} вече активни",

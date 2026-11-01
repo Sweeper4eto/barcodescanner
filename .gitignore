@@ -21,6 +21,8 @@ dev.db-*
 prod-import*.db
 prod-import*.db-*
 /data/
+.cache/
+**/osm-cache/
 
 # next.js
 /.next/

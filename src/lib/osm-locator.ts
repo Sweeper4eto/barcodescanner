@@ -1,10 +1,18 @@
+import { createReadStream, createWriteStream, promises as fs } from "node:fs";
+import path from "node:path";
+import { pipeline } from "node:stream/promises";
+import { Transform } from "node:stream";
+import { Readable } from "node:stream";
 import type { MinimartStoreUpsert } from "@/lib/minimart-locator";
 
-/** Public Overpass endpoint (OSM). */
-export const OSM_OVERPASS_URL = "https://overpass-api.de/api/interpreter";
+/** Geofabrik country extract — reliable offline-style import (Overpass public mirrors are often at capacity). */
+export const OSM_GEOFABRIK_BULGARIA_PBF_URL =
+  "https://download.geofabrik.de/europe/bulgaria-latest.osm.pbf";
 export const OSM_ATTRIBUTION = "https://www.openstreetmap.org/copyright";
+export const OSM_PBF_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+export const OSM_PBF_FILENAME = "bulgaria-latest.osm.pbf";
 
-/** Bulgaria mainland + nearby bounds for tiled Overpass queries. */
+/** Bulgaria mainland + nearby bounds (drop stray border nodes if any). */
 export const BULGARIA_BBOX = {
   south: 41.2,
   west: 22.35,
@@ -22,6 +30,14 @@ export const OSM_RETAIL_TAG_FILTERS = [
   '["shop"="general"]',
 ] as const;
 
+export const OSM_RETAIL_SHOP_VALUES = new Set([
+  "kiosk",
+  "convenience",
+  "greengrocer",
+  "newsagent",
+  "general",
+]);
+
 type OsmTags = Record<string, string | undefined>;
 
 export type OsmOverpassElement = {
@@ -37,6 +53,14 @@ export type OsmOverpassResponse = {
   elements?: OsmOverpassElement[];
 };
 
+export type OsmPbfNode = {
+  type: "node";
+  id: number;
+  lat: number;
+  lon: number;
+  tags?: OsmTags;
+};
+
 export function osmExternalId(
   type: OsmOverpassElement["type"],
   id: number,
@@ -46,6 +70,15 @@ export function osmExternalId(
 
 export function isOsmExternalId(externalId: string): boolean {
   return externalId.startsWith("osm:");
+}
+
+export function isOsmRetailTags(tags: OsmTags | undefined): boolean {
+  if (!tags) return false;
+  // Gas-station shops are tagged shop=convenience but are not kiosk targets.
+  if (tags.amenity?.trim() === "fuel") return false;
+  if (tags.amenity?.trim() === "kiosk") return true;
+  const shop = tags.shop?.trim();
+  return Boolean(shop && OSM_RETAIL_SHOP_VALUES.has(shop));
 }
 
 function firstTag(tags: OsmTags | undefined, keys: string[]): string {
@@ -78,7 +111,16 @@ function elementCoords(
   return { lat: lat as number, lng: lng as number };
 }
 
-/** Map one Overpass element into a locator upsert row (or null if unusable). */
+function inBulgariaBbox(lat: number, lng: number): boolean {
+  return (
+    lat >= BULGARIA_BBOX.south &&
+    lat <= BULGARIA_BBOX.north &&
+    lng >= BULGARIA_BBOX.west &&
+    lng <= BULGARIA_BBOX.east
+  );
+}
+
+/** Map one OSM element into a locator upsert row (or null if unusable). */
 export function mapOsmElementToUpsert(
   element: OsmOverpassElement,
 ): MinimartStoreUpsert | null {
@@ -87,6 +129,7 @@ export function mapOsmElementToUpsert(
   }
   const coords = elementCoords(element);
   if (!coords) return null;
+  if (!inBulgariaBbox(coords.lat, coords.lng)) return null;
 
   const tags = element.tags ?? {};
   const title =
@@ -129,6 +172,7 @@ export function mapOsmResponseToUpserts(
 ): MinimartStoreUpsert[] {
   const byId = new Map<string, MinimartStoreUpsert>();
   for (const element of payload.elements ?? []) {
+    if (!isOsmRetailTags(element.tags)) continue;
     const row = mapOsmElementToUpsert(element);
     if (!row) continue;
     byId.set(row.externalId, row);
@@ -136,7 +180,7 @@ export function mapOsmResponseToUpserts(
   return [...byId.values()];
 }
 
-/** Inclusive bbox tiles covering Bulgaria (smaller queries avoid Overpass timeouts). */
+/** Inclusive bbox tiles (kept for tests / optional Overpass tooling). */
 export function bulgariaBboxTiles(grid = 3): Array<{
   south: number;
   west: number;
@@ -173,62 +217,161 @@ export function buildOsmRetailOverpassQuery(bbox: {
 }): string {
   const { south, west, north, east } = bbox;
   const parts = OSM_RETAIL_TAG_FILTERS.map(
-    (filter) => `  nwr${filter}(${south},${west},${north},${east});`,
+    (filter) => `  node${filter}(${south},${west},${north},${east});`,
   ).join("\n");
-  return `[out:json][timeout:90];
+  return `[out:json][timeout:60];
 (
 ${parts}
 );
-out center tags;`;
+out body;`;
 }
 
-async function fetchOverpassTile(
-  bbox: { south: number; west: number; north: number; east: number },
-  fetchImpl: typeof fetch,
-  endpoint: string,
-): Promise<MinimartStoreUpsert[]> {
-  const query = buildOsmRetailOverpassQuery(bbox);
-  const response = await fetchImpl(endpoint, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
-      Accept: "application/json",
-      "User-Agent": "Expire365AdminOsmLocator/1.0",
-    },
-    body: new URLSearchParams({ data: query }),
-    cache: "no-store",
-  });
-  if (!response.ok) {
-    throw new Error(`OSM Overpass HTTP ${response.status}`);
+export function resolveOsmCacheDir(): string {
+  const configured = process.env.OSM_CACHE_DIR?.trim();
+  if (configured) return configured;
+  const dbUrl = process.env.DATABASE_URL?.trim() ?? "";
+  if (dbUrl.startsWith("file:")) {
+    const filePath = dbUrl.slice("file:".length);
+    return path.join(path.dirname(filePath), "osm-cache");
   }
-  const json = (await response.json()) as OsmOverpassResponse;
-  return mapOsmResponseToUpserts(json);
+  return path.join(process.cwd(), ".cache", "osm");
+}
+
+export function osmPbfCachePath(cacheDir = resolveOsmCacheDir()): string {
+  return path.join(cacheDir, OSM_PBF_FILENAME);
+}
+
+async function isFreshFile(
+  filePath: string,
+  maxAgeMs: number,
+): Promise<boolean> {
+  try {
+    const stat = await fs.stat(filePath);
+    if (!stat.isFile() || stat.size < 1_000_000) return false;
+    return Date.now() - stat.mtimeMs < maxAgeMs;
+  } catch {
+    return false;
+  }
 }
 
 /**
- * Fetch small retail / kiosk POIs for Bulgaria from OpenStreetMap (Overpass),
- * tiled so public servers are less likely to time out.
+ * Ensure a Bulgaria PBF sits on disk (download from Geofabrik when missing/stale).
  */
-export async function fetchOsmBulgariaRetailStores(
-  fetchImpl: typeof fetch = fetch,
-  options?: { grid?: number; endpoint?: string; concurrency?: number },
-): Promise<MinimartStoreUpsert[]> {
-  const endpoint = options?.endpoint ?? OSM_OVERPASS_URL;
-  const tiles = bulgariaBboxTiles(options?.grid ?? 2);
-  const concurrency = Math.max(1, options?.concurrency ?? 2);
-  const byId = new Map<string, MinimartStoreUpsert>();
-
-  for (let i = 0; i < tiles.length; i += concurrency) {
-    const batch = tiles.slice(i, i + concurrency);
-    const results = await Promise.all(
-      batch.map((tile) => fetchOverpassTile(tile, fetchImpl, endpoint)),
-    );
-    for (const rows of results) {
-      for (const row of rows) {
-        byId.set(row.externalId, row);
-      }
-    }
+export async function ensureBulgariaOsmPbf(
+  options?: {
+    cacheDir?: string;
+    url?: string;
+    maxAgeMs?: number;
+    force?: boolean;
+    fetchImpl?: typeof fetch;
+  },
+): Promise<string> {
+  const cacheDir = options?.cacheDir ?? resolveOsmCacheDir();
+  const target = osmPbfCachePath(cacheDir);
+  const maxAgeMs = options?.maxAgeMs ?? OSM_PBF_MAX_AGE_MS;
+  if (!options?.force && (await isFreshFile(target, maxAgeMs))) {
+    return target;
   }
 
+  await fs.mkdir(cacheDir, { recursive: true });
+  const tempPath = `${target}.download`;
+  const fetchImpl = options?.fetchImpl ?? fetch;
+  const url = options?.url ?? OSM_GEOFABRIK_BULGARIA_PBF_URL;
+
+  const response = await fetchImpl(url, {
+    redirect: "follow",
+    headers: {
+      "User-Agent": "Expire365AdminOsmLocator/1.0 (+https://expire365.com)",
+      Accept: "application/octet-stream",
+    },
+    cache: "no-store",
+  });
+  if (!response.ok || !response.body) {
+    throw new Error(`OSM Geofabrik HTTP ${response.status}`);
+  }
+
+  const nodeStream = Readable.fromWeb(
+    response.body as import("node:stream/web").ReadableStream,
+  );
+  try {
+    await pipeline(nodeStream, createWriteStream(tempPath));
+    const stat = await fs.stat(tempPath);
+    if (stat.size < 1_000_000) {
+      throw new Error("OSM Geofabrik download too small");
+    }
+    await fs.rename(tempPath, target);
+  } catch (error) {
+    await fs.unlink(tempPath).catch(() => undefined);
+    throw error;
+  }
+  return target;
+}
+
+type ParseOsmFactory = () => NodeJS.ReadWriteStream;
+
+async function loadOsmPbfParser(): Promise<ParseOsmFactory> {
+  const mod = (await import("osm-pbf-parser")) as {
+    default?: ParseOsmFactory;
+  } & ParseOsmFactory;
+  return typeof mod === "function" ? mod : mod.default!;
+}
+
+/** Stream-parse a local PBF and collect matching retail/kiosk nodes. */
+export async function parseOsmPbfRetailStores(
+  pbfPath: string,
+  options?: { parseFactory?: ParseOsmFactory },
+): Promise<MinimartStoreUpsert[]> {
+  const parseFactory = options?.parseFactory ?? (await loadOsmPbfParser());
+  const byId = new Map<string, MinimartStoreUpsert>();
+
+  const collect = new Transform({
+    objectMode: true,
+    transform(items: unknown, _enc, callback) {
+      try {
+        const list = Array.isArray(items) ? items : [items];
+        for (const raw of list) {
+          const item = raw as OsmPbfNode;
+          if (!item || item.type !== "node") continue;
+          if (!isOsmRetailTags(item.tags)) continue;
+          const row = mapOsmElementToUpsert(item);
+          if (!row) continue;
+          byId.set(row.externalId, row);
+        }
+        callback();
+      } catch (error) {
+        callback(error as Error);
+      }
+    },
+  });
+
+  await pipeline(createReadStream(pbfPath), parseFactory(), collect);
   return [...byId.values()];
+}
+
+/**
+ * Import Bulgaria retail/kiosk POIs from a Geofabrik PBF (cached on disk).
+ * Avoids flaky public Overpass capacity limits.
+ */
+export async function fetchOsmBulgariaRetailStores(
+  _fetchImpl: typeof fetch = fetch,
+  options?: {
+    cacheDir?: string;
+    url?: string;
+    maxAgeMs?: number;
+    forceDownload?: boolean;
+    fetchImpl?: typeof fetch;
+    parseFactory?: ParseOsmFactory;
+  },
+): Promise<MinimartStoreUpsert[]> {
+  const fetchImpl = options?.fetchImpl ?? _fetchImpl;
+  const pbfPath = await ensureBulgariaOsmPbf({
+    cacheDir: options?.cacheDir,
+    url: options?.url,
+    maxAgeMs: options?.maxAgeMs,
+    force: options?.forceDownload,
+    fetchImpl,
+  });
+  return parseOsmPbfRetailStores(pbfPath, {
+    parseFactory: options?.parseFactory,
+  });
 }

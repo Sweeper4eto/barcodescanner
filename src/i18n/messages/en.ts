@@ -1244,11 +1244,11 @@ export const en = {
     minimartSyncOk: "Synced {upserted} stores ({count} total).",
     minimartSyncFailed: "Could not sync Minimart stores.",
     minimartOsmImport: "Import from OSM (Bulgaria)",
-    minimartOsmImporting: "Importing from OSM…",
+    minimartOsmImporting: "Importing from OSM (first run can take a few minutes)…",
     minimartOsmImportOk:
-      "Imported {upserted} OSM places ({count} total on map). © OpenStreetMap.",
+      "Imported {upserted} OSM places ({count} total on map). © OpenStreetMap / Geofabrik.",
     minimartOsmImportFailed:
-      "Could not import from OpenStreetMap. Try again in a minute.",
+      "Could not import from OpenStreetMap. Check server disk/network and try again.",
     minimartSearchPlaceholder: "City, street, comment, account…",
     minimartFilterAll: "All",
     minimartCounts: "{total} shown · {accepted} already active",

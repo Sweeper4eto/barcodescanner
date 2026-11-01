@@ -1,12 +1,21 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
+import { Transform } from "node:stream";
+import { promises as fs } from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import {
   bulgariaBboxTiles,
   buildOsmRetailOverpassQuery,
+  ensureBulgariaOsmPbf,
   isOsmExternalId,
+  isOsmRetailTags,
   mapOsmElementToUpsert,
   mapOsmResponseToUpserts,
   osmExternalId,
+  osmPbfCachePath,
+  parseOsmPbfRetailStores,
+  resolveOsmCacheDir,
 } from "../src/lib/osm-locator";
 
 describe("osm locator", () => {
@@ -14,6 +23,17 @@ describe("osm locator", () => {
     assert.equal(osmExternalId("node", 42), "osm:node:42");
     assert.equal(isOsmExternalId("osm:way:9"), true);
     assert.equal(isOsmExternalId("65"), false);
+  });
+
+  test("detects retail tags", () => {
+    assert.equal(isOsmRetailTags({ amenity: "kiosk" }), true);
+    assert.equal(isOsmRetailTags({ shop: "convenience" }), true);
+    assert.equal(isOsmRetailTags({ shop: "supermarket" }), false);
+    assert.equal(isOsmRetailTags({ amenity: "bank" }), false);
+    assert.equal(
+      isOsmRetailTags({ amenity: "fuel", shop: "convenience" }),
+      false,
+    );
   });
 
   test("maps a named convenience node", () => {
@@ -104,6 +124,100 @@ describe("osm locator", () => {
     assert.match(query, /shop"="convenience"/);
     assert.match(query, /amenity"="kiosk"/);
     assert.match(query, /\(42,23,43,24\)/);
-    assert.match(query, /out center tags/);
+    assert.match(query, /out body/);
+  });
+
+  test("resolves cache path next to sqlite db file", () => {
+    const prev = process.env.DATABASE_URL;
+    const prevCache = process.env.OSM_CACHE_DIR;
+    process.env.DATABASE_URL = "file:E:/data/magazin/data.db";
+    delete process.env.OSM_CACHE_DIR;
+    try {
+      assert.equal(
+        path.normalize(resolveOsmCacheDir()),
+        path.normalize("E:/data/magazin/osm-cache"),
+      );
+      assert.equal(
+        path.normalize(osmPbfCachePath()),
+        path.normalize("E:/data/magazin/osm-cache/bulgaria-latest.osm.pbf"),
+      );
+    } finally {
+      if (prev === undefined) delete process.env.DATABASE_URL;
+      else process.env.DATABASE_URL = prev;
+      if (prevCache === undefined) delete process.env.OSM_CACHE_DIR;
+      else process.env.OSM_CACHE_DIR = prevCache;
+    }
+  });
+
+  test("downloads pbf when missing then reuses cache", async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "osm-cache-"));
+    const payload = Buffer.alloc(1_500_000, 1);
+    let fetches = 0;
+    const fetchImpl = async () => {
+      fetches += 1;
+      return new Response(payload, {
+        status: 200,
+        headers: { "Content-Type": "application/octet-stream" },
+      });
+    };
+    const first = await ensureBulgariaOsmPbf({
+      cacheDir: dir,
+      fetchImpl: fetchImpl as typeof fetch,
+      maxAgeMs: 60_000,
+    });
+    const second = await ensureBulgariaOsmPbf({
+      cacheDir: dir,
+      fetchImpl: fetchImpl as typeof fetch,
+      maxAgeMs: 60_000,
+    });
+    assert.equal(first, second);
+    assert.equal(fetches, 1);
+    const stat = await fs.stat(first);
+    assert.ok(stat.size >= 1_000_000);
+    await fs.rm(dir, { recursive: true, force: true });
+  });
+
+  test("parses retail nodes from a mock pbf stream", async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "osm-parse-"));
+    const pbfPath = path.join(dir, "fake.osm.pbf");
+    await fs.writeFile(pbfPath, "fake");
+
+    const parseFactory = () =>
+      new Transform({
+        objectMode: true,
+        transform(_chunk, _enc, callback) {
+          callback();
+        },
+        flush(callback) {
+          this.push([
+            {
+              type: "node",
+              id: 11,
+              lat: 42.7,
+              lon: 23.3,
+              tags: { shop: "convenience", name: "A" },
+            },
+            {
+              type: "node",
+              id: 12,
+              lat: 42.71,
+              lon: 23.31,
+              tags: { amenity: "bank" },
+            },
+            {
+              type: "way",
+              id: 99,
+              tags: { shop: "kiosk" },
+              refs: [],
+            },
+          ]);
+          callback();
+        },
+      });
+
+    const rows = await parseOsmPbfRetailStores(pbfPath, { parseFactory });
+    assert.equal(rows.length, 1);
+    assert.equal(rows[0]?.title, "A");
+    await fs.rm(dir, { recursive: true, force: true });
   });
 });
