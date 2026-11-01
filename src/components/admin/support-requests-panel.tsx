@@ -53,6 +53,11 @@ export function SupportRequestsPanel({
           ? t("support.topicOcrExpiryAlertShort")
           : t("support.topicOcrExpiryAlert");
       }
+      if (topic === "register_interest") {
+        return short
+          ? t("support.topicRegisterInterestShort")
+          : t("support.topicRegisterInterest");
+      }
       if (topic === "billing") {
         return short ? t("support.topicBillingShort") : t("support.topicBilling");
       }

@@ -29,23 +29,64 @@ test.beforeEach(async () => {
   await seedAdmin(db);
 });
 
-const registerOpts = { accountType: "home" as const };
+async function issueRegistrationCode() {
+  const { createRegistrationCode } = await import(
+    "../src/lib/registration-codes"
+  );
+  const admin = await db.user.findUniqueOrThrow({
+    where: { username: "admin" },
+  });
+  const row = await createRegistrationCode({ createdByUserId: admin.id });
+  return row.code;
+}
+
+const registerOpts = { accountType: "home" as const, registrationCode: "00000000" };
 
 test("registerUser validates username and password length", async () => {
-  const shortName = await registerUser("ab", "password123", registerOpts);
+  const shortName = await registerUser("ab", "password123", {
+    ...registerOpts,
+    registrationCode: await issueRegistrationCode(),
+  });
   assert.equal(shortName.ok, false);
   if (!shortName.ok) assert.equal(shortName.errorKey, "auth.usernameTooShort");
 
-  const emptyPass = await registerUser("validuser", "", registerOpts);
+  const emptyPass = await registerUser("validuser", "", {
+    ...registerOpts,
+    registrationCode: await issueRegistrationCode(),
+  });
   assert.equal(emptyPass.ok, false);
   if (!emptyPass.ok) assert.equal(emptyPass.errorKey, "auth.passwordRequired");
 });
 
+test("registerUser rejects missing or invalid registration codes", async () => {
+  const missing = await registerUser("nocode1", "password123", {
+    accountType: "retail",
+    registrationCode: "",
+  });
+  assert.equal(missing.ok, false);
+  if (!missing.ok) {
+    assert.equal(missing.errorKey, "auth.registrationCodeRequired");
+  }
+
+  const bad = await registerUser("nocode2", "password123", {
+    accountType: "retail",
+    registrationCode: "11111111",
+  });
+  assert.equal(bad.ok, false);
+  if (!bad.ok) assert.equal(bad.errorKey, "auth.registrationCodeInvalid");
+});
+
 test("registerUser rejects duplicate usernames", async () => {
-  const first = await registerUser("duplicate", "password123", registerOpts);
+  const first = await registerUser("duplicate", "password123", {
+    ...registerOpts,
+    registrationCode: await issueRegistrationCode(),
+  });
   assert.equal(first.ok, true);
 
-  const second = await registerUser("Duplicate", "password123", registerOpts);
+  const second = await registerUser("Duplicate", "password123", {
+    ...registerOpts,
+    registrationCode: await issueRegistrationCode(),
+  });
   assert.equal(second.ok, false);
   if (!second.ok) assert.equal(second.errorKey, "auth.usernameTaken");
 });
@@ -53,6 +94,7 @@ test("registerUser rejects duplicate usernames", async () => {
 test("registerUser home creates Home; retail has no default location", async () => {
   const home = await registerUser("homeowner1", "password123", {
     accountType: "home",
+    registrationCode: await issueRegistrationCode(),
   });
   assert.equal(home.ok, true);
   if (!home.ok) return;
@@ -69,6 +111,7 @@ test("registerUser home creates Home; retail has no default location", async () 
 
   const retail = await registerUser("bizowner1", "password123", {
     accountType: "retail",
+    registrationCode: await issueRegistrationCode(),
   });
   assert.equal(retail.ok, true);
   if (!retail.ok) return;

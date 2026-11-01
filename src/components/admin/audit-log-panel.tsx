@@ -17,6 +17,7 @@ import {
   extractAuditStoreName,
   formatAuditCompactWhen,
 } from "@/lib/audit-display";
+import { RegistrationCodesPanel } from "@/components/admin/registration-codes-panel";
 
 type AuditEntry = {
   id: string;
@@ -313,6 +314,8 @@ export function AuditLogPanel() {
 
   return (
     <div className="space-y-4">
+      <RegistrationCodesPanel />
+
       <div>
         <h2 className="text-lg font-semibold text-foreground">{t("admin.auditLog")}</h2>
         <p className="mt-1 text-sm text-muted">{t("admin.auditDescription")}</p>

@@ -5,7 +5,15 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { LoadingSpinner } from "@/components/loading-spinner";
 import { LoginIcon } from "@/components/app-nav-icons";
-import { FormEvent, memo, useEffect, useState, type ChangeEvent, type ReactNode } from "react";
+import {
+  FormEvent,
+  memo,
+  useEffect,
+  useState,
+  type ChangeEvent,
+  type InputHTMLAttributes,
+  type ReactNode,
+} from "react";
 import { BrandName } from "@/components/brand-name";
 import { LanguageSwitch } from "@/components/language-switch";
 import { markPwaInstallOffered, shouldOfferPwaInstall } from "@/lib/pwa-install";
@@ -27,6 +35,23 @@ function UserFieldIcon({ className = "" }: { className?: string }) {
     <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden>
       <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" strokeLinecap="round" />
       <circle cx="12" cy="7" r="4" />
+    </svg>
+  );
+}
+
+function CodeFieldIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
+      <path
+        d="M7 7h2v2H7V7Zm0 4h2v2H7v-2Zm0 4h2v2H7v-2Zm4-8h6v2h-6V7Zm0 4h6v2h-6v-2Zm0 4h6v2h-6v-2Z"
+        fill="currentColor"
+      />
+      <path
+        d="M4 4h16a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Z"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        fill="none"
+      />
     </svg>
   );
 }
@@ -318,6 +343,7 @@ function AuthIconField({
   defaultValue,
   onChange,
   autoComplete,
+  inputMode,
   suppressPasswordSuggest = false,
   icon,
   trailing,
@@ -335,6 +361,7 @@ function AuthIconField({
   defaultValue?: string;
   onChange?: (value: string) => void;
   autoComplete?: string;
+  inputMode?: InputHTMLAttributes<HTMLInputElement>["inputMode"];
   /** Hide OS / browser strong-password suggestions. */
   suppressPasswordSuggest?: boolean;
   icon: ReactNode;
@@ -375,6 +402,7 @@ function AuthIconField({
           }`}
           name={name}
           type={type}
+          inputMode={inputMode}
           placeholder={label}
           {...(suppressPasswordSuggest
             ? passwordNoSuggestProps
@@ -677,19 +705,67 @@ export function RegisterForm() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [accountType, setAccountType] = useState<"home" | "retail">("retail");
   const [organizationName, setOrganizationName] = useState("");
+  const [registrationCode, setRegistrationCode] = useState("");
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState<
     Partial<
       Record<
-        "organizationName" | "username" | "email" | "password" | "confirmPassword",
+        | "organizationName"
+        | "username"
+        | "email"
+        | "password"
+        | "confirmPassword"
+        | "registrationCode",
         string
       >
     >
   >({});
   const [loading, setLoading] = useState(false);
 
+  // Admin alert (support ticket + push): opened Register, and filled fields + IP.
+  useEffect(() => {
+    void fetch("/api/auth/register-activity", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ event: "open" }),
+      keepalive: true,
+    }).catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
+    const org = organizationName.trim();
+    const user = username.trim();
+    const mail = email.trim();
+    const codeEntered = registrationCode.trim().length > 0;
+    if (!org && !user && !mail && !codeEntered) return;
+
+    const timer = window.setTimeout(() => {
+      void fetch("/api/auth/register-activity", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          event: "fill",
+          fields: {
+            organizationName: org || undefined,
+            username: user || undefined,
+            email: mail || undefined,
+            registrationCodeEntered: codeEntered,
+          },
+        }),
+        keepalive: true,
+      }).catch(() => undefined);
+    }, 1600);
+    return () => window.clearTimeout(timer);
+  }, [organizationName, username, email, registrationCode]);
+
   function clearFieldError(
-    key: "organizationName" | "username" | "email" | "password" | "confirmPassword",
+    key:
+      | "organizationName"
+      | "username"
+      | "email"
+      | "password"
+      | "confirmPassword"
+      | "registrationCode",
   ) {
     setFieldErrors((current) => {
       if (!current[key]) return current;
@@ -700,7 +776,13 @@ export function RegisterForm() {
   }
 
   function setFieldValue(
-    key: "organizationName" | "username" | "email" | "password" | "confirmPassword",
+    key:
+      | "organizationName"
+      | "username"
+      | "email"
+      | "password"
+      | "confirmPassword"
+      | "registrationCode",
     value: string,
     setter: (value: string) => void,
   ) {
@@ -726,6 +808,9 @@ export function RegisterForm() {
     const nextOrg = String(
       formData.get("organizationName") ?? organizationName,
     ).trim();
+    const nextCode = String(
+      formData.get("registrationCode") ?? registrationCode,
+    ).trim();
 
     setUsername(nextUsername);
     setEmail(nextEmail);
@@ -733,6 +818,7 @@ export function RegisterForm() {
     setConfirmPassword(nextConfirm);
     setAccountType(nextAccountType);
     setOrganizationName(nextOrg);
+    setRegistrationCode(nextCode);
 
     const nextFieldErrors: typeof fieldErrors = {};
     const orgKey = validateOptionalOrgName(nextOrg);
@@ -744,6 +830,13 @@ export function RegisterForm() {
     if (usernameKey) nextFieldErrors.username = t(usernameKey);
     if (emailKey) nextFieldErrors.email = t(emailKey);
     if (passwordKey) nextFieldErrors.password = t(passwordKey);
+    if (!nextCode) {
+      nextFieldErrors.registrationCode = t("auth.registrationCodeRequired");
+    } else if (!/^\d+$/.test(nextCode)) {
+      nextFieldErrors.registrationCode = t("auth.registrationCodeDigitsOnly");
+    } else if (nextCode.length !== 8) {
+      nextFieldErrors.registrationCode = t("auth.registrationCodeInvalid");
+    }
     if (!nextConfirm) {
       nextFieldErrors.confirmPassword = t("auth.passwordRequired");
     } else if (!passwordsMatch(nextPassword, nextConfirm)) {
@@ -767,6 +860,7 @@ export function RegisterForm() {
         password: nextPassword,
         accountType: nextAccountType,
         organizationName: nextOrg || undefined,
+        registrationCode: nextCode,
       }),
     });
     const data = await response.json();
@@ -803,6 +897,26 @@ export function RegisterForm() {
         icon={<OrgFieldIcon className="size-4" />}
         error={fieldErrors.organizationName}
         maxLength={ORG_NAME_MAX}
+      />
+      <AuthIconField
+        compact
+        label={t("auth.registrationCode")}
+        name="registrationCode"
+        value={registrationCode}
+        inputMode="numeric"
+        autoComplete="one-time-code"
+        onChange={(value) =>
+          setFieldValue(
+            "registrationCode",
+            value.replace(/\D+/g, "").slice(0, 8),
+            setRegistrationCode,
+          )
+        }
+        icon={<CodeFieldIcon className="size-4" />}
+        hint={t("auth.registrationCodeHint")}
+        error={fieldErrors.registrationCode}
+        maxLength={8}
+        required
       />
       <AuthIconField
         compact

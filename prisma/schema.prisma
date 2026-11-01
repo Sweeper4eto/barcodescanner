@@ -41,6 +41,7 @@ model User {
   auditLogs           AuditLog[]
   documentOcrScans    DocumentOcrScan[]
   supportRequests     SupportRequest[]
+  registrationCodesCreated RegistrationCode[] @relation("RegistrationCodesCreated")
   priceReducedEntries InventoryEntry[] @relation("InventoryPriceReducedBy")
   addedInventoryEntries InventoryEntry[] @relation("InventoryAddedBy")
   whatsNewSeen        WhatsNewSeen[]
@@ -366,6 +367,23 @@ model AuditLog {
   @@index([occurredAt])
   @@index([event])
   @@index([username])
+}
+
+/** One-time numeric invite code required for public registration. */
+model RegistrationCode {
+  id              String    @id @default(cuid())
+  /** Digits only (8). */
+  code            String    @unique
+  createdAt       DateTime  @default(now())
+  createdByUserId String
+  createdBy       User      @relation("RegistrationCodesCreated", fields: [createdByUserId], references: [id], onDelete: Cascade)
+  usedAt          DateTime?
+  usedByUserId    String?
+  usedByUsername  String    @default("")
+  note            String    @default("")
+
+  @@index([usedAt])
+  @@index([createdAt])
 }
 
 /** One row per document OCR parse attempt that was allowed past the rate limit. */

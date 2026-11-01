@@ -91,7 +91,18 @@ test.beforeEach(async () => {
   await seedAdmin(db);
 });
 
+async function issueRegistrationCodeForApi() {
+  const { createRegistrationCode } = await import(
+    "../src/lib/registration-codes"
+  );
+  const admin = await db.user.findUniqueOrThrow({
+    where: { username: "admin" },
+  });
+  return (await createRegistrationCode({ createdByUserId: admin.id })).code;
+}
+
 test("POST /api/auth/register creates user and returns English message", async () => {
+  const registrationCode = await issueRegistrationCodeForApi();
   const { response, data } = await jsonRequest(registerPost, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -99,6 +110,7 @@ test("POST /api/auth/register creates user and returns English message", async (
       username: "newbie",
       password: "password123",
       accountType: "retail",
+      registrationCode,
     }),
   });
 
@@ -108,6 +120,7 @@ test("POST /api/auth/register creates user and returns English message", async (
 });
 
 test("POST /api/auth/register ignores household and creates business", async () => {
+  const registrationCode = await issueRegistrationCodeForApi();
   const { response, data } = await jsonRequest(registerPost, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -115,6 +128,7 @@ test("POST /api/auth/register ignores household and creates business", async () 
       username: "homewannabe",
       password: "password123",
       accountType: "home",
+      registrationCode,
     }),
   });
 
@@ -785,7 +799,12 @@ test("admin clients and user assignment APIs", async () => {
     new Request("http://localhost/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username: "staff", password: "password123", accountType: "home" }),
+      body: JSON.stringify({
+        username: "staff",
+        password: "password123",
+        accountType: "home",
+        registrationCode: await issueRegistrationCodeForApi(),
+      }),
     }),
   );
   await setMockSession(adminLogin.token);

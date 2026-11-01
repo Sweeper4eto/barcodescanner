@@ -18,6 +18,7 @@ const bodySchema = z.object({
   // Accept legacy "home" in the body but never create household via public signup.
   accountType: z.enum(["home", "retail"]).default("retail"),
   organizationName: z.string().optional(),
+  registrationCode: z.string().min(1),
 });
 
 export async function POST(request: Request) {
@@ -46,6 +47,7 @@ export async function POST(request: Request) {
     accountType: "retail",
     organizationName: parsed.data.organizationName,
     email: parsed.data.email,
+    registrationCode: parsed.data.registrationCode,
   });
   if (!result.ok) {
     recordLoginFailure(ip, `register:${parsed.data.username}`);

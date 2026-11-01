@@ -987,6 +987,14 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Плащания показва „Дължимо плащане“, докато месецът не е платен; „Платено до момента“ е само след плащане за месеца.",
     href: "/app/billing",
   },
+  {
+    key: "2026-11-registration-code",
+    titleEn:
+      "Register: an 8-digit registration code from expire365 is required to create an account.",
+    titleBg:
+      "Регистрация: нужен е 8-цифрен код от expire365, за да създадете акаунт.",
+    href: "/register",
+  },
 ];
 
 

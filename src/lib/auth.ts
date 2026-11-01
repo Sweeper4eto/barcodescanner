@@ -14,6 +14,10 @@ import {
   validatePassword,
   validateUsername,
 } from "@/lib/register-validation";
+import {
+  consumeRegistrationCodeInTx,
+  validateRegistrationCodeFormat,
+} from "@/lib/registration-codes";
 
 export type AuthUser = Pick<
   User,
@@ -38,6 +42,8 @@ export type RegisterOptions = {
   accountType: RegisterAccountType;
   organizationName?: string;
   email?: string | null;
+  /** Required one-time numeric invite code from admin. */
+  registrationCode: string;
 };
 
 export function normalizeEmail(email: string | null | undefined): string | null {
@@ -74,6 +80,12 @@ export async function registerUser(
   if (orgError) {
     return { ok: false, errorKey: orgError };
   }
+  const codeFormatError = validateRegistrationCodeFormat(
+    options.registrationCode,
+  );
+  if (codeFormatError) {
+    return { ok: false, errorKey: codeFormatError };
+  }
 
   const normalized = normalizeUsername(username);
   const email = normalizeEmail(options.email);
@@ -100,52 +112,77 @@ export async function registerUser(
   const homeUser = options.accountType === "home";
   const passwordHash = await hashPassword(password);
 
-  const user = await db.$transaction(async (tx) => {
-    const client = await tx.client.create({
-      data: {
-        name: orgName,
-        homeUser,
-        active: true,
-      },
-    });
+  class RegistrationCodeFailure extends Error {
+    constructor(readonly errorKey: MessageKey) {
+      super(errorKey);
+    }
+  }
 
-    // Household: auto Home so they can use the app immediately.
-    // Business: no default Main — admin must add a location before they can use product features.
-    let storeId: string | undefined;
-    if (homeUser) {
-      const store = await tx.store.create({
+  let user: AuthUser;
+  try {
+    user = await db.$transaction(async (tx) => {
+      const client = await tx.client.create({
         data: {
-          clientId: client.id,
-          name: "Home",
+          name: orgName,
+          homeUser,
           active: true,
         },
       });
-      storeId = store.id;
-    }
 
-    return tx.user.create({
-      data: {
-        username: normalized,
-        email,
-        passwordHash,
-        role: "USER",
-        clientRole: "OWNER",
-        clientId: client.id,
-        ...(storeId
-          ? { storeLinks: { create: [{ storeId }] } }
-          : {}),
-      },
-      select: {
-        id: true,
-        username: true,
-        role: true,
-        active: true,
-        clientId: true,
-        clientRole: true,
-        mustChangePassword: true,
-      },
+      // Household: auto Home so they can use the app immediately.
+      // Business: no default Main — admin must add a location before they can use product features.
+      let storeId: string | undefined;
+      if (homeUser) {
+        const store = await tx.store.create({
+          data: {
+            clientId: client.id,
+            name: "Home",
+            active: true,
+          },
+        });
+        storeId = store.id;
+      }
+
+      const created = await tx.user.create({
+        data: {
+          username: normalized,
+          email,
+          passwordHash,
+          role: "USER",
+          clientRole: "OWNER",
+          clientId: client.id,
+          ...(storeId
+            ? { storeLinks: { create: [{ storeId }] } }
+            : {}),
+        },
+        select: {
+          id: true,
+          username: true,
+          role: true,
+          active: true,
+          clientId: true,
+          clientRole: true,
+          mustChangePassword: true,
+        },
+      });
+
+      const consumeError = await consumeRegistrationCodeInTx(
+        tx,
+        options.registrationCode,
+        created,
+      );
+      if (consumeError) {
+        throw new RegistrationCodeFailure(consumeError);
+      }
+
+      return created;
     });
-  });
+  } catch (error) {
+    if (error instanceof RegistrationCodeFailure) {
+      return { ok: false, errorKey: error.errorKey };
+    }
+    throw error;
+  }
 
   const token = await createSessionToken({
     userId: user.id,
