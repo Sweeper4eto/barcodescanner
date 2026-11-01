@@ -137,6 +137,9 @@ export const en = {
     registerError: "Registration failed",
     registerSuccess: "Account created. You are signed in.",
     registrationCode: "Registration code",
+    registrationCodeHintBefore: "Contact expire365 ",
+    registrationCodeHintLink: "support",
+    registrationCodeHintAfter: " to claim your code.",
     registrationCodeRequired: "Registration code is required.",
     registrationCodeDigitsOnly: "Registration code must be numbers only.",
     registrationCodeInvalid: "This registration code is not valid.",
@@ -394,6 +397,8 @@ export const en = {
     title: "Contact Support",
     subtitle: "Send us details and we'll get back to you.",
     guestSubtitle: "No account needed — leave a message and we'll reply.",
+    registrationCodeRequestMessage:
+      "Hello, I need a registration code to create an expire365 account.",
     topic: "Topic",
     topicBug: "Bug report",
     topicOcr: "OCR issue",

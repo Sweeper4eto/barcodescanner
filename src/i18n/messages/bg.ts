@@ -138,6 +138,9 @@ export const bg = {
     registerError: "Регистрацията не беше успешна",
     registerSuccess: "Акаунтът е създаден. Влязохте в системата.",
     registrationCode: "Код за регистрация",
+    registrationCodeHintBefore: "Свържете се с ",
+    registrationCodeHintLink: "поддръжката",
+    registrationCodeHintAfter: " на expire365, за да получите код.",
     registrationCodeRequired: "Кодът за регистрация е задължителен.",
     registrationCodeDigitsOnly: "Кодът за регистрация трябва да е само цифри.",
     registrationCodeInvalid: "Този код за регистрация не е валиден.",
@@ -395,6 +398,8 @@ export const bg = {
     title: "Свържи се с поддръжката",
     subtitle: "Изпратете детайли и ще ви отговорим.",
     guestSubtitle: "Без акаунт — оставете съобщение и ще отговорим.",
+    registrationCodeRequestMessage:
+      "Здравейте, нуждая се от код за регистрация, за да създам акаунт в expire365.",
     topic: "Тема",
     topicBug: "Сигнал за бъг",
     topicOcr: "Проблем със сканиране",

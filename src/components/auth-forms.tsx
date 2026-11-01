@@ -367,7 +367,7 @@ function AuthIconField({
   icon: ReactNode;
   trailing?: ReactNode;
   compact?: boolean;
-  hint?: string;
+  hint?: ReactNode;
   error?: string;
   maxLength?: number;
   required?: boolean;
@@ -913,6 +913,18 @@ export function RegisterForm() {
           )
         }
         icon={<CodeFieldIcon className="size-4" />}
+        hint={
+          <>
+            {t("auth.registrationCodeHintBefore")}
+            <Link
+              href="/contact?intent=registration-code"
+              className="font-medium text-primary underline-offset-2 hover:underline"
+            >
+              {t("auth.registrationCodeHintLink")}
+            </Link>
+            {t("auth.registrationCodeHintAfter")}
+          </>
+        }
         error={fieldErrors.registrationCode}
         maxLength={8}
         required

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { PrimaryButton, SecondaryButton } from "@/components/auth-forms";
 import { BackArrowIcon, SendIcon } from "@/components/app-nav-icons";
 import { BrandName } from "@/components/brand-name";
@@ -33,6 +33,26 @@ function ContactPageContent() {
     { value: "billing" as const, label: t("support.topicBilling") },
     { value: "other" as const, label: t("support.topicOther") },
   ];
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const intent = params.get("intent");
+    const topicParam = params.get("topic");
+    if (
+      topicParam === "bug" ||
+      topicParam === "ocr" ||
+      topicParam === "billing" ||
+      topicParam === "other"
+    ) {
+      setTopic(topicParam);
+    }
+    if (intent === "registration-code") {
+      setTopic("other");
+      setMessage((current) =>
+        current.trim() ? current : t("support.registrationCodeRequestMessage"),
+      );
+    }
+  }, [t]);
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
