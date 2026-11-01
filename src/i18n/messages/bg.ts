@@ -138,7 +138,6 @@ export const bg = {
     registerError: "Регистрацията не беше успешна",
     registerSuccess: "Акаунтът е създаден. Влязохте в системата.",
     registrationCode: "Код за регистрация",
-    registrationCodeHint: "8-цифрен код от expire365 (само цифри).",
     registrationCodeRequired: "Кодът за регистрация е задължителен.",
     registrationCodeDigitsOnly: "Кодът за регистрация трябва да е само цифри.",
     registrationCodeInvalid: "Този код за регистрация не е валиден.",

@@ -137,7 +137,6 @@ export const en = {
     registerError: "Registration failed",
     registerSuccess: "Account created. You are signed in.",
     registrationCode: "Registration code",
-    registrationCodeHint: "8-digit code from expire365 (numbers only).",
     registrationCodeRequired: "Registration code is required.",
     registrationCodeDigitsOnly: "Registration code must be numbers only.",
     registrationCodeInvalid: "This registration code is not valid.",

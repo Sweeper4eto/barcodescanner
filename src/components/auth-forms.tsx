@@ -913,7 +913,6 @@ export function RegisterForm() {
           )
         }
         icon={<CodeFieldIcon className="size-4" />}
-        hint={t("auth.registrationCodeHint")}
         error={fieldErrors.registrationCode}
         maxLength={8}
         required
