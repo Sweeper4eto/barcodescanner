@@ -1,10 +1,13 @@
+import { execFile } from "node:child_process";
 import { createReadStream, createWriteStream, promises as fs } from "node:fs";
-import { createRequire } from "node:module";
 import path from "node:path";
 import { pipeline } from "node:stream/promises";
 import { Transform } from "node:stream";
 import { Readable } from "node:stream";
+import { promisify } from "node:util";
 import type { MinimartStoreUpsert } from "@/lib/minimart-locator";
+
+const execFileAsync = promisify(execFile);
 
 /** Geofabrik country extract — reliable offline-style import (Overpass public mirrors are often at capacity). */
 export const OSM_GEOFABRIK_BULGARIA_PBF_URL =
@@ -310,24 +313,49 @@ export async function ensureBulgariaOsmPbf(
 
 type ParseOsmFactory = () => NodeJS.ReadWriteStream;
 
-/**
- * Load via createRequire from the app root so .proto files resolve under
- * node_modules (Next/webpack must not rewrite those paths into .next/chunks).
- */
-function loadOsmPbfParser(): ParseOsmFactory {
-  const require = createRequire(path.join(process.cwd(), "package.json"));
-  const mod = require("osm-pbf-parser") as {
-    default?: ParseOsmFactory;
-  } & ParseOsmFactory;
-  return typeof mod === "function" ? mod : mod.default!;
+export function osmPbfParseScriptPath(
+  cwd = process.cwd(),
+): string {
+  return path.join(cwd, "scripts", "parse-osm-bulgaria-pbf.mjs");
 }
 
-/** Stream-parse a local PBF and collect matching retail/kiosk nodes. */
+/**
+ * Parse via a child Node process so osm-pbf-parser/.proto never go through
+ * the Next.js webpack bundle (which breaks on prod).
+ */
+export async function parseOsmPbfRetailStoresViaChild(
+  pbfPath: string,
+  options?: { scriptPath?: string; timeoutMs?: number },
+): Promise<MinimartStoreUpsert[]> {
+  const scriptPath = options?.scriptPath ?? osmPbfParseScriptPath();
+  const outPath = `${pbfPath}.retail.json`;
+  try {
+    await execFileAsync(process.execPath, [scriptPath, pbfPath, outPath], {
+      cwd: process.cwd(),
+      timeout: options?.timeoutMs ?? 240_000,
+      maxBuffer: 16 * 1024 * 1024,
+      env: process.env,
+    });
+    const raw = await fs.readFile(outPath, "utf8");
+    const parsed = JSON.parse(raw) as MinimartStoreUpsert[];
+    if (!Array.isArray(parsed)) {
+      throw new Error("OSM PBF parse produced invalid JSON");
+    }
+    return parsed;
+  } finally {
+    await fs.unlink(outPath).catch(() => undefined);
+  }
+}
+
+/** Stream-parse a local PBF (tests can inject parseFactory; prod uses child). */
 export async function parseOsmPbfRetailStores(
   pbfPath: string,
   options?: { parseFactory?: ParseOsmFactory },
 ): Promise<MinimartStoreUpsert[]> {
-  const parseFactory = options?.parseFactory ?? loadOsmPbfParser();
+  if (!options?.parseFactory) {
+    return parseOsmPbfRetailStoresViaChild(pbfPath);
+  }
+  const parseFactory = options.parseFactory;
   const byId = new Map<string, MinimartStoreUpsert>();
 
   const collect = new Transform({

@@ -222,33 +222,39 @@ async function upsertLocatorRows(
   }>,
 ) {
   const now = new Date();
+  const batchSize = 100;
   let upserted = 0;
-  for (const row of rows) {
-    await db.minimartLocatorStore.upsert({
-      where: { externalId: row.externalId },
-      create: {
-        ...row,
-        status: "NOT_VISITED",
-        comment: "",
-        syncedAt: now,
-      },
-      update: {
-        title: row.title,
-        street: row.street,
-        city: row.city,
-        postalCode: row.postalCode,
-        country: row.country,
-        lat: row.lat,
-        lng: row.lng,
-        phone: row.phone,
-        website: row.website,
-        openHoursJson: row.openHoursJson,
-        slug: row.slug,
-        syncedAt: now,
-        // Keep status, comment, and clientId untouched on sync.
-      },
-    });
-    upserted += 1;
+  for (let i = 0; i < rows.length; i += batchSize) {
+    const batch = rows.slice(i, i + batchSize);
+    await db.$transaction(
+      batch.map((row) =>
+        db.minimartLocatorStore.upsert({
+          where: { externalId: row.externalId },
+          create: {
+            ...row,
+            status: "NOT_VISITED",
+            comment: "",
+            syncedAt: now,
+          },
+          update: {
+            title: row.title,
+            street: row.street,
+            city: row.city,
+            postalCode: row.postalCode,
+            country: row.country,
+            lat: row.lat,
+            lng: row.lng,
+            phone: row.phone,
+            website: row.website,
+            openHoursJson: row.openHoursJson,
+            slug: row.slug,
+            syncedAt: now,
+            // Keep status, comment, and clientId untouched on sync.
+          },
+        }),
+      ),
+    );
+    upserted += batch.length;
   }
   const count = await db.minimartLocatorStore.count();
   const acceptedCount = await db.minimartLocatorStore.count({
