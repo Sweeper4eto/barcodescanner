@@ -363,10 +363,22 @@ model AuditLog {
   deviceInfo String   @default("")
   details    String   @default("")
   occurredAt DateTime @default(now())
+  /** inventory_entry | buy_list_entry — set for revertible mutations. */
+  entityType String?
+  entityId   String?
+  storeId    String?
+  /** Compact before/after JSON for owner revert. */
+  payloadJson String?
+  revertedAt       DateTime?
+  revertedByUserId String?
+  /** When this row is a compensating revert, points at the original audit id. */
+  revertsAuditId String?
 
   @@index([occurredAt])
   @@index([event])
   @@index([username])
+  @@index([entityId, occurredAt])
+  @@index([revertsAuditId])
 }
 
 /** One-time numeric invite code required for public registration. */

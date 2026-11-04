@@ -1,5 +1,10 @@
 import { Prisma } from "@/generated/prisma/client";
 import { AUDIT_DETAILS_MAX } from "@/lib/audit-details";
+import {
+  type AuditMutationMeta,
+  listRevertStatus,
+  serializeAuditPayload,
+} from "@/lib/audit-revert";
 import { db } from "@/lib/db";
 import {
   normalizeSearchText,
@@ -34,7 +39,8 @@ export type AuditEvent =
   | "buy_list_added"
   | "buy_list_merged"
   | "buy_list_removed"
-  | "buy_list_updated";
+  | "buy_list_updated"
+  | "activity_reverted";
 
 export type AuditFilter = "all" | "auth" | "inventory" | "products" | "admin";
 
@@ -57,6 +63,7 @@ const INVENTORY_EVENTS: AuditEvent[] = [
   "buy_list_merged",
   "buy_list_removed",
   "buy_list_updated",
+  "activity_reverted",
 ];
 const PRODUCT_EVENTS: AuditEvent[] = [
   "product_created",
@@ -138,10 +145,11 @@ export async function logAuditEvent(
   user: AuditActor,
   event: AuditEvent,
   details = "",
-): Promise<void> {
+  meta?: AuditMutationMeta,
+): Promise<string | null> {
   const actor = auditActor(user);
   try {
-    await db.auditLog.create({
+    const row = await db.auditLog.create({
       data: {
         userId: actor.id,
         username: actor.username,
@@ -149,10 +157,22 @@ export async function logAuditEvent(
         ipAddress: getClientIp(request),
         deviceInfo: describeClientDevice(request),
         details: details.slice(0, AUDIT_DETAILS_MAX),
+        ...(meta
+          ? {
+              entityType: meta.entityType,
+              entityId: meta.entityId,
+              storeId: meta.storeId ?? null,
+              payloadJson: serializeAuditPayload(meta.payload),
+              revertsAuditId: meta.revertsAuditId ?? null,
+            }
+          : {}),
       },
+      select: { id: true },
     });
+    return row.id;
   } catch (error) {
     console.error("audit log write failed:", error);
+    return null;
   }
 }
 
@@ -405,6 +425,12 @@ export async function queryAuditLog(query: AuditLogQuery) {
       deviceInfo: true,
       details: true,
       occurredAt: true,
+      entityType: true,
+      entityId: true,
+      storeId: true,
+      payloadJson: true,
+      revertedAt: true,
+      revertsAuditId: true,
     },
   });
 
@@ -413,11 +439,41 @@ export async function queryAuditLog(query: AuditLogQuery) {
 
 export function serializeAuditEntries(
   entries: Awaited<ReturnType<typeof queryAuditLog>>["entries"],
+  options?: { includeRevertStatus?: boolean },
 ) {
-  return entries.map((entry) => ({
-    ...entry,
-    occurredAt: entry.occurredAt.toISOString(),
-  }));
+  return entries.map((entry) => {
+    const {
+      payloadJson: _payload,
+      entityType,
+      entityId,
+      storeId,
+      revertedAt,
+      revertsAuditId,
+      ...publicFields
+    } = entry;
+    void _payload;
+
+    const base = {
+      ...publicFields,
+      occurredAt: entry.occurredAt.toISOString(),
+      revertedAt: revertedAt?.toISOString() ?? null,
+      revertsAuditId,
+    };
+
+    if (!options?.includeRevertStatus) {
+      return base;
+    }
+
+    const status = listRevertStatus(entry);
+    return {
+      ...base,
+      entityType,
+      entityId,
+      storeId,
+      revertible: status.revertible,
+      revertBlockedReason: status.revertBlockedReason ?? null,
+    };
+  });
 }
 
 /** Admin-only: resolve business/household account name for each entry's acting user. */

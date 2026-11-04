@@ -42,6 +42,8 @@ let buyListGet: (request: Request) => Promise<Response>;
 let buyListPost: (request: Request) => Promise<Response>;
 let buyListPatch: (request: Request) => Promise<Response>;
 let teamPatch: (request: Request) => Promise<Response>;
+let activityGet: (request: Request) => Promise<Response>;
+let activityRevertPost: (request: Request) => Promise<Response>;
 
 async function jsonRequest(
   handler: (request: Request) => Promise<Response>,
@@ -83,6 +85,10 @@ test.before(async () => {
     "../src/app/api/buy-list/route"
   ));
   ({ PATCH: teamPatch } = await import("../src/app/api/team/users/route"));
+  ({ GET: activityGet } = await import("../src/app/api/team/activity-log/route"));
+  ({ POST: activityRevertPost } = await import(
+    "../src/app/api/team/activity-log/revert/route"
+  ));
 });
 
 test.beforeEach(async () => {
@@ -1519,6 +1525,163 @@ test("cron purge endpoint requires secret", async () => {
   });
   assert.equal(allowed.response.status, 200);
   assert.equal(typeof allowed.data.purged, "number");
+});
+
+test("owner can revert soft inventory remove from activity log", async () => {
+  const client = await seedClientWithStore(db);
+  const store = client.stores[0]!;
+  const owner = await seedUserWithAccess(db, client.id, store.id, "revert_owner");
+  await db.user.update({
+    where: { id: owner.id },
+    data: { clientRole: "OWNER" },
+  });
+  const member = await seedUserWithAccess(db, client.id, store.id, "revert_member");
+
+  const product = await db.product.create({
+    data: { barcode: "4820000000123", name: "Milk" },
+  });
+  const expiryDate = new Date("2026-12-01T00:00:00.000Z");
+  const entry = await db.inventoryEntry.create({
+    data: {
+      storeId: store.id,
+      productId: product.id,
+      barcode: product.barcode,
+      quantity: 4,
+      expiryDate,
+      addedByUserId: member.id,
+    },
+  });
+
+  const memberLogin = await loginUser("revert_member", "password123");
+  assert.equal(memberLogin.ok, true);
+  if (!memberLogin.ok) return;
+  await setMockSession(memberLogin.token);
+
+  const removed = await jsonRequest(inventoryPatch, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ storeId: store.id, entryId: entry.id }),
+  });
+  assert.equal(removed.response.status, 200, JSON.stringify(removed.data));
+
+  const soft = await db.inventoryEntry.findUnique({ where: { id: entry.id } });
+  assert.ok(soft?.removedAt);
+
+  const ownerLogin = await loginUser("revert_owner", "password123");
+  assert.equal(ownerLogin.ok, true);
+  if (!ownerLogin.ok) return;
+  await setMockSession(ownerLogin.token);
+
+  const activity = await jsonRequest(activityGet, {
+    method: "GET",
+    url: "http://localhost/api/team/activity-log?filter=inventory",
+  });
+  assert.equal(activity.response.status, 200, JSON.stringify(activity.data));
+  const removeRow = (activity.data.entries as Array<{
+    id: string;
+    event: string;
+    revertible?: boolean;
+  }>).find((row) => row.event === "inventory_removed");
+  assert.ok(removeRow);
+  assert.equal(removeRow?.revertible, true);
+
+  const reverted = await jsonRequest(activityRevertPost, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ auditId: removeRow!.id }),
+  });
+  assert.equal(reverted.response.status, 200, JSON.stringify(reverted.data));
+
+  const restored = await db.inventoryEntry.findUnique({ where: { id: entry.id } });
+  assert.equal(restored?.removedAt, null);
+  assert.equal(restored?.quantity, 4);
+
+  const again = await jsonRequest(activityRevertPost, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ auditId: removeRow!.id }),
+  });
+  assert.equal(again.response.status, 409);
+});
+
+test("owner can bulk-revert soft inventory removes from activity log", async () => {
+  const client = await seedClientWithStore(db);
+  const store = client.stores[0]!;
+  const owner = await seedUserWithAccess(db, client.id, store.id, "bulk_rev_owner");
+  await db.user.update({
+    where: { id: owner.id },
+    data: { clientRole: "OWNER" },
+  });
+
+  const productA = await db.product.create({
+    data: { barcode: "4820000000456", name: "Yogurt" },
+  });
+  const productB = await db.product.create({
+    data: { barcode: "4820000000789", name: "Cheese" },
+  });
+  const expiryDate = new Date("2026-12-15T00:00:00.000Z");
+  const entryA = await db.inventoryEntry.create({
+    data: {
+      storeId: store.id,
+      productId: productA.id,
+      barcode: productA.barcode,
+      quantity: 2,
+      expiryDate,
+      addedByUserId: owner.id,
+    },
+  });
+  const entryB = await db.inventoryEntry.create({
+    data: {
+      storeId: store.id,
+      productId: productB.id,
+      barcode: productB.barcode,
+      quantity: 3,
+      expiryDate,
+      addedByUserId: owner.id,
+    },
+  });
+
+  const ownerLogin = await loginUser("bulk_rev_owner", "password123");
+  assert.equal(ownerLogin.ok, true);
+  if (!ownerLogin.ok) return;
+  await setMockSession(ownerLogin.token);
+
+  for (const entryId of [entryA.id, entryB.id]) {
+    const removed = await jsonRequest(inventoryPatch, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ storeId: store.id, entryId }),
+    });
+    assert.equal(removed.response.status, 200, JSON.stringify(removed.data));
+  }
+
+  const activity = await jsonRequest(activityGet, {
+    method: "GET",
+    url: "http://localhost/api/team/activity-log?filter=inventory&pageSize=50",
+  });
+  assert.equal(activity.response.status, 200);
+  const removeRows = (
+    activity.data.entries as Array<{
+      id: string;
+      event: string;
+      revertible?: boolean;
+    }>
+  ).filter((row) => row.event === "inventory_removed" && row.revertible);
+  assert.equal(removeRows.length, 2);
+
+  const bulk = await jsonRequest(activityRevertPost, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ auditIds: removeRows.map((row) => row.id) }),
+  });
+  assert.equal(bulk.response.status, 200, JSON.stringify(bulk.data));
+  assert.equal(bulk.data.reverted, 2);
+  assert.equal((bulk.data.failed as unknown[]).length, 0);
+
+  const restoredA = await db.inventoryEntry.findUnique({ where: { id: entryA.id } });
+  const restoredB = await db.inventoryEntry.findUnique({ where: { id: entryB.id } });
+  assert.equal(restoredA?.removedAt, null);
+  assert.equal(restoredB?.removedAt, null);
 });
 
 test.after(async () => {

@@ -193,6 +193,17 @@ export async function POST(request: Request) {
             storeName: store.name,
             expiryDate,
           }),
+          {
+            entityType: "inventory_entry",
+            entityId: entry.id,
+            storeId: entry.storeId,
+            payload: {
+              addedQty: item.quantity,
+              totalQty: entry.quantity,
+              expiryDate: expiryDate.toISOString(),
+              barcode: entry.barcode,
+            },
+          },
         );
         continue;
       }
@@ -222,6 +233,16 @@ export async function POST(request: Request) {
           storeName: store.name,
           expiryDate,
         }),
+        {
+          entityType: "inventory_entry",
+          entityId: entry.id,
+          storeId: entry.storeId,
+          payload: {
+            quantity: item.quantity,
+            expiryDate: expiryDate.toISOString(),
+            barcode: entry.barcode,
+          },
+        },
       );
     }
 

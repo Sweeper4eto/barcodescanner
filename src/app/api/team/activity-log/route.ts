@@ -72,7 +72,9 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       ...result,
-      entries: serializeAuditEntries(result.entries),
+      entries: serializeAuditEntries(result.entries, {
+        includeRevertStatus: true,
+      }),
       options: {
         usernames: options.usernames,
         stores: options.stores.map((storeRow) => ({

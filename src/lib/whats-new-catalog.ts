@@ -1003,6 +1003,14 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Публичната начална страница е преработена за десктоп и мобилен — по-широк изглед, по-ясен герой и мрежи с функции.",
     href: "/",
   },
+  {
+    key: "2026-11-owner-activity-revert",
+    titleEn:
+      "Owners can revert team inventory and list changes from Team → Activity, including multi-select.",
+    titleBg:
+      "Собствениците могат да отменят промени по инвентар и списък от Екип → Действия, включително с множествен избор.",
+    href: "/app/team/activity",
+  },
 ];
 
 

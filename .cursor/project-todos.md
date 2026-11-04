@@ -34,7 +34,7 @@ Keep entries short. Prefer `open` / `doing` / `done` / `dropped`.
 - [ ] BABH / inspector read-only access
 - [ ] Warehouse replenishment / morning orders
 - [ ] Offline floor mode
-- [ ] Revert actions
+- [x] Revert actions — owners restore inventory/list changes from Team → Activity (incl. multi-select)
 
 ## Later / parked
 

@@ -85,7 +85,8 @@ export async function POST(request: Request) {
   const skipped = uniqueIds.filter((id) => !foundIds.has(id)).length;
 
   for (const entry of entries) {
-    if (isAdhocBarcode(entry.barcode)) {
+    const softRemove = !isAdhocBarcode(entry.barcode);
+    if (!softRemove) {
       await db.inventoryEntry.delete({ where: { id: entry.id } });
       if (entry.imagePath) {
         await deleteLocalUpload(entry.imagePath);
@@ -114,6 +115,18 @@ export async function POST(request: Request) {
         storeName: store.name,
         expiryDate: entry.expiryDate,
       }),
+      {
+        entityType: "inventory_entry",
+        entityId: entry.id,
+        storeId: entry.storeId,
+        payload: {
+          soft: softRemove,
+          quantity: entry.quantity,
+          expiryDate: entry.expiryDate.toISOString(),
+          barcode: entry.barcode,
+          productId: entry.productId,
+        },
+      },
     );
   }
 

@@ -125,6 +125,16 @@ export async function POST(request: Request) {
         totalQty: entry.quantity,
         storeName: store.name,
       }),
+      {
+        entityType: "buy_list_entry",
+        entityId: entry.id,
+        storeId: entry.storeId,
+        payload: {
+          addedQty: parsed.data.quantity,
+          totalQty: entry.quantity,
+          barcode: product.barcode,
+        },
+      },
     );
 
     return NextResponse.json({ entry, merged: true });
@@ -150,6 +160,15 @@ export async function POST(request: Request) {
       quantity: parsed.data.quantity,
       storeName: store.name,
     }),
+    {
+      entityType: "buy_list_entry",
+      entityId: entry.id,
+      storeId: entry.storeId,
+      payload: {
+        quantity: parsed.data.quantity,
+        barcode: product.barcode,
+      },
+    },
   );
 
   return NextResponse.json({ entry, merged: false }, { status: 201 });
@@ -320,6 +339,15 @@ export async function PATCH(request: Request) {
           beforeQty: existing.quantity,
           afterQty: parsed.data.quantity,
         }),
+        {
+          entityType: "buy_list_entry",
+          entityId: existing.id,
+          storeId: existing.storeId,
+          payload: {
+            beforeQty: existing.quantity,
+            afterQty: parsed.data.quantity,
+          },
+        },
       );
     }
 
@@ -405,7 +433,8 @@ export async function PATCH(request: Request) {
     );
   }
 
-  if (isAdhocBarcode(removed.barcode)) {
+  const softRemove = !isAdhocBarcode(removed.barcode);
+  if (!softRemove) {
     await db.buyListEntry.delete({ where: { id: removed.id } });
     await deleteLocalProductIfUnused(removed.productId);
   } else {
@@ -425,6 +454,17 @@ export async function PATCH(request: Request) {
       quantity: removed.quantity,
       storeName: store.name,
     }),
+    {
+      entityType: "buy_list_entry",
+      entityId: removed.id,
+      storeId: removed.storeId,
+      payload: {
+        soft: softRemove,
+        quantity: removed.quantity,
+        barcode: removed.barcode,
+        productId: removed.productId,
+      },
+    },
   );
 
   return NextResponse.json({ ok: true });

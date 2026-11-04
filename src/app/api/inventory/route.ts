@@ -173,6 +173,17 @@ export async function POST(request: Request) {
         storeName: store.name,
         expiryDate,
       }),
+      {
+        entityType: "inventory_entry",
+        entityId: entry.id,
+        storeId: entry.storeId,
+        payload: {
+          addedQty: parsed.data.quantity,
+          totalQty: entry.quantity,
+          expiryDate: expiryDate.toISOString(),
+          barcode: product.barcode,
+        },
+      },
     );
 
     return NextResponse.json({ entry, merged: true });
@@ -203,6 +214,16 @@ export async function POST(request: Request) {
       storeName: store.name,
       expiryDate,
     }),
+    {
+      entityType: "inventory_entry",
+      entityId: entry.id,
+      storeId: entry.storeId,
+      payload: {
+        quantity: parsed.data.quantity,
+        expiryDate: expiryDate.toISOString(),
+        barcode: product.barcode,
+      },
+    },
   );
 
   return NextResponse.json({ entry, merged: false }, { status: 201 });
@@ -399,6 +420,17 @@ export async function PATCH(request: Request) {
         storeName: store.name,
         expiryDate: existing.expiryDate,
       }),
+      {
+        entityType: "inventory_entry",
+        entityId: existing.id,
+        storeId: existing.storeId,
+        payload: {
+          beforeDiscount: existing.priceDiscountPercent,
+          afterDiscount: null,
+          quantity: existing.quantity,
+          expiryDate: existing.expiryDate.toISOString(),
+        },
+      },
     );
 
     return NextResponse.json({ entry });
@@ -452,6 +484,17 @@ export async function PATCH(request: Request) {
           expiryDate: existing.expiryDate,
           discountPercent,
         }),
+        {
+          entityType: "inventory_entry",
+          entityId: existing.id,
+          storeId: existing.storeId,
+          payload: {
+            beforeDiscount: existing.priceDiscountPercent,
+            afterDiscount: discountPercent,
+            quantity: existing.quantity,
+            expiryDate: existing.expiryDate.toISOString(),
+          },
+        },
       );
 
       return NextResponse.json({ entry });
@@ -475,6 +518,17 @@ export async function PATCH(request: Request) {
         expiryDate: existing.expiryDate,
         discountPercent,
       }),
+      {
+        entityType: "inventory_entry",
+        entityId: existing.id,
+        storeId: existing.storeId,
+        payload: {
+          beforeDiscount: null,
+          afterDiscount: discountPercent,
+          quantity: existing.quantity,
+          expiryDate: existing.expiryDate.toISOString(),
+        },
+      },
     );
 
     return NextResponse.json({ entry });
@@ -624,6 +678,18 @@ export async function PATCH(request: Request) {
             storeName: store.name,
             expiryDate: nextExpiry,
           }),
+          {
+            entityType: "inventory_entry",
+            entityId: mergedEntry.id,
+            storeId: mergedEntry.storeId,
+            payload: {
+              addedQty: nextQuantity,
+              totalQty: mergedEntry.quantity,
+              expiryDate: nextExpiry.toISOString(),
+              barcode: existing.barcode,
+              sourceEntryId: existing.id,
+            },
+          },
         );
 
         return NextResponse.json({
@@ -715,6 +781,17 @@ export async function PATCH(request: Request) {
           beforeExpiry: existing.expiryDate,
           afterExpiry: entry.expiryDate,
         }),
+        {
+          entityType: "inventory_entry",
+          entityId: entry.id,
+          storeId: entry.storeId,
+          payload: {
+            beforeQty: existing.quantity,
+            afterQty: entry.quantity,
+            beforeExpiry: existing.expiryDate.toISOString(),
+            afterExpiry: entry.expiryDate.toISOString(),
+          },
+        },
       );
     }
 
@@ -735,6 +812,17 @@ export async function PATCH(request: Request) {
           expiryDate: entry.expiryDate,
           discountPercent: entry.priceDiscountPercent ?? undefined,
         }),
+        {
+          entityType: "inventory_entry",
+          entityId: entry.id,
+          storeId: entry.storeId,
+          payload: {
+            beforeDiscount: null,
+            afterDiscount: entry.priceDiscountPercent,
+            quantity: entry.quantity,
+            expiryDate: entry.expiryDate.toISOString(),
+          },
+        },
       );
     } else if (
       parsed.data.priceReduced === true &&
@@ -753,6 +841,17 @@ export async function PATCH(request: Request) {
           expiryDate: entry.expiryDate,
           discountPercent: entry.priceDiscountPercent ?? undefined,
         }),
+        {
+          entityType: "inventory_entry",
+          entityId: entry.id,
+          storeId: entry.storeId,
+          payload: {
+            beforeDiscount: existing.priceDiscountPercent,
+            afterDiscount: entry.priceDiscountPercent,
+            quantity: entry.quantity,
+            expiryDate: entry.expiryDate.toISOString(),
+          },
+        },
       );
     } else if (
       parsed.data.priceReduced === false &&
@@ -770,6 +869,17 @@ export async function PATCH(request: Request) {
           storeName: store.name,
           expiryDate: entry.expiryDate,
         }),
+        {
+          entityType: "inventory_entry",
+          entityId: entry.id,
+          storeId: entry.storeId,
+          payload: {
+            beforeDiscount: existing.priceDiscountPercent,
+            afterDiscount: null,
+            quantity: entry.quantity,
+            expiryDate: entry.expiryDate.toISOString(),
+          },
+        },
       );
     }
 
@@ -801,7 +911,8 @@ export async function PATCH(request: Request) {
 
   // No-barcode items are local scaffolding — hard-delete so the synthetic
   // Product row can be garbage-collected instead of bloating the catalog.
-  if (isAdhocBarcode(removed.barcode)) {
+  const softRemove = !isAdhocBarcode(removed.barcode);
+  if (!softRemove) {
     await db.inventoryEntry.delete({ where: { id: removed.id } });
     if (removed.imagePath) {
       await deleteLocalUpload(removed.imagePath);
@@ -828,6 +939,18 @@ export async function PATCH(request: Request) {
       storeName: store.name,
       expiryDate: removed.expiryDate,
     }),
+    {
+      entityType: "inventory_entry",
+      entityId: removed.id,
+      storeId: removed.storeId,
+      payload: {
+        soft: softRemove,
+        quantity: removed.quantity,
+        expiryDate: removed.expiryDate.toISOString(),
+        barcode: removed.barcode,
+        productId: removed.productId,
+      },
+    },
   );
 
   return NextResponse.json({ ok: true });

@@ -119,6 +119,7 @@ export async function POST(request: Request) {
     return { entry, merged: false as const };
   });
 
+  const softBuyRemove = !isAdhocBarcode(orderEntry.barcode);
   await logAuditEvent(
     request,
     session,
@@ -129,6 +130,17 @@ export async function POST(request: Request) {
       quantity: orderEntry.quantity,
       storeName: store.name,
     }),
+    {
+      entityType: "buy_list_entry",
+      entityId: orderEntry.id,
+      storeId: orderEntry.storeId,
+      payload: {
+        soft: softBuyRemove,
+        quantity: orderEntry.quantity,
+        barcode: orderEntry.barcode,
+        productId: orderEntry.productId,
+      },
+    },
   );
 
   if (result.merged) {
@@ -144,6 +156,17 @@ export async function POST(request: Request) {
         storeName: store.name,
         expiryDate,
       }),
+      {
+        entityType: "inventory_entry",
+        entityId: result.entry.id,
+        storeId: result.entry.storeId,
+        payload: {
+          addedQty: orderEntry.quantity,
+          totalQty: result.entry.quantity,
+          expiryDate: expiryDate.toISOString(),
+          barcode: orderEntry.barcode,
+        },
+      },
     );
   } else {
     await logAuditEvent(
@@ -157,6 +180,16 @@ export async function POST(request: Request) {
         storeName: store.name,
         expiryDate,
       }),
+      {
+        entityType: "inventory_entry",
+        entityId: result.entry.id,
+        storeId: result.entry.storeId,
+        payload: {
+          quantity: orderEntry.quantity,
+          expiryDate: expiryDate.toISOString(),
+          barcode: orderEntry.barcode,
+        },
+      },
     );
   }
 
