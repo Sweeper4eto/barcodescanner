@@ -6,7 +6,8 @@ export default function manifest(): MetadataRoute.Manifest {
     name: t("metadata.manifestName"),
     short_name: t("common.appName"),
     description: t("metadata.manifestDescription"),
-    start_url: "/",
+    /** Installed PWAs open the app shell, not the marketing homepage. */
+    start_url: "/app",
     scope: "/",
     display: "standalone",
     orientation: "portrait",
