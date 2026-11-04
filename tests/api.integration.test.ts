@@ -1457,11 +1457,12 @@ test("payment soft-lock still allows login; /me reports paymentLocked when overd
     assert.equal(graceMe.data.user?.paymentLocked, false);
   }
 
-  // Simulate next month with previous month still unpaid → soft-locked (login ok).
+  // Simulate billing that actually started last month (not UTC skew from
+  // enabling payments this month — keep updatedAt in the prior period).
   const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
   await db.client.update({
     where: { id: client.id },
-    data: { paymentsRequiredSince: prev },
+    data: { paymentsRequiredSince: prev, updatedAt: prev },
   });
   const lockedLogin = await loginUser(user.username, "password123");
   assert.equal(lockedLogin.ok, true);
