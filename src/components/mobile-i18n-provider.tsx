@@ -27,13 +27,20 @@ export function MobileI18nProvider({
 }: {
   children: React.ReactNode;
 }) {
-  const [locale, setLocaleState] = useState<MobileLocale>(() =>
-    typeof window !== "undefined" ? getClientLocale() : "en",
-  );
+  // Always start with the SSR default so the first client paint matches HTML.
+  const [locale, setLocaleState] = useState<MobileLocale>("en");
+  const [localeReady, setLocaleReady] = useState(false);
 
   useEffect(() => {
+    const stored = getClientLocale();
+    setLocaleState(stored);
+    setLocaleReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (!localeReady) return;
     document.documentElement.lang = locale;
-  }, [locale]);
+  }, [locale, localeReady]);
 
   const setLocale = useCallback((next: MobileLocale) => {
     setClientLocale(next);

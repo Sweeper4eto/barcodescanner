@@ -114,32 +114,56 @@ function isStandaloneDisplay(): boolean {
   return media || ios;
 }
 
-function SectionTitle({ children }: { children: ReactNode }) {
+function Shell({ children }: { children: ReactNode }) {
   return (
-    <h2 className="text-xl font-semibold tracking-tight text-foreground">
+    <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
       {children}
-    </h2>
+    </div>
   );
 }
 
-function CapabilityRow({
-  icon,
+function SectionHeading({
   title,
-  body,
+  intro,
+  align = "center",
 }: {
-  icon: ReactNode;
   title: string;
-  body: string;
+  intro?: string;
+  align?: "center" | "left";
 }) {
   return (
-    <div className="flex gap-3 text-left">
-      <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl border border-card-border text-primary">
-        {icon}
-      </span>
-      <div className="min-w-0">
-        <p className="text-sm font-semibold text-foreground">{title}</p>
-        <p className="mt-0.5 text-sm leading-relaxed text-muted">{body}</p>
-      </div>
+    <div className={align === "center" ? "mx-auto max-w-2xl text-center" : "max-w-xl text-left"}>
+      <h2 className="text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
+        {title}
+      </h2>
+      {intro ? (
+        <p className="mt-3 text-sm leading-relaxed text-muted md:text-base">
+          {intro}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+function CtaPair({
+  loginLabel,
+  registerLabel,
+  className = "",
+}: {
+  loginLabel: string;
+  registerLabel: string;
+  className?: string;
+}) {
+  return (
+    <div className={`grid w-full max-w-md grid-cols-2 gap-2.5 ${className}`.trim()}>
+      <Link href="/login" className={`${appButtonPrimary} h-11 gap-2 px-3`}>
+        <LoginIcon className="size-5 shrink-0" />
+        {loginLabel}
+      </Link>
+      <Link href="/register" className={`${appButtonPrimary} h-11 gap-2 px-3`}>
+        <RegisterIcon className="size-5 shrink-0" />
+        {registerLabel}
+      </Link>
     </div>
   );
 }
@@ -154,11 +178,31 @@ function HomePageContent() {
     window.location.replace("/app");
   }, []);
 
-  const features = [
-    { icon: BellIcon, line1: t("home.featureRemindersLine1"), line2: t("home.featureRemindersLine2") },
-    { icon: LeafIcon, line1: t("home.featureWasteLine1"), line2: t("home.featureWasteLine2") },
-    { icon: ChartIcon, line1: t("home.featureMoneyLine1"), line2: t("home.featureMoneyLine2") },
-    { icon: ShieldIcon, line1: t("home.featureSafeLine1"), line2: t("home.featureSafeLine2") },
+  const highlights = [
+    { icon: BellIcon, label: t("home.featureReminders") },
+    { icon: LeafIcon, label: t("home.featureWaste") },
+    { icon: ChartIcon, label: t("home.featureMoney") },
+    { icon: ShieldIcon, label: t("home.featureSafe") },
+  ] as const;
+
+  const capabilities = [
+    { icon: ScanIcon, title: t("home.capScanTitle"), body: t("home.capScanBody") },
+    { icon: DocIcon, title: t("home.capDocumentTitle"), body: t("home.capDocumentBody") },
+    { icon: ListIcon, title: t("home.capExpiryTitle"), body: t("home.capExpiryBody") },
+    { icon: BellIcon, title: t("home.capAlertsTitle"), body: t("home.capAlertsBody") },
+    { icon: TeamIcon, title: t("home.capTeamTitle"), body: t("home.capTeamBody") },
+  ] as const;
+
+  const howSteps = [
+    { n: "1", title: t("home.howStep1Title"), body: t("home.howStep1Body") },
+    { n: "2", title: t("home.howStep2Title"), body: t("home.howStep2Body") },
+    { n: "3", title: t("home.howStep3Title"), body: t("home.howStep3Body") },
+  ] as const;
+
+  const shots = [
+    { src: "/landing/shot-scan.webp", alt: t("home.shotScanAlt") },
+    { src: "/landing/shot-document.webp", alt: t("home.shotDocumentAlt") },
+    { src: "/landing/shot-expiry.webp", alt: t("home.shotExpiryAlt") },
   ] as const;
 
   const faqs = [
@@ -168,273 +212,274 @@ function HomePageContent() {
     { q: t("home.faqSupportQ"), a: t("home.faqSupportA") },
   ] as const;
 
-  const howSteps = [
-    { n: "1", title: t("home.howStep1Title"), body: t("home.howStep1Body") },
-    { n: "2", title: t("home.howStep2Title"), body: t("home.howStep2Body") },
-    { n: "3", title: t("home.howStep3Title"), body: t("home.howStep3Body") },
-  ] as const;
-
   return (
-    <div className="relative mx-auto flex min-h-svh min-w-0 max-w-lg flex-col px-4 pb-12 pt-[max(0.85rem,env(safe-area-inset-top,0px))] sm:px-6">
+    <div className="marketing-home relative min-h-svh overflow-x-hidden pb-16 pt-[max(0.75rem,env(safe-area-inset-top,0px))]">
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 h-80 bg-[radial-gradient(ellipse_at_50%_0%,rgb(52_211_153/0.16),transparent_60%)]"
+        className="pointer-events-none absolute inset-x-0 top-0 h-[42rem] bg-[radial-gradient(ellipse_at_50%_-10%,rgb(52_211_153/0.18),transparent_55%)]"
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -right-24 top-40 hidden h-80 w-80 rounded-full bg-primary/10 blur-3xl lg:block"
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -left-16 top-[28rem] hidden h-64 w-64 rounded-full bg-primary/5 blur-3xl lg:block"
       />
 
-      <div className="relative z-40 flex justify-end">
-        <LanguageSwitch />
-      </div>
-
-      <div className="relative z-0 mt-5 flex w-full flex-col items-center text-center">
-        <div className="flex w-full min-w-0 max-w-full items-center justify-center overflow-visible px-2">
-          <div className="inline-flex max-w-full items-center justify-center gap-2.5 text-[clamp(1.9rem,8.5vw,2.75rem)] leading-none">
+      <Shell>
+        <header className="relative z-40 flex items-center justify-between gap-3">
+          <Link
+            href="/"
+            className="hidden items-center gap-2 sm:inline-flex"
+            aria-label="expire365"
+          >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/landing/brand-mark.png?v=3"
               alt=""
-              width={200}
-              height={200}
-              className="box-border h-[1.55em] w-[1.55em] shrink-0 object-contain"
+              width={36}
+              height={36}
+              className="size-8 object-contain"
               decoding="async"
             />
-            <BrandName className="shrink-0 whitespace-nowrap text-[1em] leading-none" />
+            <BrandName className="text-lg leading-none" />
+          </Link>
+          <div className="ml-auto">
+            <LanguageSwitch />
           </div>
-        </div>
+        </header>
 
-        <h1 className="mt-8 text-[1.9rem] font-semibold leading-[1.12] tracking-tight sm:text-[2.15rem]">
-          <span className="block text-foreground">{t("home.taglineLead")}</span>
-          <span className="block text-primary">{t("home.taglineAccent")}</span>
-        </h1>
-
-        <p className="mt-3.5 max-w-[21rem] text-[0.92rem] leading-relaxed text-foreground/85">
-          <span className="block">{t("home.descriptionLine1")}</span>
-          <span className="block">{t("home.descriptionLine2")}</span>
-        </p>
-
-        <div className="mt-6 grid w-full max-w-sm grid-cols-2 gap-2.5">
-          <Link
-            href="/login"
-            className={`${appButtonPrimary} h-10 gap-2 px-2.5`}
-          >
-            <LoginIcon className="size-5 shrink-0" />
-            {t("home.login")}
-          </Link>
-          <Link
-            href="/register"
-            className={`${appButtonPrimary} h-10 gap-2 px-2.5`}
-          >
-            <RegisterIcon className="size-5 shrink-0 text-primary" />
-            {t("home.register")}
-          </Link>
-        </div>
-
-        <div className="mt-7 flex w-full max-w-md items-stretch">
-          {features.map((feature, index) => (
-            <div
-              key={feature.line1}
-              className={`flex min-w-0 flex-1 items-center justify-center gap-1 px-1 ${
-                index < features.length - 1 ? "border-r border-card-border/70" : ""
-              }`}
-            >
-              <div className="flex min-w-0 items-center gap-1">
-                <span className="flex size-7.5 shrink-0 items-center justify-center rounded-full border border-card-border bg-transparent text-primary">
-                  <feature.icon className="size-3.5" />
-                </span>
-                <span className="min-w-0 text-left text-[9px] font-medium leading-[1.15] text-foreground/85 sm:text-[10px]">
-                  <span className="block whitespace-nowrap">{feature.line1}</span>
-                  <span className="block whitespace-nowrap">{feature.line2}</span>
-                </span>
-              </div>
+        {/* Hero — one composition: brand, headline, support, CTAs, product visual */}
+        <section className="relative z-0 mt-8 grid items-center gap-10 md:mt-12 md:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] md:gap-10 lg:mt-14 lg:gap-14 xl:gap-16">
+          <div className="flex flex-col items-center text-center md:items-start md:text-left">
+            <div className="inline-flex items-center justify-center gap-2.5 text-[clamp(2.1rem,7vw,3.35rem)] leading-none md:hidden">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/landing/brand-mark.png?v=3"
+                alt=""
+                width={200}
+                height={200}
+                className="box-border h-[1.45em] w-[1.45em] shrink-0 object-contain"
+                decoding="async"
+              />
+              <BrandName className="shrink-0 whitespace-nowrap text-[1em] leading-none" />
             </div>
-          ))}
-        </div>
 
-        <div className="mt-8 w-full px-1 sm:px-3">
-          <div className="mx-auto w-[92%] max-w-[22rem] sm:w-[90%] sm:max-w-[24rem]">
+            <p className="marketing-fade-up mt-7 hidden text-sm font-medium uppercase tracking-[0.18em] text-primary/90 md:mt-0 md:block">
+              expire365
+            </p>
+
+            <h1 className="marketing-fade-up mt-4 text-[clamp(1.85rem,4.5vw,3.25rem)] font-semibold leading-[1.08] tracking-tight md:mt-3">
+              <span className="block text-foreground">{t("home.taglineLead")}</span>
+              <span className="block text-primary">{t("home.taglineAccent")}</span>
+            </h1>
+
+            <p className="marketing-fade-up marketing-delay-1 mt-4 max-w-md text-[0.95rem] leading-relaxed text-foreground/85 md:max-w-lg md:text-base">
+              {t("home.description")}
+            </p>
+
+            <CtaPair
+              loginLabel={t("home.login")}
+              registerLabel={t("home.register")}
+              className="marketing-fade-up marketing-delay-2 mt-7 md:max-w-sm"
+            />
+
+            <ul className="marketing-fade-up marketing-delay-3 mt-8 grid w-full max-w-md grid-cols-2 gap-x-4 gap-y-3 sm:max-w-lg md:max-w-none">
+              {highlights.map((item) => (
+                <li
+                  key={item.label}
+                  className="inline-flex items-center gap-2.5 text-sm text-foreground/80"
+                >
+                  <span className="flex size-8 shrink-0 items-center justify-center rounded-full border border-card-border text-primary">
+                    <item.icon className="size-3.5" />
+                  </span>
+                  <span className="font-medium leading-snug">{item.label}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="marketing-fade-up marketing-delay-2 relative mx-auto w-full max-w-md md:max-w-none">
+            <div
+              aria-hidden
+              className="absolute -inset-6 -z-10 rounded-[2rem] bg-[radial-gradient(circle_at_50%_40%,rgb(52_211_153/0.22),transparent_65%)] blur-xl"
+            />
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/landing/preview-panel.png"
               alt={t("home.previewAlt")}
               width={920}
               height={400}
-              className="block h-auto w-full rounded-2xl [filter:drop-shadow(-6px_14px_28px_rgb(52_211_153/0.28))]"
+              className="block h-auto w-full rounded-2xl [filter:drop-shadow(-8px_18px_36px_rgb(52_211_153/0.28))] lg:rounded-3xl"
               decoding="async"
             />
           </div>
-        </div>
-      </div>
+        </section>
 
-      <section className="relative z-0 mt-12 w-full space-y-5 text-left">
-        <div className="text-center">
-          <SectionTitle>{t("home.capabilitiesTitle")}</SectionTitle>
-          <p className="mt-2 text-sm leading-relaxed text-muted">
-            {t("home.capabilitiesIntro")}
-          </p>
-        </div>
-        <div className="space-y-4">
-          <CapabilityRow
-            icon={<ScanIcon className="size-4" />}
-            title={t("home.capScanTitle")}
-            body={t("home.capScanBody")}
+        {/* Capabilities — responsive grid, not a phone list */}
+        <section className="relative z-0 mt-20 md:mt-28">
+          <SectionHeading
+            title={t("home.capabilitiesTitle")}
+            intro={t("home.capabilitiesIntro")}
           />
-          <CapabilityRow
-            icon={<DocIcon className="size-4" />}
-            title={t("home.capDocumentTitle")}
-            body={t("home.capDocumentBody")}
-          />
-          <CapabilityRow
-            icon={<ListIcon className="size-4" />}
-            title={t("home.capExpiryTitle")}
-            body={t("home.capExpiryBody")}
-          />
-          <CapabilityRow
-            icon={<BellIcon className="size-4" />}
-            title={t("home.capAlertsTitle")}
-            body={t("home.capAlertsBody")}
-          />
-          <CapabilityRow
-            icon={<TeamIcon className="size-4" />}
-            title={t("home.capTeamTitle")}
-            body={t("home.capTeamBody")}
-          />
-        </div>
-      </section>
-
-      <section className="relative z-0 mt-12 w-full space-y-4">
-        <div className="text-center">
-          <SectionTitle>{t("home.howTitle")}</SectionTitle>
-        </div>
-        <ol className="space-y-3">
-          {howSteps.map((step) => (
-            <li key={step.n} className="flex gap-3 text-left">
-              <span className="flex size-8 shrink-0 items-center justify-center rounded-full border border-primary text-sm font-semibold text-primary">
-                {step.n}
-              </span>
-              <div className="min-w-0 pt-0.5">
-                <p className="text-sm font-semibold text-foreground">{step.title}</p>
-                <p className="mt-0.5 text-sm leading-relaxed text-muted">{step.body}</p>
+          <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 lg:gap-5">
+            {capabilities.map((cap) => (
+              <div
+                key={cap.title}
+                className="rounded-2xl border border-card-border/80 bg-foreground/[0.02] p-5 transition-colors hover:border-primary/35 hover:bg-primary/[0.04] sm:p-6"
+              >
+                <span className="flex size-10 items-center justify-center rounded-xl border border-card-border text-primary">
+                  <cap.icon className="size-5" />
+                </span>
+                <h3 className="mt-4 text-base font-semibold text-foreground">
+                  {cap.title}
+                </h3>
+                <p className="mt-1.5 text-sm leading-relaxed text-muted">
+                  {cap.body}
+                </p>
               </div>
-            </li>
-          ))}
-        </ol>
-      </section>
+            ))}
+          </div>
+        </section>
 
-      <section className="relative z-0 mt-12 w-full space-y-4">
-        <div className="text-center">
-          <SectionTitle>{t("home.seoTitle")}</SectionTitle>
-          <p className="mt-2 text-sm leading-relaxed text-muted">{t("home.seoBody")}</p>
-        </div>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          {(
-            [
-              {
-                src: "/landing/shot-scan.webp",
-                alt: t("home.shotScanAlt"),
-              },
-              {
-                src: "/landing/shot-document.webp",
-                alt: t("home.shotDocumentAlt"),
-              },
-              {
-                src: "/landing/shot-expiry.webp",
-                alt: t("home.shotExpiryAlt"),
-              },
-            ] as const
-          ).map((shot) => (
-            <div
-              key={shot.src}
-              className="overflow-hidden rounded-2xl border border-card-border bg-transparent"
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={shot.src}
-                alt={shot.alt}
-                width={720}
-                height={1280}
-                className="block h-auto w-full object-cover object-top"
-                decoding="async"
-                loading="lazy"
+        {/* How it works — horizontal on desktop */}
+        <section className="relative z-0 mt-20 md:mt-28">
+          <SectionHeading title={t("home.howTitle")} />
+          <ol className="mx-auto mt-10 grid max-w-4xl gap-10 md:grid-cols-3 md:gap-8">
+            {howSteps.map((step) => (
+              <li
+                key={step.n}
+                className="flex flex-col items-center text-center"
+              >
+                <span className="flex size-10 items-center justify-center rounded-full border border-primary text-sm font-semibold text-primary">
+                  {step.n}
+                </span>
+                <h3 className="mt-4 text-base font-semibold text-foreground">
+                  {step.title}
+                </h3>
+                <p className="mt-1.5 max-w-[15rem] text-sm leading-relaxed text-muted">
+                  {step.body}
+                </p>
+              </li>
+            ))}
+          </ol>
+        </section>
+
+        {/* Product visual + copy */}
+        <section className="relative z-0 mt-20 md:mt-28">
+          <div className="grid items-center gap-10 md:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] md:gap-10 lg:gap-14">
+            <div>
+              <SectionHeading
+                title={t("home.seoTitle")}
+                intro={t("home.seoBody")}
+                align="left"
               />
+              <div className="mt-8 grid gap-5 sm:grid-cols-2">
+                <div>
+                  <p className="text-sm font-semibold text-foreground">
+                    {t("home.whoShops")}
+                  </p>
+                  <p className="mt-1 text-sm leading-relaxed text-muted">
+                    {t("home.whoShopsBody")}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-foreground">
+                    {t("home.whoHome")}
+                  </p>
+                  <p className="mt-1 text-sm leading-relaxed text-muted">
+                    {t("home.whoHomeBody")}
+                  </p>
+                </div>
+              </div>
             </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="relative z-0 mt-12 w-full space-y-4 text-left">
-        <div className="text-center">
-          <SectionTitle>{t("home.whoTitle")}</SectionTitle>
-        </div>
-        <div className="space-y-3">
-          <div>
-            <p className="text-sm font-semibold text-foreground">{t("home.whoShops")}</p>
-            <p className="mt-0.5 text-sm leading-relaxed text-muted">
-              {t("home.whoShopsBody")}
-            </p>
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-foreground">{t("home.whoHome")}</p>
-            <p className="mt-0.5 text-sm leading-relaxed text-muted">
-              {t("home.whoHomeBody")}
-            </p>
-          </div>
-        </div>
-      </section>
-
-      <section className="relative z-0 mt-12 w-full space-y-3 text-left">
-        <div className="text-center">
-          <SectionTitle>{t("home.faqTitle")}</SectionTitle>
-        </div>
-        <dl className="space-y-3">
-          {faqs.map((item) => (
-            <div key={item.q}>
-              <dt className="text-sm font-semibold text-foreground">{item.q}</dt>
-              <dd className="mt-0.5 text-sm leading-relaxed text-muted">{item.a}</dd>
+            <div className="grid grid-cols-3 gap-2.5 sm:gap-3 md:gap-4">
+              {shots.map((shot, i) => (
+                <div
+                  key={shot.src}
+                  className={`overflow-hidden rounded-2xl border border-card-border bg-black/20 shadow-[0_20px_50px_-28px_rgb(52_211_153/0.45)] ${
+                    i === 1 ? "mt-6 sm:mt-10" : i === 2 ? "mt-3 sm:mt-5" : ""
+                  }`}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={shot.src}
+                    alt={shot.alt}
+                    width={720}
+                    height={1280}
+                    className="block h-auto w-full object-cover object-top"
+                    decoding="async"
+                    loading="lazy"
+                  />
+                </div>
+              ))}
             </div>
-          ))}
-        </dl>
-      </section>
+          </div>
+        </section>
 
-      <section className="relative z-0 mt-12 w-full space-y-4 text-center">
-        <SectionTitle>{t("home.ctaTitle")}</SectionTitle>
-        <p className="text-sm leading-relaxed text-muted">{t("home.ctaBody")}</p>
-        <div className="mx-auto grid w-full max-w-sm grid-cols-2 gap-2.5">
-          <Link href="/login" className={`${appButtonPrimary} h-10 gap-2 px-2.5`}>
-            <LoginIcon className="size-5 shrink-0" />
-            {t("home.login")}
-          </Link>
-          <Link href="/register" className={`${appButtonPrimary} h-10 gap-2 px-2.5`}>
-            <RegisterIcon className="size-5 shrink-0" />
-            {t("home.register")}
-          </Link>
-        </div>
-      </section>
+        {/* FAQ */}
+        <section className="relative z-0 mt-20 md:mt-28">
+          <SectionHeading title={t("home.faqTitle")} />
+          <dl className="mt-10 grid gap-4 md:grid-cols-2 md:gap-5">
+            {faqs.map((item) => (
+              <div
+                key={item.q}
+                className="rounded-2xl border border-card-border/80 px-5 py-4 sm:px-6 sm:py-5"
+              >
+                <dt className="text-sm font-semibold text-foreground md:text-base">
+                  {item.q}
+                </dt>
+                <dd className="mt-1.5 text-sm leading-relaxed text-muted">
+                  {item.a}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </section>
 
-      <div className="relative z-0 mt-10 w-full border-t border-card-border/70 pt-6 text-center">
-        <p className="text-sm text-muted">{t("home.contactCta")}</p>
-        <div className="mt-2 flex flex-col items-center gap-1.5">
-          <Link
-            href="/contact"
-            className="inline-flex text-sm font-semibold text-primary underline-offset-4 hover:underline"
-          >
-            {t("home.contactLink")}
-          </Link>
-          <a
-            href="tel:+359887628654"
-            className="text-sm font-medium text-primary"
-          >
-            {t("home.contactPhone")}
-          </a>
-        </div>
-        <div className="mt-4 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs text-muted">
-          <Link href="/terms" className="underline-offset-4 hover:text-foreground hover:underline">
-            {t("home.termsLink")}
-          </Link>
-          <span aria-hidden>·</span>
-          <Link href="/privacy" className="underline-offset-4 hover:text-foreground hover:underline">
-            {t("home.privacyLink")}
-          </Link>
-        </div>
-      </div>
+        {/* Bottom CTA */}
+        <section className="relative z-0 mt-20 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-br from-primary/10 via-transparent to-transparent px-6 py-12 text-center md:mt-28 md:px-12 md:py-16">
+          <h2 className="text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
+            {t("home.ctaTitle")}
+          </h2>
+          <p className="mx-auto mt-3 max-w-lg text-sm leading-relaxed text-muted md:text-base">
+            {t("home.ctaBody")}
+          </p>
+          <CtaPair
+            loginLabel={t("home.login")}
+            registerLabel={t("home.register")}
+            className="mx-auto mt-8"
+          />
+        </section>
+
+        <footer className="relative z-0 mt-14 border-t border-card-border/70 pt-8 text-center">
+          <p className="text-sm text-muted">{t("home.contactCta")}</p>
+          <div className="mt-2 flex flex-col items-center gap-1.5 sm:flex-row sm:justify-center sm:gap-4">
+            <Link
+              href="/contact"
+              className="inline-flex text-sm font-semibold text-primary underline-offset-4 hover:underline"
+            >
+              {t("home.contactLink")}
+            </Link>
+            <a
+              href="tel:+359887628654"
+              className="text-sm font-medium text-primary"
+            >
+              {t("home.contactPhone")}
+            </a>
+          </div>
+          <div className="mt-5 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs text-muted">
+            <Link href="/terms" className="underline-offset-4 hover:text-foreground hover:underline">
+              {t("home.termsLink")}
+            </Link>
+            <span aria-hidden>·</span>
+            <Link href="/privacy" className="underline-offset-4 hover:text-foreground hover:underline">
+              {t("home.privacyLink")}
+            </Link>
+          </div>
+        </footer>
+      </Shell>
     </div>
   );
 }

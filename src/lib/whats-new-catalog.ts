@@ -995,6 +995,14 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Регистрация: нужен е 8-цифрен код от expire365, за да създадете акаунт.",
     href: "/register",
   },
+  {
+    key: "2026-11-marketing-homepage-desktop",
+    titleEn:
+      "The public homepage is redesigned for desktop and mobile — wider layout, clearer hero, and feature grids.",
+    titleBg:
+      "Публичната начална страница е преработена за десктоп и мобилен — по-широк изглед, по-ясен герой и мрежи с функции.",
+    href: "/",
+  },
 ];
 
 

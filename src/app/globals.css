@@ -316,3 +316,36 @@ select option {
 .document-processing-bar {
   box-shadow: 0 0 10px rgb(52 211 153 / 0.45);
 }
+
+@keyframes marketing-fade-up {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 14px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.marketing-home .marketing-fade-up {
+  animation: marketing-fade-up 0.7s ease-out both;
+}
+
+.marketing-home .marketing-delay-1 {
+  animation-delay: 0.08s;
+}
+
+.marketing-home .marketing-delay-2 {
+  animation-delay: 0.16s;
+}
+
+.marketing-home .marketing-delay-3 {
+  animation-delay: 0.24s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marketing-home .marketing-fade-up {
+    animation: none;
+  }
+}

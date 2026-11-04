@@ -33,15 +33,15 @@ export const en = {
     currency: "€",
   },
   metadata: {
-    title: "expire365 — Expiry & stock tracking for stores and homes",
+    title: "expire365: Expiry & stock tracking for stores and homes",
     description:
       "Track best-before dates for shops and households. Scan barcodes, import delivery documents, manage stock by location, and get reminders before products expire.",
     keywords:
       "expiry tracking, best before dates, stock management, barcode scanner, inventory app, store expiry, household fridge tracker, delivery document scan, food waste",
-    ogTitle: "expire365 — Track stock & expiry dates",
+    ogTitle: "expire365: Track stock & expiry dates",
     ogDescription:
-      "Scan barcodes and delivery docs, track best-before dates, and cut waste — for stores and homes.",
-    manifestName: "expire365 — inventory & expiry",
+      "Scan barcodes and delivery docs, track best-before dates, and cut waste. Built for stores and homes.",
+    manifestName: "expire365 inventory & expiry",
     manifestDescription: "Track stock and expiry dates across stores and homes",
   },
   home: {
@@ -76,10 +76,10 @@ export const en = {
       "One mobile app for receiving stock, tracking expiry, and keeping the team aligned.",
     capScanTitle: "Barcode scan",
     capScanBody:
-      "Add products in seconds — scan the barcode, set quantity and expiry, done.",
+      "Add products in seconds: scan the barcode, set quantity and expiry, done.",
     capDocumentTitle: "Delivery documents",
     capDocumentBody:
-      "Photograph a delivery list; the app reads products, quantities, and dates for review.",
+      "Photograph a delivery list. The app reads products, quantities, and dates for review.",
     capExpiryTitle: "Expiry list",
     capExpiryBody:
       "See what expires soon or is overdue, search the store, and clear items as you go.",
@@ -88,12 +88,12 @@ export const en = {
       "Choose early and urgent windows. Get notified before stock goes out of date.",
     capTeamTitle: "Team & locations",
     capTeamBody:
-      "Several stores, staff roles, and a shared view — each person sees what they need.",
+      "Several stores, staff roles, and a shared view. Each person sees what they need.",
     howTitle: "How it works",
     howStep1Title: "Scan or photograph",
     howStep1Body: "Barcode on the shelf, or a full delivery document with the camera.",
     howStep2Title: "Confirm details",
-    howStep2Body: "Check name, quantity, and expiry — fix anything in one tap.",
+    howStep2Body: "Check name, quantity, and expiry. Fix anything in one tap.",
     howStep3Title: "Stay ahead",
     howStep3Body: "The expiry list and alerts keep waste and surprises down.",
     whoTitle: "Who it’s for",
@@ -107,7 +107,7 @@ export const en = {
     faqTitle: "Questions",
     faqMobileQ: "Does it work on a phone?",
     faqMobileA:
-      "Yes — built for mobile. Install it on the home screen; it opens straight into the app.",
+      "Yes. Built for mobile. Install it on the home screen and it opens straight into the app.",
     faqOfflineQ: "Do I need a computer?",
     faqOfflineA: "No. Staff work from the phone on the shop floor.",
     faqTeamQ: "Can several people use one account?",
@@ -115,7 +115,7 @@ export const en = {
     faqSupportQ: "How do I get help?",
     faqSupportA: "Use Contact in the app, or call +359 887 628 654.",
     ctaTitle: "Ready to try expire365?",
-    ctaBody: "Create an account or log in — the app is the product.",
+    ctaBody: "Create an account or log in. The app is the product.",
     contactCta: "Need help?",
     contactLink: "Contact us",
     contactPhone: "+359 887 628 654",
@@ -127,7 +127,7 @@ export const en = {
     privacy: "Privacy Policy",
     lastUpdated: "Last updated",
     termsDescription: "Terms of Service for expire365 inventory and expiry tracking.",
-    privacyDescription: "Privacy Policy for expire365 — how we collect and use data.",
+    privacyDescription: "Privacy Policy for expire365: how we collect and use data.",
     registerAgreePrefix: "By registering you agree to the",
     registerAgreeAnd: "and",
   },
