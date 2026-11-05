@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { auditAuthLogin } from "@/lib/audit-details";
-import { getClientIp, logAuditEvent } from "@/lib/audit-log";
+import { auditAuthLogin, auditAuthLoginFailed } from "@/lib/audit-details";
+import {
+  getClientIp,
+  logAuditEvent,
+  logFailedLoginAttempt,
+} from "@/lib/audit-log";
 import { loginUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import {
@@ -23,6 +27,11 @@ export async function POST(request: Request) {
   if (!parsed.success) {
     // Empty/missing credentials used to surface as the generic "invalid data"
     // message; treat them like a failed login instead.
+    await logFailedLoginAttempt(
+      request,
+      "",
+      auditAuthLoginFailed({ reason: "empty credentials" }),
+    );
     return NextResponse.json(
       { error: apiT(request, "auth.invalidCredentials") },
       { status: 401 },
@@ -32,6 +41,14 @@ export async function POST(request: Request) {
   const ip = getClientIp(request);
   const remaining = getLoginLockRemainingMs(ip, parsed.data.username);
   if (remaining > 0) {
+    await logFailedLoginAttempt(
+      request,
+      parsed.data.username,
+      auditAuthLoginFailed({
+        reason: "locked",
+        typedUsername: parsed.data.username,
+      }),
+    );
     return NextResponse.json(
       { error: apiT(request, "auth.tooManyAttempts") },
       {
@@ -44,6 +61,22 @@ export async function POST(request: Request) {
   const result = await loginUser(parsed.data.username, parsed.data.password);
   if (!result.ok) {
     const lockedFor = recordLoginFailure(ip, parsed.data.username);
+    const reason =
+      lockedFor > 0
+        ? "locked after failures"
+        : result.code === "NO_CLIENT"
+          ? "no client"
+          : result.errorKey === "auth.accountDeactivated"
+            ? "account deactivated"
+            : "invalid credentials";
+    await logFailedLoginAttempt(
+      request,
+      parsed.data.username,
+      auditAuthLoginFailed({
+        reason,
+        typedUsername: parsed.data.username,
+      }),
+    );
     if (lockedFor > 0) {
       return NextResponse.json(
         { error: apiT(request, "auth.tooManyAttempts") },

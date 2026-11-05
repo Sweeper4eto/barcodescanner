@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { auditAuthLoginFailed } from "../src/lib/audit-details";
 import {
   OWNER_ACTIVITY_EVENTS,
   auditStoreDetailsNeedle,
@@ -112,4 +113,26 @@ test("buildAuditLogWhere intersects filter with owner activity allowlist", () =>
   assert.ok(!eventClause.event.in.includes("payment_recorded"));
   assert.ok(OWNER_ACTIVITY_EVENTS.includes("login"));
   assert.ok(!OWNER_ACTIVITY_EVENTS.includes("payment_recorded"));
+  assert.ok(!OWNER_ACTIVITY_EVENTS.includes("login_failed"));
+});
+
+test("auditAuthLoginFailed keeps typed casing and never invents secrets", () => {
+  assert.equal(
+    auditAuthLoginFailed({ reason: "invalid credentials", typedUsername: "Irina" }),
+    'invalid credentials · typed "Irina"',
+  );
+  assert.equal(
+    auditAuthLoginFailed({ reason: "locked", typedUsername: "irina" }),
+    "locked",
+  );
+});
+
+test("auth filter includes login_failed", () => {
+  const where = buildAuditLogWhere({ filter: "auth" });
+  assert.ok(where.AND);
+  const and = where.AND as Array<Record<string, unknown>>;
+  const eventClause = and.find((clause) => "event" in clause) as {
+    event: { in: string[] };
+  };
+  assert.ok(eventClause.event.in.includes("login_failed"));
 });

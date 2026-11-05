@@ -339,6 +339,19 @@ export function auditAuthLogin(role: string, clientName?: string | null): string
   ]);
 }
 
+/** Reason text for login_failed audit rows (never include passwords). */
+export function auditAuthLoginFailed(input: {
+  reason: string;
+  typedUsername?: string;
+}): string {
+  const typed = input.typedUsername?.trim() ?? "";
+  const normalized = typed.toLowerCase();
+  return auditJoin([
+    input.reason,
+    typed && typed !== normalized ? `typed "${typed.slice(0, 40)}"` : null,
+  ]);
+}
+
 export function auditAuthRegister(username: string): string {
   return `new account "${username}"`;
 }

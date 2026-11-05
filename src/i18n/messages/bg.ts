@@ -1447,6 +1447,7 @@ export const bg = {
     },
     auditEvents: {
       login: "Вход",
+      login_failed: "Неуспешен вход",
       logout: "Изход",
       register: "Регистрация",
       client_created: "Клиент създаден",

@@ -21,7 +21,7 @@ import { RegistrationCodesPanel } from "@/components/admin/registration-codes-pa
 
 type AuditEntry = {
   id: string;
-  userId: string;
+  userId: string | null;
   username: string;
   /** Business/household account name for the acting user (admin only). */
   accountName: string | null;
@@ -299,6 +299,7 @@ export function AuditLogPanel() {
 
   function eventClass(event: string) {
     if (event === "login") return "bg-emerald-100 text-emerald-800";
+    if (event === "login_failed") return "bg-red-100 text-red-800";
     if (event === "logout") return "border border-card-border bg-transparent text-muted";
     if (event.startsWith("client_") || event.startsWith("store_") || event === "user_updated" || event === "payment_recorded") {
       return "bg-violet-100 text-violet-800";

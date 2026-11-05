@@ -1437,6 +1437,7 @@ export const en = {
     },
     auditEvents: {
       login: "Login",
+      login_failed: "Login failed",
       logout: "Logout",
       register: "Register",
       client_created: "Client created",

@@ -355,8 +355,9 @@ model PushNotificationLog {
 
 model AuditLog {
   id         String   @id @default(cuid())
-  userId     String
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /** Null for anonymous events (e.g. failed login with unknown username). */
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
   username   String
   event      String
   ipAddress  String   @default("")

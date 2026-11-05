@@ -14,6 +14,7 @@ import {
 
 export type AuditEvent =
   | "login"
+  | "login_failed"
   | "logout"
   | "register"
   | "client_created"
@@ -48,6 +49,7 @@ export const AUDIT_PAGE_SIZES = [10, 20, 50] as const;
 
 const AUTH_EVENTS: AuditEvent[] = [
   "login",
+  "login_failed",
   "logout",
   "register",
   "user_password_changed",
@@ -176,6 +178,39 @@ export async function logAuditEvent(
   }
 }
 
+/**
+ * Persist a failed login attempt (username tried + reason). Never logs passwords.
+ * Links userId when the attempted username matches an existing account.
+ */
+export async function logFailedLoginAttempt(
+  request: Request,
+  attemptedUsername: string,
+  details = "",
+): Promise<void> {
+  const normalized = attemptedUsername.trim().toLowerCase().slice(0, 64);
+  const username = normalized || "(empty)";
+  try {
+    const existing = normalized
+      ? await db.user.findUnique({
+          where: { username: normalized },
+          select: { id: true },
+        })
+      : null;
+    await db.auditLog.create({
+      data: {
+        userId: existing?.id ?? null,
+        username,
+        event: "login_failed",
+        ipAddress: getClientIp(request),
+        deviceInfo: describeClientDevice(request),
+        details: details.slice(0, AUDIT_DETAILS_MAX),
+      },
+    });
+  } catch (error) {
+    console.error("audit log write failed:", error);
+  }
+}
+
 function parseAuditDateBound(value: string, endOfDay: boolean): Date | null {
   const v = value.trim();
   if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return null;
@@ -207,7 +242,7 @@ export type AuditAccountKind = "business" | "household";
 
 /** Events owners may see in Team → Activity (no billing / other-account admin). */
 export const OWNER_ACTIVITY_EVENTS: AuditEvent[] = [
-  ...AUTH_EVENTS,
+  ...AUTH_EVENTS.filter((event) => event !== "login_failed"),
   ...INVENTORY_EVENTS,
   ...PRODUCT_EVENTS,
   "user_updated",
@@ -478,26 +513,37 @@ export function serializeAuditEntries(
 
 /** Admin-only: resolve business/household account name for each entry's acting user. */
 export async function attachAccountNamesToAuditEntries<
-  T extends { userId: string },
+  T extends { userId: string | null },
 >(entries: T[]): Promise<Array<T & { accountName: string | null }>> {
   if (entries.length === 0) {
     return [];
   }
 
-  const userIds = [...new Set(entries.map((entry) => entry.userId))];
-  const actors = await db.user.findMany({
-    where: { id: { in: userIds } },
-    select: {
-      id: true,
-      client: { select: { name: true } },
-    },
-  });
+  const userIds = [
+    ...new Set(
+      entries
+        .map((entry) => entry.userId)
+        .filter((id): id is string => Boolean(id)),
+    ),
+  ];
+  const actors =
+    userIds.length === 0
+      ? []
+      : await db.user.findMany({
+          where: { id: { in: userIds } },
+          select: {
+            id: true,
+            client: { select: { name: true } },
+          },
+        });
   const accountNameByUserId = new Map(
     actors.map((row) => [row.id, row.client?.name ?? null] as const),
   );
 
   return entries.map((entry) => ({
     ...entry,
-    accountName: accountNameByUserId.get(entry.userId) ?? null,
+    accountName: entry.userId
+      ? (accountNameByUserId.get(entry.userId) ?? null)
+      : null,
   }));
 }
