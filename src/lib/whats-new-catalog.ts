@@ -1113,6 +1113,28 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Иконите на Начало се виждат добре на телефон, таблет и компютър (по-широко на голям екран).",
     href: "/app",
   },
+  {
+    key: "2026-11-hub-billing-card-icon",
+    titleEn: "Home Payments shortcut uses a thin credit-card outline icon.",
+    titleBg: "Иконата Плащания на Начало е тънък outline на банкова карта.",
+    href: "/app/billing",
+  },
+  {
+    key: "2026-11-hub-thinner-glyphs",
+    titleEn:
+      "Home shortcut icons use a thinner outline and sit at about half the tile size.",
+    titleBg:
+      "Иконите на Начало са с по-тънък outline и около половината от плочката.",
+    href: "/app",
+  },
+  {
+    key: "2026-11-hub-swipe-over-icons",
+    titleEn:
+      "Home: swipe between pages works even when you start the gesture on an icon.",
+    titleBg:
+      "На Начало смяната на страница с жест работи и когато започнеш върху икона.",
+    href: "/app",
+  },
 ];
 
 

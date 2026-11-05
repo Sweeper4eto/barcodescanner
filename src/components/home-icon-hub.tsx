@@ -146,6 +146,8 @@ type PressSession = {
   startX: number;
   startY: number;
   dragging: boolean;
+  /** Button that started the press — capture only after long-press drag. */
+  target: HTMLButtonElement | null;
 };
 
 export function HomeIconHub({
@@ -333,6 +335,12 @@ export function HomeIconHub({
     pageSwipe.current = null;
     session.dragging = true;
     rearrangingRef.current = true;
+    // Capture only once rearrange starts — earlier capture blocked page swipes.
+    try {
+      session.target?.setPointerCapture(session.pointerId);
+    } catch {
+      /* ignore */
+    }
     const tile = slotRefs.current[session.slot];
     const size = Math.max(72, (tile?.getBoundingClientRect().width ?? 96) * 1.3);
     lastPointerRef.current = { x, y };
@@ -346,6 +354,93 @@ export function HomeIconHub({
     requestAnimationFrame(() => {
       showFloat(lastPointerRef.current.x, lastPointerRef.current.y, size);
     });
+  }
+
+  function updatePageSwipe(clientX: number, clientY: number) {
+    const swipe = pageSwipe.current;
+    if (!swipe?.active || rearrangingRef.current) return;
+
+    const dx = clientX - swipe.x;
+    const dy = clientY - swipe.y;
+
+    if (
+      !swipe.locked &&
+      Math.abs(dx) > 12 &&
+      Math.abs(dx) > Math.abs(dy) * PAGE_SWIPE_DOMINANCE
+    ) {
+      swipe.locked = true;
+      clearPressTimer();
+    }
+    if (!swipe.locked) return;
+
+    const last = visiblePages() - 1;
+    let offsetDx = dx;
+    if (
+      (pageRef.current === 0 && dx > 0) ||
+      (pageRef.current === last && dx < 0)
+    ) {
+      offsetDx = dx * 0.35;
+    }
+    setTrackOffset(pageOffset(pageRef.current) + offsetDx, false);
+  }
+
+  function endPageSwipe(clientX: number, clientY: number) {
+    const swipe = pageSwipe.current;
+    pageSwipe.current = null;
+    if (!swipe?.active || rearrangingRef.current) {
+      setTrackOffset(pageOffset(pageRef.current), true);
+      return;
+    }
+
+    const dx = clientX - swipe.x;
+    const dy = clientY - swipe.y;
+    const width = viewportWidth();
+    const shouldFlip =
+      swipe.locked &&
+      Math.abs(dx) >= Math.min(PAGE_SWIPE_PX, width * PAGE_SWIPE_RATIO) &&
+      Math.abs(dx) > Math.abs(dy) * PAGE_SWIPE_DOMINANCE;
+
+    const last = visiblePages() - 1;
+    let next = pageRef.current;
+    if (shouldFlip) {
+      if (dx < 0 && pageRef.current < last) next += 1;
+      else if (dx > 0 && pageRef.current > 0) next -= 1;
+    }
+
+    // Any locked horizontal swipe (even if page didn’t flip) must not open a tile.
+    if (swipe.locked || next !== pageRef.current) {
+      suppressClick.current = true;
+      window.setTimeout(() => {
+        suppressClick.current = false;
+      }, 280);
+    }
+    goToPage(next, true);
+  }
+
+  /** Horizontal flick on a tile → page swipe (iOS-home style). */
+  function handoffTilePressToPageSwipe(
+    session: PressSession,
+    event: ReactPointerEvent<HTMLButtonElement>,
+  ) {
+    clearPressTimer();
+    pressRef.current = null;
+    try {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    } catch {
+      /* may not have been captured yet */
+    }
+    try {
+      viewportRef.current?.setPointerCapture(event.pointerId);
+    } catch {
+      /* ignore */
+    }
+    pageSwipe.current = {
+      x: session.startX,
+      y: session.startY,
+      active: true,
+      locked: true,
+    };
+    updatePageSwipe(event.clientX, event.clientY);
   }
 
   useEffect(() => {
@@ -433,7 +528,7 @@ export function HomeIconHub({
     if (disabled) return;
     if (event.button != null && event.button !== 0) return;
 
-    // Capture so move/up keep coming to this button even outside it.
+    // Capture so we keep getting moves — hand off to page-swipe if flick is horizontal.
     try {
       event.currentTarget.setPointerCapture(event.pointerId);
     } catch {
@@ -449,6 +544,7 @@ export function HomeIconHub({
       startX: event.clientX,
       startY: event.clientY,
       dragging: false,
+      target: event.currentTarget,
     };
 
     longPressTimer.current = setTimeout(() => {
@@ -459,6 +555,13 @@ export function HomeIconHub({
   }
 
   function onTilePointerMove(event: ReactPointerEvent<HTMLButtonElement>) {
+    // After handoff, viewport owns the pointer — but keep driving if capture
+    // transfer failed and pageSwipe is still on this finger.
+    if (!pressRef.current && pageSwipe.current?.active) {
+      updatePageSwipe(event.clientX, event.clientY);
+      return;
+    }
+
     const session = pressRef.current;
     if (!session || session.pointerId !== event.pointerId) return;
 
@@ -467,6 +570,9 @@ export function HomeIconHub({
       const dy = event.clientY - session.startY;
       if (Math.hypot(dx, dy) > MOVE_CANCEL_PX) {
         clearPressTimer();
+        if (Math.abs(dx) > Math.abs(dy) * PAGE_SWIPE_DOMINANCE) {
+          handoffTilePressToPageSwipe(session, event);
+        }
       }
       return;
     }
@@ -479,6 +585,16 @@ export function HomeIconHub({
   }
 
   function onTilePointerUp(event: ReactPointerEvent<HTMLButtonElement>) {
+    if (pageSwipe.current?.active && !pressRef.current?.dragging) {
+      try {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      } catch {
+        /* ignore */
+      }
+      endPageSwipe(event.clientX, event.clientY);
+      return;
+    }
+
     const session = pressRef.current;
     if (!session || session.pointerId !== event.pointerId) return;
 
@@ -498,6 +614,10 @@ export function HomeIconHub({
   }
 
   function onTilePointerCancel(event: ReactPointerEvent<HTMLButtonElement>) {
+    if (pageSwipe.current?.active && !pressRef.current?.dragging) {
+      endPageSwipe(event.clientX, event.clientY);
+      return;
+    }
     const session = pressRef.current;
     if (!session || session.pointerId !== event.pointerId) return;
     // If already dragging, keep going — cancel is often noise on mobile.
@@ -518,64 +638,18 @@ export function HomeIconHub({
   }
 
   function onHubPointerMove(event: ReactPointerEvent<HTMLDivElement>) {
-    const swipe = pageSwipe.current;
-    if (!swipe?.active || rearrangingRef.current || pressRef.current?.dragging) {
-      return;
-    }
-    const dx = event.clientX - swipe.x;
-    const dy = event.clientY - swipe.y;
-
-    if (
-      !swipe.locked &&
-      Math.abs(dx) > 12 &&
-      Math.abs(dx) > Math.abs(dy) * PAGE_SWIPE_DOMINANCE
-    ) {
-      swipe.locked = true;
-      clearPressTimer();
-    }
-    if (!swipe.locked) return;
-
-    const last = visiblePages() - 1;
-    let offsetDx = dx;
-    if (
-      (pageRef.current === 0 && dx > 0) ||
-      (pageRef.current === last && dx < 0)
-    ) {
-      offsetDx = dx * 0.35;
-    }
-    setTrackOffset(pageOffset(pageRef.current) + offsetDx, false);
+    if (!pageSwipe.current?.active || rearrangingRef.current) return;
+    if (pressRef.current?.dragging) return;
+    updatePageSwipe(event.clientX, event.clientY);
   }
 
   function onHubPointerEnd(event: ReactPointerEvent<HTMLDivElement>) {
-    const swipe = pageSwipe.current;
-    pageSwipe.current = null;
-    if (!swipe?.active || rearrangingRef.current || pressRef.current?.dragging) {
+    if (pressRef.current?.dragging) {
+      pageSwipe.current = null;
       setTrackOffset(pageOffset(pageRef.current), true);
       return;
     }
-
-    const dx = event.clientX - swipe.x;
-    const dy = event.clientY - swipe.y;
-    const width = viewportWidth();
-    const shouldFlip =
-      swipe.locked &&
-      Math.abs(dx) >= Math.min(PAGE_SWIPE_PX, width * PAGE_SWIPE_RATIO) &&
-      Math.abs(dx) > Math.abs(dy) * PAGE_SWIPE_DOMINANCE;
-
-    const last = visiblePages() - 1;
-    let next = pageRef.current;
-    if (shouldFlip) {
-      if (dx < 0 && pageRef.current < last) next += 1;
-      else if (dx > 0 && pageRef.current > 0) next -= 1;
-    }
-
-    if (next !== pageRef.current) {
-      suppressClick.current = true;
-      window.setTimeout(() => {
-        suppressClick.current = false;
-      }, 280);
-    }
-    goToPage(next, true);
+    endPageSwipe(event.clientX, event.clientY);
   }
 
   const pageCount = visiblePages();

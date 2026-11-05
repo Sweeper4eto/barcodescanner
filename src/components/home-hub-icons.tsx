@@ -4,12 +4,19 @@ import type { ReactNode } from "react";
 
 type IconProps = { className?: string };
 
+/** Default hub stroke — thinner than the old 2.15 mockup weight. */
 const base = {
   fill: "none" as const,
   stroke: "currentColor",
-  strokeWidth: 2.15,
+  strokeWidth: 1.55,
   strokeLinecap: "round" as const,
   strokeLinejoin: "round" as const,
+};
+
+/** Finer inner details (chip lines, dense glyphs). */
+const finer = {
+  ...base,
+  strokeWidth: 1.35,
 };
 
 function Glyph({
@@ -73,15 +80,18 @@ export function HubTeamIcon({ className }: IconProps) {
   );
 }
 
-/** Плащания — banknote + coin */
+/** Плащания — credit card (outline + stripe + chip/digits) */
 export function HubBillingIcon({ className }: IconProps) {
   return (
     <Glyph className={className}>
-      <rect x="2.6" y="6.2" width="14.8" height="9.6" rx="1.8" {...base} />
-      <circle cx="10" cy="11" r="2.35" {...base} />
-      <path d="M5.1 8.4h1.7M5.1 13.6h1.7M13.2 8.4h1.7M13.2 13.6h1.7" {...base} />
-      <circle cx="18.2" cy="15.6" r="3.35" {...base} />
-      <path d="M18.2 13.7v3.8M16.7 15.6h3" {...base} />
+      <rect x="2" y="5" width="20" height="14" rx="2.2" {...base} />
+      {/* Magnetic stripe */}
+      <path d="M2 10h20" {...base} />
+      {/* Small chip under the stripe */}
+      <rect x="5" y="12.35" width="3.2" height="2.4" rx="0.45" {...finer} />
+      {/* Number stubs */}
+      <path d="M10.2 13.55h7.6" {...finer} />
+      <path d="M10.2 15.55h4.8" {...finer} />
     </Glyph>
   );
 }
@@ -183,21 +193,17 @@ export function HubChecklistsIcon({ className }: IconProps) {
 
 /** Температурен дневник — full snowflake left, thermometer right */
 export function HubTemperatureIcon({ className }: IconProps) {
-  const flake = {
-    ...base,
-    strokeWidth: 1.55,
-  };
   return (
     <Glyph className={className}>
-      {/* Full snowflake (left) */}
-      <path d="M6.6 4.6v9.2" {...flake} />
-      <path d="M2 9.2h9.2" {...flake} />
-      <path d="m3.4 6 6.4 6.4" {...flake} />
-      <path d="m9.8 6-6.4 6.4" {...flake} />
-      <path d="M6.6 4.6 5.55 5.8M6.6 4.6 7.65 5.8" {...flake} />
-      <path d="M6.6 13.8 5.55 12.6M6.6 13.8 7.65 12.6" {...flake} />
-      <path d="M2 9.2 3.2 8.15M2 9.2 3.2 10.25" {...flake} />
-      <path d="M11.2 9.2 10 8.15M11.2 9.2 10 10.25" {...flake} />
+      {/* Full snowflake (left) — finer so dense arms don’t blot */}
+      <path d="M6.6 4.6v9.2" {...finer} />
+      <path d="M2 9.2h9.2" {...finer} />
+      <path d="m3.4 6 6.4 6.4" {...finer} />
+      <path d="m9.8 6-6.4 6.4" {...finer} />
+      <path d="M6.6 4.6 5.55 5.8M6.6 4.6 7.65 5.8" {...finer} />
+      <path d="M6.6 13.8 5.55 12.6M6.6 13.8 7.65 12.6" {...finer} />
+      <path d="M2 9.2 3.2 8.15M2 9.2 3.2 10.25" {...finer} />
+      <path d="M11.2 9.2 10 8.15M11.2 9.2 10 10.25" {...finer} />
 
       {/* Thermometer (right) */}
       <path

@@ -436,8 +436,8 @@ select option {
 .home-hub-glyph {
   position: relative;
   z-index: 1;
-  width: 42%;
-  max-width: 5.5rem;
+  width: 50%;
+  max-width: 6.5rem;
   height: auto;
   aspect-ratio: 1 / 1;
   flex-shrink: 0;
@@ -535,7 +535,7 @@ select option {
   }
 
   .home-hub-glyph {
-    width: 44%;
+    width: 52%;
   }
 }
 
@@ -547,8 +547,8 @@ select option {
   }
 
   .home-hub-glyph {
-    width: 40%;
-    max-width: 6.25rem;
+    width: 48%;
+    max-width: 7.25rem;
   }
 
   .home-hub-label {
@@ -567,7 +567,7 @@ select option {
 
 @media (min-width: 1024px) {
   .home-hub-glyph {
-    max-width: 6.75rem;
+    max-width: 7.75rem;
   }
 
   .home-hub-label {
