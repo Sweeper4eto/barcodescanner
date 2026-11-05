@@ -402,7 +402,8 @@ select option {
   z-index: 1;
 }
 
-/* Home icon hub — option-8 mockup: diagonal soft emerald badges */
+/* Home icon hub — option-8 mockup: diagonal soft emerald badges
+   Scales for phone / tablet / desktop via container + width breakpoints. */
 .home-hub-tile {
   position: relative;
   display: flex;
@@ -411,10 +412,10 @@ select option {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.4rem;
+  gap: 0.28rem;
   overflow: hidden;
-  border-radius: 1.65rem;
-  padding: 0.55rem 0.4rem 0.7rem;
+  border-radius: clamp(1.15rem, 4.5cqw, 1.85rem);
+  padding: 0.5rem 0.35rem 0.55rem;
   text-align: center;
   color: #fff;
   background-image: var(--hub-tile-gradient);
@@ -436,6 +437,7 @@ select option {
   position: relative;
   z-index: 1;
   width: 42%;
+  max-width: 5.5rem;
   height: auto;
   aspect-ratio: 1 / 1;
   flex-shrink: 0;
@@ -446,18 +448,47 @@ select option {
 .home-hub-label {
   position: relative;
   z-index: 1;
+  display: -webkit-box;
   max-width: 96%;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: clamp(0.7rem, 3.6vw, 0.8125rem);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  /* cqw tracks tile/page width — not full desktop viewport */
+  font-size: clamp(0.65rem, 4.1cqw, 0.9375rem);
   font-weight: 600;
   letter-spacing: -0.01em;
   line-height: 1.15;
   color: #fff;
+  word-break: normal;
+  overflow-wrap: anywhere;
+}
+
+.home-hub-soon {
+  position: relative;
+  z-index: 1;
+  margin-top: -0.15rem;
+  font-size: clamp(0.6rem, 3.2cqw, 0.75rem);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  color: rgb(161 161 170);
+}
+
+.home-hub-tile-locked {
+  opacity: 0.42;
+  cursor: default;
+}
+
+.home-hub-tile-locked .home-hub-glyph {
+  color: rgb(161 161 170);
+}
+
+.home-hub-tile-locked .home-hub-label {
+  color: rgb(212 212 216);
 }
 
 .home-hub-root {
+  width: 100%;
   touch-action: pan-y;
 }
 
@@ -475,24 +506,26 @@ select option {
 }
 
 .home-hub-page {
+  container-type: inline-size;
+  container-name: hub-page;
   flex: 0 0 100%;
   width: 100%;
   min-width: 100%;
-  border-radius: 1.85rem;
+  border-radius: clamp(1.35rem, 5cqw, 2rem);
   border: 1px solid rgb(63 63 70 / 0.85);
-  padding: clamp(0.65rem, 1.35vh, 1rem);
+  padding: clamp(0.65rem, 2.2cqw, 1.15rem);
   background: transparent;
 }
 
 .home-hub-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: clamp(0.7rem, 1.7vh, 1.1rem);
+  gap: clamp(0.7rem, 2.6cqw, 1.35rem);
   touch-action: pan-y;
 }
 
 /* Tall phones: a bit more room between tiles so the grid isn’t tiny up top */
-@media (min-height: 820px) {
+@media (min-height: 820px) and (max-width: 767px) {
   .home-hub-page {
     padding: clamp(0.8rem, 1.6vh, 1.15rem);
   }
@@ -506,10 +539,61 @@ select option {
   }
 }
 
+/* Tablet + desktop: roomier tiles, still a centered launcher column */
+@media (min-width: 768px) {
+  .home-hub-tile {
+    gap: 0.35rem;
+    padding: 0.65rem 0.45rem 0.75rem;
+  }
+
+  .home-hub-glyph {
+    width: 40%;
+    max-width: 6.25rem;
+  }
+
+  .home-hub-label {
+    font-size: clamp(0.75rem, 3.4cqw, 0.9375rem);
+  }
+
+  .home-hub-soon {
+    font-size: 0.7rem;
+  }
+
+  .home-hub-placeholder,
+  .home-hub-slot-shadow {
+    border-radius: clamp(1.25rem, 4.5cqw, 1.85rem);
+  }
+}
+
+@media (min-width: 1024px) {
+  .home-hub-glyph {
+    max-width: 6.75rem;
+  }
+
+  .home-hub-label {
+    font-size: 0.875rem;
+  }
+}
+
+/* Mouse / trackpad affordance without changing touch look */
+@media (pointer: fine) {
+  .home-hub-tile:not(.home-hub-tile-locked):not(.home-hub-tile-float) {
+    cursor: pointer;
+    transition:
+      transform 0.12s ease,
+      box-shadow 0.12s ease,
+      filter 0.12s ease;
+  }
+
+  .home-hub-tile:not(.home-hub-tile-locked):not(.home-hub-tile-float):hover {
+    filter: brightness(1.05);
+  }
+}
+
 .home-hub-placeholder {
   aspect-ratio: 1 / 1;
   width: 100%;
-  border-radius: 1.65rem;
+  border-radius: clamp(1.15rem, 4.5cqw, 1.85rem);
   border: 2px dashed rgb(52 211 153 / 0.4);
   background: rgb(24 24 27 / 0.72);
   transition:
@@ -523,7 +607,7 @@ select option {
 .home-hub-slot-shadow {
   aspect-ratio: 1 / 1;
   width: 100%;
-  border-radius: 1.65rem;
+  border-radius: clamp(1.15rem, 4.5cqw, 1.85rem);
   background: rgb(12 12 14 / 0.92);
   box-shadow:
     inset 0 0 0 2px rgb(52 211 153 / 0.35),
@@ -548,10 +632,10 @@ select option {
   transform: scale(1.04);
 }
 
-/* Drag ghost — icon follows finger (size set inline; never width:100%) */
+/* Drag ghost — icon follows pointer (size set inline from source tile) */
 .home-hub-tile.home-hub-tile-float {
   width: auto;
-  max-width: 34vw;
+  max-width: min(10rem, 34vw);
   aspect-ratio: 1 / 1;
   box-shadow:
     0 18px 40px rgb(0 0 0 / 0.65),

@@ -1,15 +1,17 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
+  HOME_LAUNCHER_SLOTS_PER_PAGE,
   HOME_LAUNCHER_TOTAL_SLOTS,
   availableHomeModules,
   defaultHomeLauncherLayout,
+  emptyLauncherSlots,
   moveHomeLauncherIcon,
   occupiedHomeLauncherPages,
   reconcileHomeLauncherLayout,
 } from "../src/lib/home-launcher";
 
-test("default layout packs available modules from slot 0", () => {
+test("default layout packs active on page 1 and locked on page 2", () => {
   const layout = defaultHomeLauncherLayout({
     schedule: true,
     team: true,
@@ -17,16 +19,28 @@ test("default layout packs available modules from slot 0", () => {
     document: true,
   });
   assert.equal(layout.slots.length, HOME_LAUNCHER_TOTAL_SLOTS);
-  assert.deepEqual(
-    layout.slots.slice(0, 6),
-    ["expiry", "schedule", "team", "contact", "document", "notifications"],
-  );
+  assert.deepEqual(layout.slots.slice(0, 6), [
+    "expiry",
+    "schedule",
+    "team",
+    "contact",
+    "document",
+    "notifications",
+  ]);
   assert.equal(layout.slots[6], null);
+  assert.equal(layout.slots[7], null);
+  assert.equal(layout.slots[8], null);
+  assert.deepEqual(
+    layout.slots.slice(
+      HOME_LAUNCHER_SLOTS_PER_PAGE,
+      HOME_LAUNCHER_SLOTS_PER_PAGE + 4,
+    ),
+    ["analytics", "journal", "checklists", "temperature"],
+  );
 });
 
-test("reconcile keeps sparse positions and fills new modules into free slots", () => {
-  const slots = Array.from({ length: HOME_LAUNCHER_TOTAL_SLOTS }, () => null) as
-    | Array<"expiry" | "contact" | "notifications" | null>;
+test("reconcile keeps sparse active positions and fills new active on page 1", () => {
+  const slots = emptyLauncherSlots();
   slots[0] = "expiry";
   slots[4] = "contact";
   slots[8] = "notifications";
@@ -45,12 +59,48 @@ test("reconcile keeps sparse positions and fills new modules into free slots", (
   assert.equal(next.slots[4], "contact");
   assert.equal(next.slots[8], "notifications");
   assert.equal(next.slots[1], "schedule");
-  assert.ok(availableHomeModules({
-    schedule: true,
-    team: false,
-    billing: false,
-    document: false,
-  }).includes("schedule"));
+  assert.ok(
+    availableHomeModules({
+      schedule: true,
+      team: false,
+      billing: false,
+      document: false,
+    }).includes("schedule"),
+  );
+  assert.deepEqual(
+    next.slots.slice(
+      HOME_LAUNCHER_SLOTS_PER_PAGE,
+      HOME_LAUNCHER_SLOTS_PER_PAGE + 4,
+    ),
+    ["analytics", "journal", "checklists", "temperature"],
+  );
+});
+
+test("newly enabled active module takes page 1 and pushes locked to page 2", () => {
+  const slots = emptyLauncherSlots();
+  slots[0] = "expiry";
+  slots[1] = "contact";
+  slots[2] = "notifications";
+  slots[3] = "analytics";
+  slots[4] = "journal";
+
+  const next = reconcileHomeLauncherLayout(
+    { slots },
+    {
+      schedule: false,
+      team: false,
+      billing: true,
+      document: false,
+    },
+  );
+
+  assert.equal(next.slots[0], "expiry");
+  assert.equal(next.slots[1], "contact");
+  assert.equal(next.slots[2], "notifications");
+  assert.equal(next.slots[3], "billing");
+  assert.ok(!next.slots.slice(0, HOME_LAUNCHER_SLOTS_PER_PAGE).includes("analytics"));
+  assert.ok(next.slots.slice(HOME_LAUNCHER_SLOTS_PER_PAGE).includes("analytics"));
+  assert.ok(next.slots.slice(HOME_LAUNCHER_SLOTS_PER_PAGE).includes("journal"));
 });
 
 test("move swaps or places into empty slot", () => {
@@ -70,14 +120,14 @@ test("move swaps or places into empty slot", () => {
   assert.equal(swapped.slots[1], "expiry");
 });
 
-test("occupied pages stay at 1 until an icon is on a later page", () => {
+test("occupied pages include locked page-2 tiles", () => {
   const base = defaultHomeLauncherLayout({
     schedule: false,
     team: false,
     billing: false,
     document: false,
   });
-  assert.equal(occupiedHomeLauncherPages(base), 1);
-  const onPage2 = moveHomeLauncherIcon(base, 0, 9);
-  assert.equal(occupiedHomeLauncherPages(onPage2), 2);
+  assert.equal(occupiedHomeLauncherPages(base), 2);
+  const onPage3 = moveHomeLauncherIcon(base, HOME_LAUNCHER_SLOTS_PER_PAGE, 18);
+  assert.equal(occupiedHomeLauncherPages(onPage3), 3);
 });

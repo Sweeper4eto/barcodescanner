@@ -331,6 +331,11 @@ export const en = {
     hubOrders: "Cart",
     hubDocument: "Document",
     hubNotifications: "Alerts",
+    hubAnalytics: "Analysis",
+    hubJournal: "Journal",
+    hubChecklists: "Checklists",
+    hubTemperature: "Temp. log",
+    hubComingSoon: "Soon",
     hubPage: "Page {page}",
     hubRearrangeHint:
       "Hold at the left/right edge to change page, then drop on a slot.",
@@ -408,6 +413,8 @@ export const en = {
   billing: {
     title: "Billing",
     subtitle: "Your account payment status",
+    notEnabled:
+      "Monthly billing is not active for this account yet. If you expected a fee, contact us from Support.",
     loadFailed: "Could not load billing. Try again.",
     statusUpToDate: "Everything is paid",
     statusDue: "Payment due",

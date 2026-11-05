@@ -10,19 +10,24 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import {
+  HubAnalyticsIcon,
   HubBellIcon,
   HubBillingIcon,
+  HubChecklistsIcon,
   HubDocumentIcon,
   HubExpiryIcon,
+  HubJournalIcon,
   HubScheduleIcon,
   HubSupportIcon,
   HubTeamIcon,
+  HubTemperatureIcon,
 } from "@/components/home-hub-icons";
 import { useT } from "@/components/i18n-provider";
 import type { MessageKey } from "@/i18n";
 import {
   HOME_LAUNCHER_MAX_PAGES,
   HOME_LAUNCHER_SLOTS_PER_PAGE,
+  isHomeModuleLocked,
   type HomeLauncherAvailability,
   type HomeLauncherLayout,
   type HomeModuleId,
@@ -49,6 +54,7 @@ type ModuleDef = {
   labelKey: MessageKey;
   href: (storeQuery: string) => string;
   icon: ReactNode;
+  locked?: boolean;
 };
 
 function moduleDefs(storeQuery: string): Record<HomeModuleId, ModuleDef> {
@@ -94,6 +100,34 @@ function moduleDefs(storeQuery: string): Record<HomeModuleId, ModuleDef> {
       labelKey: "app.hubNotifications",
       href: () => `/app/settings/notifications`,
       icon: <HubBellIcon />,
+    },
+    analytics: {
+      id: "analytics",
+      labelKey: "app.hubAnalytics",
+      href: () => "/app",
+      icon: <HubAnalyticsIcon />,
+      locked: true,
+    },
+    journal: {
+      id: "journal",
+      labelKey: "app.hubJournal",
+      href: () => "/app",
+      icon: <HubJournalIcon />,
+      locked: true,
+    },
+    checklists: {
+      id: "checklists",
+      labelKey: "app.hubChecklists",
+      href: () => "/app",
+      icon: <HubChecklistsIcon />,
+      locked: true,
+    },
+    temperature: {
+      id: "temperature",
+      labelKey: "app.hubTemperature",
+      href: () => "/app",
+      icon: <HubTemperatureIcon />,
+      locked: true,
     },
   };
 }
@@ -365,7 +399,9 @@ export function HomeIconHub({
 
   useEffect(() => {
     const saved = readHomeLauncherLayout(username);
-    setLayout(reconcileHomeLauncherLayout(saved, availability));
+    const next = reconcileHomeLauncherLayout(saved, availability);
+    setLayout(next);
+    writeHomeLauncherLayout(username, next);
   }, [
     username,
     availability.schedule,
@@ -550,6 +586,9 @@ export function HomeIconHub({
       <>
         {def.icon}
         <span className="home-hub-label">{t(def.labelKey)}</span>
+        {def.locked ? (
+          <span className="home-hub-soon">{t("app.hubComingSoon")}</span>
+        ) : null}
       </>
     );
   }
@@ -596,10 +635,13 @@ export function HomeIconHub({
                 ) : (
                   (() => {
                     const def = defs[moduleId];
+                    const locked = Boolean(def.locked) || isHomeModuleLocked(moduleId);
                     const tileClass = `home-hub-tile${
                       isDropTarget ? " home-hub-drop-target-tile" : ""
-                    }${disabled ? " pointer-events-none opacity-40" : ""}${
-                      rearranging
+                    }${disabled || locked ? " home-hub-tile-locked" : ""}${
+                      disabled ? " pointer-events-none" : ""
+                    }${
+                      rearranging || locked
                         ? ""
                         : " transition-transform active:scale-[0.97]"
                     }`;
@@ -615,6 +657,8 @@ export function HomeIconHub({
                         <button
                           type="button"
                           className={tileClass}
+                          aria-disabled={locked || undefined}
+                          title={locked ? t("app.hubComingSoon") : undefined}
                           onPointerDown={(e) =>
                             onTilePointerDown(absolute, moduleId, e)
                           }
@@ -624,6 +668,7 @@ export function HomeIconHub({
                           onClick={() => {
                             if (
                               disabled ||
+                              locked ||
                               suppressClick.current ||
                               rearrangingRef.current ||
                               pressRef.current?.dragging
@@ -708,7 +753,7 @@ export function HomeIconHub({
                 left: 0,
                 top: 0,
                 width: floatSizeRef.current,
-                maxWidth: "34vw",
+                maxWidth: "min(10rem, 34vw)",
                 zIndex: 9999,
                 pointerEvents: "none",
                 visibility: "hidden",

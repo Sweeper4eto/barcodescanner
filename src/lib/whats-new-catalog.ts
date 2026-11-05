@@ -1083,6 +1083,36 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Известия: включване/изключване на push е горе в настройките (браузърът пита за разрешение).",
     href: "/app/settings/notifications",
   },
+  {
+    key: "2026-11-hub-billing-tile",
+    titleEn:
+      "Home Payments shortcut uses a clearer banknote icon and still appears only when billing is on.",
+    titleBg:
+      "Иконата Плащания на Начало е по-ясна (банкнота) и се показва само когато плащанията са пуснати.",
+    href: "/app/billing",
+  },
+  {
+    key: "2026-11-hub-coming-soon-tiles",
+    titleEn:
+      "Home shows Analysis, Journal, Checklists, and Temperature as disabled “Soon” shortcuts.",
+    titleBg:
+      "На Начало има Анализ, Дневник, Чеклисти и °C дневник — изключени с етикет „Скоро“.",
+    href: "/app",
+  },
+  {
+    key: "2026-11-hub-thermocontrol-label",
+    titleEn: "Home temperature shortcut is labeled °C log (BG: °C дневник).",
+    titleBg: "Иконата за температури на Начало е с име °C дневник.",
+    href: "/app",
+  },
+  {
+    key: "2026-11-hub-responsive-shell",
+    titleEn:
+      "Home shortcuts scale cleanly on phone, tablet, and desktop (wider on larger screens).",
+    titleBg:
+      "Иконите на Начало се виждат добре на телефон, таблет и компютър (по-широко на голям екран).",
+    href: "/app",
+  },
 ];
 
 

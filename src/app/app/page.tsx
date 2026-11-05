@@ -165,7 +165,7 @@ export default function AppHomePage() {
     bootstrapped && !sessionMissing && stores.length > 0 && Boolean(username);
 
   return (
-    <div className="mx-auto flex min-h-[calc(100svh-var(--app-bottom-nav-frame)-env(safe-area-inset-bottom,0px))] w-full max-w-lg flex-col overflow-x-visible px-4 pt-1">
+    <div className="mx-auto flex min-h-[calc(100svh-var(--app-bottom-nav-frame)-env(safe-area-inset-bottom,0px))] w-full max-w-lg flex-col overflow-x-visible px-4 pt-1 md:max-w-xl lg:max-w-2xl">
       <MobilePageHeader className="mb-1 shrink-0" />
 
       <div className="mb-5 flex shrink-0 items-start justify-between gap-3">
@@ -213,7 +213,7 @@ export default function AppHomePage() {
         ) : null}
 
         {showHub ? (
-          <div className="w-full pt-[clamp(0.35rem,6.5vh,3rem)]">
+          <div className="w-full pt-[clamp(0.35rem,4.5vh,2.25rem)] md:pt-6 lg:pt-8">
             <HomeIconHub
               username={username}
               storeId={storeId}

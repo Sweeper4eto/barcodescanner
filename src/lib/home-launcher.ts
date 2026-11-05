@@ -13,9 +13,25 @@ export const HOME_MODULE_IDS = [
   "contact",
   "document",
   "notifications",
+  "analytics",
+  "journal",
+  "checklists",
+  "temperature",
 ] as const;
 
 export type HomeModuleId = (typeof HOME_MODULE_IDS)[number];
+
+/** Placeholder tiles — visible but not openable yet. */
+export const HOME_LOCKED_MODULE_IDS = [
+  "analytics",
+  "journal",
+  "checklists",
+  "temperature",
+] as const;
+
+export function isHomeModuleLocked(id: HomeModuleId): boolean {
+  return (HOME_LOCKED_MODULE_IDS as readonly string[]).includes(id);
+}
 
 export type HomeLauncherAvailability = {
   schedule: boolean;
@@ -54,29 +70,76 @@ export function availableHomeModules(
   modules.push("contact");
   if (availability.document) modules.push("document");
   modules.push("notifications");
+  modules.push("analytics", "journal", "checklists", "temperature");
   return modules;
 }
 
+function firstFreeSlot(
+  slots: Array<HomeModuleId | null>,
+  from = 0,
+): number {
+  for (let i = from; i < slots.length; i += 1) {
+    if (slots[i] == null) return i;
+  }
+  return -1;
+}
+
+function splitActiveAndLocked(modules: HomeModuleId[]): {
+  active: HomeModuleId[];
+  locked: HomeModuleId[];
+} {
+  const active: HomeModuleId[] = [];
+  const locked: HomeModuleId[] = [];
+  for (const id of modules) {
+    if (isHomeModuleLocked(id)) locked.push(id);
+    else active.push(id);
+  }
+  return { active, locked };
+}
+
+/**
+ * Active modules fill from slot 0 (page 1 first). Locked “Soon” tiles start
+ * on page 2 so newly enabled features never open on page 2 while page 1
+ * still has room.
+ */
 export function defaultHomeLauncherLayout(
   availability: HomeLauncherAvailability,
 ): HomeLauncherLayout {
   const slots = emptyLauncherSlots();
-  const modules = availableHomeModules(availability);
-  modules.forEach((id, index) => {
+  const { active, locked } = splitActiveAndLocked(
+    availableHomeModules(availability),
+  );
+  active.forEach((id, index) => {
     if (index < slots.length) slots[index] = id;
   });
+  let lockedAt = HOME_LAUNCHER_SLOTS_PER_PAGE;
+  for (const id of locked) {
+    if (lockedAt < slots.length) {
+      slots[lockedAt] = id;
+      lockedAt += 1;
+      continue;
+    }
+    const free = firstFreeSlot(slots, 0);
+    if (free < 0) break;
+    slots[free] = id;
+  }
   return { slots };
 }
 
 /**
- * Keep saved positions for still-available modules; place new modules in
- * first free slots. Drop unavailable modules from the grid.
+ * Keep saved positions for active modules; put new active modules in the
+ * earliest free slots (page 1 first). Locked tiles prefer page 2+ and yield
+ * page 1 when something newly enabled needs a slot.
  */
 export function reconcileHomeLauncherLayout(
   saved: HomeLauncherLayout | null,
   availability: HomeLauncherAvailability,
 ): HomeLauncherLayout {
-  const available = new Set(availableHomeModules(availability));
+  const { active, locked } = splitActiveAndLocked(
+    availableHomeModules(availability),
+  );
+  const activeSet = new Set(active);
+  const lockedSet = new Set(locked);
   const slots = emptyLauncherSlots();
   const placed = new Set<HomeModuleId>();
 
@@ -84,15 +147,38 @@ export function reconcileHomeLauncherLayout(
     const limit = Math.min(saved.slots.length, slots.length);
     for (let i = 0; i < limit; i += 1) {
       const id = saved.slots[i];
-      if (!id || !available.has(id) || placed.has(id)) continue;
+      if (!id || !activeSet.has(id) || placed.has(id)) continue;
       slots[i] = id;
       placed.add(id);
     }
   }
 
-  for (const id of available) {
+  for (const id of active) {
     if (placed.has(id)) continue;
-    const free = slots.findIndex((slot) => slot == null);
+    const free = firstFreeSlot(slots, 0);
+    if (free < 0) break;
+    slots[free] = id;
+    placed.add(id);
+  }
+
+  if (saved?.slots?.length) {
+    for (
+      let i = HOME_LAUNCHER_SLOTS_PER_PAGE;
+      i < Math.min(saved.slots.length, slots.length);
+      i += 1
+    ) {
+      const id = saved.slots[i];
+      if (!id || !lockedSet.has(id) || placed.has(id)) continue;
+      if (slots[i] != null) continue;
+      slots[i] = id;
+      placed.add(id);
+    }
+  }
+
+  for (const id of locked) {
+    if (placed.has(id)) continue;
+    let free = firstFreeSlot(slots, HOME_LAUNCHER_SLOTS_PER_PAGE);
+    if (free < 0) free = firstFreeSlot(slots, 0);
     if (free < 0) break;
     slots[free] = id;
     placed.add(id);

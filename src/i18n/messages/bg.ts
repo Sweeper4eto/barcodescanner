@@ -333,6 +333,11 @@ export const bg = {
     hubOrders: "Списък",
     hubDocument: "Документ",
     hubNotifications: "Известия",
+    hubAnalytics: "Анализ",
+    hubJournal: "Дневник",
+    hubChecklists: "Чеклисти",
+    hubTemperature: "°C дневник",
+    hubComingSoon: "Скоро",
     hubPage: "Страница {page}",
     hubRearrangeHint:
       "Задръж към левия/десния край за друга страница, после пусни върху слот.",
@@ -410,6 +415,8 @@ export const bg = {
   billing: {
     title: "Плащания",
     subtitle: "Статус на плащанията за акаунта",
+    notEnabled:
+      "За този акаунт все още няма активни месечни плащания. Ако очаквате такса, пишете ни от Поддръжка.",
     loadFailed: "Плащанията не можаха да се заредят. Опитайте отново.",
     statusUpToDate: "Всичко е платено",
     statusDue: "Има дължимо плащане",
