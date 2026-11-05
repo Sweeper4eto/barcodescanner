@@ -9,7 +9,7 @@ Keep entries short. Prefer `open` / `doing` / `done` / `dropped`.
 ## Ops (not product features)
 
 - [ ] **login_failed audit** — WIP stashed as `wip: login_failed audit before Homepage pull`. Decide: restore, commit, deploy.
-- [ ] **Homepage branch** — redesign on `origin/Homepage` (`c4e009d`); decide merge to `master` / deploy.
+- [x] **Homepage branch** — merged to `master` (`e33db5c`); redeploy prod for homepage + revert.
 
 ## Build next (todo — important only)
 
