@@ -17,6 +17,7 @@ import { useNavigationLeaveRequest } from "@/components/navigation-leave-guard";
 import { useAppStoreId } from "@/components/store-selection-provider";
 import { useViewportInsets } from "@/hooks/use-viewport-insets";
 import { appButtonDangerFull, appFooterButtonGrid } from "@/lib/app-ui";
+import { shouldShowAppBottomNav } from "@/lib/app-navigation";
 import {
   getTabReselectNeedsConfirm,
   requestTabReselect,
@@ -194,7 +195,7 @@ export function AppBottomNav() {
     requestTabReselect(tabId);
   }
 
-  if (paymentLocked) {
+  if (paymentLocked || !shouldShowAppBottomNav(pathname)) {
     return null;
   }
 

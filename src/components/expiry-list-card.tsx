@@ -136,8 +136,8 @@ export function ExpiryListCard({
     <article
       className={`flex w-full touch-manipulation select-none overflow-hidden rounded-xl border transition-colors [-webkit-touch-callout:none] ${
         selected
-          ? "border-primary bg-selected"
-          : "border-card-border bg-transparent"
+          ? "border-primary bg-selected ring-1 ring-primary/50"
+          : "app-ticket-gradient"
       } ${selectionMode ? "cursor-pointer" : ""} ${
         selectionDisabled ? "opacity-45" : ""
       }`}
@@ -173,7 +173,7 @@ export function ExpiryListCard({
             type="button"
             aria-label={t("expiry.moveToOrders")}
             title={t("expiry.moveToOrders")}
-            className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-md border border-card-border bg-transparent text-muted"
+            className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-md border border-zinc-300/70 bg-transparent text-zinc-300"
             onClick={(event) => {
               event.stopPropagation();
               onMoveToOrders?.();
@@ -211,7 +211,7 @@ export function ExpiryListCard({
             type="button"
             aria-label={t("expiry.reducePrice")}
             title={t("expiry.reducePrice")}
-            className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-md border border-card-border bg-transparent text-muted"
+            className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-md border border-zinc-300/70 bg-transparent text-zinc-300"
             onClick={(event) => {
               event.stopPropagation();
               onReducePrice();
@@ -284,7 +284,7 @@ export function ExpiryListCard({
             </div>
 
             <div className="flex shrink-0 items-stretch gap-0.5 self-center">
-              <div className="flex h-[2.375rem] w-9 flex-col items-center justify-center rounded-md border border-card-border bg-transparent px-0.5 py-0.5 text-center">
+              <div className="flex h-[2.375rem] w-9 flex-col items-center justify-center rounded-md border border-zinc-300/70 bg-transparent px-0.5 py-0.5 text-center">
                 <p className="text-base font-bold leading-none tabular-nums text-foreground">
                   {quantity}
                 </p>
@@ -317,7 +317,7 @@ export function ExpiryListCard({
           <button
             type="button"
             aria-label={t("expiry.remove")}
-            className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-md border border-card-border bg-transparent text-base leading-none text-muted"
+            className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-md border border-zinc-300/70 bg-transparent text-base leading-none text-zinc-300"
             onClick={(event) => {
               event.stopPropagation();
               onRemove();

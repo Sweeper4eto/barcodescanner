@@ -44,7 +44,12 @@ function BellIcon({ className = "size-7" }: { className?: string }) {
   );
 }
 
-export function PushNotifications() {
+export function PushNotifications({
+  showCustomizeLink = true,
+}: {
+  /** Hide when already on the notification settings screen. */
+  showCustomizeLink?: boolean;
+} = {}) {
   const { t, locale } = useT();
   const [state, setState] = useState<PushState>("loading");
   const [error, setError] = useState("");
@@ -55,20 +60,20 @@ export function PushNotifications() {
     async function detect() {
       if (typeof window === "undefined") return;
 
-      // iOS Safari never exposes PushManager in a regular browser tab —
-      // it only becomes available once the site is installed to the Home
-      // Screen and opened from there (iOS 16.4+). Show install instructions
-      // instead of silently hiding the whole section.
-      if (isIosDevice() && !isPwaInstalled()) {
+      const pushApisAvailable =
+        "serviceWorker" in navigator &&
+        "PushManager" in window &&
+        "Notification" in window;
+
+      // Real iOS Safari in a browser tab has no PushManager until the PWA is
+      // installed. Chrome device-mode still exposes PushManager — keep the
+      // normal enable switch there so local testing works.
+      if (isIosDevice() && !isPwaInstalled() && !pushApisAvailable) {
         if (!cancelled) setState("iosNeedsInstall");
         return;
       }
 
-      if (
-        !("serviceWorker" in navigator) ||
-        !("PushManager" in window) ||
-        !("Notification" in window)
-      ) {
+      if (!pushApisAvailable) {
         if (!cancelled) setState("unsupported");
         return;
       }
@@ -239,12 +244,14 @@ export function PushNotifications() {
           {t("push.title")}
         </h2>
 
-        <Link
-          href="/app/settings/notifications"
-          className="mt-0.5 inline-block text-xs font-semibold text-primary"
-        >
-          {t("push.customize")} →
-        </Link>
+        {showCustomizeLink ? (
+          <Link
+            href="/app/settings/notifications"
+            className="mt-0.5 inline-block text-xs font-semibold text-primary"
+          >
+            {t("push.customize")} →
+          </Link>
+        ) : null}
 
         {state === "iosNeedsInstall" ? (
           <p className="mt-2 rounded-lg border border-card-border bg-transparent px-2.5 py-1.5 text-xs text-foreground">

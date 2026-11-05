@@ -13,6 +13,7 @@ Keep entries short. Prefer `open` / `doing` / `done` / `dropped`.
 
 ## Build next (todo — important only)
 
+- [x] **Home icon hub (gradient)** — local only for now; long-press rearrange, free 9 slots/page, drop=save
 - [ ] **2.** Bluetooth barcode scanner
 - [ ] **3.** PDA / warehouse handheld scan
 - [ ] **33.** Daily shortlist “what to check today”

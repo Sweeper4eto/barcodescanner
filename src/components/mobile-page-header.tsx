@@ -1,10 +1,18 @@
 "use client";
 
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { AppHeaderLogo } from "@/components/app-header-logo";
+import { HomeIcon } from "@/components/app-nav-icons";
 import {
   AppLanguageAction,
   AppStoreSelect,
 } from "@/components/app-top-actions";
+import { useT } from "@/components/i18n-provider";
+
+function isAppHomePath(pathname: string): boolean {
+  return pathname === "/app" || pathname === "/app/";
+}
 
 export function MobilePageHeader({
   title,
@@ -21,6 +29,10 @@ export function MobilePageHeader({
   sticky?: boolean;
   className?: string;
 }) {
+  const pathname = usePathname();
+  const { t } = useT();
+  const showHomeLink = !isAppHomePath(pathname);
+
   // Safe-area top on every page so the logo is not cropped under the iPhone notch.
   const safeTop =
     "pt-[max(0.75rem,env(safe-area-inset-top,0px))]";
@@ -36,7 +48,19 @@ export function MobilePageHeader({
           <AppHeaderLogo />
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1.5 overflow-visible">
-          <AppLanguageAction />
+          <div className="flex items-center gap-1.5">
+            {showHomeLink ? (
+              <Link
+                href="/app"
+                aria-label={t("common.home")}
+                title={t("common.home")}
+                className="inline-flex size-8 items-center justify-center rounded-lg border border-primary/45 text-primary transition-colors hover:border-primary hover:bg-selected"
+              >
+                <HomeIcon className="size-4" />
+              </Link>
+            ) : null}
+            <AppLanguageAction />
+          </div>
           <div className="w-[30vw] max-w-[30vw] min-w-0">
             <AppStoreSelect />
           </div>

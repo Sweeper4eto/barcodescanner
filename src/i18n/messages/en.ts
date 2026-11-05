@@ -322,6 +322,18 @@ export const en = {
     billingHint: "See payment status and monthly fees for your account",
     contact: "Contact support",
     contactHint: "Get help with your account, products or any questions.",
+    hubLabel: "Home shortcuts",
+    hubExpiry: "Expiry",
+    hubSchedule: "Schedule",
+    hubTeam: "Team",
+    hubBilling: "Billing",
+    hubSupport: "Support",
+    hubOrders: "Cart",
+    hubDocument: "Document",
+    hubNotifications: "Alerts",
+    hubPage: "Page {page}",
+    hubRearrangeHint:
+      "Hold at the left/right edge to change page, then drop on a slot.",
   },
   schedule: {
     title: "Schedule",

@@ -54,3 +54,18 @@ export function goBackOrApp(fallback = "/app") {
   }
   navigateApp(fallback);
 }
+
+/**
+ * Bottom tabs (Expiry / Add / Cart|Document) only while inside that work
+ * flow — hidden on Home hub and other launcher destinations.
+ */
+export function shouldShowAppBottomNav(pathname: string): boolean {
+  return (
+    pathname.startsWith("/app/expiry") ||
+    pathname.startsWith("/app/scan") ||
+    pathname.startsWith("/app/add-product") ||
+    pathname.startsWith("/app/orders") ||
+    pathname.startsWith("/app/buy-list") ||
+    pathname.startsWith("/app/add-document")
+  );
+}

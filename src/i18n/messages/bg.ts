@@ -324,6 +324,18 @@ export const bg = {
     billingHint: "Статус на плащанията и месечна такса за акаунта",
     contact: "Свържи се с поддръжката",
     contactHint: "Помощ за акаунта, продуктите или други въпроси.",
+    hubLabel: "Начални преки пътища",
+    hubExpiry: "Годност",
+    hubSchedule: "График",
+    hubTeam: "Екип",
+    hubBilling: "Плащания",
+    hubSupport: "Поддръжка",
+    hubOrders: "Списък",
+    hubDocument: "Документ",
+    hubNotifications: "Известия",
+    hubPage: "Страница {page}",
+    hubRearrangeHint:
+      "Задръж към левия/десния край за друга страница, после пусни върху слот.",
   },
   schedule: {
     title: "График",

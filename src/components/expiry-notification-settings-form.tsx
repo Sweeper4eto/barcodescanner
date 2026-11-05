@@ -6,6 +6,7 @@ import { LoadingSpinnerBlock } from "@/components/loading-spinner";
 import { MobilePageHeader, appPageClassName } from "@/components/mobile-page-header";
 import { MenuSelect } from "@/components/menu-select";
 import { NotifyTimeSelect } from "@/components/notify-time-select";
+import { PushNotifications } from "@/components/push-notifications";
 import { useT } from "@/components/i18n-provider";
 import { appButtonPrimaryFull, appFormInput } from "@/lib/app-ui";
 import type { ExpiryNotificationPrefs } from "@/lib/expiry-notification-prefs";
@@ -276,6 +277,7 @@ export function ExpiryNotificationSettingsForm() {
     return (
       <div className={appPageClassName}>
         <MobilePageHeader title={t("pushSettings.title")} />
+        <PushNotifications showCustomizeLink={false} />
         <LoadingSpinnerBlock />
       </div>
     );
@@ -285,7 +287,8 @@ export function ExpiryNotificationSettingsForm() {
     return (
       <div className={appPageClassName}>
         <MobilePageHeader title={t("pushSettings.title")} />
-        <p className="text-sm text-danger">{error || t("pushSettings.loadError")}</p>
+        <PushNotifications showCustomizeLink={false} />
+        <p className="mt-3 text-sm text-danger">{error || t("pushSettings.loadError")}</p>
         <Link href="/app" className="mt-4 inline-block text-sm text-primary">
           ← {t("common.back")}
         </Link>
@@ -303,16 +306,11 @@ export function ExpiryNotificationSettingsForm() {
 
   return (
     <div className={appPageClassName}>
-      <MobilePageHeader
-        title={t("pushSettings.title")}
-        action={
-          <Link href="/app" className="text-sm text-primary">
-            {t("common.back")}
-          </Link>
-        }
-      />
+      <MobilePageHeader title={t("pushSettings.title")} />
 
-      <div className="space-y-3 pb-8">
+      <PushNotifications showCustomizeLink={false} />
+
+      <div className="mt-3 space-y-3 pb-8">
         <Section title={t("pushSettings.tiers")} hint={t("pushSettings.tiersHint")}>
           <div className="rounded-xl border border-danger/40 bg-danger/5 p-3">
             <div className="flex items-center justify-between gap-3">

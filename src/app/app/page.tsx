@@ -2,35 +2,19 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { HomeIconHub } from "@/components/home-icon-hub";
 import { LoadingSpinnerBlock } from "@/components/loading-spinner";
-import { MobilePageHeader, appPageClassName } from "@/components/mobile-page-header";
-import { PushNotifications } from "@/components/push-notifications";
+import { MobilePageHeader } from "@/components/mobile-page-header";
 import { BillingReminderDialog } from "@/components/billing-reminder-dialog";
 import { WhatsNewDialog } from "@/components/whats-new-dialog";
 import { useT } from "@/components/i18n-provider";
 import { useAppSession } from "@/components/app-session-provider";
 import { logoutSession } from "@/lib/client-session";
+import type { HomeLauncherAvailability } from "@/lib/home-launcher";
 import { getStoredStoreId, setStoredStoreId, clearStoredStoreId } from "@/lib/store-selection";
 
 type Store = { id: string; name: string; active: boolean };
-
-function ChevronIcon({ className = "size-4" }: { className?: string }) {
-  return (
-    <svg
-      aria-hidden
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-    >
-      <path d="M9 6l6 6-6 6" />
-    </svg>
-  );
-}
 
 function LogoutIcon({ className = "size-4" }: { className?: string }) {
   return (
@@ -51,122 +35,12 @@ function LogoutIcon({ className = "size-4" }: { className?: string }) {
   );
 }
 
-function HeadsetIcon({ className = "size-7" }: { className?: string }) {
-  return (
-    <svg
-      aria-hidden
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-    >
-      <path d="M4 13v-1a8 8 0 0 1 16 0v1" />
-      <path d="M4 13v3a2 2 0 0 0 2 2h1v-5H6a2 2 0 0 0-2 2Z" />
-      <path d="M20 13v3a2 2 0 0 1-2 2h-1v-5h1a2 2 0 0 1 2 2Z" />
-      <path d="M15 19h-2a1 1 0 0 0-1 1v0a1 1 0 0 0 1 1h1" />
-    </svg>
-  );
-}
-
-function TeamIcon({ className = "size-7" }: { className?: string }) {
-  return (
-    <svg
-      aria-hidden
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-    >
-      <circle cx="9" cy="8" r="3" />
-      <circle cx="17" cy="9" r="2.5" />
-      <path d="M3.5 19a5.5 5.5 0 0 1 11 0" />
-      <path d="M14 19a4.5 4.5 0 0 1 6.5-4" />
-    </svg>
-  );
-}
-
-function ScheduleHomeIcon({ className = "size-7" }: { className?: string }) {
-  return (
-    <svg
-      aria-hidden
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-    >
-      <rect x="3" y="5" width="18" height="16" rx="2" />
-      <path d="M3 10h18" />
-      <path d="M8 3v4" />
-      <path d="M16 3v4" />
-      <path d="M8 14h3" />
-      <path d="M14 14h2" />
-    </svg>
-  );
-}
-
-function BillingHomeIcon({ className = "size-7" }: { className?: string }) {
-  return (
-    <svg
-      aria-hidden
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-    >
-      <rect x="3" y="6" width="18" height="12" rx="2" />
-      <path d="M3 10h18" />
-      <path d="M7 15h4" />
-    </svg>
-  );
-}
-
-function HomeLinkCard({
-  href,
-  title,
-  icon,
-}: {
-  href: string;
-  title: string;
-  icon: ReactNode;
-}) {
-  return (
-    <Link
-      href={href}
-      className="mb-2 flex items-center gap-3 rounded-2xl border border-card-border bg-transparent px-3 py-2.5 transition-colors hover:border-primary/40"
-    >
-      <span
-        aria-hidden
-        className="flex size-9 shrink-0 items-center justify-center rounded-full border border-primary/45 text-primary"
-      >
-        {icon}
-      </span>
-      <span className="min-w-0 flex-1 text-left text-sm font-semibold leading-snug text-foreground">
-        {title}
-      </span>
-      <span aria-hidden className="shrink-0 text-primary">
-        <ChevronIcon />
-      </span>
-    </Link>
-  );
-}
-
 export default function AppHomePage() {
   const router = useRouter();
   const { t } = useT();
-  const { refresh: refreshSession } = useAppSession();
+  const { refresh: refreshSession, homeUser } = useAppSession();
   const [stores, setStores] = useState<Store[]>([]);
+  const [storeId, setStoreId] = useState("");
   const [username, setUsername] = useState("");
   const [isOwner, setIsOwner] = useState(false);
   const [billingEnabled, setBillingEnabled] = useState(false);
@@ -174,6 +48,7 @@ export default function AppHomePage() {
   const [bootstrapped, setBootstrapped] = useState(false);
   const [sessionMissing, setSessionMissing] = useState(false);
   const [whatsNewSettled, setWhatsNewSettled] = useState(false);
+  const [isHomeUser, setIsHomeUser] = useState<boolean | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -214,21 +89,22 @@ export default function AppHomePage() {
       setUsername(data.user.username);
       const owner = data.user.clientRole === "OWNER";
       setIsOwner(owner);
+      setIsHomeUser(Boolean(data.user.homeUser));
       setSchedulePublic(data.user.scheduleAccess === "public");
       setBillingEnabled(false);
 
-      // Paint home immediately from /me — never block on billing or session refresh
-      // (slow/hanging LAN fetches left owners on spinner + Contact only).
       const list: Store[] = data.user.stores ?? [];
       setStores(list);
-      const username = String(data.user.username ?? "");
-      const stored = getStoredStoreId(username);
+      const nextUsername = String(data.user.username ?? "");
+      const stored = getStoredStoreId(nextUsername);
       const valid = list.find((store) => store.id === stored);
       const nextId = valid?.id ?? list[0]?.id ?? "";
       if (nextId) {
-        setStoredStoreId(nextId, username);
+        setStoredStoreId(nextId, nextUsername);
+        setStoreId(nextId);
       } else {
-        clearStoredStoreId(username);
+        clearStoredStoreId(nextUsername);
+        setStoreId("");
       }
       setBootstrapped(true);
 
@@ -246,7 +122,7 @@ export default function AppHomePage() {
               setBillingEnabled(Boolean(billing.enabled));
             }
           } catch {
-            /* ignore — home still works without billing card */
+            /* ignore — home still works without billing tile */
           }
         })();
       }
@@ -267,11 +143,32 @@ export default function AppHomePage() {
   const greetingTemplate = t("app.greeting", { username: "\u0000" });
   const [greetingBefore, greetingAfter = ""] = greetingTemplate.split("\u0000");
 
-  return (
-    <div className={`${appPageClassName} flex flex-col`}>
-      <MobilePageHeader className="mb-1" />
+  const availability = useMemo<HomeLauncherAvailability>(() => {
+    const business =
+      isHomeUser === false || (isHomeUser == null && homeUser === false);
+    return {
+      schedule: schedulePublic && stores.length > 0,
+      team: isOwner && stores.length > 0,
+      billing: isOwner && billingEnabled,
+      document: business && stores.length > 0,
+    };
+  }, [
+    isHomeUser,
+    homeUser,
+    schedulePublic,
+    stores.length,
+    isOwner,
+    billingEnabled,
+  ]);
 
-      <div className="mb-6 flex items-start justify-between gap-3">
+  const showHub =
+    bootstrapped && !sessionMissing && stores.length > 0 && Boolean(username);
+
+  return (
+    <div className="mx-auto flex min-h-[calc(100svh-var(--app-bottom-nav-frame)-env(safe-area-inset-bottom,0px))] w-full max-w-lg flex-col overflow-x-visible px-4 pt-1">
+      <MobilePageHeader className="mb-1 shrink-0" />
+
+      <div className="mb-5 flex shrink-0 items-start justify-between gap-3">
         <h1 className="min-w-0 flex-1 text-[1.65rem] font-semibold leading-tight tracking-tight text-foreground">
           {bootstrapped ? (
             <>
@@ -293,7 +190,7 @@ export default function AppHomePage() {
         </button>
       </div>
 
-      <div>
+      <div className="flex min-h-0 flex-1 flex-col">
         {!bootstrapped ? (
           <LoadingSpinnerBlock wrapperClassName="flex justify-center py-6" />
         ) : sessionMissing ? (
@@ -315,42 +212,16 @@ export default function AppHomePage() {
           </div>
         ) : null}
 
-        {bootstrapped && isOwner && !sessionMissing && stores.length > 0 ? (
-          <HomeLinkCard
-            href="/app/team"
-            title={t("app.team")}
-            icon={<TeamIcon className="size-5" />}
-          />
+        {showHub ? (
+          <div className="w-full pt-[clamp(0.35rem,6.5vh,3rem)]">
+            <HomeIconHub
+              username={username}
+              storeId={storeId}
+              availability={availability}
+            />
+          </div>
         ) : null}
 
-        {bootstrapped &&
-        schedulePublic &&
-        !sessionMissing &&
-        stores.length > 0 ? (
-          <HomeLinkCard
-            href="/app/schedule"
-            title={t("app.schedule")}
-            icon={<ScheduleHomeIcon className="size-5" />}
-          />
-        ) : null}
-
-        {bootstrapped && isOwner && billingEnabled && !sessionMissing ? (
-          <HomeLinkCard
-            href="/app/billing"
-            title={t("app.billing")}
-            icon={<BillingHomeIcon className="size-5" />}
-          />
-        ) : null}
-
-        {bootstrapped && !sessionMissing ? (
-          <HomeLinkCard
-            href="/app/contact"
-            title={t("app.contact")}
-            icon={<HeadsetIcon className="size-5" />}
-          />
-        ) : null}
-
-        <PushNotifications />
         <WhatsNewDialog
           ready={bootstrapped && !sessionMissing}
           onSettled={() => setWhatsNewSettled(true)}
@@ -366,20 +237,28 @@ export default function AppHomePage() {
         />
       </div>
 
-      <footer className="mt-6 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 border-t border-card-border pt-4 text-sm">
-        <Link
-          href="/terms"
-          className="font-medium text-primary underline-offset-4 hover:underline"
-        >
-          {t("home.termsLink")}
-        </Link>
-        <Link
-          href="/privacy"
-          className="font-medium text-primary underline-offset-4 hover:underline"
-        >
-          {t("home.privacyLink")}
-        </Link>
-      </footer>
+      {bootstrapped ? (
+        <footer className="mt-auto flex shrink-0 flex-col items-center pb-3 pt-6">
+          <div className="mb-3 h-px w-40 max-w-[50%] bg-card-border" />
+          <nav className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs">
+            <Link
+              href="/terms"
+              className="font-semibold text-primary underline-offset-4 hover:underline"
+            >
+              {t("home.termsLink")}
+            </Link>
+            <span className="text-primary/50" aria-hidden>
+              ·
+            </span>
+            <Link
+              href="/privacy"
+              className="font-semibold text-primary underline-offset-4 hover:underline"
+            >
+              {t("home.privacyLink")}
+            </Link>
+          </nav>
+        </footer>
+      ) : null}
     </div>
   );
 }
