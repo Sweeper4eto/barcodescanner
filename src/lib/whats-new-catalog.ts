@@ -1019,6 +1019,14 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "В Действия пише кога е налична „Отмени“ — само нови промени по инвентар/списък след обновяването могат да се отменят.",
     href: "/app/team/activity",
   },
+  {
+    key: "2026-11-revert-no-barcode-removes",
+    titleEn:
+      "Removing items added without a barcode can now be reverted from Team → Activity.",
+    titleBg:
+      "Премахване на артикули без баркод вече може да се отмени от Екип → Действия.",
+    href: "/app/team/activity",
+  },
 ];
 
 

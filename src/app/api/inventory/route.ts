@@ -28,7 +28,6 @@ import {
   isAdhocBarcode,
   makeAdhocBarcode,
 } from "@/lib/inventory-entry-display";
-import { deleteLocalProductIfUnused } from "@/lib/local-product";
 import { userCanRemoveExpiry } from "@/lib/expiry-remove-access";
 import { apiT } from "@/i18n";
 
@@ -909,23 +908,14 @@ export async function PATCH(request: Request) {
     );
   }
 
-  // No-barcode items are local scaffolding — hard-delete so the synthetic
-  // Product row can be garbage-collected instead of bloating the catalog.
-  const softRemove = !isAdhocBarcode(removed.barcode);
-  if (!softRemove) {
-    await db.inventoryEntry.delete({ where: { id: removed.id } });
-    if (removed.imagePath) {
-      await deleteLocalUpload(removed.imagePath);
-    }
-    await deleteLocalProductIfUnused(removed.productId);
-  } else {
-    await db.inventoryEntry.update({
-      where: { id: removed.id },
-      data: { removedAt: new Date() },
-    });
-    if (removed.imagePath) {
-      await deleteLocalUpload(removed.imagePath);
-    }
+  // Soft-remove so owners can revert from Activity. Local (NB…) products are
+  // garbage-collected later by purge when nothing still references them.
+  await db.inventoryEntry.update({
+    where: { id: removed.id },
+    data: { removedAt: new Date() },
+  });
+  if (removed.imagePath) {
+    await deleteLocalUpload(removed.imagePath);
   }
 
   await logAuditEvent(
@@ -944,7 +934,7 @@ export async function PATCH(request: Request) {
       entityId: removed.id,
       storeId: removed.storeId,
       payload: {
-        soft: softRemove,
+        soft: true,
         quantity: removed.quantity,
         expiryDate: removed.expiryDate.toISOString(),
         barcode: removed.barcode,

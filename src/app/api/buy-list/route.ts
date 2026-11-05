@@ -11,13 +11,9 @@ import { requireSession } from "@/lib/auth";
 import { barcodeLookupValues, normalizeBarcode } from "@/lib/barcode";
 import { activeBuyListWhere } from "@/lib/buy-list";
 import { userCanAccessHomeStore } from "@/lib/home-user";
-import {
-  isAdhocBarcode,
-  makeAdhocBarcode,
-} from "@/lib/inventory-entry-display";
+import { makeAdhocBarcode } from "@/lib/inventory-entry-display";
 import { filterInventoryEntriesBySearch } from "@/lib/inventory-search";
 import { db } from "@/lib/db";
-import { deleteLocalProductIfUnused } from "@/lib/local-product";
 import { deleteLocalUpload } from "@/lib/upload";
 import { apiT } from "@/i18n";
 
@@ -433,16 +429,11 @@ export async function PATCH(request: Request) {
     );
   }
 
-  const softRemove = !isAdhocBarcode(removed.barcode);
-  if (!softRemove) {
-    await db.buyListEntry.delete({ where: { id: removed.id } });
-    await deleteLocalProductIfUnused(removed.productId);
-  } else {
-    await db.buyListEntry.update({
-      where: { id: removed.id },
-      data: { removedAt: new Date() },
-    });
-  }
+  // Soft-remove (including NB… locals) so owners can revert from Activity.
+  await db.buyListEntry.update({
+    where: { id: removed.id },
+    data: { removedAt: new Date() },
+  });
 
   await logAuditEvent(
     request,
@@ -459,7 +450,7 @@ export async function PATCH(request: Request) {
       entityId: removed.id,
       storeId: removed.storeId,
       payload: {
-        soft: softRemove,
+        soft: true,
         quantity: removed.quantity,
         barcode: removed.barcode,
         productId: removed.productId,

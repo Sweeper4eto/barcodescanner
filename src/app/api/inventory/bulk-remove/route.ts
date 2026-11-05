@@ -9,8 +9,6 @@ import {
   BULK_REMOVE_MAX_ABSOLUTE,
   bulkRemoveMaxForClientRole,
 } from "@/lib/expiry-bulk-remove";
-import { isAdhocBarcode } from "@/lib/inventory-entry-display";
-import { deleteLocalProductIfUnused } from "@/lib/local-product";
 import { userCanRemoveExpiry } from "@/lib/expiry-remove-access";
 import { userCanAccessStore } from "@/lib/store-access";
 import { deleteLocalUpload } from "@/lib/upload";
@@ -85,21 +83,12 @@ export async function POST(request: Request) {
   const skipped = uniqueIds.filter((id) => !foundIds.has(id)).length;
 
   for (const entry of entries) {
-    const softRemove = !isAdhocBarcode(entry.barcode);
-    if (!softRemove) {
-      await db.inventoryEntry.delete({ where: { id: entry.id } });
-      if (entry.imagePath) {
-        await deleteLocalUpload(entry.imagePath);
-      }
-      await deleteLocalProductIfUnused(entry.productId);
-    } else {
-      await db.inventoryEntry.update({
-        where: { id: entry.id },
-        data: { removedAt: new Date() },
-      });
-      if (entry.imagePath) {
-        await deleteLocalUpload(entry.imagePath);
-      }
+    await db.inventoryEntry.update({
+      where: { id: entry.id },
+      data: { removedAt: new Date() },
+    });
+    if (entry.imagePath) {
+      await deleteLocalUpload(entry.imagePath);
     }
 
     removedIds.push(entry.id);
@@ -120,7 +109,7 @@ export async function POST(request: Request) {
         entityId: entry.id,
         storeId: entry.storeId,
         payload: {
-          soft: softRemove,
+          soft: true,
           quantity: entry.quantity,
           expiryDate: entry.expiryDate.toISOString(),
           barcode: entry.barcode,

@@ -14,7 +14,6 @@ import {
   expiryDateDayBounds,
   normalizeExpiryDate,
 } from "@/lib/inventory";
-import { isAdhocBarcode } from "@/lib/inventory-entry-display";
 import { db } from "@/lib/db";
 import { apiT } from "@/i18n";
 
@@ -84,16 +83,11 @@ export async function POST(request: Request) {
   });
 
   const result = await db.$transaction(async (tx) => {
-    // Hard-delete when moving: soft-removed cart rows would keep local (NB…)
-    // products alive forever and bloat the Product table.
-    if (isAdhocBarcode(orderEntry.barcode)) {
-      await tx.buyListEntry.delete({ where: { id: orderEntry.id } });
-    } else {
-      await tx.buyListEntry.update({
-        where: { id: orderEntry.id },
-        data: { removedAt: new Date() },
-      });
-    }
+    // Soft-remove so the cart removal stays owner-revertible from Activity.
+    await tx.buyListEntry.update({
+      where: { id: orderEntry.id },
+      data: { removedAt: new Date() },
+    });
 
     if (existing) {
       const entry = await tx.inventoryEntry.update({
@@ -119,7 +113,6 @@ export async function POST(request: Request) {
     return { entry, merged: false as const };
   });
 
-  const softBuyRemove = !isAdhocBarcode(orderEntry.barcode);
   await logAuditEvent(
     request,
     session,
@@ -135,7 +128,7 @@ export async function POST(request: Request) {
       entityId: orderEntry.id,
       storeId: orderEntry.storeId,
       payload: {
-        soft: softBuyRemove,
+        soft: true,
         quantity: orderEntry.quantity,
         barcode: orderEntry.barcode,
         productId: orderEntry.productId,
