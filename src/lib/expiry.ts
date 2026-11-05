@@ -92,15 +92,15 @@ export function expiryUrgencyStripeClass(expiryDate: Date, now = new Date()): st
 export function expiryUrgencyBadgeClass(expiryDate: Date, now = new Date()): string {
   const days = daysUntilExpiry(expiryDate, now);
   if (days <= 7) {
-    return "border-[var(--urgency-critical-border)] bg-[var(--urgency-critical-bg)] text-error";
+    return "border-red-300/80 bg-[var(--urgency-critical-bg)] text-error";
   }
   if (days <= 14) {
-    return "border-[var(--urgency-warning-border)] bg-[var(--urgency-warning-bg)] text-warning-fg";
+    return "border-amber-200/80 bg-[var(--urgency-warning-bg)] text-warning-fg";
   }
   if (days <= 28) {
-    return "border-[var(--urgency-soon-border)] bg-[var(--urgency-soon-bg)] text-foreground";
+    return "border-emerald-300/75 bg-[var(--urgency-soon-bg)] text-foreground";
   }
-  return "border-card-border bg-transparent text-foreground";
+  return "border-zinc-300/70 bg-transparent text-foreground";
 }
 
 export function daysUntilExpiry(expiryDate: Date, now = new Date()): number {

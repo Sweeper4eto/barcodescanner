@@ -9,8 +9,9 @@ import {
   StarFavouriteIcon,
 } from "@/components/app-nav-icons";
 
-const listQtyBadgeClass =
-  "flex h-[2.375rem] w-9 flex-col items-center justify-center rounded-md border border-card-border bg-transparent px-0.5 py-0.5 text-center";
+const listQtyBadgeBase =
+  "flex h-[2.375rem] w-9 flex-col items-center justify-center rounded-md border px-0.5 py-0.5 text-center";
+const listQtyBadgeClass = `${listQtyBadgeBase} border-zinc-300/70 bg-transparent`;
 
 type Props = {
   name: string;
@@ -46,8 +47,8 @@ export function BuyListCard({
     <article
       className={`flex w-full overflow-hidden rounded-xl border ${
         checked
-          ? "border-primary bg-selected"
-          : "border-card-border bg-transparent"
+          ? "border-primary bg-selected ring-1 ring-primary/50"
+          : "app-ticket-gradient"
       }`}
     >
       <div
@@ -62,7 +63,7 @@ export function BuyListCard({
           type="button"
           aria-label={t("buyList.moveToExpiry")}
           title={t("buyList.moveToExpiry")}
-          className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-md border border-card-border bg-transparent text-muted"
+          className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-md border border-zinc-300/70 bg-transparent text-zinc-300"
           onClick={(event) => {
             event.stopPropagation();
             onMoveToExpiry();
@@ -139,10 +140,10 @@ export function BuyListCard({
                   title={
                     checked ? t("buyList.markNotBought") : t("buyList.markBought")
                   }
-                  className={`${listQtyBadgeClass} transition-colors ${
+                  className={`${listQtyBadgeBase} transition-colors ${
                     checked
                       ? "border-primary bg-selected text-primary"
-                      : "text-foreground"
+                      : "border-zinc-300/70 bg-transparent text-foreground"
                   }`}
                   onClick={(event) => {
                     event.stopPropagation();
@@ -175,7 +176,7 @@ export function BuyListCard({
         <button
           type="button"
           aria-label={t("buyList.remove")}
-          className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-md border border-card-border bg-transparent text-base leading-none text-muted"
+          className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-md border border-zinc-300/70 bg-transparent text-base leading-none text-zinc-300"
           onClick={(event) => {
             event.stopPropagation();
             onRemove();

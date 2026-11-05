@@ -6,7 +6,10 @@ import { AppBottomNav } from "@/components/app-bottom-nav";
 import { useAppSession } from "@/components/app-session-provider";
 import { NavigationLeaveGuardProvider } from "@/components/navigation-leave-guard";
 import { PaymentLockGate } from "@/components/payment-lock-gate";
-import { registerAppSoftNavigate } from "@/lib/app-navigation";
+import {
+  registerAppSoftNavigate,
+  shouldShowAppBottomNav,
+} from "@/lib/app-navigation";
 import { clearStoredStoreId } from "@/lib/store-selection";
 import { isPathAllowedWhenPaymentLocked } from "@/lib/payment-lock";
 
@@ -63,6 +66,9 @@ function RequireLocationGuard({ children }: { children: ReactNode }) {
 
 export function AppShell({ children }: { children: ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const { newUiEnabled } = useAppSession();
+  const showBottomNav = shouldShowAppBottomNav(pathname, { newUiEnabled });
 
   useEffect(() => {
     registerAppSoftNavigate({
@@ -82,8 +88,15 @@ export function AppShell({ children }: { children: ReactNode }) {
         min-h-svh + border-box so bottom-nav padding sits inside the viewport
         height. Plain pb-* on a content-sized shell made short pages scrollable
         by ~4rem and painted Android's scrollbar thumb on every /app screen.
+        When the hub hides the tabs, zero the nav CSS vars so page calcs expand.
       */}
-      <div className="box-border min-h-svh min-w-0 max-w-[100vw] pb-[calc(var(--app-bottom-nav-frame)+env(safe-area-inset-bottom,0px))]">
+      <div
+        className={
+          showBottomNav
+            ? "box-border min-h-svh min-w-0 max-w-[100vw] pb-[calc(var(--app-bottom-nav-frame)+env(safe-area-inset-bottom,0px))]"
+            : "box-border min-h-svh min-w-0 max-w-[100vw] pb-[env(safe-area-inset-bottom,0px)] [--app-bottom-nav-frame:0px] [--app-bottom-nav-height:0px]"
+        }
+      >
         <PaymentLockGate>
           <RequireLocationGuard>{children}</RequireLocationGuard>
         </PaymentLockGate>

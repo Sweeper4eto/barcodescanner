@@ -322,6 +322,23 @@ export const en = {
     billingHint: "See payment status and monthly fees for your account",
     contact: "Contact support",
     contactHint: "Get help with your account, products or any questions.",
+    hubLabel: "Home shortcuts",
+    hubExpiry: "Expiry",
+    hubSchedule: "Schedule",
+    hubTeam: "Team",
+    hubBilling: "Billing",
+    hubSupport: "Support",
+    hubOrders: "Cart",
+    hubDocument: "Document",
+    hubNotifications: "Alerts",
+    hubAnalytics: "Analysis",
+    hubJournal: "Journal",
+    hubChecklists: "Checklists",
+    hubTemperature: "Temp. log",
+    hubComingSoon: "Soon",
+    hubPage: "Page {page}",
+    hubRearrangeHint:
+      "Hold at the left/right edge to change page, then drop on a slot.",
   },
   schedule: {
     title: "Schedule",
@@ -396,6 +413,8 @@ export const en = {
   billing: {
     title: "Billing",
     subtitle: "Your account payment status",
+    notEnabled:
+      "Monthly billing is not active for this account yet. If you expected a fee, contact us from Support.",
     loadFailed: "Could not load billing. Try again.",
     statusUpToDate: "Everything is paid",
     statusDue: "Payment due",
@@ -1170,6 +1189,9 @@ export const en = {
     scheduleEnabled: "Staff schedule",
     scheduleEnabledHint:
       "On by default. When off, this account cannot use the schedule (Team, Home, and API).",
+    newUiEnabled: "New home UI",
+    newUiEnabledHint:
+      "When on, every user on this account gets the icon-hub home (and related layout). Off keeps the classic home and bottom tabs.",
     paymentStandingFree: "Free (fee ≤ 0)",
     editClient: "Edit client",
     activeClient: "Account active",

@@ -27,6 +27,7 @@ export async function GET(request: Request) {
           homeUser: true,
           scheduleEnabled: true,
           scheduleAccess: true,
+          newUiEnabled: true,
         },
       },
       storeLinks: {
@@ -63,6 +64,7 @@ export async function GET(request: Request) {
     user: {
       ...rest,
       homeUser: client?.homeUser ?? false,
+      newUiEnabled: client?.newUiEnabled ?? false,
       scheduleEnabled,
       scheduleAccess: scheduleEnabled
         ? parseScheduleAccess(client?.scheduleAccess)

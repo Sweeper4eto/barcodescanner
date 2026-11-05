@@ -17,6 +17,7 @@ import { useNavigationLeaveRequest } from "@/components/navigation-leave-guard";
 import { useAppStoreId } from "@/components/store-selection-provider";
 import { useViewportInsets } from "@/hooks/use-viewport-insets";
 import { appButtonDangerFull, appFooterButtonGrid } from "@/lib/app-ui";
+import { shouldShowAppBottomNav } from "@/lib/app-navigation";
 import {
   getTabReselectNeedsConfirm,
   requestTabReselect,
@@ -107,7 +108,7 @@ export function AppBottomNav() {
   const pathname = usePathname();
   const router = useRouter();
   const { t } = useT();
-  const { homeUser, user } = useAppSession();
+  const { homeUser, user, newUiEnabled } = useAppSession();
   const paymentLocked = Boolean(user?.paymentLocked);
   const { storeId, ready: storeReady } = useAppStoreId();
   const { blocked, requestNavigate } = useNavigationLeaveRequest();
@@ -194,7 +195,7 @@ export function AppBottomNav() {
     requestTabReselect(tabId);
   }
 
-  if (paymentLocked) {
+  if (paymentLocked || !shouldShowAppBottomNav(pathname, { newUiEnabled })) {
     return null;
   }
 

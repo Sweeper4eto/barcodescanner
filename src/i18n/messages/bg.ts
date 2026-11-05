@@ -324,6 +324,23 @@ export const bg = {
     billingHint: "Статус на плащанията и месечна такса за акаунта",
     contact: "Свържи се с поддръжката",
     contactHint: "Помощ за акаунта, продуктите или други въпроси.",
+    hubLabel: "Начални преки пътища",
+    hubExpiry: "Годност",
+    hubSchedule: "График",
+    hubTeam: "Екип",
+    hubBilling: "Плащания",
+    hubSupport: "Поддръжка",
+    hubOrders: "Списък",
+    hubDocument: "Документ",
+    hubNotifications: "Известия",
+    hubAnalytics: "Анализ",
+    hubJournal: "Дневник",
+    hubChecklists: "Чеклисти",
+    hubTemperature: "°C дневник",
+    hubComingSoon: "Скоро",
+    hubPage: "Страница {page}",
+    hubRearrangeHint:
+      "Задръж към левия/десния край за друга страница, после пусни върху слот.",
   },
   schedule: {
     title: "График",
@@ -398,6 +415,8 @@ export const bg = {
   billing: {
     title: "Плащания",
     subtitle: "Статус на плащанията за акаунта",
+    notEnabled:
+      "За този акаунт все още няма активни месечни плащания. Ако очаквате такса, пишете ни от Поддръжка.",
     loadFailed: "Плащанията не можаха да се заредят. Опитайте отново.",
     statusUpToDate: "Всичко е платено",
     statusDue: "Има дължимо плащане",
@@ -1179,6 +1198,9 @@ export const bg = {
     scheduleEnabled: "График за персонала",
     scheduleEnabledHint:
       "По подразбиране е включено. Когато е изключено, акаунтът няма достъп до графика (Екип, Начало и API).",
+    newUiEnabled: "Нов UI на Начало",
+    newUiEnabledHint:
+      "Когато е включено, всички потребители на акаунта виждат новия начален екран с икони. Изключено = класическото Начало и долните табове.",
     paymentStandingFree: "Безплатно (такса ≤ 0)",
     editClient: "Редакция на клиент",
     activeClient: "Акаунтът е активен",

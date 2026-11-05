@@ -25,13 +25,13 @@ type Props = {
 };
 
 const missingExpiryBadgeClass =
-  "border-[var(--urgency-warning-border)] bg-[var(--urgency-warning-bg)] text-warning-fg";
+  "border-amber-200/80 bg-[var(--urgency-warning-bg)] text-warning-fg";
 
 const expiredBadgeClass =
-  "border-[var(--urgency-critical-border)] bg-[var(--urgency-critical-bg)] text-error";
+  "border-red-300/80 bg-[var(--urgency-critical-bg)] text-error";
 
 const neutralDaysBadgeClass =
-  "border-card-border bg-transparent text-foreground";
+  "border-zinc-300/70 bg-transparent text-foreground";
 
 export function DocumentDraftListCard({
   item,
@@ -128,8 +128,8 @@ export function DocumentDraftListCard({
     <article
       className={`flex w-full touch-manipulation select-none overflow-hidden rounded-xl border transition-colors [-webkit-touch-callout:none] ${
         selected
-          ? "border-primary bg-selected"
-          : "border-card-border bg-transparent"
+          ? "border-primary bg-selected ring-1 ring-primary/50"
+          : "app-ticket-gradient"
       } ${selectionMode ? "cursor-pointer" : ""}`}
       aria-pressed={selectionMode ? selected : undefined}
       onClick={
@@ -213,7 +213,7 @@ export function DocumentDraftListCard({
           </div>
 
           <div className="flex shrink-0 items-stretch gap-0.5">
-            <div className="flex h-[2.375rem] w-9 flex-col items-center justify-center rounded-md border border-card-border bg-transparent px-0.5 py-0.5 text-center">
+            <div className="flex h-[2.375rem] w-9 flex-col items-center justify-center rounded-md border border-zinc-300/70 bg-transparent px-0.5 py-0.5 text-center">
               <p className="text-base font-bold leading-none tabular-nums text-foreground">
                 {quantity}
               </p>
@@ -253,7 +253,7 @@ export function DocumentDraftListCard({
           <button
             type="button"
             aria-label={t("expiry.remove")}
-            className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-md border border-card-border bg-transparent text-base leading-none text-muted"
+            className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-md border border-zinc-300/70 bg-transparent text-base leading-none text-zinc-300"
             onClick={(event) => {
               event.stopPropagation();
               onRemove();

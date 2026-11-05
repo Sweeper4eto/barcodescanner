@@ -349,3 +349,297 @@ select option {
     animation: none;
   }
 }
+
+/* Shared diagonal charcoal → emerald (hub tiles + list tickets) */
+:root {
+  /* List tickets — even darker than hub tiles */
+  --ticket-gradient: linear-gradient(
+    135deg,
+    #040405 0%,
+    #080809 36%,
+    #07110e 62%,
+    #062820 84%,
+    #072f24 100%
+  );
+  --ticket-sheen: linear-gradient(
+    135deg,
+    rgb(255 255 255 / 0.035) 0%,
+    transparent 42%,
+    transparent 100%
+  );
+  /* Home hub icons — a bit richer than tickets, still darker base */
+  --hub-tile-gradient: linear-gradient(
+    135deg,
+    #09090b 0%,
+    #0e0f11 32%,
+    #0c1814 58%,
+    #0a4734 82%,
+    #0a5a3c 100%
+  );
+}
+
+.app-ticket-gradient {
+  position: relative;
+  overflow: hidden;
+  background-image: var(--ticket-gradient);
+  box-shadow:
+    0 8px 22px rgb(0 0 0 / 0.35),
+    inset 0 1px 0 rgb(255 255 255 / 0.06);
+  border-color: rgb(63 63 70 / 0.9);
+}
+
+.app-ticket-gradient::after {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--ticket-sheen);
+}
+
+.app-ticket-gradient > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Home icon hub — option-8 mockup: diagonal soft emerald badges
+   Scales for phone / tablet / desktop via container + width breakpoints. */
+.home-hub-tile {
+  position: relative;
+  display: flex;
+  aspect-ratio: 1 / 1;
+  width: 100%;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.28rem;
+  overflow: hidden;
+  border-radius: clamp(1.15rem, 4.5cqw, 1.85rem);
+  padding: 0.5rem 0.35rem 0.55rem;
+  text-align: center;
+  color: #fff;
+  background-image: var(--hub-tile-gradient);
+  box-shadow:
+    0 10px 28px rgb(0 0 0 / 0.48),
+    inset 0 1px 0 rgb(255 255 255 / 0.08);
+}
+
+.home-hub-tile::after {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--ticket-sheen);
+}
+
+.home-hub-glyph {
+  position: relative;
+  z-index: 1;
+  width: 42%;
+  max-width: 5.5rem;
+  height: auto;
+  aspect-ratio: 1 / 1;
+  flex-shrink: 0;
+  color: var(--primary);
+  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.4));
+}
+
+.home-hub-label {
+  position: relative;
+  z-index: 1;
+  display: -webkit-box;
+  max-width: 96%;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  /* cqw tracks tile/page width — not full desktop viewport */
+  font-size: clamp(0.65rem, 4.1cqw, 0.9375rem);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+  color: #fff;
+  word-break: normal;
+  overflow-wrap: anywhere;
+}
+
+.home-hub-soon {
+  position: relative;
+  z-index: 1;
+  margin-top: -0.15rem;
+  font-size: clamp(0.6rem, 3.2cqw, 0.75rem);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  color: rgb(161 161 170);
+}
+
+.home-hub-tile-locked {
+  opacity: 0.42;
+  cursor: default;
+}
+
+.home-hub-tile-locked .home-hub-glyph {
+  color: rgb(161 161 170);
+}
+
+.home-hub-tile-locked .home-hub-label {
+  color: rgb(212 212 216);
+}
+
+.home-hub-root {
+  width: 100%;
+  touch-action: pan-y;
+}
+
+.home-hub-viewport {
+  overflow: hidden;
+  width: 100%;
+  touch-action: pan-y;
+}
+
+.home-hub-track {
+  display: flex;
+  width: 100%;
+  will-change: transform;
+  touch-action: pan-y;
+}
+
+.home-hub-page {
+  container-type: inline-size;
+  container-name: hub-page;
+  flex: 0 0 100%;
+  width: 100%;
+  min-width: 100%;
+  border-radius: clamp(1.35rem, 5cqw, 2rem);
+  border: 1px solid rgb(63 63 70 / 0.85);
+  padding: clamp(0.65rem, 2.2cqw, 1.15rem);
+  background: transparent;
+}
+
+.home-hub-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(0.7rem, 2.6cqw, 1.35rem);
+  touch-action: pan-y;
+}
+
+/* Tall phones: a bit more room between tiles so the grid isn’t tiny up top */
+@media (min-height: 820px) and (max-width: 767px) {
+  .home-hub-page {
+    padding: clamp(0.8rem, 1.6vh, 1.15rem);
+  }
+
+  .home-hub-grid {
+    gap: clamp(0.9rem, 2vh, 1.25rem);
+  }
+
+  .home-hub-glyph {
+    width: 44%;
+  }
+}
+
+/* Tablet + desktop: roomier tiles, still a centered launcher column */
+@media (min-width: 768px) {
+  .home-hub-tile {
+    gap: 0.35rem;
+    padding: 0.65rem 0.45rem 0.75rem;
+  }
+
+  .home-hub-glyph {
+    width: 40%;
+    max-width: 6.25rem;
+  }
+
+  .home-hub-label {
+    font-size: clamp(0.75rem, 3.4cqw, 0.9375rem);
+  }
+
+  .home-hub-soon {
+    font-size: 0.7rem;
+  }
+
+  .home-hub-placeholder,
+  .home-hub-slot-shadow {
+    border-radius: clamp(1.25rem, 4.5cqw, 1.85rem);
+  }
+}
+
+@media (min-width: 1024px) {
+  .home-hub-glyph {
+    max-width: 6.75rem;
+  }
+
+  .home-hub-label {
+    font-size: 0.875rem;
+  }
+}
+
+/* Mouse / trackpad affordance without changing touch look */
+@media (pointer: fine) {
+  .home-hub-tile:not(.home-hub-tile-locked):not(.home-hub-tile-float) {
+    cursor: pointer;
+    transition:
+      transform 0.12s ease,
+      box-shadow 0.12s ease,
+      filter 0.12s ease;
+  }
+
+  .home-hub-tile:not(.home-hub-tile-locked):not(.home-hub-tile-float):hover {
+    filter: brightness(1.05);
+  }
+}
+
+.home-hub-placeholder {
+  aspect-ratio: 1 / 1;
+  width: 100%;
+  border-radius: clamp(1.15rem, 4.5cqw, 1.85rem);
+  border: 2px dashed rgb(52 211 153 / 0.4);
+  background: rgb(24 24 27 / 0.72);
+  transition:
+    border-color 0.12s ease,
+    background-color 0.12s ease,
+    box-shadow 0.12s ease,
+    transform 0.12s ease;
+}
+
+/* Empty hole left behind while dragging (iOS-like shadow) */
+.home-hub-slot-shadow {
+  aspect-ratio: 1 / 1;
+  width: 100%;
+  border-radius: clamp(1.15rem, 4.5cqw, 1.85rem);
+  background: rgb(12 12 14 / 0.92);
+  box-shadow:
+    inset 0 0 0 2px rgb(52 211 153 / 0.35),
+    inset 0 8px 18px rgb(0 0 0 / 0.45);
+}
+
+/* Where the finger is hovering — clear drop target */
+.home-hub-drop-target {
+  border-color: rgb(52 211 153 / 0.95) !important;
+  background: rgb(16 185 129 / 0.22) !important;
+  box-shadow:
+    0 0 0 3px rgb(52 211 153 / 0.75),
+    0 0 28px rgb(52 211 153 / 0.4);
+  transform: scale(1.04);
+}
+
+.home-hub-tile.home-hub-drop-target-tile {
+  box-shadow:
+    0 0 0 3px rgb(52 211 153 / 0.9),
+    0 0 30px rgb(52 211 153 / 0.45),
+    inset 0 1px 0 rgb(255 255 255 / 0.08);
+  transform: scale(1.04);
+}
+
+/* Drag ghost — icon follows pointer (size set inline from source tile) */
+.home-hub-tile.home-hub-tile-float {
+  width: auto;
+  max-width: min(10rem, 34vw);
+  aspect-ratio: 1 / 1;
+  box-shadow:
+    0 18px 40px rgb(0 0 0 / 0.65),
+    0 0 0 1px rgb(52 211 153 / 0.35);
+  opacity: 0.72;
+  pointer-events: none;
+}

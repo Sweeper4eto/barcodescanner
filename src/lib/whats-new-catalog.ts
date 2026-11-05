@@ -1027,6 +1027,92 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Премахване на артикули без баркод вече може да се отмени от Екип → Действия.",
     href: "/app/team/activity",
   },
+  {
+    key: "2026-11-home-icon-hub",
+    titleEn:
+      "Home uses soft gradient shortcuts — long-press to rearrange into any of the 9 slots; drop saves.",
+    titleBg:
+      "Началото е с меки градиентни икони — задръж за пренареждане във всеки от 9-те слота; пускането записва.",
+    href: "/app",
+  },
+  {
+    key: "2026-11-home-hide-bottom-nav",
+    titleEn:
+      "Home and other hub screens hide the bottom tabs — Expiry / Add / Cart appear after you open Expiry.",
+    titleBg:
+      "На Начало и другите екрани от хъба долните табове са скрити — Годност / Добави / Количка се показват след отваряне на Годност.",
+    href: "/app",
+  },
+  {
+    key: "2026-11-home-legal-footer",
+    titleEn:
+      "Home keeps shortcuts up top and pins Terms and Privacy to the bottom of the screen.",
+    titleBg:
+      "На Начало иконите остават горе, а Общи условия и Политика са закачени най-отдоло на екрана.",
+    href: "/app",
+  },
+  {
+    key: "2026-11-ticket-style-document-review",
+    titleEn:
+      "Document review cards match the darker ticket look — same borders, remove control, and green multi-select.",
+    titleBg:
+      "Картите в прегледа на документи са в същия тъмен ticket стил — очертания, премахни и зелен мултиселект.",
+    href: "/app/add-document",
+  },
+  {
+    key: "2026-11-header-home-link",
+    titleEn:
+      "Away from Home, a green home button next to the language flag returns to the shortcuts.",
+    titleBg:
+      "Извън Начало зелен бутон до езиковия флаг връща към преките пътища.",
+    href: "/app",
+  },
+  {
+    key: "2026-11-hub-no-cart-tile",
+    titleEn:
+      "Home shortcuts no longer include Cart — open it from Expiry’s bottom tabs.",
+    titleBg:
+      "На Начало вече няма икона Количка — отваря се от долните табове в Годност.",
+    href: "/app",
+  },
+  {
+    key: "2026-11-notifications-enable-toggle",
+    titleEn:
+      "Notifications: turn push on/off at the top of the settings screen (browser will ask permission).",
+    titleBg:
+      "Известия: включване/изключване на push е горе в настройките (браузърът пита за разрешение).",
+    href: "/app/settings/notifications",
+  },
+  {
+    key: "2026-11-hub-billing-tile",
+    titleEn:
+      "Home Payments shortcut uses a clearer banknote icon and still appears only when billing is on.",
+    titleBg:
+      "Иконата Плащания на Начало е по-ясна (банкнота) и се показва само когато плащанията са пуснати.",
+    href: "/app/billing",
+  },
+  {
+    key: "2026-11-hub-coming-soon-tiles",
+    titleEn:
+      "Home shows Analysis, Journal, Checklists, and Temperature as disabled “Soon” shortcuts.",
+    titleBg:
+      "На Начало има Анализ, Дневник, Чеклисти и °C дневник — изключени с етикет „Скоро“.",
+    href: "/app",
+  },
+  {
+    key: "2026-11-hub-thermocontrol-label",
+    titleEn: "Home temperature shortcut is labeled °C log (BG: °C дневник).",
+    titleBg: "Иконата за температури на Начало е с име °C дневник.",
+    href: "/app",
+  },
+  {
+    key: "2026-11-hub-responsive-shell",
+    titleEn:
+      "Home shortcuts scale cleanly on phone, tablet, and desktop (wider on larger screens).",
+    titleBg:
+      "Иконите на Начало се виждат добре на телефон, таблет и компютър (по-широко на голям екран).",
+    href: "/app",
+  },
 ];
 
 

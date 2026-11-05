@@ -108,10 +108,6 @@ export default function BillingPage() {
         }
         const json = (await response.json()) as BillingPayload;
         if (cancelled) return;
-        if (!json.enabled) {
-          navigateApp("/app");
-          return;
-        }
         setData(json);
       } catch {
         if (!cancelled) setError(t("billing.loadFailed"));
@@ -171,6 +167,10 @@ export default function BillingPage() {
       ) : error ? (
         <p className="mt-4 rounded-2xl border border-danger-border bg-danger/10 p-4 text-sm text-error">
           {error}
+        </p>
+      ) : data && !data.enabled ? (
+        <p className={`${appListInset} mt-4 rounded-2xl border border-card-border px-3.5 py-3 text-sm text-muted`}>
+          {t("billing.notEnabled")}
         </p>
       ) : data ? (
         <div className={`${appListInset} mt-4 space-y-3`}>

@@ -54,3 +54,23 @@ export function goBackOrApp(fallback = "/app") {
   }
   navigateApp(fallback);
 }
+
+/**
+ * Bottom tabs visibility.
+ * - Classic UI: always show (Expiry / Add / Cart are the main entry points).
+ * - New UI (hub): only inside the expiry work flow; home hub replaces tabs.
+ */
+export function shouldShowAppBottomNav(
+  pathname: string,
+  options?: { newUiEnabled?: boolean },
+): boolean {
+  if (!options?.newUiEnabled) return true;
+  return (
+    pathname.startsWith("/app/expiry") ||
+    pathname.startsWith("/app/scan") ||
+    pathname.startsWith("/app/add-product") ||
+    pathname.startsWith("/app/orders") ||
+    pathname.startsWith("/app/buy-list") ||
+    pathname.startsWith("/app/add-document")
+  );
+}
