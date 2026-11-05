@@ -567,6 +567,14 @@ export default function TeamActivityPage() {
             {notice}
           </p>
         ) : null}
+        {!loading &&
+        !selectionMode &&
+        entries.length > 0 &&
+        revertibleOnPage.length === 0 ? (
+          <p className="rounded-xl border border-card-border px-3 py-2 text-sm text-muted">
+            {t("team.activityNoRevertible")}
+          </p>
+        ) : null}
 
         <div className="rounded-xl border border-card-border">
           {loading ? (

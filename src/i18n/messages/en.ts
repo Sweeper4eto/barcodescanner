@@ -1027,7 +1027,9 @@ export const en = {
     activityLog: "Activity log",
     activityTitle: "Activity log",
     activitySubtitle:
-      "Actions by your team at your locations only. Other accounts are never shown.",
+      "Actions by your team at your locations only. Other accounts are never shown. Revert appears on new inventory and list changes.",
+    activityNoRevertible:
+      "No revertible actions on this page. Older rows cannot be undone — make a new inventory or list change after the update, then open Activity again.",
     activitySearchPlaceholder: "Search user, action, details…",
     activityAllUsers: "All team users",
     activityAllStores: "All locations",

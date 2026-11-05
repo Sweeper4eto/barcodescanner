@@ -1011,6 +1011,14 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Собствениците могат да отменят промени по инвентар и списък от Екип → Действия, включително с множествен избор.",
     href: "/app/team/activity",
   },
+  {
+    key: "2026-11-activity-revert-hint",
+    titleEn:
+      "Activity explains when Revert is available — only new inventory/list actions after the update can be undone.",
+    titleBg:
+      "В Действия пише кога е налична „Отмени“ — само нови промени по инвентар/списък след обновяването могат да се отменят.",
+    href: "/app/team/activity",
+  },
 ];
 
 
