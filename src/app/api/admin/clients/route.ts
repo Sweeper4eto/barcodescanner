@@ -59,6 +59,7 @@ const clientSchema = z.object({
   active: z.boolean().optional(),
   homeUser: z.boolean().optional(),
   scheduleEnabled: z.boolean().optional(),
+  newUiEnabled: z.boolean().optional(),
   paymentsRequired: z.boolean().optional(),
   referredByClientId: z.string().min(1).nullable().optional(),
 });
@@ -103,6 +104,8 @@ export async function POST(request: Request) {
       ...rest,
       referredByClientId: referredByClientId ?? null,
       scheduleEnabled: rest.scheduleEnabled ?? true,
+      // Gradual rollout: new accounts always start on classic UI.
+      newUiEnabled: false,
       paymentsRequired,
       paymentsRequiredSince: paymentsRequired ? startOfBillingMonth() : null,
     },
@@ -120,6 +123,7 @@ const patchSchema = z.object({
   active: z.boolean().optional(),
   homeUser: z.boolean().optional(),
   scheduleEnabled: z.boolean().optional(),
+  newUiEnabled: z.boolean().optional(),
   paymentsRequired: z.boolean().optional(),
   referredByClientId: z.string().min(1).nullable().optional(),
   notificationDefaults: clientDefaultsSchema.optional(),

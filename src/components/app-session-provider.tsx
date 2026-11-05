@@ -30,6 +30,8 @@ type AppSessionUser = {
   canRemoveExpiry: boolean;
   /** True when a prior billed month is unpaid (soft lock). */
   paymentLocked: boolean;
+  /** Account opted into the new home hub UI (admin switch). */
+  newUiEnabled: boolean;
   stores: AppSessionStore[];
 };
 
@@ -37,6 +39,8 @@ type AppSessionState = {
   ready: boolean;
   user: AppSessionUser | null;
   homeUser: boolean | null;
+  /** Account new-UI flag; false until /me resolves or when logged out. */
+  newUiEnabled: boolean;
   /** Re-fetch /me (e.g. after admin assigns a location). Returns active stores. */
   refresh: () => Promise<AppSessionStore[]>;
 };
@@ -45,6 +49,7 @@ const AppSessionContext = createContext<AppSessionState>({
   ready: false,
   user: null,
   homeUser: null,
+  newUiEnabled: false,
   refresh: async () => [],
 });
 
@@ -73,6 +78,7 @@ export function AppSessionProvider({ children }: { children: ReactNode }) {
     user: null,
     // Keep null until after mount so SSR and the first client paint match.
     homeUser: null,
+    newUiEnabled: false,
   });
 
   const refresh = useCallback(async (): Promise<AppSessionStore[]> => {
@@ -86,7 +92,12 @@ export function AppSessionProvider({ children }: { children: ReactNode }) {
       const data = await response.json();
 
       if (!data.user) {
-        setState({ ready: true, user: null, homeUser: null });
+        setState({
+          ready: true,
+          user: null,
+          homeUser: null,
+          newUiEnabled: false,
+        });
         // Keep selected store across logout so the last location is restored
         // on the next login (cleared only when the user has no stores).
         return [];
@@ -94,6 +105,7 @@ export function AppSessionProvider({ children }: { children: ReactNode }) {
 
       const username = String(data.user.username ?? "");
       const homeUser = Boolean(data.user.homeUser);
+      const newUiEnabled = Boolean(data.user.newUiEnabled);
       const rawRole = data.user.clientRole;
       const clientRole: AppSessionUser["clientRole"] =
         rawRole === "OWNER" || rawRole === "MEMBER" ? rawRole : null;
@@ -114,9 +126,11 @@ export function AppSessionProvider({ children }: { children: ReactNode }) {
           clientRole,
           canRemoveExpiry,
           paymentLocked,
+          newUiEnabled,
           stores,
         },
         homeUser,
+        newUiEnabled,
       });
       syncSelectedStore(stores, username);
       return stores;
@@ -125,6 +139,7 @@ export function AppSessionProvider({ children }: { children: ReactNode }) {
         ready: true,
         user: current.user,
         homeUser: current.homeUser ?? false,
+        newUiEnabled: current.newUiEnabled,
       }));
       return [];
     }

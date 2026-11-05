@@ -1189,6 +1189,9 @@ export const en = {
     scheduleEnabled: "Staff schedule",
     scheduleEnabledHint:
       "On by default. When off, this account cannot use the schedule (Team, Home, and API).",
+    newUiEnabled: "New home UI",
+    newUiEnabledHint:
+      "When on, every user on this account gets the icon-hub home (and related layout). Off keeps the classic home and bottom tabs.",
     paymentStandingFree: "Free (fee ≤ 0)",
     editClient: "Edit client",
     activeClient: "Account active",

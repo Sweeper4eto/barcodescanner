@@ -108,7 +108,7 @@ export function AppBottomNav() {
   const pathname = usePathname();
   const router = useRouter();
   const { t } = useT();
-  const { homeUser, user } = useAppSession();
+  const { homeUser, user, newUiEnabled } = useAppSession();
   const paymentLocked = Boolean(user?.paymentLocked);
   const { storeId, ready: storeReady } = useAppStoreId();
   const { blocked, requestNavigate } = useNavigationLeaveRequest();
@@ -195,7 +195,7 @@ export function AppBottomNav() {
     requestTabReselect(tabId);
   }
 
-  if (paymentLocked || !shouldShowAppBottomNav(pathname)) {
+  if (paymentLocked || !shouldShowAppBottomNav(pathname, { newUiEnabled })) {
     return null;
   }
 

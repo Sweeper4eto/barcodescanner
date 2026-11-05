@@ -67,7 +67,8 @@ function RequireLocationGuard({ children }: { children: ReactNode }) {
 export function AppShell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const showBottomNav = shouldShowAppBottomNav(pathname);
+  const { newUiEnabled } = useAppSession();
+  const showBottomNav = shouldShowAppBottomNav(pathname, { newUiEnabled });
 
   useEffect(() => {
     registerAppSoftNavigate({

@@ -56,10 +56,15 @@ export function goBackOrApp(fallback = "/app") {
 }
 
 /**
- * Bottom tabs (Expiry / Add / Cart|Document) only while inside that work
- * flow — hidden on Home hub and other launcher destinations.
+ * Bottom tabs visibility.
+ * - Classic UI: always show (Expiry / Add / Cart are the main entry points).
+ * - New UI (hub): only inside the expiry work flow; home hub replaces tabs.
  */
-export function shouldShowAppBottomNav(pathname: string): boolean {
+export function shouldShowAppBottomNav(
+  pathname: string,
+  options?: { newUiEnabled?: boolean },
+): boolean {
+  if (!options?.newUiEnabled) return true;
   return (
     pathname.startsWith("/app/expiry") ||
     pathname.startsWith("/app/scan") ||

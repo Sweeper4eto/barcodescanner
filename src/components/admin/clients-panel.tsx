@@ -33,6 +33,7 @@ export type Client = {
   active: boolean;
   homeUser: boolean;
   scheduleEnabled?: boolean;
+  newUiEnabled?: boolean;
   paymentsRequired: boolean;
   monthlyFeePerStore: number;
   referredByClientId?: string | null;
@@ -76,6 +77,7 @@ type EditState = {
   active: boolean;
   homeUser: boolean;
   scheduleEnabled: boolean;
+  newUiEnabled: boolean;
   paymentsRequired: boolean;
   referredByClientId: string | null;
   notifyEarlyDays: string;
@@ -91,6 +93,7 @@ function clientEditState(client: Client): EditState {
     active: client.active,
     homeUser: client.homeUser,
     scheduleEnabled: client.scheduleEnabled !== false,
+    newUiEnabled: Boolean(client.newUiEnabled),
     paymentsRequired: Boolean(client.paymentsRequired),
     referredByClientId: client.referredByClientId ?? null,
     notifyEarlyDays:
@@ -114,6 +117,7 @@ function editIsDirty(current: EditState, saved: EditState | null) {
     current.active !== saved.active ||
     current.homeUser !== saved.homeUser ||
     current.scheduleEnabled !== saved.scheduleEnabled ||
+    current.newUiEnabled !== saved.newUiEnabled ||
     current.paymentsRequired !== saved.paymentsRequired ||
     current.referredByClientId !== saved.referredByClientId ||
     current.notifyEarlyDays !== saved.notifyEarlyDays ||
@@ -162,6 +166,7 @@ export function ClientsPanel({
     active: true,
     homeUser: false,
     scheduleEnabled: true,
+    newUiEnabled: false,
     paymentsRequired: false,
     referredByClientId: null,
     notifyEarlyDays: "",
@@ -336,6 +341,7 @@ export function ClientsPanel({
           active: edit.active,
           homeUser: edit.homeUser,
           scheduleEnabled: edit.scheduleEnabled,
+          newUiEnabled: edit.newUiEnabled,
           paymentsRequired: edit.paymentsRequired,
           referredByClientId: edit.homeUser ? null : edit.referredByClientId,
           notificationDefaults: {
@@ -1008,6 +1014,41 @@ export function ClientsPanel({
                             {t("admin.activeClientHint")}
                           </span>
                         </span>
+                      </label>
+
+                      <label className="flex items-center justify-between gap-3 rounded-xl border border-card-border px-3 py-2 text-sm">
+                        <span>
+                          <span className="block font-semibold text-foreground">
+                            {t("admin.newUiEnabled")}
+                          </span>
+                          <span className="mt-0.5 block text-xs text-muted">
+                            {t("admin.newUiEnabledHint")}
+                          </span>
+                        </span>
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={edit.newUiEnabled}
+                          disabled={saving}
+                          onClick={() =>
+                            setEdit({
+                              ...edit,
+                              newUiEnabled: !edit.newUiEnabled,
+                            })
+                          }
+                          className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${
+                            edit.newUiEnabled
+                              ? "bg-primary"
+                              : "border border-card-border bg-transparent"
+                          }`}
+                        >
+                          <span
+                            aria-hidden
+                            className={`absolute top-0.5 size-6 rounded-full bg-white transition-transform ${
+                              edit.newUiEnabled ? "left-5" : "left-0.5"
+                            }`}
+                          />
+                        </button>
                       </label>
 
                       {!edit.homeUser ? (
