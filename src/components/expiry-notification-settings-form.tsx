@@ -1,14 +1,25 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
+import { CancelButton } from "@/components/cancel-button";
 import { LoadingSpinnerBlock } from "@/components/loading-spinner";
 import { MobilePageHeader, appPageClassName } from "@/components/mobile-page-header";
 import { MenuSelect } from "@/components/menu-select";
-import { NotifyTimeSelect } from "@/components/notify-time-select";
-import { PushNotifications } from "@/components/push-notifications";
+import { NotifyTimeSelectInline } from "@/components/notify-time-select";
+import {
+  PushNotifications,
+  type PushState,
+} from "@/components/push-notifications";
 import { useT } from "@/components/i18n-provider";
-import { appButtonPrimaryFull, appFormInput } from "@/lib/app-ui";
+import { navigateApp } from "@/lib/app-navigation";
+import { appButtonPrimaryFull, appListInset } from "@/lib/app-ui";
 import type { ExpiryNotificationPrefs } from "@/lib/expiry-notification-prefs";
 import {
   expiryNotificationPrefsSchema,
@@ -26,7 +37,8 @@ type StoreOption = { id: string; name: string };
 
 type SettingsResponse = ExpiryNotificationPrefs & { stores: StoreOption[] };
 
-const DAY_PRESETS = [3, 7, 14] as const;
+const DAYS_MIN = 0;
+const DAYS_MAX = 90;
 
 function Toggle({
   checked,
@@ -44,95 +56,173 @@ function Toggle({
       aria-checked={checked}
       aria-label={label}
       onClick={() => onChange(!checked)}
-      className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${
+      className={`relative h-6 w-10 shrink-0 rounded-full transition-colors ${
         checked ? "bg-primary" : "border border-card-border bg-transparent"
       }`}
     >
       <span
         aria-hidden
-        className={`absolute top-0.5 size-6 rounded-full bg-white transition-transform ${
-          checked ? "left-5" : "left-0.5"
+        className={`absolute top-0.5 size-5 rounded-full bg-white transition-transform ${
+          checked ? "left-4" : "left-0.5"
         }`}
       />
     </button>
   );
 }
 
-function Section({
-  title,
-  hint,
-  children,
-}: {
-  title: string;
-  hint?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="rounded-2xl border border-card-border p-4">
-      <h2 className="mb-2 text-sm font-semibold text-foreground">{title}</h2>
-      {hint ? <p className="mb-3 text-xs leading-snug text-muted">{hint}</p> : null}
-      {children}
-    </section>
-  );
+function clampDays(value: number) {
+  if (!Number.isFinite(value)) return DAYS_MIN;
+  return Math.min(DAYS_MAX, Math.max(DAYS_MIN, Math.trunc(value)));
 }
 
-function DayChips({
+/** D2: − / editable number / + ; label sits above in the parent grid. */
+function DaysStepper({
   value,
   onChange,
-  customLabel,
-  daysLabel,
+  label,
 }: {
   value: number;
   onChange: (days: number) => void;
-  customLabel: string;
-  daysLabel: string;
+  label: string;
 }) {
-  const [custom, setCustom] = useState(
-    !DAY_PRESETS.includes(value as (typeof DAY_PRESETS)[number]),
-  );
+  const [draft, setDraft] = useState(() => String(value));
 
-  const chipClass = (active: boolean) =>
-    `rounded-full border px-3 py-2 text-center text-xs font-medium ${
-      active
-        ? "border-primary/45 bg-primary/10 text-primary"
-        : "border-card-border text-muted"
-    }`;
+  useEffect(() => {
+    setDraft(String(value));
+  }, [value]);
+
+  function commit(next: number) {
+    const clamped = clampDays(next);
+    setDraft(String(clamped));
+    onChange(clamped);
+  }
 
   return (
-    <div className="mt-3 space-y-2">
-      <div className="grid grid-cols-2 gap-2">
-        {DAY_PRESETS.map((days) => (
-          <button
-            key={days}
-            type="button"
-            onClick={() => {
-              setCustom(false);
-              onChange(days);
-            }}
-            className={chipClass(!custom && value === days)}
-          >
-            {days} {daysLabel}
-          </button>
-        ))}
-        <button
-          type="button"
-          onClick={() => setCustom(true)}
-          className={chipClass(custom)}
+    <div className="flex h-8 w-[5.25rem] items-stretch overflow-hidden rounded-lg border border-input-border">
+      <button
+        type="button"
+        aria-label="−"
+        disabled={value <= DAYS_MIN}
+        className="w-6 shrink-0 text-sm text-muted disabled:opacity-30"
+        onClick={() => commit(value - 1)}
+      >
+        −
+      </button>
+      <input
+        type="text"
+        inputMode="numeric"
+        pattern="[0-9]*"
+        value={draft}
+        aria-label={label}
+        onChange={(event) => {
+          const raw = event.target.value.replace(/\D/g, "");
+          if (raw === "") {
+            setDraft("");
+            return;
+          }
+          // parseInt drops leading zeros ("02" → 2)
+          const next = clampDays(Number.parseInt(raw, 10) || 0);
+          setDraft(String(next));
+          onChange(next);
+        }}
+        onBlur={() => commit(Number(draft) || 0)}
+        className="min-w-0 flex-1 border-x border-input-border bg-transparent text-center text-xs font-semibold tabular-nums text-foreground outline-none"
+      />
+      <button
+        type="button"
+        aria-label="+"
+        disabled={value >= DAYS_MAX}
+        className="w-6 shrink-0 text-sm text-muted disabled:opacity-30"
+        onClick={() => commit(value + 1)}
+      >
+        +
+      </button>
+    </div>
+  );
+}
+
+function FieldColumn({
+  label,
+  children,
+}: {
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="flex flex-col items-center gap-0.5">
+      <p className="text-[0.65rem] font-medium capitalize leading-none text-muted">
+        {label}
+      </p>
+      {children}
+    </div>
+  );
+}
+
+function TierRow({
+  title,
+  titleClassName,
+  enabled,
+  onEnabledChange,
+  days,
+  onDaysChange,
+  time,
+  onTimeChange,
+  daysLabel,
+  timeLabel,
+}: {
+  title: string;
+  titleClassName: string;
+  enabled: boolean;
+  onEnabledChange: (value: boolean) => void;
+  days: number;
+  onDaysChange: (days: number) => void;
+  time: string;
+  onTimeChange: (time: string) => void;
+  daysLabel: string;
+  timeLabel: string;
+}) {
+  return (
+    <div className="rounded-xl border border-card-border px-2.5 py-2">
+      <div className={`flex gap-2 ${enabled ? "items-end" : "items-center"}`}>
+        <div
+          className={`flex w-[4.25rem] shrink-0 items-center ${
+            enabled ? "h-8" : ""
+          }`}
         >
-          {customLabel}
-        </button>
+          <p
+            className={`truncate text-sm font-semibold leading-none ${titleClassName}`}
+          >
+            {title}
+          </p>
+        </div>
+
+        {enabled ? (
+          <div className="flex min-w-0 flex-1 items-end justify-center gap-2">
+            <FieldColumn label={daysLabel}>
+              <DaysStepper
+                value={days}
+                onChange={onDaysChange}
+                label={daysLabel}
+              />
+            </FieldColumn>
+            <FieldColumn label={timeLabel}>
+              <NotifyTimeSelectInline
+                label={timeLabel}
+                value={time}
+                onChange={onTimeChange}
+                className="w-[5.25rem]"
+              />
+            </FieldColumn>
+          </div>
+        ) : (
+          <div className="min-w-0 flex-1" />
+        )}
+
+        {/* Same h-8 as days/time controls so the switch lines up with them. */}
+        <div className="flex h-8 shrink-0 items-center">
+          <Toggle checked={enabled} onChange={onEnabledChange} label={title} />
+        </div>
       </div>
-      {custom ? (
-        <input
-          type="number"
-          min={0}
-          max={90}
-          value={value}
-          onChange={(event) => onChange(Number(event.target.value))}
-          className={`${appFormInput} w-full px-3 py-2 text-center text-sm`}
-          aria-label={customLabel}
-        />
-      ) : null}
     </div>
   );
 }
@@ -146,6 +236,7 @@ export function ExpiryNotificationSettingsForm() {
   const [stores, setStores] = useState<StoreOption[]>([]);
   const [prefs, setPrefs] = useState<ExpiryNotificationPrefs | null>(null);
   const [storeMode, setStoreMode] = useState<"all" | "selected">("all");
+  const [pushState, setPushState] = useState<PushState>("loading");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -194,6 +285,10 @@ export function ExpiryNotificationSettingsForm() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  const onPushStateChange = useCallback((state: PushState) => {
+    setPushState(state);
+  }, []);
 
   function patch(partial: Partial<ExpiryNotificationPrefs>) {
     setPrefs((current) => (current ? { ...current, ...partial } : current));
@@ -273,11 +368,36 @@ export function ExpiryNotificationSettingsForm() {
     }
   }
 
+  const detectedTimezone = detectBrowserTimezone();
+  const timezoneOptions = useMemo(
+    () =>
+      prefs
+        ? buildTimezoneOptions(
+            detectedTimezone,
+            prefs.timezone,
+            (zone, isDetected) =>
+              isDetected ? t("pushSettings.timezoneAuto", { zone }) : zone,
+          )
+        : [],
+    [detectedTimezone, prefs, t],
+  );
+
+  /** Prefs stay editable on desktop (no PWA/push). Only a hint when push is off. */
+  const pushReady = pushState === "enabled";
+  const pushBlocked =
+    pushState === "denied" ||
+    pushState === "iosNeedsInstall" ||
+    pushState === "unconfigured";
+
   if (loading) {
     return (
       <div className={appPageClassName}>
         <MobilePageHeader title={t("pushSettings.title")} />
-        <PushNotifications showCustomizeLink={false} />
+        <PushNotifications
+          showCustomizeLink={false}
+          compact
+          onStateChange={onPushStateChange}
+        />
         <LoadingSpinnerBlock />
       </div>
     );
@@ -287,8 +407,14 @@ export function ExpiryNotificationSettingsForm() {
     return (
       <div className={appPageClassName}>
         <MobilePageHeader title={t("pushSettings.title")} />
-        <PushNotifications showCustomizeLink={false} />
-        <p className="mt-3 text-sm text-danger">{error || t("pushSettings.loadError")}</p>
+        <PushNotifications
+          showCustomizeLink={false}
+          compact
+          onStateChange={onPushStateChange}
+        />
+        <p className="mt-3 text-sm text-danger">
+          {error || t("pushSettings.loadError")}
+        </p>
         <Link href="/app" className="mt-4 inline-block text-sm text-primary">
           ← {t("common.back")}
         </Link>
@@ -296,134 +422,125 @@ export function ExpiryNotificationSettingsForm() {
     );
   }
 
-  const detectedTimezone = detectBrowserTimezone();
-  const timezoneOptions = buildTimezoneOptions(
-    detectedTimezone,
-    prefs.timezone,
-    (zone, isDetected) =>
-      isDetected ? t("pushSettings.timezoneAuto", { zone }) : zone,
-  );
+  const chipClass = (active: boolean) =>
+    `rounded-full border px-2.5 py-1 text-center text-[0.7rem] font-medium ${
+      active
+        ? "border-primary/45 bg-primary/10 text-primary"
+        : "border-card-border text-muted"
+    }`;
 
   return (
     <div className={appPageClassName}>
       <MobilePageHeader title={t("pushSettings.title")} />
 
-      <PushNotifications showCustomizeLink={false} />
+      <PushNotifications
+        showCustomizeLink={false}
+        compact
+        onStateChange={onPushStateChange}
+      />
 
-      <div className="mt-3 space-y-3 pb-8">
-        <Section title={t("pushSettings.tiers")} hint={t("pushSettings.tiersHint")}>
-          <div className="rounded-xl border border-danger/40 bg-danger/5 p-3">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-sm font-medium text-danger">{t("pushSettings.urgentTitle")}</p>
-              </div>
-              <Toggle
-                checked={prefs.urgentEnabled}
-                onChange={(urgentEnabled) => patch({ urgentEnabled })}
-                label={t("pushSettings.urgentTitle")}
-              />
-            </div>
-            <DayChips
-              value={prefs.urgentDays}
-              onChange={(urgentDays) => patch({ urgentDays })}
-              customLabel={t("pushSettings.customDays")}
-              daysLabel={t("pushSettings.daysLabel")}
-            />
-            {prefs.urgentEnabled ? (
-              <div className="mt-3">
-                <NotifyTimeSelect
-                  label={t("pushSettings.timeLabel")}
-                  value={prefs.time2}
-                  onChange={(time2) => patch({ time2: snapTimeToStep(time2) })}
-                />
-              </div>
-            ) : null}
-          </div>
+      <div className={`mt-2 space-y-2 pb-8 ${appListInset}`}>
+        {!pushReady && pushState !== "loading" ? (
+          <p className="rounded-xl border border-dashed border-card-border px-3 py-2 text-xs leading-snug text-muted">
+            {pushBlocked
+              ? t("pushSettings.pushOffHint")
+              : t("pushSettings.desktopEditHint")}
+          </p>
+        ) : null}
 
-          <div className="mt-3 rounded-xl border border-primary/35 bg-primary/5 p-3">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-sm font-medium text-primary">{t("pushSettings.earlyTitle")}</p>
-              </div>
-              <Toggle
-                checked={prefs.earlyEnabled}
-                onChange={(earlyEnabled) => patch({ earlyEnabled })}
-                label={t("pushSettings.earlyTitle")}
-              />
-            </div>
-            <DayChips
-              value={prefs.earlyDays}
-              onChange={(earlyDays) => patch({ earlyDays })}
-              customLabel={t("pushSettings.customDays")}
-              daysLabel={t("pushSettings.daysLabel")}
-            />
-            {prefs.earlyEnabled ? (
-              <div className="mt-3">
-                <NotifyTimeSelect
-                  label={t("pushSettings.timeLabel")}
-                  value={prefs.time1}
-                  onChange={(time1) => patch({ time1: snapTimeToStep(time1) })}
-                />
-              </div>
-            ) : null}
-          </div>
-        </Section>
-
-        <Section title={t("pushSettings.timezone")} hint={t("pushSettings.timezoneHint")}>
-          <MenuSelect
-            label={t("pushSettings.timezone")}
-            value={prefs.timezone}
-            options={timezoneOptions}
-            onChange={(timezone) => patch({ timezone })}
+        <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-muted">
+          {t("pushSettings.tiers")}
+        </p>
+        <div className="space-y-1.5">
+          <TierRow
+            title={t("pushSettings.urgentTitle")}
+            titleClassName="text-danger"
+            enabled={prefs.urgentEnabled}
+            onEnabledChange={(urgentEnabled) => patch({ urgentEnabled })}
+            days={prefs.urgentDays}
+            onDaysChange={(urgentDays) => patch({ urgentDays })}
+            time={prefs.time2}
+            onTimeChange={(time2) => patch({ time2: snapTimeToStep(time2) })}
+            daysLabel={t("pushSettings.daysLabel")}
+            timeLabel={t("pushSettings.timeLabel")}
           />
-        </Section>
+          <TierRow
+            title={t("pushSettings.earlyTitle")}
+            titleClassName="text-primary"
+            enabled={prefs.earlyEnabled}
+            onEnabledChange={(earlyEnabled) => patch({ earlyEnabled })}
+            days={prefs.earlyDays}
+            onDaysChange={(earlyDays) => patch({ earlyDays })}
+            time={prefs.time1}
+            onTimeChange={(time1) => patch({ time1: snapTimeToStep(time1) })}
+            daysLabel={t("pushSettings.daysLabel")}
+            timeLabel={t("pushSettings.timeLabel")}
+          />
+        </div>
 
-        <Section title={t("pushSettings.stores")}>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => setStoreMode("all")}
-              className={`rounded-full border px-3 py-2 text-center text-xs font-medium ${
-                storeMode === "all"
-                  ? "border-primary/45 bg-primary/10 text-primary"
-                  : "border-card-border text-muted"
-              }`}
-            >
-              {t("pushSettings.storesAll")}
-            </button>
-            <button
-              type="button"
-              onClick={() => setStoreMode("selected")}
-              className={`rounded-full border px-3 py-2 text-center text-xs font-medium ${
-                storeMode === "selected"
-                  ? "border-primary/45 bg-primary/10 text-primary"
-                  : "border-card-border text-muted"
-              }`}
-            >
-              {t("pushSettings.storesSelected")}
-            </button>
+        <p className="pt-1 text-[0.65rem] font-semibold uppercase tracking-wide text-muted">
+          {t("pushSettings.general")}
+        </p>
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between gap-2 rounded-xl border border-card-border px-2.5 py-2">
+            <p className="shrink-0 text-sm font-semibold text-foreground">
+              {t("pushSettings.timezone")}
+            </p>
+            <div className="min-w-0 max-w-[14rem] flex-1">
+              <MenuSelect
+                size="compact"
+                label={t("pushSettings.timezone")}
+                value={prefs.timezone}
+                options={timezoneOptions}
+                onChange={(timezone) => patch({ timezone })}
+              />
+            </div>
           </div>
-          {storeMode === "selected" ? (
-            <ul className="mt-3 space-y-2">
-              {stores.map((store) => {
-                const checked = prefs.storeIds?.includes(store.id) ?? false;
-                return (
-                  <li key={store.id}>
-                    <label className="flex items-center gap-2 text-sm">
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() => toggleStore(store.id)}
-                        className="size-4 accent-primary"
-                      />
-                      {store.name}
-                    </label>
-                  </li>
-                );
-              })}
-            </ul>
-          ) : null}
-        </Section>
+
+          <div className="rounded-xl border border-card-border px-2.5 py-2">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-sm font-semibold text-foreground">
+                {t("pushSettings.stores")}
+              </p>
+              <div className="flex gap-1">
+                <button
+                  type="button"
+                  onClick={() => setStoreMode("all")}
+                  className={chipClass(storeMode === "all")}
+                >
+                  {t("pushSettings.storesAllShort")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStoreMode("selected")}
+                  className={chipClass(storeMode === "selected")}
+                >
+                  {t("pushSettings.storesSelectedShort")}
+                </button>
+              </div>
+            </div>
+            {storeMode === "selected" ? (
+              <ul className="mt-2 space-y-1.5 border-t border-card-border pt-2">
+                {stores.map((store) => {
+                  const checked = prefs.storeIds?.includes(store.id) ?? false;
+                  return (
+                    <li key={store.id}>
+                      <label className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => toggleStore(store.id)}
+                          className="size-3.5 accent-primary"
+                        />
+                        {store.name}
+                      </label>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : null}
+          </div>
+        </div>
 
         {error ? <p className="text-sm text-danger">{error}</p> : null}
         {message ? <p className="text-sm text-primary">{message}</p> : null}
@@ -432,10 +549,13 @@ export function ExpiryNotificationSettingsForm() {
           type="button"
           disabled={saving}
           onClick={() => void save()}
-          className={appButtonPrimaryFull}
+          className={`${appButtonPrimaryFull} !h-9 !rounded-lg !py-0 !text-sm`}
         >
           {saving ? t("admin.saving") : t("pushSettings.save")}
         </button>
+        <CancelButton onClick={() => navigateApp("/app")}>
+          {t("common.cancel")}
+        </CancelButton>
       </div>
     </div>
   );

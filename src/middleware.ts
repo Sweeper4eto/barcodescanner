@@ -143,6 +143,11 @@ export async function middleware(request: NextRequest) {
       return finish(request, redirectPath(request, "/admin"));
     }
     if (session?.role === "USER" && session.clientId) {
+      // Logged-in users land on in-app support, not the icon hub.
+      if (pathname === "/contact") {
+        const target = `/app/contact${request.nextUrl.search}`;
+        return finish(request, redirectPath(request, target));
+      }
       return finish(request, redirectPath(request, "/app"));
     }
   }

@@ -8,6 +8,7 @@ import { MobilePageHeader } from "@/components/mobile-page-header";
 import { TrashIcon } from "@/components/app-nav-icons";
 import { useT } from "@/components/i18n-provider";
 import { useViewportInsets } from "@/hooks/use-viewport-insets";
+import { navigateApp } from "@/lib/app-navigation";
 import {
   appButtonDangerFull,
   appButtonNeutral,
@@ -136,26 +137,6 @@ function ScheduleAccessControl({
         );
       })}
     </div>
-  );
-}
-
-function ScheduleIcon({ className = "size-4" }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className={className}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.75"
-      aria-hidden
-    >
-      <rect x="3" y="5" width="18" height="16" rx="2" />
-      <path d="M3 10h18" strokeLinecap="round" />
-      <path d="M8 3v4" strokeLinecap="round" />
-      <path d="M16 3v4" strokeLinecap="round" />
-      <path d="M8 14h3" strokeLinecap="round" />
-      <path d="M14 14h2" strokeLinecap="round" />
-    </svg>
   );
 }
 
@@ -551,8 +532,11 @@ export default function TeamPage() {
     editingUser &&
     editingUser.id !== currentUserId;
 
+  const settingsRowClass =
+    "flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left text-sm font-semibold text-primary transition-colors hover:bg-white/[0.03]";
+
   return (
-    <div className={`relative ${appPageShell} overflow-x-visible ${appChromeInset} pb-24 pt-1`}>
+    <div className={`relative ${appPageShell} overflow-x-visible ${appChromeInset} pb-8 pt-1`}>
       <div
         aria-hidden
         className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-[radial-gradient(ellipse_at_70%_0%,rgb(52_211_153/0.14),transparent_55%)]"
@@ -569,51 +553,6 @@ export default function TeamPage() {
         <p className="mt-1 text-sm leading-snug text-muted">{t("team.subtitle")}</p>
       </div>
 
-      {scheduleEnabled ? (
-      <div className={`relative z-0 mb-4 ${appListInset}`}>
-        <div className="flex items-center justify-between gap-2">
-          <p className="shrink-0 text-sm font-semibold text-foreground">
-            {t("app.schedule")}
-          </p>
-          <ScheduleAccessControl
-            value={scheduleAccess}
-            disabled={scheduleSaving}
-            onChange={(next) => void setScheduleAccessMode(next)}
-            ariaLabel={t("app.schedule")}
-            labels={{
-              disabled: t("team.scheduleDisabled"),
-              private: t("team.schedulePrivate"),
-              public: t("team.schedulePublic"),
-            }}
-          />
-        </div>
-        <p className="mt-1 truncate text-xs leading-snug text-muted whitespace-nowrap">
-          {scheduleAccess === "disabled"
-            ? t("team.scheduleDisabledHint")
-            : scheduleAccess === "private"
-              ? t("team.schedulePrivateHint")
-              : t("team.schedulePublicHint")}
-        </p>
-        {scheduleAccess !== "disabled" ? (
-          <Link
-            href="/app/schedule"
-            className="mt-2 flex items-center gap-2.5 rounded-xl border border-card-border px-2.5 py-2 transition-colors hover:border-primary/45"
-          >
-            <span
-              aria-hidden
-              className="flex size-8 shrink-0 items-center justify-center rounded-full border border-primary/45 text-primary"
-            >
-              <ScheduleIcon className="size-4" />
-            </span>
-            <span className="min-w-0 flex-1 text-sm font-semibold text-foreground">
-              {t("team.openSchedule")}
-            </span>
-            <ChevronIcon className="size-3.5 shrink-0 text-primary" />
-          </Link>
-        ) : null}
-      </div>
-      ) : null}
-
       {loading ? (
         <LoadingSpinnerBlock wrapperClassName="mb-3 flex justify-center py-2" />
       ) : null}
@@ -623,12 +562,28 @@ export default function TeamPage() {
       ) : null}
 
       <section className={`relative z-0 mb-4 ${appListInset}`}>
-        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">
-          {t("team.people")}
-        </p>
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+            {t("team.people")}
+            {!loading && users.length > 0 ? (
+              <span className="ml-1 font-normal normal-case tracking-normal text-muted">
+                · {users.length}
+              </span>
+            ) : null}
+          </p>
+          {!sheetOpen ? (
+            <button
+              type="button"
+              onClick={openCreate}
+              className={`${appButtonPrimary} px-2.5 py-1.5 text-xs`}
+            >
+              + {t("team.addMember")}
+            </button>
+          ) : null}
+        </div>
 
         {!loading && users.length === 0 ? (
-          <p className="rounded-2xl border border-card-border px-3 py-4 text-sm text-muted">
+          <p className="rounded-xl border border-card-border px-3 py-3 text-sm text-muted">
             {t("team.empty")}
           </p>
         ) : null}
@@ -705,7 +660,7 @@ export default function TeamPage() {
                   {isOwner ? t("team.owner") : t("team.member")}
                 </span>
                 {interactive ? (
-                  <ChevronIcon className="size-3.5 shrink-0 text-primary" />
+                  <ChevronIcon className="size-3.5 shrink-0 text-muted" />
                 ) : null}
               </>
             );
@@ -732,34 +687,69 @@ export default function TeamPage() {
         </ul>
 
         {!loading && users.some((user) => user.id !== currentUserId) ? (
-          <p className="mt-3 text-center text-xs text-muted">{t("team.tapToEdit")}</p>
-        ) : null}
-
-        {!sheetOpen ? (
-          <button
-            type="button"
-            onClick={openCreate}
-            className={`${appButtonPrimaryFull} mt-3`}
-          >
-            {t("team.addMember")}
-          </button>
+          <p className="mt-2 text-center text-xs text-muted">{t("team.tapToEdit")}</p>
         ) : null}
       </section>
 
       {!sheetOpen ? (
-        <div
-          className="fixed inset-x-0 z-40 border-t border-card-border/60 bg-background/95 px-4 py-2 backdrop-blur-sm"
-          style={{
-            bottom:
-              "calc(var(--app-bottom-nav-height) + env(safe-area-inset-bottom, 0px))",
-          }}
-        >
-          <div className={`mx-auto max-w-lg ${appListInset}`}>
-            <Link href="/app/team/activity" className={appButtonNeutralFull}>
-              {t("team.activityLog")}
+        <section className={`relative z-0 mb-4 space-y-3 ${appListInset}`}>
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+            {t("team.settings")}
+          </p>
+          <div className="overflow-hidden rounded-xl border border-card-border bg-transparent">
+            {scheduleEnabled ? (
+              <>
+                <div className="flex items-center justify-between gap-3 px-3 py-2.5">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-foreground">
+                      {t("app.schedule")}
+                    </p>
+                    <p className="mt-0.5 truncate text-xs text-muted">
+                      {scheduleAccess === "disabled"
+                        ? t("team.scheduleDisabledHint")
+                        : scheduleAccess === "private"
+                          ? t("team.schedulePrivateHint")
+                          : t("team.schedulePublicHint")}
+                    </p>
+                  </div>
+                  <ScheduleAccessControl
+                    value={scheduleAccess}
+                    disabled={scheduleSaving}
+                    onChange={(next) => void setScheduleAccessMode(next)}
+                    ariaLabel={t("app.schedule")}
+                    labels={{
+                      disabled: t("team.scheduleDisabled"),
+                      private: t("team.schedulePrivate"),
+                      public: t("team.schedulePublic"),
+                    }}
+                  />
+                </div>
+                {scheduleAccess !== "disabled" ? (
+                  <Link
+                    href="/app/schedule"
+                    className={`${settingsRowClass} border-t border-card-border`}
+                  >
+                    <span>{t("team.openSchedule")}</span>
+                    <ChevronIcon className="size-3.5 shrink-0 text-primary" />
+                  </Link>
+                ) : null}
+              </>
+            ) : null}
+            <Link
+              href="/app/team/activity"
+              className={`${settingsRowClass}${
+                scheduleEnabled ? " border-t border-card-border" : ""
+              }`}
+            >
+              <span>{t("team.activityLog")}</span>
+              <ChevronIcon className="size-3.5 shrink-0 text-primary" />
             </Link>
           </div>
-        </div>
+
+          <CancelButton onClick={() => navigateApp("/app")}>
+            {t("common.cancel")}
+          </CancelButton>
+        </section>
       ) : null}
 
       {sheetOpen ? (

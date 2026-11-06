@@ -643,3 +643,24 @@ select option {
   opacity: 0.72;
   pointer-events: none;
 }
+
+/*
+ * App chrome: block casual text selection so Chrome’s “Search Google for…”
+ * (and similar selection toolbars) don’t pop up on labels/cards. Form fields
+ * stay selectable so users can still edit/copy typed values.
+ */
+.app-no-text-select {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.app-no-text-select input,
+.app-no-text-select textarea,
+.app-no-text-select select,
+.app-no-text-select [contenteditable="true"],
+.app-no-text-select .allow-text-select {
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
+}

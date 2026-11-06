@@ -592,10 +592,17 @@ export const bg = {
     tiers: "Нива на напомняне",
     tiersHint:
       "Всяко ниво е отделно дневно известие със собствен период в дни и час. Броят дни е независим — Спешно може да е по-дълго или по-кратко от Ранно. Изключете и двете и Запази, за да спрете известията за годност.",
-    earlyTitle: "Ранно предупреждение",
+    earlyTitle: "Ранно",
     urgentTitle: "Спешно",
     daysLabel: "дни",
-    customDays: "По избор",
+    daysShort: "д",
+    customDays: "др.",
+    storesAllShort: "Всички",
+    storesSelectedShort: "Избрани",
+    pushOffHint:
+      "Push не е наличен или е блокиран на това устройство. Настройките по-долу пак можеш да ги редактираш.",
+    desktopEditHint:
+      "На компютър Push обикновено не се абонира — настрой нивата тук; реалните известия тръгват от телефона с включен Push.",
     schedule: "График",
     scheduleHint:
       "Изберете час на стъпки от 15 минути. Известията тръгват в този интервал, когато сървърът пуска задачата на всеки 15 минути.",
@@ -964,6 +971,7 @@ export const bg = {
     subtitle: "Управлявайте хората и достъпа им.",
     members: "Членове",
     people: "Служители",
+    settings: "Настройки",
     scheduleDisabled: "Изкл.",
     schedulePrivate: "Само аз",
     schedulePublic: "Всички",
@@ -1082,6 +1090,10 @@ export const bg = {
     activityBulkRevertDone: "Отменени {count} действия.",
     activityBulkRevertPartial:
       "Отменени {reverted} действия. {failed} не можаха да бъдат отменени.",
+    activityUntitledProduct: "Без име",
+    activityQty: "Кол.",
+    activityExpires: "Годност",
+    activityDiscount: "Отстъпка",
   },
   scanner: {
     startCamera: "Стартирай камера",

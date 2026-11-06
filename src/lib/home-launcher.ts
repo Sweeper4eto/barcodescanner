@@ -11,7 +11,6 @@ export const HOME_MODULE_IDS = [
   "team",
   "billing",
   "contact",
-  "document",
   "notifications",
   "analytics",
   "journal",
@@ -37,8 +36,6 @@ export type HomeLauncherAvailability = {
   schedule: boolean;
   team: boolean;
   billing: boolean;
-  /** Business document scan */
-  document: boolean;
 };
 
 export type HomeLauncherLayout = {
@@ -59,7 +56,35 @@ export function emptyLauncherSlots(): Array<HomeModuleId | null> {
   return Array.from({ length: HOME_LAUNCHER_TOTAL_SLOTS }, () => null);
 }
 
-/** Modules visible for this account / flags, in default fill order. */
+/**
+ * Default page-1 positions (1-based in product copy):
+ * 1 Годност, 2 Екип, 3 Известия, 4–6 empty, 7 Поддръжка, 8 График, 9 Плащания.
+ */
+export const DEFAULT_HOME_SLOT_BY_MODULE: Partial<
+  Record<HomeModuleId, number>
+> = {
+  expiry: 0,
+  team: 1,
+  notifications: 2,
+  contact: 6,
+  schedule: 7,
+  billing: 8,
+};
+
+/**
+ * Default page-2 positions for “Soon” tiles (1-based on that page):
+ * 1 Анализ, 2 Дневник, 3 Чеклисти, 4 °C дневник.
+ */
+export const DEFAULT_LOCKED_SLOT_BY_MODULE: Partial<
+  Record<HomeModuleId, number>
+> = {
+  analytics: HOME_LAUNCHER_SLOTS_PER_PAGE,
+  journal: HOME_LAUNCHER_SLOTS_PER_PAGE + 1,
+  checklists: HOME_LAUNCHER_SLOTS_PER_PAGE + 2,
+  temperature: HOME_LAUNCHER_SLOTS_PER_PAGE + 3,
+};
+
+/** Modules visible for this account / flags. */
 export function availableHomeModules(
   availability: HomeLauncherAvailability,
 ): HomeModuleId[] {
@@ -68,7 +93,6 @@ export function availableHomeModules(
   if (availability.team) modules.push("team");
   if (availability.billing) modules.push("billing");
   modules.push("contact");
-  if (availability.document) modules.push("document");
   modules.push("notifications");
   modules.push("analytics", "journal", "checklists", "temperature");
   return modules;
@@ -97,10 +121,51 @@ function splitActiveAndLocked(modules: HomeModuleId[]): {
   return { active, locked };
 }
 
+function placeModuleInPreferredOrFree(
+  slots: Array<HomeModuleId | null>,
+  id: HomeModuleId,
+): boolean {
+  const preferred = DEFAULT_HOME_SLOT_BY_MODULE[id];
+  if (
+    preferred != null &&
+    preferred >= 0 &&
+    preferred < slots.length &&
+    slots[preferred] == null
+  ) {
+    slots[preferred] = id;
+    return true;
+  }
+  // Preferred slot taken: fill next free without packing page-1 gaps first.
+  let free = firstFreeSlot(slots, HOME_LAUNCHER_SLOTS_PER_PAGE);
+  if (free < 0) free = firstFreeSlot(slots, 0);
+  if (free < 0) return false;
+  slots[free] = id;
+  return true;
+}
+
+function placeLockedModule(
+  slots: Array<HomeModuleId | null>,
+  id: HomeModuleId,
+): boolean {
+  const preferred = DEFAULT_LOCKED_SLOT_BY_MODULE[id];
+  if (
+    preferred != null &&
+    preferred >= 0 &&
+    preferred < slots.length &&
+    slots[preferred] == null
+  ) {
+    slots[preferred] = id;
+    return true;
+  }
+  // Soon tiles stay on page 2+ only (never fill page-1 gaps).
+  const free = firstFreeSlot(slots, HOME_LAUNCHER_SLOTS_PER_PAGE);
+  if (free < 0) return false;
+  slots[free] = id;
+  return true;
+}
+
 /**
- * Active modules fill from slot 0 (page 1 first). Locked “Soon” tiles start
- * on page 2 so newly enabled features never open on page 2 while page 1
- * still has room.
+ * Initial hub layout before the user rearranges icons.
  */
 export function defaultHomeLauncherLayout(
   availability: HomeLauncherAvailability,
@@ -109,32 +174,35 @@ export function defaultHomeLauncherLayout(
   const { active, locked } = splitActiveAndLocked(
     availableHomeModules(availability),
   );
-  active.forEach((id, index) => {
-    if (index < slots.length) slots[index] = id;
-  });
-  let lockedAt = HOME_LAUNCHER_SLOTS_PER_PAGE;
   for (const id of locked) {
-    if (lockedAt < slots.length) {
-      slots[lockedAt] = id;
-      lockedAt += 1;
-      continue;
-    }
-    const free = firstFreeSlot(slots, 0);
-    if (free < 0) break;
-    slots[free] = id;
+    placeLockedModule(slots, id);
+  }
+  for (const id of active) {
+    placeModuleInPreferredOrFree(slots, id);
   }
   return { slots };
 }
 
+/** Optional tiles that may flicker off while home bootstraps (e.g. billing fetch). */
+export const HOME_OPTIONAL_MODULE_IDS = [
+  "schedule",
+  "team",
+  "billing",
+] as const;
+
 /**
- * Keep saved positions for active modules; put new active modules in the
- * earliest free slots (page 1 first). Locked tiles prefer page 2+ and yield
- * page 1 when something newly enabled needs a slot.
+ * Keep saved positions for active + locked modules (any page); place newly
+ * enabled ones using preferred slots. Locked tiles without a saved slot land
+ * on page 2+.
  */
 export function reconcileHomeLauncherLayout(
   saved: HomeLauncherLayout | null,
   availability: HomeLauncherAvailability,
 ): HomeLauncherLayout {
+  if (!saved?.slots?.length) {
+    return defaultHomeLauncherLayout(availability);
+  }
+
   const { active, locked } = splitActiveAndLocked(
     availableHomeModules(availability),
   );
@@ -143,45 +211,63 @@ export function reconcileHomeLauncherLayout(
   const slots = emptyLauncherSlots();
   const placed = new Set<HomeModuleId>();
 
-  if (saved?.slots?.length) {
-    const limit = Math.min(saved.slots.length, slots.length);
-    for (let i = 0; i < limit; i += 1) {
-      const id = saved.slots[i];
-      if (!id || !activeSet.has(id) || placed.has(id)) continue;
-      slots[i] = id;
-      placed.add(id);
-    }
+  const limit = Math.min(saved.slots.length, slots.length);
+  for (let i = 0; i < limit; i += 1) {
+    const id = saved.slots[i];
+    if (!id || !activeSet.has(id) || placed.has(id)) continue;
+    slots[i] = id;
+    placed.add(id);
+  }
+
+  // Keep rearranged “Soon” tiles wherever the user put them (incl. page 1).
+  for (let i = 0; i < limit; i += 1) {
+    const id = saved.slots[i];
+    if (!id || !lockedSet.has(id) || placed.has(id)) continue;
+    if (slots[i] != null) continue;
+    slots[i] = id;
+    placed.add(id);
   }
 
   for (const id of active) {
     if (placed.has(id)) continue;
-    const free = firstFreeSlot(slots, 0);
-    if (free < 0) break;
-    slots[free] = id;
+    if (!placeModuleInPreferredOrFree(slots, id)) break;
     placed.add(id);
-  }
-
-  if (saved?.slots?.length) {
-    for (
-      let i = HOME_LAUNCHER_SLOTS_PER_PAGE;
-      i < Math.min(saved.slots.length, slots.length);
-      i += 1
-    ) {
-      const id = saved.slots[i];
-      if (!id || !lockedSet.has(id) || placed.has(id)) continue;
-      if (slots[i] != null) continue;
-      slots[i] = id;
-      placed.add(id);
-    }
   }
 
   for (const id of locked) {
     if (placed.has(id)) continue;
-    let free = firstFreeSlot(slots, HOME_LAUNCHER_SLOTS_PER_PAGE);
-    if (free < 0) free = firstFreeSlot(slots, 0);
-    if (free < 0) break;
-    slots[free] = id;
+    if (!placeLockedModule(slots, id)) break;
     placed.add(id);
+  }
+
+  return { slots };
+}
+
+/**
+ * When writing a layout that omits temporarily unavailable optionals (billing
+ * still loading, schedule private, …), keep their previous slots in storage
+ * so a later remount does not snap them back to defaults.
+ */
+export function mergeHiddenOptionalSlots(
+  layout: HomeLauncherLayout,
+  previous: HomeLauncherLayout | null,
+  availability: HomeLauncherAvailability,
+): HomeLauncherLayout {
+  if (!previous?.slots?.length) return layout;
+
+  const available = new Set(availableHomeModules(availability));
+  const slots = [...layout.slots];
+  const used = new Set(
+    slots.filter((id): id is HomeModuleId => id != null),
+  );
+
+  for (const id of HOME_OPTIONAL_MODULE_IDS) {
+    if (available.has(id) || used.has(id)) continue;
+    const prevIndex = previous.slots.indexOf(id);
+    if (prevIndex < 0 || prevIndex >= slots.length) continue;
+    if (slots[prevIndex] != null) continue;
+    slots[prevIndex] = id;
+    used.add(id);
   }
 
   return { slots };
@@ -214,12 +300,33 @@ export function homeLauncherStorageKey(username: string): string {
   return `${STORAGE_PREFIX}${username.trim().toLowerCase() || "anon"}`;
 }
 
+/** Same-tab cache so remounts never briefly fall back to defaults. */
+const layoutMemory = new Map<string, HomeLauncherLayout>();
+
+function cloneLayout(layout: HomeLauncherLayout): HomeLauncherLayout {
+  return { slots: [...layout.slots] };
+}
+
+export function homeLauncherLayoutsEqual(
+  a: HomeLauncherLayout,
+  b: HomeLauncherLayout,
+): boolean {
+  if (a.slots.length !== b.slots.length) return false;
+  for (let i = 0; i < a.slots.length; i += 1) {
+    if (a.slots[i] !== b.slots[i]) return false;
+  }
+  return true;
+}
+
 export function readHomeLauncherLayout(
   username: string,
 ): HomeLauncherLayout | null {
+  const key = homeLauncherStorageKey(username);
+  const cached = layoutMemory.get(key);
+  if (cached) return cloneLayout(cached);
   if (typeof window === "undefined") return null;
   try {
-    const raw = window.localStorage.getItem(homeLauncherStorageKey(username));
+    const raw = window.localStorage.getItem(key);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as { slots?: unknown };
     if (!Array.isArray(parsed.slots)) return null;
@@ -228,25 +335,40 @@ export function readHomeLauncherLayout(
       const value = parsed.slots[i];
       slots[i] = isHomeModuleId(value) ? value : null;
     }
-    return { slots };
+    const layout = { slots };
+    layoutMemory.set(key, cloneLayout(layout));
+    return layout;
   } catch {
     return null;
   }
 }
 
+/**
+ * Persist layout. Call only from user rearrange (or first-time seed).
+ * Navigation / reconcile must not overwrite a saved arrangement.
+ */
 export function writeHomeLauncherLayout(
   username: string,
   layout: HomeLauncherLayout,
 ): void {
+  const key = homeLauncherStorageKey(username);
+  const next = cloneLayout(layout);
+  layoutMemory.set(key, next);
   if (typeof window === "undefined") return;
   try {
-    window.localStorage.setItem(
-      homeLauncherStorageKey(username),
-      JSON.stringify({ slots: layout.slots }),
-    );
+    window.localStorage.setItem(key, JSON.stringify({ slots: next.slots }));
   } catch {
-    /* ignore quota / private mode */
+    /* ignore quota / private mode — memory cache still holds it this session */
   }
+}
+
+/** Test helper / logout cleanup. */
+export function clearHomeLauncherLayoutCache(username?: string): void {
+  if (username == null) {
+    layoutMemory.clear();
+    return;
+  }
+  layoutMemory.delete(homeLauncherStorageKey(username));
 }
 
 export function pageIndexForSlot(slot: number): number {

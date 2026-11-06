@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { SecondaryButton } from "@/components/auth-forms";
 import { CameraOffIcon } from "@/components/app-nav-icons";
@@ -14,7 +14,7 @@ import { MobilePageHeader } from "@/components/mobile-page-header";
 import { useT } from "@/components/i18n-provider";
 import { useAppStoreId, useLockStoreSelection } from "@/hooks/use-app-store-id";
 import { normalizeBarcode } from "@/lib/barcode";
-import { replaceApp } from "@/lib/app-navigation";
+import { exitToExpiryList, replaceApp } from "@/lib/app-navigation";
 import { useWizardStep } from "@/lib/wizard-history";
 import {
   getPreviousAddProductStep,
@@ -24,7 +24,6 @@ import {
 type AddProductStep = AddProductWizardStep;
 
 function AddProductFlow() {
-  const router = useRouter();
   const { t } = useT();
   const searchParams = useSearchParams();
   const { storeId } = useAppStoreId();
@@ -149,16 +148,28 @@ function AddProductFlow() {
     }
   }
 
+  function handleAddProductHeaderBack() {
+    const previous = getPreviousAddProductStep(step, initialBarcode);
+    if (previous === null) {
+      exitToExpiryList(storeId);
+      return;
+    }
+    goBack();
+  }
+
   return (
     <div className="mx-auto min-w-0 max-w-lg overflow-x-visible px-4 pb-6 pt-1">
-      <MobilePageHeader title={t("addProduct.title")} />
+      <MobilePageHeader
+        title={t("addProduct.title")}
+        onBack={handleAddProductHeaderBack}
+      />
 
       {step === "scan" ? (
         <div className="rounded-2xl border border-card-border p-4">
           <BarcodeScanner
             autoStart
             onScan={(value) => void checkBarcode(value)}
-            onCancel={() => router.back()}
+            onCancel={() => exitToExpiryList(storeId)}
           />
           {error ? <p className="mt-2 text-sm text-error">{error}</p> : null}
         </div>
@@ -189,7 +200,7 @@ function AddProductFlow() {
           <CancelButton
             onClick={() => {
               if (initialBarcode) {
-                router.back();
+                exitToExpiryList(storeId);
                 return;
               }
               goBack();

@@ -14,7 +14,6 @@ import {
   HubBellIcon,
   HubBillingIcon,
   HubChecklistsIcon,
-  HubDocumentIcon,
   HubExpiryIcon,
   HubJournalIcon,
   HubScheduleIcon,
@@ -31,6 +30,7 @@ import {
   type HomeLauncherAvailability,
   type HomeLauncherLayout,
   type HomeModuleId,
+  mergeHiddenOptionalSlots,
   moveHomeLauncherIcon,
   occupiedHomeLauncherPages,
   pageIndexForSlot,
@@ -88,12 +88,6 @@ function moduleDefs(storeQuery: string): Record<HomeModuleId, ModuleDef> {
       labelKey: "app.hubSupport",
       href: () => `/app/contact`,
       icon: <HubSupportIcon />,
-    },
-    document: {
-      id: "document",
-      labelKey: "app.hubDocument",
-      href: () => `/app/add-document${storeQuery}`,
-      icon: <HubDocumentIcon />,
     },
     notifications: {
       id: "notifications",
@@ -162,7 +156,10 @@ export function HomeIconHub({
   const defs = moduleDefs(storeQuery);
 
   const [layout, setLayout] = useState<HomeLauncherLayout>(() =>
-    reconcileHomeLauncherLayout(null, availability),
+    reconcileHomeLauncherLayout(
+      readHomeLauncherLayout(username),
+      availability,
+    ),
   );
   const [page, setPage] = useState(0);
   const [rearranging, setRearranging] = useState(false);
@@ -272,7 +269,12 @@ export function HomeIconHub({
   function persist(next: HomeLauncherLayout) {
     layoutRef.current = next;
     setLayout(next);
-    writeHomeLauncherLayout(username, next);
+    // Immediate write — only user rearrange (and first-time seed) touch storage.
+    const previous = readHomeLauncherLayout(username);
+    writeHomeLauncherLayout(
+      username,
+      mergeHiddenOptionalSlots(next, previous, availability),
+    );
   }
 
   function slotFromPoint(clientX: number, clientY: number): number | null {
@@ -496,13 +498,16 @@ export function HomeIconHub({
     const saved = readHomeLauncherLayout(username);
     const next = reconcileHomeLauncherLayout(saved, availability);
     setLayout(next);
-    writeHomeLauncherLayout(username, next);
+    // Seed defaults once. Never rewrite a saved arrangement on navigate/remount —
+    // only persist() after the user moves an icon may change storage.
+    if (!saved) {
+      writeHomeLauncherLayout(username, next);
+    }
   }, [
     username,
     availability.schedule,
     availability.team,
     availability.billing,
-    availability.document,
   ]);
 
   useEffect(() => {

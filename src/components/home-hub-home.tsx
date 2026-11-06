@@ -39,17 +39,17 @@ function LogoutIcon({ className = "size-4" }: { className?: string }) {
 export function HomeHubHome() {
   const router = useRouter();
   const { t } = useT();
-  const { refresh: refreshSession, homeUser } = useAppSession();
+  const { refresh: refreshSession } = useAppSession();
   const [stores, setStores] = useState<Store[]>([]);
   const [storeId, setStoreId] = useState("");
   const [username, setUsername] = useState("");
   const [isOwner, setIsOwner] = useState(false);
   const [billingEnabled, setBillingEnabled] = useState(false);
+  const [billingReady, setBillingReady] = useState(false);
   const [schedulePublic, setSchedulePublic] = useState(false);
   const [bootstrapped, setBootstrapped] = useState(false);
   const [sessionMissing, setSessionMissing] = useState(false);
   const [whatsNewSettled, setWhatsNewSettled] = useState(false);
-  const [isHomeUser, setIsHomeUser] = useState<boolean | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -90,9 +90,11 @@ export function HomeHubHome() {
       setUsername(data.user.username);
       const owner = data.user.clientRole === "OWNER";
       setIsOwner(owner);
-      setIsHomeUser(Boolean(data.user.homeUser));
       setSchedulePublic(data.user.scheduleAccess === "public");
       setBillingEnabled(false);
+      // Wait for billing before mounting the hub so reconcile does not
+      // briefly drop Плащания and rewrite localStorage over the user’s layout.
+      setBillingReady(!owner);
 
       const list: Store[] = data.user.stores ?? [];
       setStores(list);
@@ -124,6 +126,8 @@ export function HomeHubHome() {
             }
           } catch {
             /* ignore — home still works without billing tile */
+          } finally {
+            if (!cancelled) setBillingReady(true);
           }
         })();
       }
@@ -145,25 +149,19 @@ export function HomeHubHome() {
   const [greetingBefore, greetingAfter = ""] = greetingTemplate.split("\u0000");
 
   const availability = useMemo<HomeLauncherAvailability>(() => {
-    const business =
-      isHomeUser === false || (isHomeUser == null && homeUser === false);
     return {
       schedule: schedulePublic && stores.length > 0,
       team: isOwner && stores.length > 0,
       billing: isOwner && billingEnabled,
-      document: business && stores.length > 0,
     };
-  }, [
-    isHomeUser,
-    homeUser,
-    schedulePublic,
-    stores.length,
-    isOwner,
-    billingEnabled,
-  ]);
+  }, [schedulePublic, stores.length, isOwner, billingEnabled]);
 
   const showHub =
-    bootstrapped && !sessionMissing && stores.length > 0 && Boolean(username);
+    bootstrapped &&
+    billingReady &&
+    !sessionMissing &&
+    stores.length > 0 &&
+    Boolean(username);
 
   return (
     <div className="mx-auto flex min-h-[calc(100svh-var(--app-bottom-nav-frame)-env(safe-area-inset-bottom,0px))] w-full max-w-lg flex-col overflow-x-visible px-4 pt-1 md:max-w-xl lg:max-w-2xl">
@@ -221,6 +219,11 @@ export function HomeHubHome() {
               availability={availability}
             />
           </div>
+        ) : bootstrapped &&
+          !sessionMissing &&
+          stores.length > 0 &&
+          !billingReady ? (
+          <LoadingSpinnerBlock wrapperClassName="flex justify-center py-6" />
         ) : null}
 
         <WhatsNewDialog

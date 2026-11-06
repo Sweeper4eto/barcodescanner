@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { shouldShowAppBottomNav } from "../src/lib/app-navigation";
+import {
+  expiryListHref,
+  isHubFlowRootPath,
+  isScanSubflowPath,
+  shouldShowAppBottomNav,
+} from "../src/lib/app-navigation";
 
 test("classic UI always shows bottom nav", () => {
   assert.equal(shouldShowAppBottomNav("/app"), true);
@@ -27,4 +32,23 @@ test("new UI shows bottom nav inside the expiry work flow", () => {
   assert.equal(shouldShowAppBottomNav("/app/orders", opts), true);
   assert.equal(shouldShowAppBottomNav("/app/buy-list", opts), true);
   assert.equal(shouldShowAppBottomNav("/app/add-document", opts), true);
+});
+
+test("hub flow root: expiry list backs to home; nested expiry screens do not", () => {
+  assert.equal(isHubFlowRootPath("/app/expiry"), true);
+  assert.equal(isHubFlowRootPath("/app/expiry/"), true);
+  assert.equal(isHubFlowRootPath("/app/scan"), false);
+  assert.equal(isHubFlowRootPath("/app/settings/notifications"), true);
+  assert.equal(isHubFlowRootPath("/app/contact"), true);
+  assert.equal(isHubFlowRootPath("/app/team"), true);
+  assert.equal(isHubFlowRootPath("/app"), false);
+});
+
+test("expiry subflow paths exit to expiry list", () => {
+  assert.equal(isScanSubflowPath("/app/scan"), true);
+  assert.equal(isScanSubflowPath("/app/add-product"), true);
+  assert.equal(isScanSubflowPath("/app/add-document"), true);
+  assert.equal(isScanSubflowPath("/app/expiry"), false);
+  assert.equal(expiryListHref("store1"), "/app/expiry?storeId=store1");
+  assert.equal(expiryListHref(null), "/app/expiry");
 });

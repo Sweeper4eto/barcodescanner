@@ -589,10 +589,17 @@ export const en = {
     tiers: "Reminder tiers",
     tiersHint:
       "Each tier is its own daily alert with its own day window and time. Day counts are independent — Urgent can be longer or shorter than Early. Turn both off and Save to disable expiry alerts.",
-    earlyTitle: "Early warning",
+    earlyTitle: "Early",
     urgentTitle: "Urgent",
     daysLabel: "days",
-    customDays: "Custom",
+    daysShort: "d",
+    customDays: "other",
+    storesAllShort: "All",
+    storesSelectedShort: "Selected",
+    pushOffHint:
+      "Push isn’t available or is blocked on this device. You can still edit the settings below.",
+    desktopEditHint:
+      "On a computer Push usually won’t subscribe — set tiers here; real alerts need Push on a phone.",
     schedule: "Schedule",
     scheduleHint:
       "Pick a time in 15-minute steps. Alerts go out in that quarter-hour when the server job runs every 15 minutes.",
@@ -959,6 +966,7 @@ export const en = {
     subtitle: "Manage people and their access.",
     members: "Members",
     people: "Staff",
+    settings: "Settings",
     scheduleDisabled: "Off",
     schedulePrivate: "Private",
     schedulePublic: "Everyone",
@@ -1075,6 +1083,10 @@ export const en = {
     activityBulkRevertDone: "Reverted {count} actions.",
     activityBulkRevertPartial:
       "Reverted {reverted} actions. {failed} could not be reverted.",
+    activityUntitledProduct: "Untitled",
+    activityQty: "Qty",
+    activityExpires: "Expires",
+    activityDiscount: "Discount",
   },
   scanner: {
     startCamera: "Start camera",

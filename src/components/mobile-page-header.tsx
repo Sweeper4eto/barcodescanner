@@ -2,13 +2,15 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { AppHeaderLogo } from "@/components/app-header-logo";
-import { HomeIcon } from "@/components/app-nav-icons";
+import { BrandName } from "@/components/brand-name";
+import { ChevronBackIcon } from "@/components/app-nav-icons";
 import {
   AppLanguageAction,
   AppStoreSelect,
 } from "@/components/app-top-actions";
 import { useT } from "@/components/i18n-provider";
+import { useAppStoreId } from "@/hooks/use-app-store-id";
+import { goHeaderBack } from "@/lib/app-navigation";
 
 function isAppHomePath(pathname: string): boolean {
   return pathname === "/app" || pathname === "/app/";
@@ -19,6 +21,7 @@ export function MobilePageHeader({
   action,
   sticky = false,
   className = "",
+  onBack,
 }: {
   title?: string;
   action?: React.ReactNode;
@@ -28,10 +31,13 @@ export function MobilePageHeader({
    */
   sticky?: boolean;
   className?: string;
+  /** Override header ← (e.g. wizard step back vs exit subflow). */
+  onBack?: () => void;
 }) {
   const pathname = usePathname();
+  const { storeId } = useAppStoreId();
   const { t } = useT();
-  const showHomeLink = !isAppHomePath(pathname);
+  const showBack = !isAppHomePath(pathname);
 
   // Safe-area top on every page so the logo is not cropped under the iPhone notch.
   const safeTop =
@@ -42,28 +48,58 @@ export function MobilePageHeader({
 
   return (
     <div className={`${base} ${className}`.trim()}>
-      {/* Language + store under flag; store chip capped at 30vw with ellipsis. */}
-      <div className="flex items-start justify-between gap-2 overflow-visible sm:gap-3">
-        <div className="min-w-0 shrink-0 overflow-visible pt-0.5">
-          <AppHeaderLogo />
+      {/*
+        Two aligned rows:
+        1) logo + wordmark | language
+        2) back (under logo) | store
+        Same row gap on both sides so back and store sit on one baseline.
+      */}
+      <div className="grid grid-cols-[2.75rem_minmax(0,1fr)_auto] items-center gap-x-2.5 gap-y-1.5 overflow-visible">
+        <Link
+          href="/app"
+          className="col-start-1 row-start-1 justify-self-center focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          aria-label={t("common.home")}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/landing/brand-mark.png?v=3"
+            alt=""
+            width={44}
+            height={44}
+            decoding="sync"
+            fetchPriority="high"
+            className="box-border size-11 shrink-0 object-contain"
+          />
+        </Link>
+
+        <Link
+          href="/app"
+          className="col-start-2 row-start-1 min-w-0 self-center focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          aria-label={t("common.home")}
+        >
+          <BrandName className="text-xl leading-none" />
+        </Link>
+
+        <div className="col-start-3 row-start-1 justify-self-end self-center">
+          <AppLanguageAction />
         </div>
-        <div className="flex shrink-0 flex-col items-end gap-1.5 overflow-visible">
-          <div className="flex items-center gap-1.5">
-            {showHomeLink ? (
-              <Link
-                href="/app"
-                aria-label={t("common.home")}
-                title={t("common.home")}
-                className="inline-flex size-8 items-center justify-center rounded-lg border border-primary/45 text-primary transition-colors hover:border-primary hover:bg-selected"
-              >
-                <HomeIcon className="size-4" />
-              </Link>
-            ) : null}
-            <AppLanguageAction />
-          </div>
-          <div className="w-[30vw] max-w-[30vw] min-w-0">
-            <AppStoreSelect />
-          </div>
+
+        {showBack ? (
+          <button
+            type="button"
+            onClick={() =>
+              onBack ? onBack() : goHeaderBack(pathname, storeId)
+            }
+            aria-label={t("common.back")}
+            title={t("common.back")}
+            className="col-start-1 row-start-2 inline-flex size-8 items-center justify-center justify-self-center rounded-lg border border-primary/45 text-primary transition-colors hover:border-primary hover:bg-selected"
+          >
+            <ChevronBackIcon className="size-4" />
+          </button>
+        ) : null}
+
+        <div className="col-start-3 row-start-2 w-[30vw] max-w-[30vw] min-w-0 justify-self-end">
+          <AppStoreSelect />
         </div>
       </div>
 

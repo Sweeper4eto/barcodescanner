@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { PrimaryButton } from "@/components/auth-forms";
 import { CancelButton } from "@/components/cancel-button";
@@ -18,7 +18,11 @@ import { useT } from "@/components/i18n-provider";
 import { useAppStoreId, useLockStoreSelection } from "@/hooks/use-app-store-id";
 import { useScreenWakeLock } from "@/hooks/use-screen-wake-lock";
 import { useVoiceItemRecorder } from "@/hooks/use-voice-item-recorder";
-import { goBackOrApp, navigateApp, replaceApp } from "@/lib/app-navigation";
+import {
+  exitToExpiryList,
+  navigateApp,
+  replaceApp,
+} from "@/lib/app-navigation";
 import { appButtonCancelFull } from "@/lib/app-ui";
 import { normalizeBarcode } from "@/lib/barcode";
 import { isAdhocBarcode } from "@/lib/inventory-entry-display";
@@ -32,7 +36,6 @@ type ScanStep = ScanWizardStep;
 const SCAN_VOICE_UI_ENABLED = false;
 
 export function ScanFlow() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const { storeId } = useAppStoreId();
   const urlBarcode = normalizeBarcode(searchParams.get("barcode") ?? "");
@@ -321,11 +324,7 @@ export function ScanFlow() {
         setMessage(data?.error ?? t("errors.saveFailed"));
         return;
       }
-      router.push(
-        storeId
-          ? `/app/expiry?storeId=${encodeURIComponent(storeId)}`
-          : "/app",
-      );
+      exitToExpiryList(storeId);
     } finally {
       setSaving(false);
     }
@@ -364,6 +363,16 @@ export function ScanFlow() {
     }
   }
 
+  /** Leave the scan subflow → expiry list; mid-wizard ← stays in wizard. */
+  function handleScanHeaderBack() {
+    const previous = getPreviousScanStep(step, Boolean(product));
+    if (previous === null) {
+      exitToExpiryList(storeId);
+      return;
+    }
+    goBack();
+  }
+
   return (
     <div
       className={
@@ -379,6 +388,7 @@ export function ScanFlow() {
         <MobilePageHeader
           title={headerTitle}
           className={step === "date" ? "mb-2" : undefined}
+          onBack={handleScanHeaderBack}
         />
       </div>
 
@@ -400,13 +410,7 @@ export function ScanFlow() {
                     setMessage(voiceErrorMessage(errorKey)),
                 }
               : {})}
-            onCancel={() =>
-              goBackOrApp(
-                storeId
-                  ? `/app/scan?storeId=${encodeURIComponent(storeId)}`
-                  : "/app",
-              )
-            }
+            onCancel={() => exitToExpiryList(storeId)}
           />
         </div>
       ) : null}
@@ -619,7 +623,6 @@ export function ScanFlow() {
 
           <div className="shrink-0 space-y-2 border-t border-card-border bg-background pt-2 pb-1">
             {message ? <p className="text-sm text-error">{message}</p> : null}
-            <CancelButton onClick={goBack}>{t("common.cancel")}</CancelButton>
             <ConfirmButton
               onClick={() => void submitInventory()}
               disabled={!expiryDate || Number(quantity) < 1 || saving}
@@ -627,6 +630,7 @@ export function ScanFlow() {
             >
               {t("scan.saveToExpiry")}
             </ConfirmButton>
+            <CancelButton onClick={goBack}>{t("common.cancel")}</CancelButton>
           </div>
         </div>
       ) : null}

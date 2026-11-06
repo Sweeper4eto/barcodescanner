@@ -46,13 +46,23 @@ function BellIcon({ className = "size-7" }: { className?: string }) {
 
 export function PushNotifications({
   showCustomizeLink = true,
+  compact = false,
+  onStateChange,
 }: {
   /** Hide when already on the notification settings screen. */
   showCustomizeLink?: boolean;
+  /** Tighter row for settings screens. */
+  compact?: boolean;
+  /** Notify parent when subscription state changes (e.g. hide prefs when off). */
+  onStateChange?: (state: PushState) => void;
 } = {}) {
   const { t, locale } = useT();
   const [state, setState] = useState<PushState>("loading");
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    onStateChange?.(state);
+  }, [state, onStateChange]);
 
   useEffect(() => {
     let cancelled = false;
@@ -199,14 +209,26 @@ export function PushNotifications({
     }
   }
 
+  const shellClass = compact
+    ? "mb-2 flex items-center gap-2.5 rounded-xl border border-card-border bg-transparent px-2.5 py-2"
+    : "mb-2 flex items-center gap-3 rounded-2xl border border-card-border bg-transparent px-3 py-2.5";
+  const bellWrapClass = compact
+    ? "flex size-8 shrink-0 items-center justify-center rounded-full border border-primary/45 text-primary"
+    : "flex size-9 shrink-0 items-center justify-center rounded-full border border-primary/45 text-primary";
+  const bellIconClass = compact ? "size-4" : "size-5";
+  const toggleTrackClass = compact
+    ? "relative h-6 w-10 shrink-0 rounded-full transition-colors"
+    : "relative h-7 w-12 shrink-0 rounded-full transition-colors";
+  const toggleKnobClass = compact
+    ? "absolute top-0.5 size-5 rounded-full bg-white shadow-sm transition-transform"
+    : "absolute top-0.5 size-6 rounded-full bg-white shadow-sm transition-transform";
+  const toggleOnLeft = compact ? "left-4" : "left-5";
+
   if (state === "loading") {
     return (
-      <section className="mb-2 flex items-center gap-3 rounded-2xl border border-card-border bg-transparent px-3 py-2.5 opacity-60">
-        <span
-          aria-hidden
-          className="flex size-9 shrink-0 items-center justify-center rounded-full border border-primary/45 text-primary"
-        >
-          <BellIcon className="size-5" />
+      <section className={`${shellClass} opacity-60`}>
+        <span aria-hidden className={bellWrapClass}>
+          <BellIcon className={bellIconClass} />
         </span>
         <div className="min-w-0 flex-1">
           <h2 className="text-sm font-semibold text-foreground">
@@ -215,9 +237,9 @@ export function PushNotifications({
         </div>
         <span
           aria-hidden
-          className="relative h-7 w-12 shrink-0 rounded-full border border-card-border bg-transparent"
+          className={`${toggleTrackClass} border border-card-border bg-transparent`}
         >
-          <span className="absolute left-0.5 top-0.5 size-6 rounded-full bg-white" />
+          <span className={`${toggleKnobClass} left-0.5`} />
         </span>
       </section>
     );
@@ -232,12 +254,9 @@ export function PushNotifications({
     state !== "unconfigured";
 
   return (
-    <section className="mb-2 flex items-center gap-3 rounded-2xl border border-card-border bg-transparent px-3 py-2.5">
-      <span
-        aria-hidden
-        className="flex size-9 shrink-0 items-center justify-center rounded-full border border-primary/45 text-primary"
-      >
-        <BellIcon className="size-5" />
+    <section className={shellClass}>
+      <span aria-hidden className={bellWrapClass}>
+        <BellIcon className={bellIconClass} />
       </span>
       <div className="min-w-0 flex-1">
         <h2 className="text-sm font-semibold leading-snug text-foreground">
@@ -254,22 +273,22 @@ export function PushNotifications({
         ) : null}
 
         {state === "iosNeedsInstall" ? (
-          <p className="mt-2 rounded-lg border border-card-border bg-transparent px-2.5 py-1.5 text-xs text-foreground">
+          <p className="mt-1.5 rounded-lg border border-card-border bg-transparent px-2.5 py-1.5 text-xs text-foreground">
             {t("push.iosInstallRequired")}
           </p>
         ) : null}
 
         {state === "denied" ? (
-          <p className="mt-2 text-xs text-warning-fg">{t("push.denied")}</p>
+          <p className="mt-1.5 text-xs text-warning-fg">{t("push.denied")}</p>
         ) : null}
 
         {state === "unconfigured" ? (
-          <p className="mt-2 text-xs text-warning-fg">
+          <p className="mt-1.5 text-xs text-warning-fg">
             {t("errors.pushNotConfigured")}
           </p>
         ) : null}
 
-        {error ? <p className="mt-2 text-xs text-danger">{error}</p> : null}
+        {error ? <p className="mt-1.5 text-xs text-danger">{error}</p> : null}
       </div>
 
       {showToggle ? (
@@ -282,7 +301,7 @@ export function PushNotifications({
           onClick={() =>
             void (state === "enabled" ? disableNotifications() : enableNotifications())
           }
-          className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${
+          className={`${toggleTrackClass} ${
             state === "enabled"
               ? "bg-primary"
               : "border border-card-border bg-transparent"
@@ -290,8 +309,8 @@ export function PushNotifications({
         >
           <span
             aria-hidden
-            className={`absolute top-0.5 size-6 rounded-full bg-white shadow-sm transition-transform ${
-              state === "enabled" ? "left-5" : "left-0.5"
+            className={`${toggleKnobClass} ${
+              state === "enabled" ? toggleOnLeft : "left-0.5"
             }`}
           />
         </button>
@@ -299,3 +318,5 @@ export function PushNotifications({
     </section>
   );
 }
+
+export type { PushState };

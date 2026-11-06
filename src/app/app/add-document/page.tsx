@@ -32,7 +32,7 @@ import { RemoveConfirmDialog } from "@/components/remove-confirm-dialog";
 import { SearchField } from "@/components/search-field";
 import { useT } from "@/components/i18n-provider";
 import { useAppSession } from "@/components/app-session-provider";
-import { goBackOrApp, navigateApp } from "@/lib/app-navigation";
+import { exitToExpiryList } from "@/lib/app-navigation";
 import {
   appButtonCancelFull,
   appButtonNeutral,
@@ -710,11 +710,8 @@ function AddDocumentContent() {
       setStep("review");
       return;
     }
-    if (step === "confirmLocation") {
-      goBackOrApp("/app");
-      return;
-    }
-    navigateApp("/app");
+    // Leave document subflow → expiry list (same as declining location confirm).
+    exitToExpiryList(storeId);
   }
 
   const visiblePages = useMemo(
@@ -1170,7 +1167,7 @@ function AddDocumentContent() {
           yesLabel={t("common.yes")}
           noLabel={t("common.no")}
           onYes={() => setStep("camera")}
-          onNo={() => goBackOrApp("/app")}
+          onNo={() => exitToExpiryList(storeId)}
         />
       ) : null}
 

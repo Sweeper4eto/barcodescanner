@@ -538,6 +538,24 @@ export function ChevronRightIcon({ className = "h-4 w-4" }: { className?: string
   );
 }
 
+/** Thick iOS-style back chevron (header under wordmark). */
+export function ChevronBackIcon({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.35"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <path d="m15.5 5.5-7 6.5 7 6.5" />
+    </svg>
+  );
+}
+
 /** Classic floppy / save-to-device icon. */
 export function SaveDiskIcon({ className = "h-4 w-4" }: { className?: string }) {
   return (

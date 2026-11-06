@@ -1,16 +1,11 @@
 "use client";
 
-import Link from "next/link";
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
-  FormEvent,
-  type PointerEvent as ReactPointerEvent,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
-import { BackArrowIcon } from "@/components/app-nav-icons";
+  ActivityGenericCard,
+  ActivityListCard,
+} from "@/components/activity-list-card";
+import { CancelButton } from "@/components/cancel-button";
 import { LoadingSpinnerBlock } from "@/components/loading-spinner";
 import { MenuSelect } from "@/components/menu-select";
 import { MobilePageHeader } from "@/components/mobile-page-header";
@@ -20,11 +15,11 @@ import { useT } from "@/components/i18n-provider";
 import type { MessageKey } from "@/i18n";
 import {
   extractAuditStoreName,
-  formatAuditCompactWhen,
+  parseAuditGoodsDetails,
 } from "@/lib/audit-display";
+import { replaceApp } from "@/lib/app-navigation";
 import {
   appButtonNeutral,
-  appButtonPrimary,
   appButtonPrimaryFull,
   appChromeInset,
   appFooterButtonGrid,
@@ -33,6 +28,35 @@ import {
   appSearchInput,
 } from "@/lib/app-ui";
 import { useBrowserBackStack } from "@/lib/browser-back";
+
+/** Compact page list: 1 … 4 5 6 … 12 */
+function pageItems(current: number, total: number): Array<number | "gap"> {
+  if (total <= 1) return total === 1 ? [1] : [];
+  if (total <= 7) {
+    return Array.from({ length: total }, (_, i) => i + 1);
+  }
+  const set = new Set<number>([1, total, current]);
+  if (current - 1 > 1) set.add(current - 1);
+  if (current + 1 < total) set.add(current + 1);
+  if (current <= 3) {
+    set.add(2);
+    set.add(3);
+    set.add(4);
+  }
+  if (current >= total - 2) {
+    set.add(total - 1);
+    set.add(total - 2);
+    set.add(total - 3);
+  }
+  const sorted = [...set].sort((a, b) => a - b);
+  const out: Array<number | "gap"> = [];
+  for (let i = 0; i < sorted.length; i += 1) {
+    const n = sorted[i]!;
+    if (i > 0 && n - sorted[i - 1]! > 1) out.push("gap");
+    out.push(n);
+  }
+  return out;
+}
 
 type AuditEntry = {
   id: string;
@@ -51,7 +75,6 @@ type StoreOption = { id: string; name: string; active: boolean };
 
 const PAGE_SIZES = [10, 20, 50] as const;
 const ALL = "__all__";
-const LONG_PRESS_MS = 450;
 const SELECTION_LIMIT = 50;
 
 function eventLabelKey(event: string): MessageKey {
@@ -97,10 +120,6 @@ export default function TeamActivityPage() {
   const [notice, setNotice] = useState("");
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Record<string, true>>({});
-
-  const longPressTimer = useRef<number | null>(null);
-  const longPressTriggered = useRef(false);
-  const pointerStart = useRef<{ x: number; y: number } | null>(null);
 
   const usernameOptions = useMemo(
     () => [
@@ -271,39 +290,6 @@ export default function TeamActivityPage() {
     setSelectedIds((current) => ({ ...current, [entryId]: true }));
   }
 
-  function clearLongPress() {
-    if (longPressTimer.current !== null) {
-      window.clearTimeout(longPressTimer.current);
-      longPressTimer.current = null;
-    }
-  }
-
-  function handleRowPointerDown(entry: AuditEntry, event: ReactPointerEvent) {
-    if (selectionMode || entry.revertible !== true) return;
-    if (event.pointerType === "mouse" && event.button !== 0) return;
-    longPressTriggered.current = false;
-    pointerStart.current = { x: event.clientX, y: event.clientY };
-    clearLongPress();
-    longPressTimer.current = window.setTimeout(() => {
-      longPressTriggered.current = true;
-      longPressTimer.current = null;
-      window.getSelection()?.removeAllRanges();
-      enterSelectionWith(entry.id);
-    }, LONG_PRESS_MS);
-  }
-
-  function handleRowPointerMove(event: ReactPointerEvent) {
-    if (!pointerStart.current || longPressTimer.current === null) return;
-    const dx = Math.abs(event.clientX - pointerStart.current.x);
-    const dy = Math.abs(event.clientY - pointerStart.current.y);
-    if (dx > 10 || dy > 10) clearLongPress();
-  }
-
-  function handleRowPointerEnd() {
-    clearLongPress();
-    pointerStart.current = null;
-  }
-
   async function confirmSingleRevert() {
     if (!revertTarget) return;
     setRevertBusy(true);
@@ -394,32 +380,27 @@ export default function TeamActivityPage() {
   const start = total === 0 ? 0 : (safePage - 1) * pageSize + 1;
   const end = Math.min(safePage * pageSize, total);
 
-  const backAction = selectionMode ? (
-    <button
-      type="button"
-      className={`${appButtonNeutral} !px-2.5 !py-2 text-xs`}
-      onClick={exitSelectionMode}
-    >
-      {t("common.cancel")}
-    </button>
-  ) : (
-    <Link
-      href="/app/team"
-      className={`${appButtonNeutral} !px-2.5 !py-2`}
-      aria-label={t("team.activityBack")}
-    >
-      <BackArrowIcon className="size-4 shrink-0" />
-    </Link>
-  );
+  function handleActivityHeaderBack() {
+    if (selectionMode) {
+      exitSelectionMode();
+      return;
+    }
+    replaceApp("/app/team");
+  }
 
   if (forbidden) {
     return (
       <div className={`${appPageShell} ${appChromeInset} py-6`}>
-        <MobilePageHeader title={t("team.activityTitle")} action={backAction} />
+        <MobilePageHeader
+          title={t("team.activityTitle")}
+          onBack={() => replaceApp("/app/team")}
+        />
         <p className="mt-4 text-sm text-muted">{t("team.activityOwnersOnly")}</p>
       </div>
     );
   }
+
+  const pages = pageItems(safePage, totalPages);
 
   return (
     <div
@@ -434,28 +415,31 @@ export default function TeamActivityPage() {
               ? t("team.activitySelectedCount", { count: selectedCount })
               : t("team.activityTitle")
           }
-          action={backAction}
+          onBack={handleActivityHeaderBack}
         />
         {!selectionMode ? (
-          <p className="mt-1 text-sm text-muted">{t("team.activitySubtitle")}</p>
+          <p className="mt-0.5 text-xs leading-snug text-muted">
+            {t("team.activitySubtitle")}
+          </p>
         ) : (
-          <p className="mt-1 text-sm text-muted">
+          <p className="mt-0.5 text-xs leading-snug text-muted">
             {t("team.activitySelectHint")}
           </p>
         )}
       </div>
 
-      <div className={`${appListInset} mt-3 space-y-3`}>
+      <div className={`${appListInset} mt-1.5 space-y-1.5`}>
         {!selectionMode ? (
-          <form className="space-y-2" onSubmit={onSearch}>
+          <form className="space-y-1" onSubmit={onSearch}>
             <SearchField
               value={search}
               onChange={setSearch}
               placeholder={t("team.activitySearchPlaceholder")}
-              inputClassName={appSearchInput}
+              inputClassName={`${appSearchInput} !h-8 !text-sm`}
             />
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-1">
               <MenuSelect
+                size="compact"
                 label={t("admin.eventType")}
                 value={filter}
                 onChange={(value) => {
@@ -476,6 +460,7 @@ export default function TeamActivityPage() {
                 ]}
               />
               <MenuSelect
+                size="compact"
                 label={t("admin.perPage")}
                 value={String(pageSize)}
                 onChange={(value) => {
@@ -488,8 +473,9 @@ export default function TeamActivityPage() {
                 }))}
               />
             </div>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-1">
               <MenuSelect
+                size="compact"
                 label={t("admin.userLabel")}
                 value={username}
                 onChange={(value) => {
@@ -499,6 +485,7 @@ export default function TeamActivityPage() {
                 options={usernameOptions}
               />
               <MenuSelect
+                size="compact"
                 label={t("team.activityStoreFilter")}
                 value={storeName}
                 onChange={(value) => {
@@ -508,8 +495,8 @@ export default function TeamActivityPage() {
                 options={storeOptions}
               />
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              <label className="block text-xs text-muted">
+            <div className="grid grid-cols-2 gap-1">
+              <label className="block text-[0.65rem] leading-tight text-muted">
                 {t("admin.dateFrom")}
                 <input
                   type="date"
@@ -518,10 +505,10 @@ export default function TeamActivityPage() {
                     setDateFrom(event.target.value);
                     setPage(1);
                   }}
-                  className={`${appSearchInput} mt-1 w-full`}
+                  className="mt-0.5 h-8 w-full rounded-lg border border-input-border bg-input px-2 text-sm text-foreground"
                 />
               </label>
-              <label className="block text-xs text-muted">
+              <label className="block text-[0.65rem] leading-tight text-muted">
                 {t("admin.dateTo")}
                 <input
                   type="date"
@@ -530,21 +517,21 @@ export default function TeamActivityPage() {
                     setDateTo(event.target.value);
                     setPage(1);
                   }}
-                  className={`${appSearchInput} mt-1 w-full`}
+                  className="mt-0.5 h-8 w-full rounded-lg border border-input-border bg-input px-2 text-sm text-foreground"
                 />
               </label>
             </div>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-1">
               <button
                 type="submit"
-                className="rounded-xl border border-primary px-3 py-2.5 text-sm font-semibold text-primary"
+                className="h-8 rounded-lg border border-primary px-2 text-xs font-semibold text-primary"
               >
                 {t("common.search")}
               </button>
               <button
                 type="button"
                 disabled={revertibleOnPage.length === 0}
-                className={`${appButtonNeutral} disabled:opacity-40`}
+                className={`${appButtonNeutral} !h-8 !rounded-lg !px-2 !py-0 !text-xs disabled:opacity-40`}
                 onClick={() => {
                   const first = revertibleOnPage[0];
                   if (!first) return;
@@ -576,152 +563,115 @@ export default function TeamActivityPage() {
           </p>
         ) : null}
 
-        <div className="rounded-xl border border-card-border">
+        <div className="space-y-1.5">
           {loading ? (
             <LoadingSpinnerBlock wrapperClassName="flex justify-center p-6" />
           ) : entries.length === 0 ? (
-            <p className="p-6 text-sm text-muted">{t("team.activityEmpty")}</p>
+            <p className="rounded-xl bg-transparent p-4 text-sm text-muted">
+              {t("team.activityEmpty")}
+            </p>
           ) : (
-            <ul className="divide-y divide-card-border select-none [-webkit-touch-callout:none]">
-              {entries.map((entry) => {
-                const store = extractAuditStoreName(entry.details);
-                const whoWhere = [entry.username, store]
-                  .filter(Boolean)
-                  .join(" · ");
-                const showRevert = entry.revertible === true;
-                const showReverted = Boolean(entry.revertedAt);
-                const selected = Boolean(selectedIds[entry.id]);
-                const selectionDisabled =
-                  selectionMode &&
-                  (!showRevert || (selectionAtLimit && !selected));
+            entries.map((entry) => {
+              const storeName = extractAuditStoreName(entry.details);
+              const goods = entry.details
+                ? parseAuditGoodsDetails(entry.details)
+                : null;
+              const showRevert = entry.revertible === true;
+              const showReverted = Boolean(entry.revertedAt);
+              const selected = Boolean(selectedIds[entry.id]);
+              const selectionDisabled =
+                selectionMode &&
+                (!showRevert || (selectionAtLimit && !selected));
+              const eventLabel = formatEvent(entry.event);
+              const eventClassName = eventClass(entry.event);
 
+              if (goods?.isGoods) {
                 return (
-                  <li
+                  <ActivityListCard
                     key={entry.id}
-                    className={`px-3 py-2.5 transition-colors ${
-                      selected ? "bg-selected" : ""
-                    } ${selectionDisabled ? "opacity-45" : ""} ${
-                      selectionMode && showRevert ? "cursor-pointer" : ""
-                    }`}
-                    aria-pressed={selectionMode ? selected : undefined}
-                    onClick={() => {
-                      if (!selectionMode) return;
-                      if (longPressTriggered.current) {
-                        longPressTriggered.current = false;
-                        return;
-                      }
-                      if (!showRevert || selectionDisabled) return;
-                      toggleSelected(entry.id);
-                    }}
-                    onPointerDown={(event) =>
-                      handleRowPointerDown(entry, event)
+                    name={
+                      goods.title?.trim()
+                        ? goods.title
+                        : t("team.activityUntitledProduct")
                     }
-                    onPointerMove={handleRowPointerMove}
-                    onPointerUp={handleRowPointerEnd}
-                    onPointerCancel={handleRowPointerEnd}
-                    onPointerLeave={handleRowPointerEnd}
-                    onContextMenu={(event) => {
-                      if (showRevert) event.preventDefault();
+                    username={entry.username}
+                    storeName={storeName}
+                    occurredAt={entry.occurredAt}
+                    eventLabel={eventLabel}
+                    eventClassName={eventClassName}
+                    quantity={goods.quantity}
+                    quantityText={goods.quantityText}
+                    expiryYmd={goods.expiryYmd}
+                    expiryText={goods.expiryText}
+                    discount={goods.discount}
+                    detail={goods.fallback}
+                    selectionMode={selectionMode}
+                    selected={selected}
+                    selectionDisabled={selectionDisabled}
+                    showRevert={showRevert}
+                    showReverted={showReverted}
+                    onLongPressSelect={() => enterSelectionWith(entry.id)}
+                    onToggleSelected={() => toggleSelected(entry.id)}
+                    onRevert={() => {
+                      setError("");
+                      setNotice("");
+                      setRevertTarget(entry);
                     }}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-semibold text-foreground">
-                          {whoWhere || "—"}
-                        </p>
-                        <time
-                          className="mt-0.5 block tabular-nums text-xs text-muted"
-                          dateTime={entry.occurredAt}
-                        >
-                          {formatAuditCompactWhen(entry.occurredAt)}
-                        </time>
-                      </div>
-                      <div className="flex max-w-[55%] shrink-0 items-center gap-2">
-                        {selectionMode && showRevert ? (
-                          <span
-                            className={`flex size-5 shrink-0 items-center justify-center rounded-md border text-[10px] font-bold ${
-                              selected
-                                ? "border-primary bg-selected text-primary"
-                                : "border-card-border text-transparent"
-                            }`}
-                            aria-hidden
-                          >
-                            ✓
-                          </span>
-                        ) : null}
-                        <span
-                          className={`truncate rounded-full px-2 py-0.5 text-xs font-medium ${eventClass(entry.event)}`}
-                          title={formatEvent(entry.event)}
-                        >
-                          {formatEvent(entry.event)}
-                        </span>
-                      </div>
-                    </div>
-                    {entry.details ? (
-                      <p
-                        className="mt-1.5 line-clamp-2 text-xs text-muted"
-                        title={entry.details}
-                      >
-                        {entry.details}
-                      </p>
-                    ) : null}
-                    {!selectionMode && (showRevert || showReverted) ? (
-                      <div className="mt-2 flex items-center justify-end gap-2">
-                        {showReverted ? (
-                          <span className="text-xs font-medium text-muted">
-                            {t("team.activityAlreadyReverted")}
-                          </span>
-                        ) : null}
-                        {showRevert ? (
-                          <button
-                            type="button"
-                            className={`${appButtonPrimary} !px-2.5 !py-1.5 text-xs`}
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              setError("");
-                              setNotice("");
-                              setRevertTarget(entry);
-                            }}
-                          >
-                            {t("team.activityRevert")}
-                          </button>
-                        ) : null}
-                      </div>
-                    ) : null}
-                  </li>
+                  />
                 );
-              })}
-            </ul>
+              }
+
+              return (
+                <ActivityGenericCard
+                  key={entry.id}
+                  username={entry.username}
+                  storeName={storeName}
+                  occurredAt={entry.occurredAt}
+                  eventLabel={eventLabel}
+                  eventClassName={eventClassName}
+                  detail={goods?.fallback ?? entry.details ?? null}
+                />
+              );
+            })
           )}
         </div>
 
         {!selectionMode ? (
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-sm text-muted">
+          <div className="space-y-2 pt-1">
+            <p className="text-xs text-muted">
               {total === 0
                 ? t("team.activityEmpty")
                 : t("admin.showingEntries", { start, end, total })}
             </p>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                disabled={safePage <= 1}
-                onClick={() => setPage((value) => Math.max(1, value - 1))}
-                className="rounded-xl border border-card-border px-3 py-2 text-sm font-semibold text-foreground disabled:opacity-40"
-              >
-                {t("admin.previous")}
-              </button>
-              <button
-                type="button"
-                disabled={safePage >= totalPages}
-                onClick={() =>
-                  setPage((value) => Math.min(totalPages, value + 1))
-                }
-                className="rounded-xl border border-card-border px-3 py-2 text-sm font-semibold text-foreground disabled:opacity-40"
-              >
-                {t("admin.next")}
-              </button>
-            </div>
+            {totalPages > 1 ? (
+              <div className="flex flex-wrap items-center justify-center gap-1.5">
+                {pages.map((item, index) =>
+                  item === "gap" ? (
+                    <span
+                      key={`gap-${index}`}
+                      className="px-1 text-sm text-muted"
+                      aria-hidden
+                    >
+                      …
+                    </span>
+                  ) : (
+                    <button
+                      key={item}
+                      type="button"
+                      aria-current={item === safePage ? "page" : undefined}
+                      onClick={() => setPage(item)}
+                      className={`min-w-8 rounded-lg border px-2.5 py-1.5 text-sm font-semibold tabular-nums ${
+                        item === safePage
+                          ? "border-primary text-primary"
+                          : "border-card-border text-foreground"
+                      }`}
+                    >
+                      {item}
+                    </button>
+                  ),
+                )}
+              </div>
+            ) : null}
           </div>
         ) : null}
       </div>
@@ -735,14 +685,12 @@ export default function TeamActivityPage() {
           }}
         >
           <div className={appFooterButtonGrid}>
-            <button
-              type="button"
-              className={appButtonNeutral}
+            <CancelButton
               onClick={exitSelectionMode}
               disabled={revertBusy}
             >
               {t("common.cancel")}
-            </button>
+            </CancelButton>
             <button
               type="button"
               className={appButtonPrimaryFull}

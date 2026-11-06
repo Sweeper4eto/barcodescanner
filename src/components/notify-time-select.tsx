@@ -23,6 +23,12 @@ const MINUTE_OPTIONS = [
 const selectButtonClass =
   "mt-0.5 flex w-full min-w-0 items-center justify-between gap-1.5 rounded-lg border border-input-border bg-transparent px-2 py-1.5 text-left text-sm text-foreground";
 
+const TIME_SLOT_OPTIONS = Array.from({ length: 24 * 4 }, (_, index) => {
+  const minutes = index * 15;
+  const value = formatMinutesAsTime(minutes);
+  return { value, label: value };
+});
+
 /** Compact hour + 15-min picker (same layout language as expiry month/year). */
 export function NotifyTimeSelect({
   label,
@@ -76,6 +82,32 @@ export function NotifyTimeSelect({
           </label>
         </div>
       </div>
+    </div>
+  );
+}
+
+/** Single compact HH:MM select for inline settings rows. */
+export function NotifyTimeSelectInline({
+  label,
+  value,
+  onChange,
+  className = "",
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  className?: string;
+}) {
+  const snapped = snapTimeToStep(value);
+  return (
+    <div className={`min-w-0 ${className}`.trim()}>
+      <MenuSelect
+        size="compact"
+        label={label}
+        value={snapped}
+        options={TIME_SLOT_OPTIONS}
+        onChange={(next) => onChange(snapTimeToStep(next))}
+      />
     </div>
   );
 }

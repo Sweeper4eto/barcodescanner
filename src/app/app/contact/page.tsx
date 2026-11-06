@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import { PrimaryButton, SecondaryButton } from "@/components/auth-forms";
-import { BackArrowIcon, SendIcon } from "@/components/app-nav-icons";
+import { PrimaryButton } from "@/components/auth-forms";
+import { SendIcon } from "@/components/app-nav-icons";
+import { CancelButton } from "@/components/cancel-button";
 import { BrandName } from "@/components/brand-name";
 import { MobilePageHeader } from "@/components/mobile-page-header";
 import { MenuSelect } from "@/components/menu-select";
@@ -462,14 +463,13 @@ export default function ContactSupportPage() {
           <span>{t("support.secureNote")}</span>
         </p>
 
-        <SecondaryButton
+        <CancelButton
           onClick={() =>
             navigateApp(user?.paymentLocked ? "/app/billing" : "/app")
           }
-          icon={<BackArrowIcon className="size-4 shrink-0" />}
         >
-          {t("common.back")}
-        </SecondaryButton>
+          {t("common.cancel")}
+        </CancelButton>
       </div>
     </div>
   );

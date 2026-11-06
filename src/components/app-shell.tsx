@@ -89,19 +89,22 @@ export function AppShell({ children }: { children: ReactNode }) {
         height. Plain pb-* on a content-sized shell made short pages scrollable
         by ~4rem and painted Android's scrollbar thumb on every /app screen.
         When the hub hides the tabs, zero the nav CSS vars so page calcs expand.
+        app-no-text-select: no casual selection → no Chrome “Search Google for…”.
       */}
-      <div
-        className={
-          showBottomNav
-            ? "box-border min-h-svh min-w-0 max-w-[100vw] pb-[calc(var(--app-bottom-nav-frame)+env(safe-area-inset-bottom,0px))]"
-            : "box-border min-h-svh min-w-0 max-w-[100vw] pb-[env(safe-area-inset-bottom,0px)] [--app-bottom-nav-frame:0px] [--app-bottom-nav-height:0px]"
-        }
-      >
-        <PaymentLockGate>
-          <RequireLocationGuard>{children}</RequireLocationGuard>
-        </PaymentLockGate>
+      <div className="app-no-text-select">
+        <div
+          className={
+            showBottomNav
+              ? "box-border min-h-svh min-w-0 max-w-[100vw] pb-[calc(var(--app-bottom-nav-frame)+env(safe-area-inset-bottom,0px))]"
+              : "box-border min-h-svh min-w-0 max-w-[100vw] pb-[env(safe-area-inset-bottom,0px)] [--app-bottom-nav-frame:0px] [--app-bottom-nav-height:0px]"
+          }
+        >
+          <PaymentLockGate>
+            <RequireLocationGuard>{children}</RequireLocationGuard>
+          </PaymentLockGate>
+        </div>
+        <AppBottomNav />
       </div>
-      <AppBottomNav />
     </NavigationLeaveGuardProvider>
   );
 }

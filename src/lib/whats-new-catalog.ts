@@ -1135,6 +1135,78 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "На Начало смяната на страница с жест работи и когато започнеш върху икона.",
     href: "/app",
   },
+  {
+    key: "2026-11-hub-no-document-tile",
+    titleEn:
+      "Home no longer has a Document shortcut — open Expiry, then use Document from that flow’s tabs.",
+    titleBg:
+      "На Начало вече няма икона Документ — отвори Годност и ползвай Документ от табовете там.",
+    href: "/app/expiry",
+  },
+  {
+    key: "2026-11-hub-default-slot-order",
+    titleEn:
+      "Home default icon order: Expiry, Team, Notifications — Support, Schedule, Payments lower on the grid; Soon tiles on page 2.",
+    titleBg:
+      "По подразбиране на Начало: Годност, Екип, Известия — после Поддръжка, График и Плащания; „Скоро“ иконите са на страница 2.",
+    href: "/app",
+  },
+  {
+    key: "2026-11-header-back-under-logo",
+    titleEn:
+      "Back chevron under the Expire365 wordmark replaces the home house icon in the header.",
+    titleBg:
+      "Стрелка „Назад“ под текста Expire365 вместо къщичката в хедъра.",
+    href: "/app",
+  },
+  {
+    key: "2026-11-team-settings-layout",
+    titleEn:
+      "Team screen is more compact: people first, schedule and activity as quiet settings rows.",
+    titleBg:
+      "Екип е по-компактен: хората горе, график и дневник като редове в настройки.",
+    href: "/app/team",
+  },
+  {
+    key: "2026-11-activity-log-compact",
+    titleEn:
+      "Activity log: back to Team, tighter filters, page numbers, and clearer multi-select cancel.",
+    titleBg:
+      "Дневник на действията: назад към Екип, по-компактни филтри, страници и по-ясен отказ при избор.",
+    href: "/app/team/activity",
+  },
+  {
+    key: "2026-11-activity-goods-layout",
+    titleEn:
+      "Activity log shows products as name + qty/expiry — barcodes and article numbers are hidden.",
+    titleBg:
+      "В дневника стоките са име + кол./годност — без баркод и артикулен номер.",
+    href: "/app/team/activity",
+  },
+  {
+    key: "2026-11-activity-expiry-cards",
+    titleEn:
+      "Activity log product rows use the same ticket card layout as Expiry (qty, valid-until, urgency).",
+    titleBg:
+      "Редовете за стоки в дневника са като картите в Годност (бр., до кога, цветна лента).",
+    href: "/app/team/activity",
+  },
+  {
+    key: "2026-11-notifications-inline-compact",
+    titleEn:
+      "Expiry alerts settings are compact: days and time on one row, toggle at the end — editable even when Push isn’t on.",
+    titleBg:
+      "Известията са по-компактни: дни и час на един ред, превключвател в края — редактират се и без активен Push.",
+    href: "/app/settings/notifications",
+  },
+  {
+    key: "2026-11-legal-header-back",
+    titleEn:
+      "Terms and Privacy use the same green back chevron under the logo as the rest of the app.",
+    titleBg:
+      "Общи условия и Политика за поверителност имат същата зелена стрелка „Назад“ под логото.",
+    href: "/terms",
+  },
 ];
 
 
