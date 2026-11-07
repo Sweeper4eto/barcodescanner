@@ -155,8 +155,8 @@ export function RemoveConfirmDialog({
     writeOff?.actionLabel ?? writeOffBulk?.actionLabel ?? removeLabel;
   const confirmLabel = writeOffMode ? writeOffActionLabel : removeLabel;
   const confirmClass = writeOffMode
-    ? `${appButtonWarningFull} gap-2`
-    : `${appButtonDangerFull} gap-2`;
+    ? `${appButtonWarningFull} gap-1`
+    : `${appButtonDangerFull} gap-1`;
 
   function toggleWriteOffMode() {
     if (writeOff) {
@@ -240,13 +240,13 @@ export function RemoveConfirmDialog({
           <button
             type="button"
             disabled={busy}
-            className={confirmClass}
+            className={`${confirmClass} whitespace-nowrap`}
             onClick={onConfirm}
           >
             {!writeOffMode ? (
               <TrashIcon className="size-4 shrink-0" />
             ) : null}
-            {confirmLabel}
+            <span className="whitespace-nowrap">{confirmLabel}</span>
           </button>
         </div>
       </div>

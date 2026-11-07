@@ -172,7 +172,9 @@ export function HomeIconHub({
   const [dragOverSlot, setDragOverSlot] = useState<number | null>(null);
   const [floatModule, setFloatModule] = useState<HomeModuleId | null>(null);
   const [portalReady, setPortalReady] = useState(false);
-  const [stagingPage, setStagingPage] = useState(false);
+  const [, setStagingPage] = useState(false);
+  /** Synced immediately — React state alone is too late for edge-flip → empty page 3. */
+  const stagingPageRef = useRef(false);
 
   const pressRef = useRef<PressSession | null>(null);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -222,8 +224,15 @@ export function HomeIconHub({
 
   function visiblePages() {
     const occupied = occupiedPages();
-    if (stagingPage && occupied < HOME_LAUNCHER_MAX_PAGES) return occupied + 1;
+    if (stagingPageRef.current && occupied < HOME_LAUNCHER_MAX_PAGES) {
+      return occupied + 1;
+    }
     return occupied;
+  }
+
+  function setStaging(on: boolean) {
+    stagingPageRef.current = on;
+    setStagingPage(on);
   }
 
   function pageOffset(pageIndex: number) {
@@ -317,11 +326,16 @@ export function HomeIconHub({
   }
 
   function maybeFlipPageAtEdge(clientX: number) {
-    const width = typeof window !== "undefined" ? window.innerWidth : 0;
+    // Use hub viewport edges — window width misses centered / padded layouts.
+    const viewport = viewportRef.current;
+    const rect = viewport?.getBoundingClientRect();
+    const left = rect?.left ?? 0;
+    const right = rect?.right ?? (typeof window !== "undefined" ? window.innerWidth : 0);
     const occupied = occupiedPages();
     let dir: -1 | 1 | 0 = 0;
-    if (clientX <= PAGE_EDGE_PX && pageRef.current > 0) dir = -1;
-    else if (clientX >= width - PAGE_EDGE_PX) {
+    if (clientX <= left + PAGE_EDGE_PX && pageRef.current > 0) dir = -1;
+    else if (clientX >= right - PAGE_EDGE_PX) {
+      // Allow one empty staging page beyond occupied (up to MAX).
       const maxReach =
         occupied < HOME_LAUNCHER_MAX_PAGES ? occupied : occupied - 1;
       if (pageRef.current < maxReach) dir = 1;
@@ -340,11 +354,12 @@ export function HomeIconHub({
       const next = pageRef.current + dir;
       if (next < 0) return;
       if (next >= occupied && occupied < HOME_LAUNCHER_MAX_PAGES) {
-        setStagingPage(true);
-        requestAnimationFrame(() => {
-          goToPage(next, true);
-          setDragOverSlot(null);
+        // Must paint the empty page before goToPage — otherwise clamp stays on page 2.
+        flushSync(() => {
+          setStaging(true);
         });
+        goToPage(next, true);
+        setDragOverSlot(null);
       } else if (next < occupied) {
         goToPage(next, true);
         setDragOverSlot(null);
@@ -556,7 +571,7 @@ export function HomeIconHub({
       rearrangingRef.current = false;
       setRootRearranging(false);
       setRearranging(false);
-      setStagingPage(false);
+      setStaging(false);
       return;
     }
 
@@ -565,10 +580,10 @@ export function HomeIconHub({
 
     if (target != null && target !== from) {
       persist(moveHomeLauncherIcon(layoutRef.current, from, target));
-      setStagingPage(false);
+      setStaging(false);
       goToPage(pageIndexForSlot(target), true);
     } else {
-      setStagingPage(false);
+      setStaging(false);
       const occupied = occupiedHomeLauncherPages(layoutRef.current);
       if (pageRef.current >= occupied) goToPage(Math.max(0, occupied - 1), true);
     }

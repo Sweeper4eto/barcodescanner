@@ -40,7 +40,7 @@ export function ExpirySelectionFooter({
         </button>
         <button
           type="button"
-          className={appButtonDangerFull}
+          className={`${appButtonDangerFull} whitespace-nowrap`}
           disabled={selectedCount === 0 || busy}
           onClick={onRemove}
         >

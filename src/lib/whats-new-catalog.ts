@@ -1283,6 +1283,14 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Иконите на Начало показват ясно задържане докато държиш — режимът за пренареждане вече не чака да пуснеш пръста.",
     href: "/app",
   },
+  {
+    key: "2026-11-hub-page3-drop",
+    titleEn:
+      "Home rearrange can open the 3rd page while dragging — drop an icon onto an empty slot to keep it there.",
+    titleBg:
+      "Пренареждане на Начало: докато влачиш се отваря и 3-та страница — пусни иконата върху празен слот, за да остане там.",
+    href: "/app",
+  },
 ];
 
 
