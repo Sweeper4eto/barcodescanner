@@ -166,7 +166,7 @@ export function ClientsPanel({
     active: true,
     homeUser: false,
     scheduleEnabled: true,
-    newUiEnabled: false,
+    newUiEnabled: true,
     paymentsRequired: false,
     referredByClientId: null,
     notifyEarlyDays: "",

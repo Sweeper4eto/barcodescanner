@@ -104,8 +104,7 @@ export async function POST(request: Request) {
       ...rest,
       referredByClientId: referredByClientId ?? null,
       scheduleEnabled: rest.scheduleEnabled ?? true,
-      // Gradual rollout: new accounts always start on classic UI.
-      newUiEnabled: false,
+      newUiEnabled: rest.newUiEnabled ?? true,
       paymentsRequired,
       paymentsRequiredSince: paymentsRequired ? startOfBillingMonth() : null,
     },

@@ -126,6 +126,7 @@ export async function registerUser(
           name: orgName,
           homeUser,
           active: true,
+          newUiEnabled: true,
         },
       });
 

@@ -85,9 +85,9 @@ model Client {
   scheduleEnabled    Boolean   @default(true)
   /**
    * When true, all users on this account get the new home hub UI (and related
-   * layout). Default off so rollout can be gradual per account.
+   * layout). New accounts default on; admin can still switch an account off.
    */
-  newUiEnabled       Boolean   @default(false)
+  newUiEnabled       Boolean   @default(true)
   /**
    * Staff schedule visibility for this account (only when scheduleEnabled):
    * disabled | private (owner only via Team) | public (everyone, home entry).
