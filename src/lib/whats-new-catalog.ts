@@ -1267,6 +1267,14 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Пренареждането на иконите на Начало работи по-стабилно в Safari на iPhone (задръж и влачи).",
     href: "/app",
   },
+  {
+    key: "2026-11-hub-safari-drag-v2",
+    titleEn:
+      "Home rearrange on iPhone: hold is less likely to be cancelled by scroll; drag feels steadier.",
+    titleBg:
+      "Пренареждане на iPhone: задържането по-рядко се прекъсва от скрол; влаченето е по-стабилно.",
+    href: "/app",
+  },
 ];
 
 

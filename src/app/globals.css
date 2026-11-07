@@ -494,7 +494,8 @@ select option {
 
 .home-hub-root {
   width: 100%;
-  touch-action: pan-y;
+  /* pan-x only: vertical pan-y on ancestors made iOS Safari steal long-press as scroll. */
+  touch-action: pan-x;
 }
 
 .home-hub-root.is-rearranging,
@@ -509,14 +510,14 @@ select option {
 .home-hub-viewport {
   overflow: hidden;
   width: 100%;
-  touch-action: pan-y;
+  touch-action: pan-x;
 }
 
 .home-hub-track {
   display: flex;
   width: 100%;
   will-change: transform;
-  touch-action: pan-y;
+  touch-action: pan-x;
 }
 
 .home-hub-page {
@@ -529,13 +530,14 @@ select option {
   border: 1px solid rgb(63 63 70 / 0.85);
   padding: clamp(0.65rem, 2.2cqw, 1.15rem);
   background: transparent;
+  touch-action: pan-x;
 }
 
 .home-hub-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: clamp(0.7rem, 2.6cqw, 1.35rem);
-  touch-action: pan-y;
+  touch-action: pan-x;
 }
 
 /* Tall phones: a bit more room between tiles so the grid isn’t tiny up top */

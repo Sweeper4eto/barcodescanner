@@ -40,9 +40,13 @@ import {
   writeHomeLauncherLayout,
 } from "@/lib/home-launcher";
 
-const LONG_PRESS_MS = 450;
-/** Finger wobble allowed while waiting for long-press (Safari thumbs jitter a lot). */
-const LONG_PRESS_SLOP_PX = 18;
+const LONG_PRESS_MS = 400;
+/** Nearly-still: only then block scroll so Safari long-press can fire. */
+const HOLD_LOCK_PX = 10;
+/** Cancel long-press for non-swipe movement beyond this. */
+const LONG_PRESS_SLOP_PX = 24;
+/** Start page-swipe from a tile as soon as horizontal intent is clear (Android). */
+const PAGE_SWIPE_START_PX = 12;
 const PAGE_SWIPE_PX = 48;
 const PAGE_SWIPE_RATIO = 0.22;
 const PAGE_SWIPE_DOMINANCE = 1.15;
@@ -137,6 +141,7 @@ type PressSession = {
   slot: number;
   moduleId: HomeModuleId;
   pointerId: number;
+  pointerType: string;
   startX: number;
   startY: number;
   dragging: boolean;
@@ -191,6 +196,8 @@ export function HomeIconHub({
   const rearrangingRef = useRef(false);
   /** Safari often drops element-level pointermove/up — keep a window fallback. */
   const windowPointerUnbind = useRef<(() => void) | null>(null);
+  /** Skip lostpointercapture when we intentionally release capture. */
+  const ignoreLostCapture = useRef(false);
   layoutRef.current = layout;
   pageRef.current = page;
   rearrangingRef.current = rearranging;
@@ -356,14 +363,10 @@ export function HomeIconHub({
     };
     const onLost = (event: PointerEvent) => {
       if (event.pointerId !== pointerId) return;
+      if (ignoreLostCapture.current) return;
       // Safari: capture can be lost mid-drag with no further tile events.
       if (pressRef.current?.dragging) {
         drivePointerUp(
-          lastPointerRef.current.x,
-          lastPointerRef.current.y,
-        );
-      } else {
-        drivePointerCancel(
           lastPointerRef.current.x,
           lastPointerRef.current.y,
         );
@@ -381,15 +384,36 @@ export function HomeIconHub({
     };
   }
 
+  function releaseTileCapture(session: PressSession | null) {
+    if (!session?.target) return;
+    ignoreLostCapture.current = true;
+    try {
+      session.target.releasePointerCapture(session.pointerId);
+    } catch {
+      /* may not have been captured */
+    }
+    // Allow the lostpointercapture event to flush before re-arming.
+    queueMicrotask(() => {
+      ignoreLostCapture.current = false;
+    });
+  }
+
   function beginDrag(session: PressSession, x: number, y: number) {
     pageSwipe.current = null;
     session.dragging = true;
     rearrangingRef.current = true;
-    // Keep capture on the originating tile (Safari breaks capture handoff).
+    // Mouse/pen only — touch capture fights Android swipe and is flaky on Safari.
+    if (session.pointerType !== "touch" && session.target) {
+      try {
+        session.target.setPointerCapture(session.pointerId);
+      } catch {
+        /* ignore */
+      }
+    }
     try {
-      session.target?.setPointerCapture(session.pointerId);
+      navigator.vibrate?.(12);
     } catch {
-      /* ignore */
+      /* unsupported */
     }
     const tile = slotRefs.current[session.slot];
     const size = Math.max(72, (tile?.getBoundingClientRect().width ?? 96) * 1.3);
@@ -479,11 +503,7 @@ export function HomeIconHub({
   ) {
     clearPressTimer();
     pressRef.current = null;
-    try {
-      session.target?.releasePointerCapture(session.pointerId);
-    } catch {
-      /* may not have been captured yet */
-    }
+    releaseTileCapture(session);
     pageSwipe.current = {
       x: session.startX,
       y: session.startY,
@@ -567,8 +587,102 @@ export function HomeIconHub({
       setTrackOffset(pageOffset(pageRef.current), false);
     }
     window.addEventListener("resize", onResize);
+
+    /**
+     * iOS Safari: document touchmove is passive by default. Non-passive listener
+     * must exist before the gesture so preventDefault can stop scroll/cancel
+     * during long-press hold and while rearranging (dnd-kit pattern).
+     */
+    const onTouchMove = (event: TouchEvent) => {
+      const session = pressRef.current;
+      const touch = event.touches[0];
+      if (!touch) return;
+
+      if (session?.dragging || rearrangingRef.current) {
+        if (event.cancelable) event.preventDefault();
+        drivePointerMove(touch.clientX, touch.clientY);
+        return;
+      }
+
+      if (!session) {
+        if (pageSwipe.current?.active) {
+          if (event.cancelable) event.preventDefault();
+          updatePageSwipe(touch.clientX, touch.clientY);
+        }
+        return;
+      }
+
+      const dx = touch.clientX - session.startX;
+      const dy = touch.clientY - session.startY;
+      const dist = Math.hypot(dx, dy);
+      const horizontal =
+        dist >= PAGE_SWIPE_START_PX &&
+        Math.abs(dx) > Math.abs(dy) * PAGE_SWIPE_DOMINANCE;
+
+      // Android: horizontal flick on an icon must page immediately — do not
+      // eat the gesture with a wide preventDefault slop.
+      if (horizontal) {
+        drivePointerMove(touch.clientX, touch.clientY);
+        if (event.cancelable) event.preventDefault();
+        return;
+      }
+
+      // Safari hold: only lock scroll while the finger is almost still.
+      if (dist <= HOLD_LOCK_PX) {
+        if (event.cancelable) event.preventDefault();
+        return;
+      }
+
+      drivePointerMove(touch.clientX, touch.clientY);
+      if (pressRef.current?.dragging || pageSwipe.current?.active) {
+        if (event.cancelable) event.preventDefault();
+      }
+    };
+
+    const onTouchEnd = (event: TouchEvent) => {
+      const touch = event.changedTouches[0];
+      const x = touch?.clientX ?? lastPointerRef.current.x;
+      const y = touch?.clientY ?? lastPointerRef.current.y;
+      if (pressRef.current || pageSwipe.current?.active) {
+        drivePointerUp(x, y);
+      }
+    };
+
+    const onTouchCancel = (event: TouchEvent) => {
+      const touch = event.changedTouches[0];
+      const x = touch?.clientX ?? lastPointerRef.current.x;
+      const y = touch?.clientY ?? lastPointerRef.current.y;
+      if (pressRef.current || pageSwipe.current?.active) {
+        drivePointerCancel(x, y);
+      }
+    };
+
+    // touchforcechange also participates in iOS scroll takeover.
+    const preventForceScroll = (event: Event) => {
+      if (pressRef.current || rearrangingRef.current) {
+        if ("cancelable" in event && event.cancelable) {
+          event.preventDefault();
+        }
+      }
+    };
+
+    document.addEventListener("touchmove", onTouchMove, {
+      passive: false,
+      capture: true,
+    });
+    document.addEventListener("touchend", onTouchEnd, { capture: true });
+    document.addEventListener("touchcancel", onTouchCancel, { capture: true });
+    document.addEventListener("touchforcechange", preventForceScroll, {
+      passive: false,
+      capture: true,
+    });
+
     return () => {
       window.removeEventListener("resize", onResize);
+      document.removeEventListener("touchmove", onTouchMove, true);
+      document.removeEventListener("touchend", onTouchEnd, true);
+      document.removeEventListener("touchcancel", onTouchCancel, true);
+      document.removeEventListener("touchforcechange", preventForceScroll, true);
       clearPressTimer();
       clearPageFlipTimer();
       unbindWindowPointer();
@@ -595,10 +709,21 @@ export function HomeIconHub({
       const dy = clientY - session.startY;
       const dist = Math.hypot(dx, dy);
       // Ignore tiny wobble so Safari long-press can still fire.
-      if (dist <= LONG_PRESS_SLOP_PX) return;
-      clearPressTimer();
-      if (Math.abs(dx) > Math.abs(dy) * PAGE_SWIPE_DOMINANCE) {
+      if (dist <= HOLD_LOCK_PX) return;
+
+      // Horizontal flick on a tile → page swipe (must win over long-press).
+      if (
+        dist >= PAGE_SWIPE_START_PX &&
+        Math.abs(dx) > Math.abs(dy) * PAGE_SWIPE_DOMINANCE
+      ) {
+        clearPressTimer();
         handoffTilePressToPageSwipe(session, clientX, clientY);
+        return;
+      }
+
+      // Bigger non-swipe move → abandon long-press (allow native feel).
+      if (dist > LONG_PRESS_SLOP_PX) {
+        clearPressTimer();
       }
       return;
     }
@@ -612,12 +737,7 @@ export function HomeIconHub({
 
   function drivePointerUp(clientX: number, clientY: number) {
     if (pageSwipe.current?.active && !pressRef.current?.dragging) {
-      const session = pressRef.current;
-      try {
-        session?.target?.releasePointerCapture(session.pointerId);
-      } catch {
-        /* ignore */
-      }
+      releaseTileCapture(pressRef.current);
       unbindWindowPointer();
       endPageSwipe(clientX, clientY);
       return;
@@ -629,11 +749,7 @@ export function HomeIconHub({
       return;
     }
 
-    try {
-      session.target?.releasePointerCapture(session.pointerId);
-    } catch {
-      /* ignore */
-    }
+    releaseTileCapture(session);
 
     if (session.dragging) {
       finishDrag(clientX, clientY);
@@ -674,10 +790,14 @@ export function HomeIconHub({
     if (disabled) return;
     if (event.button != null && event.button !== 0) return;
 
-    try {
-      event.currentTarget.setPointerCapture(event.pointerId);
-    } catch {
-      /* ignore */
+    // Capture only for mouse/pen. On touch, capture fights Android page-swipe
+    // that starts on an icon — window/document listeners drive the gesture.
+    if (event.pointerType !== "touch") {
+      try {
+        event.currentTarget.setPointerCapture(event.pointerId);
+      } catch {
+        /* ignore */
+      }
     }
 
     pageSwipe.current = null;
@@ -686,6 +806,7 @@ export function HomeIconHub({
       slot,
       moduleId,
       pointerId: event.pointerId,
+      pointerType: event.pointerType || "mouse",
       startX: event.clientX,
       startY: event.clientY,
       dragging: false,
