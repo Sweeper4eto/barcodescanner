@@ -29,6 +29,7 @@ import {
   makeAdhocBarcode,
 } from "@/lib/inventory-entry-display";
 import { userCanRemoveExpiry } from "@/lib/expiry-remove-access";
+import { clampWriteOffQuantity } from "@/lib/inventory-write-off";
 import { apiT } from "@/i18n";
 
 const createSchema = z.object({
@@ -341,6 +342,8 @@ const patchSchema = z.object({
   imagePath: z.string().nullable().optional(),
   name: z.string().nullable().optional(),
   barcode: z.string().nullable().optional(),
+  /** On soft-remove: units to mark as write-off (0…qty). Defaults to full qty. */
+  writeOffQuantity: z.number().int().min(0).optional(),
 });
 
 export async function PATCH(request: Request) {
@@ -908,11 +911,16 @@ export async function PATCH(request: Request) {
     );
   }
 
+  const writeOffQuantity = clampWriteOffQuantity(
+    parsed.data.writeOffQuantity ?? removed.quantity,
+    removed.quantity,
+  );
+
   // Soft-remove so owners can revert from Activity. Local (NB…) products are
   // garbage-collected later by purge when nothing still references them.
   await db.inventoryEntry.update({
     where: { id: removed.id },
-    data: { removedAt: new Date() },
+    data: { removedAt: new Date(), writeOffQuantity },
   });
   if (removed.imagePath) {
     await deleteLocalUpload(removed.imagePath);
@@ -928,6 +936,7 @@ export async function PATCH(request: Request) {
       quantity: removed.quantity,
       storeName: store.name,
       expiryDate: removed.expiryDate,
+      writeOffQuantity,
     }),
     {
       entityType: "inventory_entry",
@@ -936,6 +945,7 @@ export async function PATCH(request: Request) {
       payload: {
         soft: true,
         quantity: removed.quantity,
+        writeOffQuantity,
         expiryDate: removed.expiryDate.toISOString(),
         barcode: removed.barcode,
         productId: removed.productId,
@@ -943,5 +953,5 @@ export async function PATCH(request: Request) {
     },
   );
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, writeOffQuantity });
 }

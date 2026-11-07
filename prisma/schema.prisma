@@ -265,6 +265,8 @@ model InventoryEntry {
   expiryDate DateTime
   enteredAt  DateTime  @default(now())
   removedAt  DateTime?
+  /** Units marked as write-off (брак) when soft-removed. Null = legacy / unknown. */
+  writeOffQuantity Int?
   priceReducedAt DateTime?
   /** Discount % when price is reduced (5–100). Cleared when priceReducedAt is cleared. */
   priceDiscountPercent Int?

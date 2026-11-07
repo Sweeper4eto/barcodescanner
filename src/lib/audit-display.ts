@@ -106,6 +106,10 @@ function parseMeta(part: string): AuditGoodsMeta | null {
   if (discount?.[1]) {
     return { key: "discount", value: discount[1].trim() };
   }
+  const writeOff = /^write-off\s+(\d+)$/i.exec(part);
+  if (writeOff?.[1]) {
+    return { key: "other", value: `write-off ${writeOff[1]}` };
+  }
   const namedChange = /^(name|qty|expires|image)\s+(.+)$/i.exec(part);
   if (namedChange?.[1] && namedChange[2]) {
     const label = namedChange[1].toLowerCase();

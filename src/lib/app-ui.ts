@@ -19,12 +19,15 @@ const appButtonCore =
 export const appButtonPrimary = `${appButtonCore} border-primary text-primary`;
 export const appButtonNeutral = `${appButtonCore} border-card-border text-foreground`;
 export const appButtonDanger = `${appButtonCore} border-danger text-danger`;
+/** Outline warning / write-off (yellow). */
+export const appButtonWarning = `${appButtonCore} border-warning-fg text-warning-fg`;
 
 export const appButtonCancel = `${appButtonCore} border-white text-white`;
 
 export const appButtonPrimaryFull = `w-full ${appButtonPrimary}`;
 export const appButtonNeutralFull = `w-full ${appButtonNeutral}`;
 export const appButtonDangerFull = `w-full ${appButtonDanger}`;
+export const appButtonWarningFull = `w-full ${appButtonWarning}`;
 export const appButtonCancelFull = `w-full ${appButtonCancel}`;
 
 const appButtonRowCore =

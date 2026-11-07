@@ -64,6 +64,7 @@ export const HUB_FLOW_ROOT_PATHS = [
   "/app/team", // Екип
   "/app/settings/notifications", // Известия
   "/app/contact", // Поддръжка
+  "/app/analytics", // Анализ (owners)
 ] as const;
 
 /**

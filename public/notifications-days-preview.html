@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="bg">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Expire365 — дни: варианти</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #09090b;
+        --text: #fafafa;
+        --muted: #a1a1aa;
+        --primary: #34d399;
+        --border: #3f3f46;
+        --danger: #f87171;
+        --selected: rgb(16 185 129 / 0.18);
+        --input: #52525b;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0; padding: 18px 14px 48px;
+        font-family: ui-sans-serif, system-ui, sans-serif;
+        background: #050506; color: var(--text);
+      }
+      h1 { margin: 0 0 6px; font-size: 1.15rem; }
+      .lead { margin: 0 0 16px; color: var(--muted); font-size: 0.88rem; max-width: 640px; line-height: 1.4; }
+      .grid {
+        display: grid; gap: 14px;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        max-width: 980px;
+      }
+      .card {
+        border: 1px solid var(--border); border-radius: 16px;
+        background: var(--bg); padding: 12px;
+      }
+      .tag { color: var(--primary); font-size: 0.85rem; font-weight: 650; margin-bottom: 4px; }
+      .desc { color: var(--muted); font-size: 0.75rem; margin: 0 0 10px; line-height: 1.35; }
+      .row {
+        display: flex; align-items: center; gap: 8px;
+        border: 1px solid var(--border); border-radius: 12px; padding: 8px 10px;
+      }
+      .title { flex: 1; min-width: 0; font-size: 0.88rem; font-weight: 650; color: var(--danger); }
+      .toggle {
+        width: 40px; height: 22px; border-radius: 999px; background: var(--primary); position: relative; flex-shrink: 0;
+      }
+      .toggle::after {
+        content: ""; position: absolute; top: 2px; left: 20px;
+        width: 16px; height: 16px; border-radius: 999px; background: #fff;
+      }
+      .select, .field {
+        height: 30px; border: 1px solid var(--input); border-radius: 8px;
+        background: transparent; color: var(--text); font-size: 0.75rem;
+        display: inline-flex; align-items: center; justify-content: space-between;
+        padding: 0 8px; gap: 4px;
+      }
+      .select { min-width: 3.8rem; }
+      .chips { display: flex; flex-wrap: wrap; gap: 4px; }
+      .pill {
+        border: 1px solid var(--border); border-radius: 999px;
+        padding: 4px 8px; font-size: 0.68rem; color: var(--muted);
+      }
+      .pill.on {
+        border-color: color-mix(in srgb, var(--primary) 45%, transparent);
+        background: var(--selected); color: var(--primary);
+      }
+      .step {
+        display: inline-flex; height: 30px; border: 1px solid var(--input); border-radius: 8px; overflow: hidden;
+      }
+      .step button {
+        width: 26px; border: 0; background: transparent; color: var(--muted); font-size: 0.95rem;
+      }
+      .step span {
+        min-width: 2.2rem; display: grid; place-items: center;
+        border-left: 1px solid var(--input); border-right: 1px solid var(--input);
+        font-size: 0.75rem; font-variant-numeric: tabular-nums;
+      }
+      .sheet {
+        margin-top: 8px; border: 1px solid var(--border); border-radius: 10px; padding: 8px;
+      }
+      .sheet .grid2 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+      .sheet .cell {
+        text-align: center; border: 1px solid var(--border); border-radius: 8px;
+        padding: 6px 0; font-size: 0.72rem; color: var(--muted);
+      }
+      .sheet .cell.on { border-color: var(--primary); color: var(--primary); background: var(--selected); }
+      input.bare {
+        width: 2rem; border: 0; background: transparent; color: var(--text);
+        text-align: center; font-size: 0.75rem; outline: none;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Дни — други варианти</h1>
+    <p class="lead">
+      Текущият „др. → поле с ▼“ отпада. Избери вариант за реда Спешно / Ранни.
+      Във всички варианти числото е без водеща нула (2, не 02).
+    </p>
+
+    <div class="grid">
+      <section class="card">
+        <div class="tag">D1 · Само chips</div>
+        <p class="desc">3 / 7 / 14 / число. Тап на числото → пишеш дни направо в chip-а.</p>
+        <div class="row">
+          <div class="title">Спешно</div>
+          <div class="chips">
+            <span class="pill">3д</span>
+            <span class="pill">7д</span>
+            <span class="pill">14д</span>
+            <span class="pill on"><input class="bare" value="2" />д</span>
+          </div>
+          <div class="select">18:00 ▾</div>
+          <div class="toggle"></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="tag">D2 · Stepper − / +</div>
+        <p class="desc">Без „по избор“. Стрелките менят дните 0–90. Най-просто.</p>
+        <div class="row">
+          <div class="title">Спешно</div>
+          <div class="step">
+            <button type="button">−</button>
+            <span>2д</span>
+            <button type="button">+</button>
+          </div>
+          <div class="select">18:00 ▾</div>
+          <div class="toggle"></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="tag">D3 · Един dropdown с всички</div>
+        <p class="desc">Списък: 1д…21д + „друго…“. При друго — малък sheet с поле, не nested под реда.</p>
+        <div class="row">
+          <div class="title">Спешно</div>
+          <div class="select" style="min-width:4.2rem">2д ▾</div>
+          <div class="select">18:00 ▾</div>
+          <div class="toggle"></div>
+        </div>
+        <div class="sheet">
+          <div class="grid2">
+            <div class="cell">1д</div><div class="cell on">2д</div><div class="cell">3д</div><div class="cell">5д</div>
+            <div class="cell">7д</div><div class="cell">10д</div><div class="cell">14д</div><div class="cell">21д</div>
+          </div>
+          <div style="margin-top:6px;display:flex;gap:6px;align-items:center">
+            <span style="font-size:0.7rem;color:var(--muted)">друго</span>
+            <div class="field" style="flex:1"><input class="bare" style="width:100%;text-align:left" value="2" /> <span style="color:var(--muted)">дни</span></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="tag">D4 · Две полета винаги</div>
+        <p class="desc">Винаги видно: [дни] [час]. Без presets меню. Пишеш 2 директно.</p>
+        <div class="row">
+          <div class="title">Спешно</div>
+          <div class="field">
+            <input class="bare" value="2" />
+            <span style="color:var(--muted);font-size:0.68rem">дни</span>
+          </div>
+          <div class="select">18:00 ▾</div>
+          <div class="toggle"></div>
+        </div>
+      </section>
+    </div>
+  </body>
+</html>

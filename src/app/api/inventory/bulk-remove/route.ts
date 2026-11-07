@@ -11,12 +11,15 @@ import {
 } from "@/lib/expiry-bulk-remove";
 import { userCanRemoveExpiry } from "@/lib/expiry-remove-access";
 import { userCanAccessStore } from "@/lib/store-access";
+import { clampWriteOffQuantity } from "@/lib/inventory-write-off";
 import { deleteLocalUpload } from "@/lib/upload";
 import { apiT } from "@/i18n";
 
 const schema = z.object({
   storeId: z.string().min(1),
   entryIds: z.array(z.string().min(1)).min(1).max(BULK_REMOVE_MAX_ABSOLUTE),
+  /** When true (default), each row’s full quantity is write-off. */
+  asWriteOff: z.boolean().optional().default(true),
 });
 
 export async function POST(request: Request) {
@@ -83,9 +86,14 @@ export async function POST(request: Request) {
   const skipped = uniqueIds.filter((id) => !foundIds.has(id)).length;
 
   for (const entry of entries) {
+    const writeOffQuantity = clampWriteOffQuantity(
+      parsed.data.asWriteOff ? entry.quantity : 0,
+      entry.quantity,
+    );
+
     await db.inventoryEntry.update({
       where: { id: entry.id },
-      data: { removedAt: new Date() },
+      data: { removedAt: new Date(), writeOffQuantity },
     });
     if (entry.imagePath) {
       await deleteLocalUpload(entry.imagePath);
@@ -103,6 +111,7 @@ export async function POST(request: Request) {
         quantity: entry.quantity,
         storeName: store.name,
         expiryDate: entry.expiryDate,
+        writeOffQuantity,
       }),
       {
         entityType: "inventory_entry",
@@ -111,6 +120,7 @@ export async function POST(request: Request) {
         payload: {
           soft: true,
           quantity: entry.quantity,
+          writeOffQuantity,
           expiryDate: entry.expiryDate.toISOString(),
           barcode: entry.barcode,
           productId: entry.productId,

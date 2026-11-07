@@ -153,6 +153,7 @@ export function HomeHubHome() {
       schedule: schedulePublic && stores.length > 0,
       team: isOwner && stores.length > 0,
       billing: isOwner && billingEnabled,
+      analytics: isOwner && stores.length > 0,
     };
   }, [schedulePublic, stores.length, isOwner, billingEnabled]);
 

@@ -1,0 +1,440 @@
+<!doctype html>
+<html lang="bg">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+    <title>Expire365 — Брак: 10 UI варианта</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #09090b;
+        --text: #fafafa;
+        --muted: #a1a1aa;
+        --primary: #34d399;
+        --border: #3f3f46;
+        --danger: #f87171;
+        --warning: #fde68a;
+        --warning-bg: #422006;
+        --card: #111113;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+        background: #050506;
+        color: var(--text);
+        padding: 18px 14px 64px;
+      }
+      h1 { margin: 0 0 6px; font-size: 1.25rem; }
+      .lead {
+        margin: 0 0 16px; color: var(--muted); font-size: 0.9rem;
+        max-width: 920px; line-height: 1.45;
+      }
+      .grid {
+        display: grid;
+        gap: 16px;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        max-width: 1280px;
+      }
+      .card {
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        background: #0b0b0d;
+        overflow: hidden;
+      }
+      .card-head {
+        padding: 12px 14px 10px;
+        border-bottom: 1px solid var(--border);
+      }
+      .card-head .num {
+        display: inline-flex; align-items: center; justify-content: center;
+        size: 22px; width: 22px; height: 22px; border-radius: 999px;
+        background: color-mix(in srgb, var(--primary) 18%, transparent);
+        border: 1px solid color-mix(in srgb, var(--primary) 45%, transparent);
+        color: var(--primary); font-size: 0.72rem; font-weight: 700;
+        margin-right: 8px; vertical-align: middle;
+      }
+      .card-head h2 {
+        display: inline; margin: 0; font-size: 0.95rem; font-weight: 650;
+      }
+      .card-head p {
+        margin: 6px 0 0; font-size: 0.78rem; color: var(--muted); line-height: 1.4;
+      }
+      .stage {
+        min-height: 420px;
+        padding: 18px 14px 22px;
+        background:
+          radial-gradient(ellipse at 50% 0%, rgb(52 211 153 / 0.08), transparent 55%),
+          #070708;
+        display: flex; align-items: center; justify-content: center;
+      }
+      .dialog {
+        width: 100%;
+        max-width: 22rem;
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        background: var(--bg);
+        padding: 22px 18px 18px;
+        box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+      }
+      .logo {
+        width: 72px; height: 72px; margin: 0 auto;
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--primary) 15%, transparent);
+        border: 1px solid color-mix(in srgb, var(--primary) 35%, transparent);
+        display: grid; place-items: center;
+        color: var(--primary); font-weight: 800; font-size: 0.7rem;
+      }
+      .dialog h3 {
+        margin: 14px 0 0; text-align: center;
+        font-size: 1.2rem; font-weight: 650; line-height: 1.25;
+      }
+      .dialog .msg {
+        margin: 10px 0 0; text-align: center;
+        font-size: 0.92rem; color: var(--muted); line-height: 1.45;
+      }
+      .dialog .msg strong { color: var(--text); font-weight: 650; }
+      .row { margin-top: 14px; display: flex; gap: 8px; align-items: center; }
+      .row.stack { flex-direction: column; align-items: stretch; }
+      .btn {
+        display: inline-flex; align-items: center; justify-content: center;
+        gap: 6px; border-radius: 12px; border: 1px solid; background: transparent;
+        padding: 10px 12px; font-size: 0.875rem; font-weight: 650; cursor: default;
+      }
+      .btn-full { width: 100%; }
+      .btn-grow { flex: 1; min-width: 0; }
+      .btn-cancel { border-color: #fff; color: #fff; }
+      .btn-danger { border-color: var(--danger); color: var(--danger); }
+      .btn-warn { border-color: var(--warning); color: var(--warning); }
+      .btn-warn.on { background: var(--warning-bg); }
+      .btn-neutral { border-color: var(--border); color: var(--text); }
+      .btn-primary { border-color: var(--primary); color: var(--primary); }
+      .btn-sold.on { background: color-mix(in srgb, var(--primary) 14%, transparent); }
+      .footer { margin-top: 18px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+      .footer.three { grid-template-columns: 1fr 1fr 1fr; }
+      .picker {
+        display: flex; height: 40px; align-items: stretch;
+        border: 1px solid color-mix(in srgb, var(--warning) 70%, var(--border));
+        border-radius: 12px; overflow: hidden; flex-shrink: 0;
+      }
+      .picker.muted { opacity: 0.4; }
+      .picker button, .picker span {
+        display: grid; place-items: center; width: 32px;
+        color: var(--warning); font-size: 0.875rem; font-weight: 650;
+      }
+      .picker span {
+        width: 36px; border-left: 1px solid color-mix(in srgb, var(--warning) 70%, var(--border));
+        border-right: 1px solid color-mix(in srgb, var(--warning) 70%, var(--border));
+        font-variant-numeric: tabular-nums;
+      }
+      .label-row {
+        margin-top: 14px; padding: 10px 12px;
+        border: 1px solid var(--border); border-radius: 12px;
+        display: flex; align-items: center; justify-content: space-between; gap: 10px;
+      }
+      .label-row .lab { font-size: 0.875rem; font-weight: 650; }
+      .label-row .sub { font-size: 0.72rem; color: var(--muted); margin-top: 2px; }
+      .chips { margin-top: 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+      .slider-wrap { margin-top: 14px; }
+      .slider-wrap .top {
+        display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 8px;
+      }
+      .slider-wrap .top b { color: var(--warning); }
+      .track {
+        height: 10px; border-radius: 999px; background: #27272a; position: relative;
+        border: 1px solid var(--border);
+      }
+      .track .fill {
+        position: absolute; inset: 0 auto 0 0; width: 50%;
+        border-radius: 999px; background: linear-gradient(90deg, #a16207, var(--warning));
+      }
+      .track .knob {
+        position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+        width: 18px; height: 18px; border-radius: 999px;
+        background: var(--warning); border: 2px solid #111;
+      }
+      .steps {
+        margin-top: 14px; display: flex; gap: 6px; justify-content: center;
+      }
+      .steps i {
+        width: 8px; height: 8px; border-radius: 999px; background: #3f3f46;
+      }
+      .steps i.on { background: var(--primary); }
+      .follow {
+        margin-top: 10px; padding: 10px 12px; border-radius: 12px;
+        border: 1px dashed color-mix(in srgb, var(--warning) 50%, var(--border));
+        background: color-mix(in srgb, var(--warning-bg) 55%, transparent);
+        font-size: 0.8rem; color: var(--muted); text-align: center;
+      }
+      .follow strong { color: var(--warning); }
+      .ghost-list {
+        width: 100%; max-width: 22rem; border: 1px solid var(--border);
+        border-radius: 14px; padding: 10px; background: var(--card);
+      }
+      .ghost-item {
+        display: flex; align-items: center; gap: 8px;
+        padding: 8px; border-radius: 10px; border: 1px solid var(--border);
+        font-size: 0.8rem;
+      }
+      .ghost-item .ico {
+        width: 28px; height: 28px; border-radius: 8px;
+        border: 1px solid var(--warning); color: var(--warning);
+        display: grid; place-items: center; font-size: 0.7rem; font-weight: 700;
+      }
+      .pick-bar {
+        position: sticky; top: 0; z-index: 5;
+        margin: -18px -14px 16px; padding: 12px 14px;
+        background: color-mix(in srgb, #050506 92%, transparent);
+        backdrop-filter: blur(8px);
+        border-bottom: 1px solid var(--border);
+      }
+      .pick-bar strong { color: var(--primary); }
+    </style>
+  </head>
+  <body>
+    <div class="pick-bar">
+      <h1>Брак — 10 UI варианта</h1>
+      <p class="lead" style="margin:0">
+        Един и същ remove диалог + различни начини да маркираш брак.
+        Кажи номер (или микс) и го слагаме в приложението.
+      </p>
+    </div>
+
+    <div class="grid">
+
+      <!-- 1 -->
+      <article class="card" id="v1">
+        <div class="card-head">
+          <span class="num">1</span><h2>Toggle + пикър</h2>
+          <p>Жълт „Брак“ вкл/изкл + бр. „Премахни“ потвърждава. (текущото)</p>
+        </div>
+        <div class="stage">
+          <div class="dialog">
+            <div class="logo">365</div>
+            <h3>Премахване от годност?</h3>
+            <p class="msg">Сигурни ли сте, че искате да премахнете <strong>Мляко (4 бр)</strong> от списъка с годност?</p>
+            <div class="row">
+              <button class="btn btn-warn on btn-grow" type="button">Брак</button>
+              <div class="picker"><button type="button">−</button><span>4</span><button type="button">+</button></div>
+            </div>
+            <div class="footer">
+              <button class="btn btn-cancel btn-full" type="button">Отказ</button>
+              <button class="btn btn-danger btn-full" type="button">🗑 Премахни</button>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <!-- 2 -->
+      <article class="card" id="v2">
+        <div class="card-head">
+          <span class="num">2</span><h2>Два confirm бутона</h2>
+          <p>Жълт „Брак (N)“ маха веднага с брак. Червеният „Премахни“ = без брак.</p>
+        </div>
+        <div class="stage">
+          <div class="dialog">
+            <div class="logo">365</div>
+            <h3>Премахване от годност?</h3>
+            <p class="msg">Сигурни ли сте, че искате да премахнете <strong>Мляко (4 бр)</strong> от списъка с годност?</p>
+            <div class="row">
+              <button class="btn btn-warn btn-grow" type="button">Брак</button>
+              <div class="picker"><button type="button">−</button><span>4</span><button type="button">+</button></div>
+            </div>
+            <div class="footer">
+              <button class="btn btn-cancel btn-full" type="button">Отказ</button>
+              <button class="btn btn-danger btn-full" type="button">🗑 Премахни</button>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <!-- 3 -->
+      <article class="card" id="v3">
+        <div class="card-head">
+          <span class="num">3</span><h2>Само пикър (label)</h2>
+          <p>Без жълт бутон. „Брак: − N +“. 0 = няма брак.</p>
+        </div>
+        <div class="stage">
+          <div class="dialog">
+            <div class="logo">365</div>
+            <h3>Премахване от годност?</h3>
+            <p class="msg">Сигурни ли сте, че искате да премахнете <strong>Мляко (4 бр)</strong> от списъка с годност?</p>
+            <div class="label-row">
+              <div>
+                <div class="lab">Брак</div>
+                <div class="sub">0 = без отпадък</div>
+              </div>
+              <div class="picker"><button type="button">−</button><span>2</span><button type="button">+</button></div>
+            </div>
+            <div class="footer">
+              <button class="btn btn-cancel btn-full" type="button">Отказ</button>
+              <button class="btn btn-danger btn-full" type="button">🗑 Премахни</button>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <!-- 4 -->
+      <article class="card" id="v4">
+        <div class="card-head">
+          <span class="num">4</span><h2>Сегмент Продадено / Брак</h2>
+          <p>Два чипа. При Брак се показва пикърът.</p>
+        </div>
+        <div class="stage">
+          <div class="dialog">
+            <div class="logo">365</div>
+            <h3>Премахване от годност?</h3>
+            <p class="msg">Сигурни ли сте, че искате да премахнете <strong>Мляко (4 бр)</strong> от списъка с годност?</p>
+            <div class="chips">
+              <button class="btn btn-primary btn-full" type="button">Продадено</button>
+              <button class="btn btn-warn on btn-full" type="button">Брак</button>
+            </div>
+            <div class="row" style="justify-content:center">
+              <div class="picker"><button type="button">−</button><span>4</span><button type="button">+</button></div>
+            </div>
+            <div class="footer">
+              <button class="btn btn-cancel btn-full" type="button">Отказ</button>
+              <button class="btn btn-danger btn-full" type="button">🗑 Премахни</button>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <!-- 5 -->
+      <article class="card" id="v5">
+        <div class="card-head">
+          <span class="num">5</span><h2>Slider 0…qty</h2>
+          <p>Жълта лента „колко са брак“ + число.</p>
+        </div>
+        <div class="stage">
+          <div class="dialog">
+            <div class="logo">365</div>
+            <h3>Премахване от годност?</h3>
+            <p class="msg">Сигурни ли сте, че искате да премахнете <strong>Мляко (4 бр)</strong> от списъка с годност?</p>
+            <div class="slider-wrap">
+              <div class="top"><span>Брак</span><b>2 / 4 бр</b></div>
+              <div class="track"><div class="fill"></div><div class="knob"></div></div>
+            </div>
+            <div class="footer">
+              <button class="btn btn-cancel btn-full" type="button">Отказ</button>
+              <button class="btn btn-danger btn-full" type="button">🗑 Премахни</button>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <!-- 6 -->
+      <article class="card" id="v6">
+        <div class="card-head">
+          <span class="num">6</span><h2>Wizard / 2 стъпки</h2>
+          <p>1) Премахване? → 2) Колко брак? (Skip = 0)</p>
+        </div>
+        <div class="stage">
+          <div class="dialog">
+            <div class="logo">365</div>
+            <div class="steps"><i class="on"></i><i class="on"></i></div>
+            <h3>Колко са брак?</h3>
+            <p class="msg">За <strong>Мляко</strong> — избери брой или пропусни.</p>
+            <div class="row" style="justify-content:center">
+              <div class="picker"><button type="button">−</button><span>4</span><button type="button">+</button></div>
+            </div>
+            <div class="footer">
+              <button class="btn btn-neutral btn-full" type="button">Пропусни</button>
+              <button class="btn btn-warn btn-full" type="button">Готово</button>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <!-- 7 -->
+      <article class="card" id="v7">
+        <div class="card-head">
+          <span class="num">7</span><h2>Само при qty &gt; 1</h2>
+          <p>1 бр → checkbox „Брак“. Повече → пикър.</p>
+        </div>
+        <div class="stage">
+          <div class="dialog">
+            <div class="logo">365</div>
+            <h3>Премахване от годност?</h3>
+            <p class="msg">Сигурни ли сте, че искате да премахнете <strong>Яйца (1 бр)</strong> от списъка с годност?</p>
+            <label class="label-row" style="cursor:default">
+              <div class="lab" style="color:var(--warning)">☑ Брак</div>
+              <div class="sub">1 бройка</div>
+            </label>
+            <div class="footer">
+              <button class="btn btn-cancel btn-full" type="button">Отказ</button>
+              <button class="btn btn-danger btn-full" type="button">🗑 Премахни</button>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <!-- 8 -->
+      <article class="card" id="v8">
+        <div class="card-head">
+          <span class="num">8</span><h2>Брак извън диалога</h2>
+          <p>Жълта икона на картата = брак. Обикновено „Премахни“ = без брак.</p>
+        </div>
+        <div class="stage">
+          <div class="ghost-list">
+            <div class="ghost-item">
+              <div style="flex:1;min-width:0">
+                <div style="font-weight:650">Мляко Верея</div>
+                <div style="color:var(--muted);font-size:0.72rem">4 бр · до 20.11</div>
+              </div>
+              <div class="ico" title="Брак">Б</div>
+              <div class="ico" style="border-color:var(--danger);color:var(--danger)" title="Премахни">×</div>
+            </div>
+            <p style="margin:10px 0 0;font-size:0.75rem;color:var(--muted);text-align:center">
+              Диалогът за × остава чист — без брак ред.
+            </p>
+          </div>
+        </div>
+      </article>
+
+      <!-- 9 -->
+      <article class="card" id="v9">
+        <div class="card-head">
+          <span class="num">9</span><h2>Follow-up след remove</h2>
+          <p>Първо маха; после пита „Колко брак?“ (Skip ок).</p>
+        </div>
+        <div class="stage">
+          <div class="dialog">
+            <div class="logo">365</div>
+            <h3>Премахване от годност?</h3>
+            <p class="msg">Сигурни ли сте, че искате да премахнете <strong>Мляко (4 бр)</strong> от списъка с годност?</p>
+            <div class="footer">
+              <button class="btn btn-cancel btn-full" type="button">Отказ</button>
+              <button class="btn btn-danger btn-full" type="button">🗑 Премахни</button>
+            </div>
+            <div class="follow">После: <strong>Колко бяха брак?</strong> − 4 + · или Skip</div>
+          </div>
+        </div>
+      </article>
+
+      <!-- 10 -->
+      <article class="card" id="v10">
+        <div class="card-head">
+          <span class="num">10</span><h2>Три изхода в footer</h2>
+          <p>Отказ · Продадено · Брак (жълт). Пикър само при Брак.</p>
+        </div>
+        <div class="stage">
+          <div class="dialog">
+            <div class="logo">365</div>
+            <h3>Премахване от годност?</h3>
+            <p class="msg">Сигурни ли сте, че искате да премахнете <strong>Мляко (4 бр)</strong> от списъка с годност?</p>
+            <div class="row" style="justify-content:center">
+              <div class="picker"><button type="button">−</button><span>4</span><button type="button">+</button></div>
+            </div>
+            <div class="footer three">
+              <button class="btn btn-cancel btn-full" type="button">Отказ</button>
+              <button class="btn btn-primary btn-full" type="button">Продадено</button>
+              <button class="btn btn-warn on btn-full" type="button">Брак</button>
+            </div>
+          </div>
+        </div>
+      </article>
+
+    </div>
+  </body>
+</html>

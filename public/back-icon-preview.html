@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="bg">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Expire365 — back icon options</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #09090b;
+        --text: #fafafa;
+        --muted: #a1a1aa;
+        --primary: #34d399;
+        --card-border: #3f3f46;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        padding: 20px 16px 40px;
+      }
+      h1 {
+        margin: 0 0 6px;
+        font-size: 1.25rem;
+      }
+      .lead {
+        margin: 0 0 22px;
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+      .grid {
+        display: grid;
+        gap: 18px;
+        max-width: 420px;
+      }
+      @media (min-width: 880px) {
+        .grid {
+          grid-template-columns: 1fr 1fr;
+          max-width: 880px;
+        }
+      }
+      .card {
+        border: 1px solid var(--card-border);
+        border-radius: 16px;
+        padding: 14px 14px 16px;
+        background: #0c0c0e;
+      }
+      .label {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 12px;
+      }
+      .label strong {
+        color: var(--primary);
+        font-size: 0.95rem;
+      }
+      .label span {
+        color: var(--muted);
+        font-size: 0.8rem;
+      }
+      .phone {
+        border: 1px solid var(--card-border);
+        border-radius: 14px;
+        padding: 14px 14px 18px;
+        background: var(--bg);
+      }
+      .header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 10px;
+      }
+      .left {
+        min-width: 0;
+      }
+      .logo-row {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .logo-row img {
+        width: 44px;
+        height: 44px;
+        object-fit: contain;
+      }
+      .wordmark {
+        font-size: 1.25rem;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        line-height: 1;
+      }
+      .wordmark .dot {
+        color: var(--primary);
+      }
+      .back-btn {
+        margin-top: 10px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        border: 1px solid color-mix(in srgb, var(--primary) 45%, transparent);
+        color: var(--primary);
+        background: transparent;
+      }
+      .right {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 6px;
+      }
+      .flag {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        border: 1px solid var(--card-border);
+        display: grid;
+        place-items: center;
+        font-size: 14px;
+      }
+      .store {
+        width: 30vw;
+        max-width: 120px;
+        height: 32px;
+        border-radius: 8px;
+        border: 1px solid var(--card-border);
+        color: var(--muted);
+        font-size: 0.7rem;
+        display: flex;
+        align-items: center;
+        padding: 0 8px;
+        gap: 4px;
+        overflow: hidden;
+        white-space: nowrap;
+      }
+      .page-title {
+        margin: 14px 0 0;
+        font-size: 1.5rem;
+        font-weight: 600;
+      }
+      svg {
+        width: 16px;
+        height: 16px;
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Икона „Назад“ под логото</h1>
+    <p class="lead">
+      Къщичката горе вдясно е махната в този преглед. Избери A / B / C / D.
+    </p>
+
+    <div class="grid">
+      <article class="card">
+        <div class="label">
+          <strong>A — тънък chevron</strong>
+          <span>минимален</span>
+        </div>
+        <div class="phone">
+          <div class="header">
+            <div class="left">
+              <div class="logo-row">
+                <img src="/landing/brand-mark.png?v=3" alt="" />
+                <span class="wordmark">Expire<span class="dot">365</span></span>
+              </div>
+              <button type="button" class="back-btn" aria-label="A">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="m15 6-6 6 6 6" />
+                </svg>
+              </button>
+            </div>
+            <div class="right">
+              <div class="flag" aria-hidden>🇬🇧</div>
+              <div class="store">Магазин</div>
+            </div>
+          </div>
+          <h2 class="page-title">Годност</h2>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="label">
+          <strong>B — класическа стрелка</strong>
+          <span>← с опашка</span>
+        </div>
+        <div class="phone">
+          <div class="header">
+            <div class="left">
+              <div class="logo-row">
+                <img src="/landing/brand-mark.png?v=3" alt="" />
+                <span class="wordmark">Expire<span class="dot">365</span></span>
+              </div>
+              <button type="button" class="back-btn" aria-label="B">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M19 12H5" />
+                  <path d="m11 6-6 6 6 6" />
+                </svg>
+              </button>
+            </div>
+            <div class="right">
+              <div class="flag" aria-hidden>🇬🇧</div>
+              <div class="store">Магазин</div>
+            </div>
+          </div>
+          <h2 class="page-title">Годност</h2>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="label">
+          <strong>C — дебел iOS chevron</strong>
+          <span>заоблен</span>
+        </div>
+        <div class="phone">
+          <div class="header">
+            <div class="left">
+              <div class="logo-row">
+                <img src="/landing/brand-mark.png?v=3" alt="" />
+                <span class="wordmark">Expire<span class="dot">365</span></span>
+              </div>
+              <button type="button" class="back-btn" aria-label="C">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.35" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="m15.5 5.5-7 6.5 7 6.5" />
+                </svg>
+              </button>
+            </div>
+            <div class="right">
+              <div class="flag" aria-hidden>🇬🇧</div>
+              <div class="store">Магазин</div>
+            </div>
+          </div>
+          <h2 class="page-title">Годност</h2>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="label">
+          <strong>D — стрелка от екран</strong>
+          <span>изход / назад</span>
+        </div>
+        <div class="phone">
+          <div class="header">
+            <div class="left">
+              <div class="logo-row">
+                <img src="/landing/brand-mark.png?v=3" alt="" />
+                <span class="wordmark">Expire<span class="dot">365</span></span>
+              </div>
+              <button type="button" class="back-btn" aria-label="D">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M9 6H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h3" />
+                  <path d="M15 12H4" />
+                  <path d="m8 8-4 4 4 4" />
+                </svg>
+              </button>
+            </div>
+            <div class="right">
+              <div class="flag" aria-hidden>🇬🇧</div>
+              <div class="store">Магазин</div>
+            </div>
+          </div>
+          <h2 class="page-title">Годност</h2>
+        </div>
+      </article>
+    </div>
+  </body>
+</html>

@@ -132,6 +132,27 @@ function BillingHomeIcon({ className = "size-7" }: { className?: string }) {
   );
 }
 
+function AnalyticsHomeIcon({ className = "size-7" }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <path d="M4 19V5" />
+      <path d="M4 19h16" />
+      <path d="M8 15v-4" />
+      <path d="M12 15V8" />
+      <path d="M16 15v-6" />
+    </svg>
+  );
+}
+
 function HomeLinkCard({
   href,
   title,
@@ -321,6 +342,14 @@ export function HomeClassicMenu() {
             href="/app/team"
             title={t("app.team")}
             icon={<TeamIcon className="size-5" />}
+          />
+        ) : null}
+
+        {bootstrapped && isOwner && !sessionMissing && stores.length > 0 ? (
+          <HomeLinkCard
+            href="/app/analytics"
+            title={t("app.analytics")}
+            icon={<AnalyticsHomeIcon className="size-5" />}
           />
         ) : null}
 

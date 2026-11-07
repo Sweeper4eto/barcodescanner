@@ -41,6 +41,7 @@ test("hub flow root: expiry list backs to home; nested expiry screens do not", (
   assert.equal(isHubFlowRootPath("/app/settings/notifications"), true);
   assert.equal(isHubFlowRootPath("/app/contact"), true);
   assert.equal(isHubFlowRootPath("/app/team"), true);
+  assert.equal(isHubFlowRootPath("/app/analytics"), true);
   assert.equal(isHubFlowRootPath("/app"), false);
 });
 

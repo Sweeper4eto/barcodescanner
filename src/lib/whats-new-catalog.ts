@@ -1207,6 +1207,66 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Общи условия и Политика за поверителност имат същата зелена стрелка „Назад“ под логото.",
     href: "/terms",
   },
+  {
+    key: "2026-11-expiry-write-off",
+    titleEn:
+      "When removing from Expiry, mark how many units are write-off (waste) — also for bulk remove.",
+    titleBg:
+      "При премахване от Годност маркирате колко бройки са брак — и при групово премахване.",
+    href: "/app/expiry",
+  },
+  {
+    key: "2026-11-owner-analytics",
+    titleEn:
+      "Owners: new Analytics screen — missed expired, write-off trends, markdowns, team leaders, coverage gaps.",
+    titleBg:
+      "Собственици: нов екран Анализ — пропуснати, брак, намаления, екип, дни без проверка.",
+    href: "/app/analytics",
+  },
+  {
+    key: "2026-11-owner-analytics-charts",
+    titleEn:
+      "Analytics is reorganized into clear panels with write-off charts, location bars, team tabs, and a 14-day coverage strip.",
+    titleBg:
+      "Анализът е преструктуриран: панели с графики за брак, обекти, екип и лента за покритие за 14 дни.",
+    href: "/app/analytics",
+  },
+  {
+    key: "2026-11-analytics-layouts-details",
+    titleEn:
+      "Analytics: switch Panels / Focus / Compact layouts, and tap top write-off products for detailed history.",
+    titleBg:
+      "Анализ: сменяш изглед Панели / Фокус / Компактно и докосваш най-бракуваните стоки за история.",
+    href: "/app/analytics",
+  },
+  {
+    key: "2026-11-hub-statistics-label",
+    titleEn: "Home shortcut renamed to Statistics (was Analysis).",
+    titleBg: "Иконата на Начало вече е „Статистика“ (вместо „Анализ“).",
+    href: "/app",
+  },
+  {
+    key: "2026-11-statistics-per-store",
+    titleEn:
+      "Statistics are per location — switch store in the header to see that site’s numbers.",
+    titleBg:
+      "Статистиката е по обект — смени магазина в хедъра, за да видиш числата за него.",
+    href: "/app/analytics",
+  },
+  {
+    key: "2026-11-statistics-owners-only",
+    titleEn: "Statistics is visible only to account owners (not staff).",
+    titleBg: "Статистиката се вижда само от собственици (не от персонала).",
+    href: "/app",
+  },
+  {
+    key: "2026-11-hub-safari-drag",
+    titleEn:
+      "Home icon rearrange works more reliably on iPhone Safari (long-press drag).",
+    titleBg:
+      "Пренареждането на иконите на Начало работи по-стабилно в Safari на iPhone (задръж и влачи).",
+    href: "/app",
+  },
 ];
 
 

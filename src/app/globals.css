@@ -422,6 +422,11 @@ select option {
   box-shadow:
     0 10px 28px rgb(0 0 0 / 0.48),
     inset 0 1px 0 rgb(255 255 255 / 0.08);
+  /* Safari: keep long-press + drag on the tile (no callout / scroll steal). */
+  touch-action: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .home-hub-tile::after {
@@ -490,6 +495,15 @@ select option {
 .home-hub-root {
   width: 100%;
   touch-action: pan-y;
+}
+
+.home-hub-root.is-rearranging,
+.home-hub-root.is-rearranging .home-hub-viewport,
+.home-hub-root.is-rearranging .home-hub-track,
+.home-hub-root.is-rearranging .home-hub-grid,
+.home-hub-root.is-rearranging .home-hub-page {
+  touch-action: none;
+  overscroll-behavior: none;
 }
 
 .home-hub-viewport {

@@ -41,7 +41,8 @@ import {
 } from "@/lib/home-launcher";
 
 const LONG_PRESS_MS = 450;
-const MOVE_CANCEL_PX = 10;
+/** Finger wobble allowed while waiting for long-press (Safari thumbs jitter a lot). */
+const LONG_PRESS_SLOP_PX = 18;
 const PAGE_SWIPE_PX = 48;
 const PAGE_SWIPE_RATIO = 0.22;
 const PAGE_SWIPE_DOMINANCE = 1.15;
@@ -98,9 +99,8 @@ function moduleDefs(storeQuery: string): Record<HomeModuleId, ModuleDef> {
     analytics: {
       id: "analytics",
       labelKey: "app.hubAnalytics",
-      href: () => "/app",
+      href: () => "/app/analytics",
       icon: <HubAnalyticsIcon />,
-      locked: true,
     },
     journal: {
       id: "journal",
@@ -189,6 +189,8 @@ export function HomeIconHub({
   const layoutRef = useRef(layout);
   const pageRef = useRef(page);
   const rearrangingRef = useRef(false);
+  /** Safari often drops element-level pointermove/up — keep a window fallback. */
+  const windowPointerUnbind = useRef<(() => void) | null>(null);
   layoutRef.current = layout;
   pageRef.current = page;
   rearrangingRef.current = rearranging;
@@ -333,11 +335,57 @@ export function HomeIconHub({
     }, PAGE_FLIP_HOLD_MS);
   }
 
+  function unbindWindowPointer() {
+    windowPointerUnbind.current?.();
+    windowPointerUnbind.current = null;
+  }
+
+  function bindWindowPointer(pointerId: number) {
+    unbindWindowPointer();
+    const onMove = (event: PointerEvent) => {
+      if (event.pointerId !== pointerId) return;
+      drivePointerMove(event.clientX, event.clientY, event);
+    };
+    const onUp = (event: PointerEvent) => {
+      if (event.pointerId !== pointerId) return;
+      drivePointerUp(event.clientX, event.clientY);
+    };
+    const onCancel = (event: PointerEvent) => {
+      if (event.pointerId !== pointerId) return;
+      drivePointerCancel(event.clientX, event.clientY);
+    };
+    const onLost = (event: PointerEvent) => {
+      if (event.pointerId !== pointerId) return;
+      // Safari: capture can be lost mid-drag with no further tile events.
+      if (pressRef.current?.dragging) {
+        drivePointerUp(
+          lastPointerRef.current.x,
+          lastPointerRef.current.y,
+        );
+      } else {
+        drivePointerCancel(
+          lastPointerRef.current.x,
+          lastPointerRef.current.y,
+        );
+      }
+    };
+    window.addEventListener("pointermove", onMove, true);
+    window.addEventListener("pointerup", onUp, true);
+    window.addEventListener("pointercancel", onCancel, true);
+    window.addEventListener("lostpointercapture", onLost, true);
+    windowPointerUnbind.current = () => {
+      window.removeEventListener("pointermove", onMove, true);
+      window.removeEventListener("pointerup", onUp, true);
+      window.removeEventListener("pointercancel", onCancel, true);
+      window.removeEventListener("lostpointercapture", onLost, true);
+    };
+  }
+
   function beginDrag(session: PressSession, x: number, y: number) {
     pageSwipe.current = null;
     session.dragging = true;
     rearrangingRef.current = true;
-    // Capture only once rearrange starts — earlier capture blocked page swipes.
+    // Keep capture on the originating tile (Safari breaks capture handoff).
     try {
       session.target?.setPointerCapture(session.pointerId);
     } catch {
@@ -419,22 +467,22 @@ export function HomeIconHub({
     goToPage(next, true);
   }
 
-  /** Horizontal flick on a tile → page swipe (iOS-home style). */
+  /**
+   * Horizontal flick on a tile → page swipe (iOS-home style).
+   * Do not hand capture to the viewport — Safari often fails that transfer.
+   * Window listeners keep driving the gesture.
+   */
   function handoffTilePressToPageSwipe(
     session: PressSession,
-    event: ReactPointerEvent<HTMLButtonElement>,
+    clientX: number,
+    clientY: number,
   ) {
     clearPressTimer();
     pressRef.current = null;
     try {
-      event.currentTarget.releasePointerCapture(event.pointerId);
+      session.target?.releasePointerCapture(session.pointerId);
     } catch {
       /* may not have been captured yet */
-    }
-    try {
-      viewportRef.current?.setPointerCapture(event.pointerId);
-    } catch {
-      /* ignore */
     }
     pageSwipe.current = {
       x: session.startX,
@@ -442,7 +490,7 @@ export function HomeIconHub({
       active: true,
       locked: true,
     };
-    updatePageSwipe(event.clientX, event.clientY);
+    updatePageSwipe(clientX, clientY);
   }
 
   useEffect(() => {
@@ -462,6 +510,7 @@ export function HomeIconHub({
     pressRef.current = null;
     clearPressTimer();
     clearPageFlipTimer();
+    unbindWindowPointer();
     hideFloat();
     setFloatModule(null);
     setDragOverSlot(null);
@@ -508,6 +557,7 @@ export function HomeIconHub({
     availability.schedule,
     availability.team,
     availability.billing,
+    availability.analytics,
   ]);
 
   useEffect(() => {
@@ -521,9 +571,100 @@ export function HomeIconHub({
       window.removeEventListener("resize", onResize);
       clearPressTimer();
       clearPageFlipTimer();
+      unbindWindowPointer();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  function drivePointerMove(
+    clientX: number,
+    clientY: number,
+    event?: PointerEvent | ReactPointerEvent<Element>,
+  ) {
+    // After horizontal handoff, keep paging even if press was cleared.
+    if (!pressRef.current && pageSwipe.current?.active) {
+      updatePageSwipe(clientX, clientY);
+      return;
+    }
+
+    const session = pressRef.current;
+    if (!session) return;
+
+    if (!session.dragging) {
+      const dx = clientX - session.startX;
+      const dy = clientY - session.startY;
+      const dist = Math.hypot(dx, dy);
+      // Ignore tiny wobble so Safari long-press can still fire.
+      if (dist <= LONG_PRESS_SLOP_PX) return;
+      clearPressTimer();
+      if (Math.abs(dx) > Math.abs(dy) * PAGE_SWIPE_DOMINANCE) {
+        handoffTilePressToPageSwipe(session, clientX, clientY);
+      }
+      return;
+    }
+
+    event?.preventDefault();
+    lastPointerRef.current = { x: clientX, y: clientY };
+    placeFloat(clientX, clientY);
+    maybeFlipPageAtEdge(clientX);
+    setDragOverSlot(slotFromPoint(clientX, clientY));
+  }
+
+  function drivePointerUp(clientX: number, clientY: number) {
+    if (pageSwipe.current?.active && !pressRef.current?.dragging) {
+      const session = pressRef.current;
+      try {
+        session?.target?.releasePointerCapture(session.pointerId);
+      } catch {
+        /* ignore */
+      }
+      unbindWindowPointer();
+      endPageSwipe(clientX, clientY);
+      return;
+    }
+
+    const session = pressRef.current;
+    if (!session) {
+      unbindWindowPointer();
+      return;
+    }
+
+    try {
+      session.target?.releasePointerCapture(session.pointerId);
+    } catch {
+      /* ignore */
+    }
+
+    if (session.dragging) {
+      finishDrag(clientX, clientY);
+      return;
+    }
+
+    clearPressTimer();
+    pressRef.current = null;
+    unbindWindowPointer();
+  }
+
+  function drivePointerCancel(clientX: number, clientY: number) {
+    if (pageSwipe.current?.active && !pressRef.current?.dragging) {
+      unbindWindowPointer();
+      endPageSwipe(clientX, clientY);
+      return;
+    }
+    const session = pressRef.current;
+    if (!session) {
+      unbindWindowPointer();
+      return;
+    }
+    // Safari ends the gesture with cancel — must drop, not ignore.
+    if (session.dragging) {
+      finishDrag(clientX, clientY);
+      return;
+    }
+    clearPressTimer();
+    pressRef.current = null;
+    unbindWindowPointer();
+  }
 
   function onTilePointerDown(
     slot: number,
@@ -533,7 +674,6 @@ export function HomeIconHub({
     if (disabled) return;
     if (event.button != null && event.button !== 0) return;
 
-    // Capture so we keep getting moves — hand off to page-swipe if flick is horizontal.
     try {
       event.currentTarget.setPointerCapture(event.pointerId);
     } catch {
@@ -551,84 +691,33 @@ export function HomeIconHub({
       dragging: false,
       target: event.currentTarget,
     };
+    lastPointerRef.current = { x: event.clientX, y: event.clientY };
+    bindWindowPointer(event.pointerId);
 
     longPressTimer.current = setTimeout(() => {
       const session = pressRef.current;
       if (!session || session.pointerId !== event.pointerId) return;
-      beginDrag(session, session.startX, session.startY);
+      beginDrag(session, lastPointerRef.current.x, lastPointerRef.current.y);
     }, LONG_PRESS_MS);
   }
 
   function onTilePointerMove(event: ReactPointerEvent<HTMLButtonElement>) {
-    // After handoff, viewport owns the pointer — but keep driving if capture
-    // transfer failed and pageSwipe is still on this finger.
-    if (!pressRef.current && pageSwipe.current?.active) {
-      updatePageSwipe(event.clientX, event.clientY);
-      return;
-    }
-
     const session = pressRef.current;
-    if (!session || session.pointerId !== event.pointerId) return;
-
-    if (!session.dragging) {
-      const dx = event.clientX - session.startX;
-      const dy = event.clientY - session.startY;
-      if (Math.hypot(dx, dy) > MOVE_CANCEL_PX) {
-        clearPressTimer();
-        if (Math.abs(dx) > Math.abs(dy) * PAGE_SWIPE_DOMINANCE) {
-          handoffTilePressToPageSwipe(session, event);
-        }
-      }
-      return;
-    }
-
-    event.preventDefault();
-    lastPointerRef.current = { x: event.clientX, y: event.clientY };
-    placeFloat(event.clientX, event.clientY);
-    maybeFlipPageAtEdge(event.clientX);
-    setDragOverSlot(slotFromPoint(event.clientX, event.clientY));
+    if (session && session.pointerId !== event.pointerId) return;
+    if (!session && !pageSwipe.current?.active) return;
+    drivePointerMove(event.clientX, event.clientY, event);
   }
 
   function onTilePointerUp(event: ReactPointerEvent<HTMLButtonElement>) {
-    if (pageSwipe.current?.active && !pressRef.current?.dragging) {
-      try {
-        event.currentTarget.releasePointerCapture(event.pointerId);
-      } catch {
-        /* ignore */
-      }
-      endPageSwipe(event.clientX, event.clientY);
-      return;
-    }
-
     const session = pressRef.current;
-    if (!session || session.pointerId !== event.pointerId) return;
-
-    try {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    } catch {
-      /* ignore */
-    }
-
-    if (session.dragging) {
-      finishDrag(event.clientX, event.clientY);
-      return;
-    }
-
-    clearPressTimer();
-    pressRef.current = null;
+    if (session && session.pointerId !== event.pointerId) return;
+    drivePointerUp(event.clientX, event.clientY);
   }
 
   function onTilePointerCancel(event: ReactPointerEvent<HTMLButtonElement>) {
-    if (pageSwipe.current?.active && !pressRef.current?.dragging) {
-      endPageSwipe(event.clientX, event.clientY);
-      return;
-    }
     const session = pressRef.current;
-    if (!session || session.pointerId !== event.pointerId) return;
-    // If already dragging, keep going — cancel is often noise on mobile.
-    if (session.dragging) return;
-    clearPressTimer();
-    pressRef.current = null;
+    if (session && session.pointerId !== event.pointerId) return;
+    drivePointerCancel(event.clientX, event.clientY);
   }
 
   function onHubPointerDown(event: ReactPointerEvent<HTMLDivElement>) {
@@ -756,8 +845,8 @@ export function HomeIconHub({
                             }
                             router.push(def.href(storeQuery));
                           }}
+                          onContextMenu={(e) => e.preventDefault()}
                           style={{
-                            touchAction: "none",
                             opacity: isDraggingHere ? 0 : undefined,
                             position: "relative",
                             zIndex: 1,
@@ -778,7 +867,11 @@ export function HomeIconHub({
   }
 
   return (
-    <div className="home-hub-root select-none">
+    <div
+      className={`home-hub-root select-none${
+        rearranging ? " is-rearranging" : ""
+      }`}
+    >
       <div
         ref={viewportRef}
         className="home-hub-viewport"
@@ -787,7 +880,15 @@ export function HomeIconHub({
         onPointerMove={onHubPointerMove}
         onPointerUp={onHubPointerEnd}
         onPointerCancel={() => {
+          if (pressRef.current?.dragging) {
+            drivePointerCancel(
+              lastPointerRef.current.x,
+              lastPointerRef.current.y,
+            );
+            return;
+          }
           pageSwipe.current = null;
+          unbindWindowPointer();
           setTrackOffset(pageOffset(pageRef.current), true);
         }}
       >

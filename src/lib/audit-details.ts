@@ -269,14 +269,23 @@ export function auditInventoryRemoved(input: {
   quantity: number;
   storeName: string;
   expiryDate: Date;
+  /** Units marked as write-off (брак); omit when unknown. */
+  writeOffQuantity?: number | null;
 }): string {
-  return auditJoin([
+  const parts = [
     `removed "${input.productName}"`,
     `barcode ${input.barcode}`,
     `qty ${input.quantity}`,
     `store "${input.storeName}"`,
     `expires ${input.expiryDate.toISOString().slice(0, 10)}`,
-  ]);
+  ];
+  if (
+    input.writeOffQuantity != null &&
+    Number.isFinite(input.writeOffQuantity)
+  ) {
+    parts.push(`write-off ${Math.trunc(input.writeOffQuantity)}`);
+  }
+  return auditJoin(parts);
 }
 
 export function auditInventoryUpdated(input: {

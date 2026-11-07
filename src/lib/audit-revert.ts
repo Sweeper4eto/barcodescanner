@@ -157,7 +157,7 @@ async function revertInventoryRemoved(
   if (!entry.removedAt) throw new AuditRevertError("conflict");
   await db.inventoryEntry.update({
     where: { id: entry.id },
-    data: { removedAt: null },
+    data: { removedAt: null, writeOffQuantity: null },
   });
 }
 

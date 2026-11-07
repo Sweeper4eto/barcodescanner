@@ -97,6 +97,9 @@ function ExpiryList() {
   const [showScanner, setShowScanner] = useState(false);
   useLockStoreSelection(showScanner);
   const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [writeOffQty, setWriteOffQty] = useState(0);
+  const [writeOffMode, setWriteOffMode] = useState(false);
+  const [bulkWriteOffMode, setBulkWriteOffMode] = useState(false);
   const [priceReduceConfirmId, setPriceReduceConfirmId] = useState<string | null>(null);
   const [discountPercent, setDiscountPercent] = useState(DEFAULT_DISCOUNT_PERCENT);
   const [moveToOrdersEntry, setMoveToOrdersEntry] = useState<Entry | null>(null);
@@ -365,12 +368,12 @@ function ExpiryList() {
     return () => observer.disconnect();
   }, [debouncedSearch, loading, pagination.page, pagination.totalPages, entries.length]);
 
-  async function removeEntry(entryId: string) {
+  async function removeEntry(entryId: string, writeOffQuantity: number) {
     try {
       const response = await fetch("/api/inventory", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ entryId, storeId }),
+        body: JSON.stringify({ entryId, storeId, writeOffQuantity }),
       });
       if (!response.ok) {
         const data = await response.json().catch(() => null);
@@ -485,7 +488,11 @@ function ExpiryList() {
       const response = await fetch("/api/inventory/bulk-remove", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ storeId, entryIds: ids }),
+        body: JSON.stringify({
+          storeId,
+          entryIds: ids,
+          asWriteOff: bulkWriteOffMode,
+        }),
       });
       const data = (await response.json()) as {
         removed?: number;
@@ -846,7 +853,11 @@ function ExpiryList() {
             }
             canRemove={canRemoveExpiry}
             onOpen={() => setDetailEntry(entry)}
-            onRemove={() => setConfirmId(entry.id)}
+            onRemove={() => {
+              setWriteOffQty(entry.quantity);
+              setWriteOffMode(false);
+              setConfirmId(entry.id);
+            }}
             onReducePrice={() => {
               setDiscountPercent(
                 entry.priceDiscountPercent ?? DEFAULT_DISCOUNT_PERCENT,
@@ -906,8 +917,22 @@ function ExpiryList() {
           itemLabel={`${confirmEntry.product.name.trim() || t("common.noName")} (${confirmEntry.quantity} ${t("expiry.pieces")})`}
           cancelLabel={t("expiry.confirmCancel")}
           removeLabel={t("expiry.remove")}
+          writeOff={{
+            max: confirmEntry.quantity,
+            value: writeOffQty,
+            onChange: setWriteOffQty,
+            mode: writeOffMode,
+            onModeChange: setWriteOffMode,
+            actionLabel: t("expiry.writeOffAction"),
+            piecesLabel: t("expiry.pieces"),
+          }}
           onCancel={() => setConfirmId(null)}
-          onConfirm={() => void removeEntry(confirmId)}
+          onConfirm={() =>
+            void removeEntry(
+              confirmId,
+              writeOffMode ? writeOffQty : 0,
+            )
+          }
         />
       ) : null}
 
@@ -919,6 +944,11 @@ function ExpiryList() {
           cancelLabel={t("expiry.confirmCancel")}
           removeLabel={t("expiry.bulkRemove", { count: selectedCount })}
           busy={bulkRemoving}
+          writeOffBulk={{
+            mode: bulkWriteOffMode,
+            onModeChange: setBulkWriteOffMode,
+            actionLabel: t("expiry.writeOffAction"),
+          }}
           onCancel={() => setBulkConfirmOpen(false)}
           onConfirm={() => void bulkRemoveSelected()}
         />
@@ -929,7 +959,10 @@ function ExpiryList() {
           selectedCount={selectedCount}
           busy={bulkRemoving}
           onCancel={exitSelectionMode}
-          onRemove={() => setBulkConfirmOpen(true)}
+          onRemove={() => {
+            setBulkWriteOffMode(false);
+            setBulkConfirmOpen(true);
+          }}
         />
       ) : null}
 

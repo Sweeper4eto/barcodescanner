@@ -18,13 +18,14 @@ Keep entries short. Prefer `open` / `doing` / `done` / `dropped`.
 - [ ] **2.** Bluetooth barcode scanner
 - [ ] **3.** PDA / warehouse handheld scan
 - [ ] **33.** Daily shortlist “what to check today”
-- [ ] **34.** Staff accountability — who checked what / when
+- [ ] **34.** Staff accountability — who checked what / when (feeds analytics #8)
 - [ ] **35.** Compliance / HACCP reports & digital journals
 - [ ] **43.** Scales sync
 - [ ] **48.** Return to supplier workflow
 - [ ] **52.** Relocate stock between locations
-- [ ] **55.** Waste analytics (loss value)
-- [ ] **56.** Trends by week / month
+- [x] **Write-off (брак)** — on remove: mark qty scrapped (needed for waste analytics)
+- [x] **Owner analytics MVP** (owners only) — `/app/analytics`
+  1–9: missed, waste week/month/trend, markdowns, markdown→waste, store spikes, staff leaders, coverage gaps, reverts
 - [ ] **61.** POS integration
 - [ ] **62.** ERP / API integration
 - [ ] **63.** Label printer integration

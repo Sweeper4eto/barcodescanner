@@ -1,0 +1,442 @@
+<!doctype html>
+<html lang="bg">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+    <title>Expire365 — Известия compact variants 2</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #09090b;
+        --text: #fafafa;
+        --muted: #a1a1aa;
+        --primary: #34d399;
+        --border: #3f3f46;
+        --danger: #f87171;
+        --selected: rgb(16 185 129 / 0.18);
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+        background: #050506;
+        color: var(--text);
+        padding: 18px 14px 56px;
+      }
+      h1 { margin: 0 0 6px; font-size: 1.2rem; }
+      .lead { margin: 0 0 10px; color: var(--muted); font-size: 0.88rem; max-width: 820px; line-height: 1.45; }
+      .note {
+        max-width: 820px; margin: 0 0 18px; padding: 10px 12px;
+        border: 1px solid color-mix(in srgb, var(--primary) 35%, var(--border));
+        border-radius: 12px; background: color-mix(in srgb, var(--primary) 8%, transparent);
+        font-size: 0.82rem; line-height: 1.45;
+      }
+      .note strong { color: var(--primary); }
+      .grid {
+        display: grid; gap: 16px;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        max-width: 1200px;
+      }
+      .phone {
+        border: 1px solid var(--border); border-radius: 18px;
+        background: var(--bg); padding: 12px 12px 14px; min-height: 620px;
+      }
+      .tag {
+        display: flex; justify-content: space-between; align-items: baseline;
+        gap: 8px; margin-bottom: 8px;
+      }
+      .tag strong { color: var(--primary); font-size: 0.88rem; }
+      .tag span { color: var(--muted); font-size: 0.7rem; text-align: right; max-width: 55%; }
+      .hdr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+      .brand { display: flex; align-items: center; gap: 8px; }
+      .mark {
+        width: 36px; height: 36px; border-radius: 999px;
+        background: radial-gradient(circle at 35% 30%, #6ee7b7, #059669 70%);
+      }
+      .word { font-weight: 700; font-size: 1rem; }
+      .word em { color: var(--primary); font-style: normal; }
+      .chip {
+        height: 28px; border-radius: 7px; border: 1px solid var(--border);
+        padding: 0 8px; font-size: 0.7rem; color: var(--muted);
+        display: inline-flex; align-items: center;
+      }
+      .back {
+        width: 28px; height: 28px; border-radius: 7px; margin: 4px 0 6px;
+        border: 1px solid color-mix(in srgb, var(--primary) 45%, transparent);
+        color: var(--primary); display: grid; place-items: center; font-size: 1rem;
+      }
+      .title { font-size: 1.35rem; font-weight: 650; margin: 0 0 8px; }
+      .sec-label {
+        font-size: 0.68rem; letter-spacing: 0.07em; text-transform: uppercase;
+        color: var(--muted); font-weight: 650; margin: 0 0 6px;
+      }
+      .toggle {
+        position: relative; width: 40px; height: 22px; flex-shrink: 0;
+        border-radius: 999px; border: 1px solid var(--border); background: transparent;
+      }
+      .toggle.on { background: var(--primary); border-color: var(--primary); }
+      .toggle::after {
+        content: ""; position: absolute; top: 2px; left: 2px;
+        width: 16px; height: 16px; border-radius: 999px; background: #fff;
+      }
+      .toggle.on::after { left: 20px; }
+      .toggle.off-danger { border-color: color-mix(in srgb, var(--danger) 50%, var(--border)); }
+      .pill {
+        border: 1px solid var(--border); border-radius: 999px;
+        padding: 4px 9px; font-size: 0.68rem; color: var(--muted); display: inline-block;
+      }
+      .pill.on {
+        border-color: color-mix(in srgb, var(--primary) 45%, transparent);
+        background: var(--selected); color: var(--primary);
+      }
+      .inline { display: flex; flex-wrap: wrap; gap: 5px; }
+      .select {
+        height: 30px; border-radius: 8px; border: 1px solid #52525b;
+        background: transparent; color: var(--text); font-size: 0.75rem;
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 0 8px; width: 100%;
+      }
+      .btn {
+        display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+        border-radius: 10px; border: 1px solid; background: transparent;
+        font-weight: 650; width: 100%; height: 34px; font-size: 0.8rem;
+      }
+      .btn.primary { border-color: var(--primary); color: var(--primary); }
+      .btn.neutral { border-color: var(--border); color: var(--text); }
+      .foot { display: grid; gap: 7px; margin-top: 10px; }
+      .push {
+        display: flex; align-items: center; gap: 9px;
+        border: 1px solid var(--border); border-radius: 12px;
+        padding: 8px 10px; margin-bottom: 10px;
+      }
+      .push.master {
+        border-color: color-mix(in srgb, var(--primary) 40%, var(--border));
+        background: color-mix(in srgb, var(--primary) 7%, transparent);
+      }
+      .bell {
+        width: 30px; height: 30px; border-radius: 999px; flex-shrink: 0;
+        border: 1px solid color-mix(in srgb, var(--primary) 45%, transparent);
+        color: var(--primary); display: grid; place-items: center; font-size: 0.85rem;
+      }
+      .row-title { font-size: 0.84rem; font-weight: 650; }
+      .row-title.danger { color: var(--danger); }
+      .row-title.primary { color: var(--primary); }
+      .row-hint { margin-top: 2px; font-size: 0.68rem; color: var(--muted); line-height: 1.3; }
+      .group {
+        overflow: hidden; border: 1px solid var(--border); border-radius: 12px; margin-bottom: 10px;
+      }
+      .row {
+        display: flex; align-items: center; justify-content: space-between; gap: 10px;
+        padding: 9px 11px; border-top: 1px solid var(--border);
+      }
+      .row:first-child { border-top: 0; }
+      .card {
+        border: 1px solid var(--border); border-radius: 12px; padding: 10px; margin-bottom: 8px;
+        position: relative; overflow: hidden;
+      }
+      .card.stripe::before {
+        content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+      }
+      .card.stripe.urgent::before { background: var(--danger); }
+      .card.stripe.early::before { background: var(--primary); }
+      .card.stripe { padding-left: 12px; }
+      .card.soft { background: color-mix(in srgb, #fff 2.5%, transparent); }
+      .gap-stack { display: grid; gap: 8px; margin-bottom: 10px; }
+      .ghost {
+        opacity: 0.38; pointer-events: none; border-style: dashed;
+      }
+      .off-msg {
+        margin: 0 0 10px; padding: 10px 11px; border-radius: 12px;
+        border: 1px dashed var(--border); color: var(--muted); font-size: 0.78rem; line-height: 1.4;
+      }
+      .kv {
+        display: grid; grid-template-columns: 1fr auto; gap: 6px 10px; align-items: center;
+        margin-top: 7px; font-size: 0.72rem;
+      }
+      .kv .label { color: var(--muted); }
+    </style>
+  </head>
+  <body>
+    <h1>Известия — още варианти (върху A)</h1>
+    <p class="lead">
+      A ти харесва, но „като таблица“. По-долу: A за сравнение + 3 по-малко таблични + какво става при master OFF.
+    </p>
+    <div class="note">
+      <strong>За toggle „Push известия“ сега:</strong>
+      не крие нищо отдолу — само вкл./изкл. абонамента на телефона.
+      Спешни/Ранни си стоят; дни/час се крият само ако изключиш съответното ниво.
+      Ако изключиш и двете нива и натиснеш Запази — сървърът спира алертите и чисти push.
+      <br /><br />
+      <strong>Можем да го направим така:</strong> master OFF → долните настройки изчезват (или се свиват до едно изречение). Виж <em>A5</em>.
+    </div>
+
+    <div class="grid">
+      <!-- A original -->
+      <section class="phone">
+        <div class="tag"><strong>A · оригинал</strong><span>settings rows · табличен</span></div>
+        <div class="hdr">
+          <div class="brand"><div class="mark"></div><div class="word">expire<em>365</em></div></div>
+          <div class="chip">Sweps …</div>
+        </div>
+        <div class="back">‹</div>
+        <h2 class="title">Известия</h2>
+        <div class="push">
+          <div class="bell">🔔</div>
+          <div style="flex:1"><div class="row-title">Push известия</div><div class="row-hint">Този телефон</div></div>
+          <div class="toggle on"></div>
+        </div>
+        <p class="sec-label">Настройки</p>
+        <div class="group">
+          <div class="row"><div><div class="row-title danger">Спешни</div></div><div class="toggle on"></div></div>
+          <div class="row" style="padding-top:0"><div class="inline"><span class="pill on">7 дни</span><span class="pill">3</span><span class="pill">14</span></div></div>
+          <div class="row"><div><div class="row-title primary">Ранни</div></div><div class="toggle on"></div></div>
+          <div class="row"><div class="row-title">Часова зона</div><div class="select" style="width:auto;min-width:8rem">Sofia ▼</div></div>
+          <div class="row"><div class="row-title">Обекти</div><div class="inline"><span class="pill on">Всички</span></div></div>
+        </div>
+        <div class="foot">
+          <button class="btn primary" type="button">Запази</button>
+          <button class="btn neutral" type="button">✕ Отказ</button>
+        </div>
+      </section>
+
+      <!-- A2 soft cards -->
+      <section class="phone">
+        <div class="tag"><strong>A2 · Soft cards</strong><span>отделни карти, не една таблица</span></div>
+        <div class="hdr">
+          <div class="brand"><div class="mark"></div><div class="word">expire<em>365</em></div></div>
+          <div class="chip">Sweps …</div>
+        </div>
+        <div class="back">‹</div>
+        <h2 class="title">Известия</h2>
+        <div class="push master">
+          <div class="bell">🔔</div>
+          <div style="flex:1"><div class="row-title">Push известия</div><div class="row-hint">Master за този телефон</div></div>
+          <div class="toggle on"></div>
+        </div>
+        <div class="gap-stack">
+          <div class="card soft stripe urgent">
+            <div style="display:flex;justify-content:space-between;gap:8px;align-items:center">
+              <div>
+                <div class="row-title danger">Спешни</div>
+                <div class="row-hint">Когато срокът е близо</div>
+              </div>
+              <div class="toggle on"></div>
+            </div>
+            <div class="inline" style="margin-top:8px">
+              <span class="pill">3 дни</span><span class="pill on">7 дни</span><span class="pill">14 дни</span>
+            </div>
+            <div class="select" style="margin-top:7px">Час 09:00 ▼</div>
+          </div>
+          <div class="card soft stripe early">
+            <div style="display:flex;justify-content:space-between;gap:8px;align-items:center">
+              <div>
+                <div class="row-title primary">Ранни</div>
+                <div class="row-hint">По-ранен прозорец</div>
+              </div>
+              <div class="toggle on"></div>
+            </div>
+            <div class="inline" style="margin-top:8px">
+              <span class="pill">7 дни</span><span class="pill on">14 дни</span><span class="pill">Друго</span>
+            </div>
+            <div class="select" style="margin-top:7px">Час 18:00 ▼</div>
+          </div>
+          <div class="card soft">
+            <div class="kv">
+              <span class="label">Часова зона</span>
+              <span class="select" style="width:9rem;height:28px">Europe/Sofia ▼</span>
+              <span class="label">Обекти</span>
+              <span class="inline"><span class="pill on">Всички</span><span class="pill">Избрани</span></span>
+            </div>
+          </div>
+        </div>
+        <div class="foot">
+          <button class="btn primary" type="button">Запази</button>
+          <button class="btn neutral" type="button">✕ Отказ</button>
+        </div>
+      </section>
+
+      <!-- A3 schedule style -->
+      <section class="phone">
+        <div class="tag"><strong>A3 · Inline schedule</strong><span>като ред в график · по-малко чипове</span></div>
+        <div class="hdr">
+          <div class="brand"><div class="mark"></div><div class="word">expire<em>365</em></div></div>
+          <div class="chip">Sweps …</div>
+        </div>
+        <div class="back">‹</div>
+        <h2 class="title">Известия</h2>
+        <div class="push master">
+          <div class="bell">🔔</div>
+          <div style="flex:1"><div class="row-title">Push известия</div></div>
+          <div class="toggle on"></div>
+        </div>
+        <p class="sec-label">Нива</p>
+        <div class="gap-stack">
+          <div class="card" style="padding:9px 10px">
+            <div style="display:flex;align-items:center;gap:8px">
+              <div class="toggle on"></div>
+              <div style="flex:1;min-width:0">
+                <div class="row-title danger">Спешни</div>
+              </div>
+              <div class="select" style="width:4.6rem;height:28px">7д ▼</div>
+              <div class="select" style="width:4.8rem;height:28px">09:00 ▼</div>
+            </div>
+          </div>
+          <div class="card" style="padding:9px 10px">
+            <div style="display:flex;align-items:center;gap:8px">
+              <div class="toggle on"></div>
+              <div style="flex:1;min-width:0">
+                <div class="row-title primary">Ранни</div>
+              </div>
+              <div class="select" style="width:4.6rem;height:28px">14д ▼</div>
+              <div class="select" style="width:4.8rem;height:28px">18:00 ▼</div>
+            </div>
+          </div>
+        </div>
+        <p class="sec-label">Още</p>
+        <div class="gap-stack">
+          <div class="card" style="padding:9px 10px;display:flex;justify-content:space-between;align-items:center;gap:8px">
+            <div class="row-title">Часова зона</div>
+            <div class="select" style="width:9rem;height:28px">Sofia ▼</div>
+          </div>
+          <div class="card" style="padding:9px 10px;display:flex;justify-content:space-between;align-items:center;gap:8px">
+            <div class="row-title">Обекти</div>
+            <div class="inline"><span class="pill on">Всички</span><span class="pill">Избрани</span></div>
+          </div>
+        </div>
+        <div class="foot">
+          <button class="btn primary" type="button">Запази</button>
+          <button class="btn neutral" type="button">✕ Отказ</button>
+        </div>
+      </section>
+
+      <!-- A4 denser cards -->
+      <section class="phone">
+        <div class="tag"><strong>A4 · Ticket cards</strong><span>като годност · лента + кутийки</span></div>
+        <div class="hdr">
+          <div class="brand"><div class="mark"></div><div class="word">expire<em>365</em></div></div>
+          <div class="chip">Sweps …</div>
+        </div>
+        <div class="back">‹</div>
+        <h2 class="title">Известия</h2>
+        <div class="push master">
+          <div class="bell">🔔</div>
+          <div style="flex:1"><div class="row-title">Push известия</div><div class="row-hint">Включени</div></div>
+          <div class="toggle on"></div>
+        </div>
+        <div class="gap-stack">
+          <div class="card stripe urgent soft" style="display:flex;gap:8px;align-items:center">
+            <div style="flex:1;min-width:0">
+              <div class="row-title danger">Спешни</div>
+              <div class="row-hint">До 7 дни · всеки ден 09:00</div>
+            </div>
+            <div style="display:flex;gap:4px">
+              <div style="width:36px;height:38px;border:1px solid #52525b;border-radius:8px;display:grid;place-items:center;text-align:center">
+                <div style="font-weight:700;font-size:0.95rem;line-height:1">7</div>
+                <div style="font-size:0.58rem;color:var(--muted)">дни</div>
+              </div>
+              <div style="width:42px;height:38px;border:1px solid color-mix(in srgb,var(--danger) 50%,#52525b);border-radius:8px;display:grid;place-items:center;text-align:center;color:var(--danger)">
+                <div style="font-weight:700;font-size:0.72rem;line-height:1">09</div>
+                <div style="font-size:0.58rem">:00</div>
+              </div>
+            </div>
+            <div class="toggle on"></div>
+          </div>
+          <div class="card stripe early soft" style="display:flex;gap:8px;align-items:center">
+            <div style="flex:1;min-width:0">
+              <div class="row-title primary">Ранни</div>
+              <div class="row-hint">До 14 дни · всеки ден 18:00</div>
+            </div>
+            <div style="display:flex;gap:4px">
+              <div style="width:36px;height:38px;border:1px solid #52525b;border-radius:8px;display:grid;place-items:center;text-align:center">
+                <div style="font-weight:700;font-size:0.95rem;line-height:1">14</div>
+                <div style="font-size:0.58rem;color:var(--muted)">дни</div>
+              </div>
+              <div style="width:42px;height:38px;border:1px solid color-mix(in srgb,var(--primary) 50%,#52525b);border-radius:8px;display:grid;place-items:center;text-align:center;color:var(--primary)">
+                <div style="font-weight:700;font-size:0.72rem;line-height:1">18</div>
+                <div style="font-size:0.58rem">:00</div>
+              </div>
+            </div>
+            <div class="toggle on"></div>
+          </div>
+          <div class="card soft" style="padding:9px 11px">
+            <div class="kv">
+              <span class="label">Часова зона</span><span>Europe/Sofia</span>
+              <span class="label">Обекти</span><span style="color:var(--primary)">Всички</span>
+            </div>
+          </div>
+        </div>
+        <div class="foot">
+          <button class="btn primary" type="button">Запази</button>
+          <button class="btn neutral" type="button">✕ Отказ</button>
+        </div>
+      </section>
+
+      <!-- A5 master off -->
+      <section class="phone">
+        <div class="tag"><strong>A5 · Master OFF</strong><span>какво се случва при изключване</span></div>
+        <div class="hdr">
+          <div class="brand"><div class="mark"></div><div class="word">expire<em>365</em></div></div>
+          <div class="chip">Sweps …</div>
+        </div>
+        <div class="back">‹</div>
+        <h2 class="title">Известия</h2>
+        <div class="push">
+          <div class="bell">🔔</div>
+          <div style="flex:1">
+            <div class="row-title">Push известия</div>
+            <div class="row-hint">Изключени за този телефон</div>
+          </div>
+          <div class="toggle off-danger"></div>
+        </div>
+        <p class="off-msg">
+          Известията са изключени. Нивата, часът и обектите са скрити —
+          включи Push отново, за да ги настроиш.
+        </p>
+        <div class="ghost gap-stack">
+          <div class="card soft stripe urgent">
+            <div class="row-title danger">Спешни</div>
+            <div class="row-hint">скрити докато Push е off</div>
+          </div>
+          <div class="card soft stripe early">
+            <div class="row-title primary">Ранни</div>
+            <div class="row-hint">скрити докато Push е off</div>
+          </div>
+        </div>
+        <div class="foot">
+          <button class="btn neutral" type="button">✕ Отказ</button>
+        </div>
+      </section>
+
+      <!-- A2 + off alternative keep muted -->
+      <section class="phone">
+        <div class="tag"><strong>A5b · OFF но видими</strong><span>алтернатива: dim, не hide</span></div>
+        <div class="hdr">
+          <div class="brand"><div class="mark"></div><div class="word">expire<em>365</em></div></div>
+          <div class="chip">Sweps …</div>
+        </div>
+        <div class="back">‹</div>
+        <h2 class="title">Известия</h2>
+        <div class="push">
+          <div class="bell">🔔</div>
+          <div style="flex:1"><div class="row-title">Push известия</div><div class="row-hint">Изключени</div></div>
+          <div class="toggle"></div>
+        </div>
+        <p class="off-msg" style="margin-bottom:8px">
+          Настройките се пазят, но не се пращат известия, докато Push е off.
+        </p>
+        <div class="gap-stack" style="opacity:0.45">
+          <div class="card soft stripe urgent">
+            <div style="display:flex;justify-content:space-between"><div class="row-title danger">Спешни · 7д · 09:00</div><div class="toggle on"></div></div>
+          </div>
+          <div class="card soft stripe early">
+            <div style="display:flex;justify-content:space-between"><div class="row-title primary">Ранни · 14д · 18:00</div><div class="toggle on"></div></div>
+          </div>
+        </div>
+        <div class="foot">
+          <button class="btn primary" type="button">Запази</button>
+          <button class="btn neutral" type="button">✕ Отказ</button>
+        </div>
+      </section>
+    </div>
+  </body>
+</html>
