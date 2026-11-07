@@ -73,14 +73,19 @@ export function AppShell({ children }: { children: ReactNode }) {
   useEffect(() => {
     registerAppSoftNavigate({
       push: (path) => {
-        router.push(path, { scroll: false });
+        router.push(path, { scroll: true });
       },
       replace: (path) => {
-        router.replace(path, { scroll: false });
+        router.replace(path, { scroll: true });
       },
     });
     return () => registerAppSoftNavigate(null);
   }, [router]);
+
+  // Hub → screen (and back) must start at the top; scroll:false left Cancel/footers in view first.
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
 
   return (
     <NavigationLeaveGuardProvider>

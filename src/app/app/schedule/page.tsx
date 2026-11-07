@@ -2,7 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActionFlash } from "@/components/action-flash";
-import { LoadingSpinnerBlock } from "@/components/loading-spinner";
+import { LoadingSpinnerPage } from "@/components/loading-spinner";
 import { MobilePageHeader } from "@/components/mobile-page-header";
 import { ChevronRightIcon, SaveDiskIcon } from "@/components/app-nav-icons";
 import { useAppSession } from "@/components/app-session-provider";
@@ -443,12 +443,12 @@ function SchedulePageInner() {
   }
 
   if (!storeReady) {
-    return <LoadingSpinnerBlock wrapperClassName="flex justify-center py-10" />;
+    return <LoadingSpinnerPage fullScreen />;
   }
 
   if (!storeId) {
     return (
-      <div className={`${appPageShell} ${appChromeInset} py-6`}>
+      <div className={`${appPageShell} ${appChromeInset} pb-8 pt-1`}>
         <MobilePageHeader title={t("schedule.title")} />
         <p className="mt-4 text-sm text-muted">{t("app.noStores")}</p>
       </div>
@@ -456,7 +456,7 @@ function SchedulePageInner() {
   }
 
   return (
-    <div className={`${appPageShell} flex min-h-0 flex-col pb-4`}>
+    <div className={`${appPageShell} flex min-h-0 flex-col pb-4 pt-1`}>
       <div className={appChromeInset}>
         <MobilePageHeader title={t("schedule.title")} />
       </div>
@@ -600,7 +600,7 @@ function SchedulePageInner() {
         />
 
         {loading || !data ? (
-          <LoadingSpinnerBlock wrapperClassName="flex justify-center py-8" />
+          <LoadingSpinnerPage />
         ) : (
           <>
             <div className="rounded-2xl border border-card-border p-3">
@@ -735,7 +735,7 @@ function SchedulePageInner() {
 export default function SchedulePage() {
   return (
     <Suspense
-      fallback={<LoadingSpinnerBlock wrapperClassName="flex justify-center py-10" />}
+      fallback={<LoadingSpinnerPage fullScreen />}
     >
       <SchedulePageInner />
     </Suspense>

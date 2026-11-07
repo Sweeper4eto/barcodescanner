@@ -11,7 +11,7 @@ import {
   SegmentTabs,
 } from "@/components/analytics-charts";
 import { useAppSession } from "@/components/app-session-provider";
-import { LoadingSpinnerBlock } from "@/components/loading-spinner";
+import { LoadingSpinnerPage } from "@/components/loading-spinner";
 import { MobilePageHeader } from "@/components/mobile-page-header";
 import { useT } from "@/components/i18n-provider";
 import { useAppStoreId } from "@/hooks/use-app-store-id";
@@ -508,7 +508,7 @@ export default function OwnerAnalyticsPage() {
 
       <div className={`${appListInset} mt-2 flex-1`}>
         {!sessionReady || !isOwner || loading ? (
-          <LoadingSpinnerBlock />
+          <LoadingSpinnerPage />
         ) : null}
 
         {sessionReady && isOwner && !loading && error ? (

@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import {
   useEffect,
   useRef,
@@ -9,6 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import { createPortal, flushSync } from "react-dom";
+import { navigateApp } from "@/lib/app-navigation";
 import {
   HubAnalyticsIcon,
   HubBellIcon,
@@ -156,7 +156,6 @@ export function HomeIconHub({
   disabled = false,
 }: HomeIconHubProps) {
   const { t } = useT();
-  const router = useRouter();
   const storeQuery = storeId ? `?storeId=${encodeURIComponent(storeId)}` : "";
   const defs = moduleDefs(storeQuery);
 
@@ -1003,7 +1002,7 @@ export function HomeIconHub({
                             ) {
                               return;
                             }
-                            router.push(def.href(storeQuery));
+                            navigateApp(def.href(storeQuery));
                           }}
                           onContextMenu={(e) => e.preventDefault()}
                           style={{

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { SecondaryButton } from "@/components/auth-forms";
 import { BackArrowIcon } from "@/components/app-nav-icons";
-import { LoadingSpinnerBlock } from "@/components/loading-spinner";
+import { LoadingSpinnerPage } from "@/components/loading-spinner";
 import { MobilePageHeader } from "@/components/mobile-page-header";
 import { useAppSession } from "@/components/app-session-provider";
 import { useT } from "@/components/i18n-provider";
@@ -153,8 +153,8 @@ export default function BillingPage() {
     data?.feeBreakdown?.map((s) => formatEuro(s.monthlyFee)).join(" + ") ?? "";
 
   return (
-    <div className={`${appPageShell} ${appChromeInset} pb-8 pt-2`}>
-      <MobilePageHeader className="mb-2" />
+    <div className={`${appPageShell} ${appChromeInset} pb-8 pt-1`}>
+      <MobilePageHeader className="mb-3" />
       <h1 className={`${appListInset} text-2xl font-semibold text-foreground`}>
         {t("billing.title")}
       </h1>
@@ -163,7 +163,7 @@ export default function BillingPage() {
       </p>
 
       {loading ? (
-        <LoadingSpinnerBlock wrapperClassName="flex justify-center py-10" />
+        <LoadingSpinnerPage />
       ) : error ? (
         <p className="mt-4 rounded-2xl border border-danger-border bg-danger/10 p-4 text-sm text-error">
           {error}

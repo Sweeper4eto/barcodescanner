@@ -1291,6 +1291,22 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Пренареждане на Начало: докато влачиш се отваря и 3-та страница — пусни иконата върху празен слот, за да остане там.",
     href: "/app",
   },
+  {
+    key: "2026-11-hub-nav-no-flicker",
+    titleEn:
+      "Opening screens from Home (Team and others) no longer flashes the bottom Cancel before the page content.",
+    titleBg:
+      "При отваряне от Начало (Екип и др.) вече не проблясва долният бутон „Отказ“ преди съдържанието на екрана.",
+    href: "/app",
+  },
+  {
+    key: "2026-11-page-spinner-center",
+    titleEn:
+      "Loading spinner sits in the middle of the screen when you open Team, Billing, Schedule, and similar pages.",
+    titleBg:
+      "Спинерът за зареждане стои по средата на екрана при отваряне на Екип, Плащания, График и подобни екрани.",
+    href: "/app",
+  },
 ];
 
 

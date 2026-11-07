@@ -51,3 +51,35 @@ export function LoadingSpinnerBlock({
     </div>
   );
 }
+
+type PageProps = BlockProps & {
+  /**
+   * true = whole viewport.
+   * false = center in the area under the app header chrome.
+   */
+  fullScreen?: boolean;
+};
+
+/**
+ * Viewport-centered page wait (fixed). Avoids a short py-* strip that looks
+ * tucked under the header when switching hub screens.
+ */
+export function LoadingSpinnerPage({
+  fullScreen = false,
+  wrapperClassName = "",
+  size = "lg",
+  ...props
+}: PageProps) {
+  const position = fullScreen
+    ? "fixed inset-0 z-20"
+    : "fixed inset-x-0 z-20 top-[max(6.75rem,calc(env(safe-area-inset-top,0px)+5.75rem))] bottom-[calc(var(--app-bottom-nav-frame,0px)+env(safe-area-inset-bottom,0px))]";
+
+  return (
+    <div
+      className={`pointer-events-none flex items-center justify-center ${position} ${wrapperClassName}`.trim()}
+      aria-busy="true"
+    >
+      <LoadingSpinner size={size} {...props} />
+    </div>
+  );
+}

@@ -2,7 +2,7 @@
 
 import { HomeClassicMenu } from "@/components/home-classic-menu";
 import { HomeHubHome } from "@/components/home-hub-home";
-import { LoadingSpinnerBlock } from "@/components/loading-spinner";
+import { LoadingSpinnerPage } from "@/components/loading-spinner";
 import { useAppSession } from "@/components/app-session-provider";
 
 /**
@@ -14,9 +14,7 @@ export default function AppHomePage() {
   const { ready, newUiEnabled } = useAppSession();
 
   if (!ready) {
-    return (
-      <LoadingSpinnerBlock wrapperClassName="flex justify-center py-16" />
-    );
+    return <LoadingSpinnerPage fullScreen />;
   }
 
   return newUiEnabled ? <HomeHubHome /> : <HomeClassicMenu />;

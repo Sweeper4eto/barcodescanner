@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CancelButton } from "@/components/cancel-button";
-import { LoadingSpinner, LoadingSpinnerBlock } from "@/components/loading-spinner";
+import { LoadingSpinner, LoadingSpinnerPage } from "@/components/loading-spinner";
 import { MobilePageHeader } from "@/components/mobile-page-header";
 import { TrashIcon } from "@/components/app-nav-icons";
 import { useT } from "@/components/i18n-provider";
@@ -553,19 +553,19 @@ export default function TeamPage() {
         <p className="mt-1 text-sm leading-snug text-muted">{t("team.subtitle")}</p>
       </div>
 
-      {loading ? (
-        <LoadingSpinnerBlock wrapperClassName="mb-3 flex justify-center py-2" />
-      ) : null}
       {error && !sheetOpen ? <p className={`mb-3 text-sm text-error ${appListInset}`}>{error}</p> : null}
       {message && !sheetOpen ? (
         <p className={`mb-3 text-sm text-success-fg ${appListInset}`}>{message}</p>
       ) : null}
 
+      {loading ? <LoadingSpinnerPage /> : null}
+
+      {!loading ? (
       <section className={`relative z-0 mb-4 ${appListInset}`}>
         <div className="mb-2 flex items-center justify-between gap-2">
           <p className="text-xs font-semibold uppercase tracking-wide text-muted">
             {t("team.people")}
-            {!loading && users.length > 0 ? (
+            {users.length > 0 ? (
               <span className="ml-1 font-normal normal-case tracking-normal text-muted">
                 · {users.length}
               </span>
@@ -582,13 +582,13 @@ export default function TeamPage() {
           ) : null}
         </div>
 
-        {!loading && users.length === 0 ? (
+        {users.length === 0 ? (
           <p className="rounded-xl border border-card-border px-3 py-3 text-sm text-muted">
             {t("team.empty")}
           </p>
         ) : null}
 
-        {!loading && users.length === 1 && users[0]?.id === currentUserId ? (
+        {users.length === 1 && users[0]?.id === currentUserId ? (
           <p className="mb-2 text-sm text-muted">{t("team.aloneHint")}</p>
         ) : null}
 
@@ -686,12 +686,13 @@ export default function TeamPage() {
           })}
         </ul>
 
-        {!loading && users.some((user) => user.id !== currentUserId) ? (
+        {users.some((user) => user.id !== currentUserId) ? (
           <p className="mt-2 text-center text-xs text-muted">{t("team.tapToEdit")}</p>
         ) : null}
       </section>
+      ) : null}
 
-      {!sheetOpen ? (
+      {!sheetOpen && !loading ? (
         <section className={`relative z-0 mb-4 space-y-3 ${appListInset}`}>
           <p className="text-xs font-semibold uppercase tracking-wide text-muted">
             {t("team.settings")}
