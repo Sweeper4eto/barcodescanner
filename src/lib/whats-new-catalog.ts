@@ -1275,6 +1275,14 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Пренареждане на iPhone: задържането по-рядко се прекъсва от скрол; влаченето е по-стабилно.",
     href: "/app",
   },
+  {
+    key: "2026-11-hub-hold-feedback",
+    titleEn:
+      "Home icons show a clear hold cue while you press — rearrange mode no longer waits until you lift your finger.",
+    titleBg:
+      "Иконите на Начало показват ясно задържане докато държиш — режимът за пренареждане вече не чака да пуснеш пръста.",
+    href: "/app",
+  },
 ];
 
 

@@ -660,6 +660,37 @@ select option {
   pointer-events: none;
 }
 
+/* Long-press arming — compositor CSS so Safari shows hold before finger-up */
+.home-hub-tile.home-hub-tile-holding:not(.home-hub-tile-float) {
+  animation: home-hub-hold-arm 400ms ease-out forwards;
+  z-index: 2;
+}
+
+@keyframes home-hub-hold-arm {
+  0% {
+    transform: scale(1);
+    filter: brightness(1);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06);
+  }
+  100% {
+    transform: scale(1.08);
+    filter: brightness(1.08);
+    box-shadow:
+      0 0 0 2px rgb(52 211 153 / 0.55),
+      0 10px 22px rgb(0 0 0 / 0.35);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-hub-tile.home-hub-tile-holding:not(.home-hub-tile-float) {
+    animation: none;
+    transform: scale(1.05);
+    box-shadow:
+      0 0 0 2px rgb(52 211 153 / 0.55),
+      0 10px 22px rgb(0 0 0 / 0.35);
+  }
+}
+
 /*
  * App chrome: block casual text selection so Chrome’s “Search Google for…”
  * (and similar selection toolbars) don’t pop up on labels/cards. Form fields

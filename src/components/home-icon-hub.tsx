@@ -8,7 +8,7 @@ import {
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from "react";
-import { createPortal } from "react-dom";
+import { createPortal, flushSync } from "react-dom";
 import {
   HubAnalyticsIcon,
   HubBellIcon,
@@ -187,6 +187,7 @@ export function HomeIconHub({
   } | null>(null);
   const slotRefs = useRef<Array<HTMLElement | null>>([]);
   const floatElRef = useRef<HTMLDivElement | null>(null);
+  const rootRef = useRef<HTMLDivElement | null>(null);
   const floatSizeRef = useRef(96);
   const lastPointerRef = useRef({ x: 0, y: 0 });
   const viewportRef = useRef<HTMLDivElement | null>(null);
@@ -265,6 +266,16 @@ export function HomeIconHub({
       clearTimeout(longPressTimer.current);
       longPressTimer.current = null;
     }
+  }
+
+  /** Immediate hold cue — CSS paints even when React commits are deferred until touchend (Safari / remote iOS). */
+  function setTileHolding(target: HTMLElement | null, on: boolean) {
+    if (!target) return;
+    target.classList.toggle("home-hub-tile-holding", on);
+  }
+
+  function setRootRearranging(on: boolean) {
+    rootRef.current?.classList.toggle("is-rearranging", on);
   }
 
   function clearPageFlipTimer() {
@@ -402,6 +413,9 @@ export function HomeIconHub({
     pageSwipe.current = null;
     session.dragging = true;
     rearrangingRef.current = true;
+    setTileHolding(session.target, false);
+    // Paint rearrange chrome before React — iOS often defers setState paint until finger-up.
+    setRootRearranging(true);
     // Mouse/pen only — touch capture fights Android swipe and is flaky on Safari.
     if (session.pointerType !== "touch" && session.target) {
       try {
@@ -419,15 +433,15 @@ export function HomeIconHub({
     const size = Math.max(72, (tile?.getBoundingClientRect().width ?? 96) * 1.3);
     lastPointerRef.current = { x, y };
     floatSizeRef.current = size;
-    setRearranging(true);
-    setDraggingSlot(session.slot);
-    setFloatModule(session.moduleId);
-    setDragOverSlot(session.slot);
     suppressClick.current = true;
-    // Float content paints on next render — show after that.
-    requestAnimationFrame(() => {
-      showFloat(lastPointerRef.current.x, lastPointerRef.current.y, size);
+    // flushSync: float content + placeholders must exist before showFloat (Safari touch).
+    flushSync(() => {
+      setRearranging(true);
+      setDraggingSlot(session.slot);
+      setFloatModule(session.moduleId);
+      setDragOverSlot(session.slot);
     });
+    showFloat(lastPointerRef.current.x, lastPointerRef.current.y, size);
   }
 
   function updatePageSwipe(clientX: number, clientY: number) {
@@ -502,6 +516,7 @@ export function HomeIconHub({
     clientY: number,
   ) {
     clearPressTimer();
+    setTileHolding(session.target, false);
     pressRef.current = null;
     releaseTileCapture(session);
     pageSwipe.current = {
@@ -531,6 +546,7 @@ export function HomeIconHub({
     clearPressTimer();
     clearPageFlipTimer();
     unbindWindowPointer();
+    setTileHolding(session?.target ?? null, false);
     hideFloat();
     setFloatModule(null);
     setDragOverSlot(null);
@@ -538,6 +554,7 @@ export function HomeIconHub({
 
     if (!session?.dragging) {
       rearrangingRef.current = false;
+      setRootRearranging(false);
       setRearranging(false);
       setStagingPage(false);
       return;
@@ -557,6 +574,7 @@ export function HomeIconHub({
     }
 
     rearrangingRef.current = false;
+    setRootRearranging(false);
     setRearranging(false);
     window.setTimeout(() => {
       suppressClick.current = false;
@@ -724,6 +742,7 @@ export function HomeIconHub({
       // Bigger non-swipe move → abandon long-press (allow native feel).
       if (dist > LONG_PRESS_SLOP_PX) {
         clearPressTimer();
+        setTileHolding(session.target, false);
       }
       return;
     }
@@ -737,6 +756,7 @@ export function HomeIconHub({
 
   function drivePointerUp(clientX: number, clientY: number) {
     if (pageSwipe.current?.active && !pressRef.current?.dragging) {
+      setTileHolding(pressRef.current?.target ?? null, false);
       releaseTileCapture(pressRef.current);
       unbindWindowPointer();
       endPageSwipe(clientX, clientY);
@@ -757,12 +777,14 @@ export function HomeIconHub({
     }
 
     clearPressTimer();
+    setTileHolding(session.target, false);
     pressRef.current = null;
     unbindWindowPointer();
   }
 
   function drivePointerCancel(clientX: number, clientY: number) {
     if (pageSwipe.current?.active && !pressRef.current?.dragging) {
+      setTileHolding(pressRef.current?.target ?? null, false);
       unbindWindowPointer();
       endPageSwipe(clientX, clientY);
       return;
@@ -778,6 +800,7 @@ export function HomeIconHub({
       return;
     }
     clearPressTimer();
+    setTileHolding(session.target, false);
     pressRef.current = null;
     unbindWindowPointer();
   }
@@ -802,6 +825,7 @@ export function HomeIconHub({
 
     pageSwipe.current = null;
     clearPressTimer();
+    setTileHolding(event.currentTarget, true);
     pressRef.current = {
       slot,
       moduleId,
@@ -989,6 +1013,7 @@ export function HomeIconHub({
 
   return (
     <div
+      ref={rootRef}
       className={`home-hub-root select-none${
         rearranging ? " is-rearranging" : ""
       }`}
