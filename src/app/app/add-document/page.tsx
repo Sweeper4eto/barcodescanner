@@ -24,7 +24,7 @@ import { DocumentDraftDetailSheet } from "@/components/document-draft-detail-she
 import { DocumentPageSection } from "@/components/document-page-section";
 import { DocumentProcessingPanel } from "@/components/document-processing-panel";
 import { ExpirySelectionFooter } from "@/components/expiry-selection-chrome";
-import { LoadingSpinnerBlock } from "@/components/loading-spinner";
+import { LoadingSpinnerPage } from "@/components/loading-spinner";
 import { LocationConfirmDialog } from "@/components/location-confirm-dialog";
 import { MobilePageHeader, listPageChromeClassName } from "@/components/mobile-page-header";
 import { useNavigationLeaveGuard } from "@/components/navigation-leave-guard";
@@ -38,6 +38,7 @@ import {
   appButtonNeutral,
   appButtonPrimaryFull,
   appButtonNeutralFull,
+  appButtonToolbar,
   appFooterButtonGrid,
   appListInset,
   appSearchInput,
@@ -802,7 +803,7 @@ function AddDocumentContent() {
     return (
       <div className="mx-auto min-w-0 max-w-lg overflow-x-visible px-4 pb-6 pt-1">
         <MobilePageHeader title={t("addDocument.title")} sticky />
-        <LoadingSpinnerBlock wrapperClassName="flex justify-center py-6" />
+        <LoadingSpinnerPage />
       </div>
     );
   }
@@ -917,7 +918,7 @@ function AddDocumentContent() {
                 selectionMode ? (
                   <button
                     type="button"
-                    className={`${appButtonNeutral} px-2.5 py-1.5 text-xs`}
+                    className={appButtonNeutral}
                     onClick={exitSelectionMode}
                   >
                     {t("expiry.confirmCancel")}
@@ -971,7 +972,7 @@ function AddDocumentContent() {
                     aria-label={t("addDocument.removeNoExpiryHint", {
                       count: noExpiryCount,
                     })}
-                    className="flex h-9 shrink-0 items-center justify-center gap-1 rounded-lg border border-primary/50 bg-transparent px-2 text-[10px] font-medium leading-none text-primary disabled:opacity-40"
+                    className={appButtonToolbar}
                   >
                     {t("addDocument.removeNoExpiry")}
                     {noExpiryCount > 0 ? (

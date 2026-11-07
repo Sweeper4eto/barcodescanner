@@ -1307,6 +1307,14 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Спинерът за зареждане стои по средата на екрана при отваряне на Екип, Плащания, График и подобни екрани.",
     href: "/app",
   },
+  {
+    key: "2026-11-ui-tokens-unify",
+    titleEn:
+      "App screens share the same buttons, switches, header glow, paddings, and centered loading spinner.",
+    titleBg:
+      "Екраните в приложението споделят едни и същи бутони, превключватели, glow в хедъра, padding и центриран спинер.",
+    href: "/app",
+  },
 ];
 
 

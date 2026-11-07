@@ -13,6 +13,13 @@ export const appListInset = "px-1.5";
 /** Headers, search rows when wider chrome is intended */
 export const appChromeInset = "px-4";
 
+/**
+ * Soft primary glow under the app header — one look on every MobilePageHeader screen.
+ * Parent must be `relative`.
+ */
+export const appPageTopGlowClass =
+  "pointer-events-none absolute inset-x-0 top-0 h-40 bg-[radial-gradient(ellipse_at_70%_0%,rgb(52_211_153/0.14),transparent_55%)]";
+
 const appButtonCore =
   "inline-flex items-center justify-center gap-1.5 rounded-xl border bg-transparent px-3 py-2.5 text-sm font-semibold disabled:opacity-50";
 
@@ -46,3 +53,19 @@ export const appFormInput =
 
 export const appStatIconWrap =
   "flex size-8 shrink-0 items-center justify-center rounded-full border border-primary/45 text-primary";
+
+/** Search-row companion (Scan / Export) — same height as `appSearchInput`. */
+export const appButtonToolbar =
+  "inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-primary bg-transparent px-3 text-sm font-semibold text-primary disabled:opacity-50";
+
+export const appButtonToolbarActive = `${appButtonToolbar} bg-selected`;
+
+/** Outline switch track (never solid primary fill). */
+export const appToggleTrackOff =
+  "relative h-6 w-10 shrink-0 rounded-full border border-card-border bg-transparent transition-colors";
+export const appToggleTrackOn =
+  "relative h-6 w-10 shrink-0 rounded-full border border-primary bg-selected transition-colors";
+export const appToggleKnob =
+  "absolute top-0.5 size-5 rounded-full bg-white transition-transform";
+export const appToggleKnobOff = `${appToggleKnob} left-0.5`;
+export const appToggleKnobOn = `${appToggleKnob} left-4`;

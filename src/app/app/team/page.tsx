@@ -537,11 +537,6 @@ export default function TeamPage() {
 
   return (
     <div className={`relative ${appPageShell} overflow-x-visible ${appChromeInset} pb-8 pt-1`}>
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-[radial-gradient(ellipse_at_70%_0%,rgb(52_211_153/0.14),transparent_55%)]"
-      />
-
       <div className="relative z-40">
         <MobilePageHeader className="mb-3" />
       </div>
@@ -575,7 +570,7 @@ export default function TeamPage() {
             <button
               type="button"
               onClick={openCreate}
-              className={`${appButtonPrimary} px-2.5 py-1.5 text-xs`}
+              className={appButtonPrimary}
             >
               + {t("team.addMember")}
             </button>

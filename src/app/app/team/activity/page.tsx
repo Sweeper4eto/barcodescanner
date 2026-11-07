@@ -20,6 +20,7 @@ import {
 import { replaceApp } from "@/lib/app-navigation";
 import {
   appButtonNeutral,
+  appButtonPrimary,
   appButtonPrimaryFull,
   appChromeInset,
   appFooterButtonGrid,
@@ -390,7 +391,7 @@ export default function TeamActivityPage() {
 
   if (forbidden) {
     return (
-      <div className={`${appPageShell} ${appChromeInset} py-6`}>
+      <div className={`${appPageShell} ${appChromeInset} pb-8 pt-1`}>
         <MobilePageHeader
           title={t("team.activityTitle")}
           onBack={() => replaceApp("/app/team")}
@@ -404,7 +405,7 @@ export default function TeamActivityPage() {
 
   return (
     <div
-      className={`${appPageShell} flex min-h-0 flex-col ${
+      className={`${appPageShell} flex min-h-0 flex-col pt-1 ${
         selectionMode ? "pb-24" : "pb-8"
       }`}
     >
@@ -435,7 +436,7 @@ export default function TeamActivityPage() {
               value={search}
               onChange={setSearch}
               placeholder={t("team.activitySearchPlaceholder")}
-              inputClassName={`${appSearchInput} !h-8 !text-sm`}
+              inputClassName={appSearchInput}
             />
             <div className="grid grid-cols-2 gap-1">
               <MenuSelect
@@ -521,17 +522,14 @@ export default function TeamActivityPage() {
                 />
               </label>
             </div>
-            <div className="grid grid-cols-2 gap-1">
-              <button
-                type="submit"
-                className="h-8 rounded-lg border border-primary px-2 text-xs font-semibold text-primary"
-              >
+            <div className="grid grid-cols-2 gap-2">
+              <button type="submit" className={appButtonPrimary}>
                 {t("common.search")}
               </button>
               <button
                 type="button"
                 disabled={revertibleOnPage.length === 0}
-                className={`${appButtonNeutral} !h-8 !rounded-lg !px-2 !py-0 !text-xs disabled:opacity-40`}
+                className={appButtonNeutral}
                 onClick={() => {
                   const first = revertibleOnPage[0];
                   if (!first) return;

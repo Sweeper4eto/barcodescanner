@@ -11,6 +11,7 @@ import { useAppSession } from "@/components/app-session-provider";
 import { useT } from "@/components/i18n-provider";
 import { useAppStoreId } from "@/hooks/use-app-store-id";
 import { navigateApp } from "@/lib/app-navigation";
+import { appPageTopGlowClass } from "@/lib/app-ui";
 import {
   validateSupportEmail,
   validateSupportPhone,
@@ -254,11 +255,7 @@ export default function ContactSupportPage() {
   if (sent) {
     return (
       <div className="relative mx-auto flex min-w-0 max-w-lg flex-col overflow-x-visible px-4 pb-6 pt-1">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-x-0 top-0 h-48 bg-[radial-gradient(ellipse_at_50%_0%,rgb(52_211_153/0.2),transparent_60%)]"
-        />
-
+        <div aria-hidden className={appPageTopGlowClass} />
         <div className="relative z-10 flex flex-1 flex-col items-center justify-center text-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -315,18 +312,13 @@ export default function ContactSupportPage() {
 
   return (
     <div className="relative mx-auto min-w-0 max-w-lg overflow-x-visible px-4 pb-4 pt-1">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-[radial-gradient(ellipse_at_70%_0%,rgb(52_211_153/0.18),transparent_55%)]"
-      />
-
       <div className="relative z-40">
         <MobilePageHeader className="mb-3" />
       </div>
 
       <div className="relative z-0 mb-3 flex items-center justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <h1 className="text-[1.35rem] font-semibold leading-tight tracking-tight text-foreground">
+          <h1 className="text-2xl font-semibold leading-tight tracking-tight text-foreground">
             {t("support.title")}
           </h1>
           <a

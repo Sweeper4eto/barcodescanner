@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
-import { LoadingSpinnerBlock } from "@/components/loading-spinner";
+import { LoadingSpinnerPage } from "@/components/loading-spinner";
 import { MobilePageHeader, appPageClassName } from "@/components/mobile-page-header";
 import { PushNotifications } from "@/components/push-notifications";
 import { BillingReminderDialog } from "@/components/billing-reminder-dialog";
@@ -294,7 +294,7 @@ export function HomeClassicMenu() {
       <MobilePageHeader className="mb-1" />
 
       <div className="mb-6 flex items-start justify-between gap-3">
-        <h1 className="min-w-0 flex-1 text-[1.65rem] font-semibold leading-tight tracking-tight text-foreground">
+        <h1 className="min-w-0 flex-1 text-2xl font-semibold leading-tight tracking-tight text-foreground">
           {bootstrapped ? (
             <>
               <span className="block text-foreground">{greetingBefore.trimEnd()}</span>
@@ -317,7 +317,7 @@ export function HomeClassicMenu() {
 
       <div>
         {!bootstrapped ? (
-          <LoadingSpinnerBlock wrapperClassName="flex justify-center py-6" />
+          <LoadingSpinnerPage />
         ) : sessionMissing ? (
           <p className="mb-3 rounded-2xl border border-danger-border bg-danger/10 p-4 text-sm text-error">
             Session not found.{" "}

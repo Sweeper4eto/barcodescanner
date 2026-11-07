@@ -15,6 +15,7 @@ Keep entries short. Prefer `open` / `doing` / `done` / `dropped`.
 
 - [x] **Home icon hub (gradient)** — local only for now; long-press rearrange, free 9 slots/page, drop=save
 - [x] **Per-account new UI switch** — Admin → account toggle; new regs default ON; classic still available off
+- [x] **App UI token unify** — buttons/toggles/spinners/header glow/paddings across `/app/*`
 - [ ] **2.** Bluetooth barcode scanner
 - [ ] **3.** PDA / warehouse handheld scan
 - [ ] **33.** Daily shortlist “what to check today”

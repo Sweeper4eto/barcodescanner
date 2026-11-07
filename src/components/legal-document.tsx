@@ -9,7 +9,11 @@ import { useT } from "@/components/i18n-provider";
 import { useMobileLocale } from "@/components/mobile-i18n-provider";
 import { MobileI18nProvider } from "@/components/mobile-i18n-provider";
 import type { LegalDocument } from "@/content/legal";
-import { appButtonCancelFull, appButtonPrimaryFull } from "@/lib/app-ui";
+import {
+  appButtonCancelFull,
+  appButtonPrimaryFull,
+  appPageTopGlowClass,
+} from "@/lib/app-ui";
 
 function LegalDocumentContent({
   documentByLocale,
@@ -35,10 +39,7 @@ function LegalDocumentContent({
 
   return (
     <div className="relative mx-auto flex min-h-svh w-full min-w-0 max-w-lg flex-col px-4 pb-10 pt-[max(0.75rem,env(safe-area-inset-top,0px))]">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-[radial-gradient(ellipse_at_70%_0%,rgb(52_211_153/0.12),transparent_55%)]"
-      />
+      <div aria-hidden className={appPageTopGlowClass} />
 
       <div className="relative z-10 mb-4 grid grid-cols-[2.75rem_minmax(0,1fr)_auto] items-center gap-x-2.5 gap-y-1.5">
         <Link

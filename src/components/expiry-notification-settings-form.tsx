@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { CancelButton } from "@/components/cancel-button";
-import { LoadingSpinnerBlock } from "@/components/loading-spinner";
+import { LoadingSpinnerPage } from "@/components/loading-spinner";
 import { MobilePageHeader, appPageClassName } from "@/components/mobile-page-header";
 import { MenuSelect } from "@/components/menu-select";
 import { NotifyTimeSelectInline } from "@/components/notify-time-select";
@@ -19,7 +19,14 @@ import {
 } from "@/components/push-notifications";
 import { useT } from "@/components/i18n-provider";
 import { navigateApp } from "@/lib/app-navigation";
-import { appButtonPrimaryFull, appListInset } from "@/lib/app-ui";
+import {
+  appButtonPrimaryFull,
+  appListInset,
+  appToggleKnobOff,
+  appToggleKnobOn,
+  appToggleTrackOff,
+  appToggleTrackOn,
+} from "@/lib/app-ui";
 import type { ExpiryNotificationPrefs } from "@/lib/expiry-notification-prefs";
 import {
   expiryNotificationPrefsSchema,
@@ -56,15 +63,11 @@ function Toggle({
       aria-checked={checked}
       aria-label={label}
       onClick={() => onChange(!checked)}
-      className={`relative h-6 w-10 shrink-0 rounded-full transition-colors ${
-        checked ? "bg-primary" : "border border-card-border bg-transparent"
-      }`}
+      className={checked ? appToggleTrackOn : appToggleTrackOff}
     >
       <span
         aria-hidden
-        className={`absolute top-0.5 size-5 rounded-full bg-white transition-transform ${
-          checked ? "left-4" : "left-0.5"
-        }`}
+        className={checked ? appToggleKnobOn : appToggleKnobOff}
       />
     </button>
   );
@@ -398,7 +401,7 @@ export function ExpiryNotificationSettingsForm() {
           compact
           onStateChange={onPushStateChange}
         />
-        <LoadingSpinnerBlock />
+        <LoadingSpinnerPage />
       </div>
     );
   }

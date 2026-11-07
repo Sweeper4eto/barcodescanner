@@ -23,7 +23,13 @@ import { useT } from "@/components/i18n-provider";
 import { useViewportInsets } from "@/hooks/use-viewport-insets";
 import { CancelButton } from "@/components/cancel-button";
 import { ConfirmButton } from "@/components/confirm-button";
-import { appFooterButtonGrid } from "@/lib/app-ui";
+import {
+  appFooterButtonGrid,
+  appToggleKnobOff,
+  appToggleKnobOn,
+  appToggleTrackOff,
+  appToggleTrackOn,
+} from "@/lib/app-ui";
 import { daysUntilExpiry, formatLocaleDay, formatLocaleTime } from "@/lib/expiry";
 import {
   isAdhocBarcode,
@@ -504,11 +510,9 @@ export function ExpiryEntryDetailSheet({
                 role="switch"
                 aria-checked={priceReducedDraft}
                 aria-label={t("expiry.priceReduced")}
-                className={`relative h-7 w-11 shrink-0 rounded-full border p-0.5 transition-colors ${
-                  priceReducedDraft
-                    ? "border-primary bg-primary"
-                    : "border-card-border bg-transparent"
-                }`}
+                className={
+                  priceReducedDraft ? appToggleTrackOn : appToggleTrackOff
+                }
                 onClick={() => {
                   setPriceReducedDraft((current) => {
                     const next = !current;
@@ -523,11 +527,10 @@ export function ExpiryEntryDetailSheet({
                 disabled={saving}
               >
                 <span
-                  className={`block size-5 rounded-full transition-transform ${
-                    priceReducedDraft
-                      ? "translate-x-4 bg-primary-fg"
-                      : "translate-x-0 bg-muted"
-                  }`}
+                  aria-hidden
+                  className={
+                    priceReducedDraft ? appToggleKnobOn : appToggleKnobOff
+                  }
                 />
               </button>
             </div>

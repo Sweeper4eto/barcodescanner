@@ -6,16 +6,14 @@ import { BrandName } from "@/components/brand-name";
 import { LanguageSwitch } from "@/components/language-switch";
 import { useT } from "@/components/i18n-provider";
 import { MobileI18nProvider } from "@/components/mobile-i18n-provider";
+import { appPageTopGlowClass } from "@/lib/app-ui";
 
 function RegisterPageContent() {
   const { t } = useT();
 
   return (
     <div className="relative mx-auto flex min-h-svh w-full min-w-0 max-w-md flex-col px-4 pb-6 pt-[max(0.85rem,env(safe-area-inset-top,0px))]">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 h-52 bg-[radial-gradient(ellipse_at_70%_0%,rgb(52_211_153/0.18),transparent_55%)]"
-      />
+      <div aria-hidden className={appPageTopGlowClass} />
 
       <div className="relative z-40 mb-5 flex items-center justify-between gap-3">
         <Link

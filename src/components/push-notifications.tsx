@@ -3,6 +3,12 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useT } from "@/components/i18n-provider";
+import {
+  appToggleKnobOff,
+  appToggleKnobOn,
+  appToggleTrackOff,
+  appToggleTrackOn,
+} from "@/lib/app-ui";
 import { isIosDevice, isPwaInstalled } from "@/lib/pwa-install";
 import { syncPushLocale } from "@/lib/sync-push-locale";
 import type { MobileLocale } from "@/lib/client-locale";
@@ -216,14 +222,6 @@ export function PushNotifications({
     ? "flex size-8 shrink-0 items-center justify-center rounded-full border border-primary/45 text-primary"
     : "flex size-9 shrink-0 items-center justify-center rounded-full border border-primary/45 text-primary";
   const bellIconClass = compact ? "size-4" : "size-5";
-  const toggleTrackClass = compact
-    ? "relative h-6 w-10 shrink-0 rounded-full transition-colors"
-    : "relative h-7 w-12 shrink-0 rounded-full transition-colors";
-  const toggleKnobClass = compact
-    ? "absolute top-0.5 size-5 rounded-full bg-white shadow-sm transition-transform"
-    : "absolute top-0.5 size-6 rounded-full bg-white shadow-sm transition-transform";
-  const toggleOnLeft = compact ? "left-4" : "left-5";
-
   if (state === "loading") {
     return (
       <section className={`${shellClass} opacity-60`}>
@@ -235,11 +233,8 @@ export function PushNotifications({
             {t("push.title")}
           </h2>
         </div>
-        <span
-          aria-hidden
-          className={`${toggleTrackClass} border border-card-border bg-transparent`}
-        >
-          <span className={`${toggleKnobClass} left-0.5`} />
+        <span aria-hidden className={appToggleTrackOff}>
+          <span className={appToggleKnobOff} />
         </span>
       </section>
     );
@@ -301,17 +296,15 @@ export function PushNotifications({
           onClick={() =>
             void (state === "enabled" ? disableNotifications() : enableNotifications())
           }
-          className={`${toggleTrackClass} ${
-            state === "enabled"
-              ? "bg-primary"
-              : "border border-card-border bg-transparent"
-          }`}
+          className={
+            state === "enabled" ? appToggleTrackOn : appToggleTrackOff
+          }
         >
           <span
             aria-hidden
-            className={`${toggleKnobClass} ${
-              state === "enabled" ? toggleOnLeft : "left-0.5"
-            }`}
+            className={
+              state === "enabled" ? appToggleKnobOn : appToggleKnobOff
+            }
           />
         </button>
       ) : null}

@@ -622,7 +622,7 @@ function WasteProductDetailSheet({
           </div>
           <button
             type="button"
-            className={`${appButtonNeutral} shrink-0 px-2.5 py-1.5 text-xs`}
+            className={`${appButtonNeutral} shrink-0`}
             onClick={onClose}
           >
             {closeLabel}

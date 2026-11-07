@@ -15,6 +15,7 @@ import { useT } from "@/components/i18n-provider";
 import { useAppStoreId, useLockStoreSelection } from "@/hooks/use-app-store-id";
 import { normalizeBarcode } from "@/lib/barcode";
 import { exitToExpiryList, replaceApp } from "@/lib/app-navigation";
+import { appFormInput } from "@/lib/app-ui";
 import { useWizardStep } from "@/lib/wizard-history";
 import {
   getPreviousAddProductStep,
@@ -180,7 +181,7 @@ function AddProductFlow() {
           <label className="block text-sm font-medium text-foreground">
             {t("common.barcode")}
             <input
-              className="mt-1 w-full rounded-xl border border-input-border bg-input px-3 py-3 text-base text-foreground"
+              className={`mt-1 ${appFormInput}`}
               value={barcode}
               onChange={(event) => setBarcode(event.target.value)}
             />
@@ -189,7 +190,7 @@ function AddProductFlow() {
             <p className="text-sm text-muted">{t("addProduct.lookingUpName")}</p>
           ) : null}
           <input
-            className="w-full rounded-xl border border-input-border bg-input px-3 py-3 text-base text-foreground"
+            className={appFormInput}
             placeholder={t("addProduct.productName")}
             value={name}
             onChange={(event) => setName(event.target.value)}

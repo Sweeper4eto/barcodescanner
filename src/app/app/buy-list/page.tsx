@@ -11,7 +11,10 @@ import {
   type BuyListDetailEntry,
 } from "@/components/buy-list-entry-detail-sheet";
 import { ExpiryDatePicker } from "@/components/expiry-date-picker";
-import { LoadingSpinnerBlock } from "@/components/loading-spinner";
+import {
+  LoadingSpinnerBlock,
+  LoadingSpinnerPage,
+} from "@/components/loading-spinner";
 import { ManualAddToCartDialog } from "@/components/manual-add-to-cart-dialog";
 import { MobilePageHeader, listPageChromeClassName } from "@/components/mobile-page-header";
 import { ProductImage } from "@/components/product-image";
@@ -26,6 +29,8 @@ import { expiryYmdToIso } from "@/lib/inventory";
 import { CancelButton } from "@/components/cancel-button";
 import { ConfirmButton } from "@/components/confirm-button";
 import {
+  appButtonToolbar,
+  appButtonToolbarActive,
   appFooterButtonGrid,
   appListInset,
   appSearchInput,
@@ -550,9 +555,7 @@ function BuyListContent() {
         <div className={`${listPageChromeClassName} px-4`}>
           <MobilePageHeader title={t("buyList.title")} className="mb-0" />
         </div>
-        <div className={buyListScrollClassName}>
-          <LoadingSpinnerBlock wrapperClassName="flex justify-center rounded-xl bg-transparent p-4" />
-        </div>
+        <LoadingSpinnerPage />
       </div>
     );
   }
@@ -613,11 +616,9 @@ function BuyListContent() {
           <button
             type="button"
             onClick={() => setShowScanner((open) => !open)}
-            className={`flex h-9 shrink-0 items-center justify-center gap-1 rounded-lg border px-2 text-[10px] font-medium leading-none ${
-              showScanner
-                ? "border-primary bg-selected text-primary"
-                : "border-input-border bg-transparent text-primary"
-            }`}
+            className={
+              showScanner ? appButtonToolbarActive : appButtonToolbar
+            }
           >
             <ScanNavIcon className="h-4 w-4 text-primary" />
             <span>{t("app.navScan")}</span>
@@ -708,7 +709,7 @@ function BuyListContent() {
               {t("buyList.searching")}
             </p>
           ) : (
-            <LoadingSpinnerBlock wrapperClassName="flex justify-center rounded-xl bg-transparent p-4" />
+            <LoadingSpinnerPage />
           )
         ) : null}
 

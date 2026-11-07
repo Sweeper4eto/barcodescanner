@@ -617,8 +617,10 @@ export function BarcodeScanner({
         {scanning && torchAvailable ? (
           <button
             type="button"
-            className={`absolute right-2.5 bottom-2.5 z-10 flex size-9 items-center justify-center rounded-full border border-white/25 bg-black/55 text-white backdrop-blur-sm ${
-              torchOn ? "bg-primary/90 text-primary-fg border-primary" : ""
+            className={`absolute right-2.5 bottom-2.5 z-10 flex size-9 items-center justify-center rounded-full border backdrop-blur-sm ${
+              torchOn
+                ? "border-primary bg-selected text-primary"
+                : "border-white/25 bg-black/55 text-white"
             }`}
             onClick={(event) => {
               event.stopPropagation();

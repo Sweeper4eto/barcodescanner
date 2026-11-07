@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import {
   appButtonNeutralFull,
   appButtonPrimaryFull,
+  appPageTopGlowClass,
 } from "@/lib/app-ui";
 import { useAppSession } from "@/components/app-session-provider";
 import { useT } from "@/components/i18n-provider";
@@ -98,7 +99,7 @@ export function BillingReminderDialog({
       >
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-x-0 top-0 h-36 bg-[radial-gradient(ellipse_at_50%_0%,rgb(52_211_153/0.18),transparent_65%)]"
+          className={appPageTopGlowClass}
         />
 
         <div className="relative shrink-0 text-center">

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { appButtonNeutralFull } from "@/lib/app-ui";
+import { appButtonNeutralFull, appPageTopGlowClass } from "@/lib/app-ui";
 import { CheckIcon } from "@/components/app-nav-icons";
 import { useT } from "@/components/i18n-provider";
 import { useViewportInsets } from "@/hooks/use-viewport-insets";
@@ -150,7 +150,7 @@ export function WhatsNewDialog({ ready = true, onSettled }: Props) {
       >
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-x-0 top-0 h-36 bg-[radial-gradient(ellipse_at_50%_0%,rgb(52_211_153/0.22),transparent_65%)]"
+          className={appPageTopGlowClass}
         />
 
         <div className="relative shrink-0">

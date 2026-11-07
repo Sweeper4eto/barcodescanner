@@ -5,7 +5,11 @@ import { CheckIcon, CopyIcon } from "@/components/app-nav-icons";
 import { useT } from "@/components/i18n-provider";
 import { useViewportInsets } from "@/hooks/use-viewport-insets";
 import type { MessageKey } from "@/i18n";
-import { appButtonNeutralFull, appButtonPrimaryFull } from "@/lib/app-ui";
+import {
+  appButtonNeutralFull,
+  appButtonPrimaryFull,
+  appPageTopGlowClass,
+} from "@/lib/app-ui";
 import type { PaymentDetailRow } from "@/lib/payment-methods";
 
 const ROW_LABEL_KEYS: Record<PaymentDetailRow["labelKey"], MessageKey> = {
@@ -114,7 +118,7 @@ export function PaymentMethodDialog({
       >
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-x-0 top-0 h-36 bg-[radial-gradient(ellipse_at_50%_0%,rgb(52_211_153/0.18),transparent_65%)]"
+          className={appPageTopGlowClass}
         />
         <h2
           id="payment-method-title"

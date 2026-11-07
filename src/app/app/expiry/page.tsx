@@ -19,7 +19,10 @@ import {
   DEFAULT_DISCOUNT_PERCENT,
   DiscountPercentPicker,
 } from "@/components/discount-percent-picker";
-import { LoadingSpinnerBlock } from "@/components/loading-spinner";
+import {
+  LoadingSpinnerBlock,
+  LoadingSpinnerPage,
+} from "@/components/loading-spinner";
 import { MoveToCartConfirmDialog } from "@/components/move-to-cart-confirm-dialog";
 import { RemoveConfirmDialog } from "@/components/remove-confirm-dialog";
 import { SearchField } from "@/components/search-field";
@@ -40,7 +43,13 @@ import { useViewportInsets } from "@/hooks/use-viewport-insets";
 import { CancelButton } from "@/components/cancel-button";
 import { ConfirmButton } from "@/components/confirm-button";
 import { DangerRemoveButton } from "@/components/danger-remove-button";
-import { appButtonNeutral, appFooterButtonGrid } from "@/lib/app-ui";
+import {
+  appButtonNeutral,
+  appButtonToolbar,
+  appButtonToolbarActive,
+  appFooterButtonGrid,
+  appSearchInput,
+} from "@/lib/app-ui";
 import { resolveEntryImagePath } from "@/lib/inventory-entry-display";
 import { bulkRemoveMaxForClientRole } from "@/lib/expiry-bulk-remove";
 import {
@@ -742,7 +751,7 @@ function ExpiryList() {
             selectionMode ? (
               <button
                 type="button"
-                className={`${appButtonNeutral} px-2.5 py-1.5 text-xs`}
+                className={appButtonNeutral}
                 onClick={exitSelectionMode}
               >
                 {t("expiry.confirmCancel")}
@@ -765,7 +774,7 @@ function ExpiryList() {
             onChange={setSearch}
             placeholder={t("expiry.searchPlaceholder")}
             aria-label={t("expiry.searchPlaceholder")}
-            inputClassName="h-9 rounded-lg border border-input-border bg-input pl-2.5 text-base text-foreground"
+            inputClassName={appSearchInput}
             onClear={() => setShowScanner(false)}
           />
           {selectionMode ? (
@@ -773,7 +782,7 @@ function ExpiryList() {
               type="button"
               onClick={() => void exportSelected()}
               disabled={selectedCount === 0}
-              className="flex h-9 shrink-0 items-center justify-center gap-1 rounded-lg border border-primary bg-transparent px-2 text-[10px] font-medium leading-none text-primary disabled:opacity-40"
+              className={appButtonToolbar}
             >
               <SaveDiskIcon className="h-4 w-4 text-primary" />
               <span>{t("expiry.exportSelection")}</span>
@@ -782,11 +791,9 @@ function ExpiryList() {
             <button
               type="button"
               onClick={() => setShowScanner((open) => !open)}
-              className={`flex h-9 shrink-0 items-center justify-center gap-1 rounded-lg border px-2 text-[10px] font-medium leading-none ${
-                showScanner
-                  ? "border-primary bg-selected text-primary"
-                  : "border-input-border bg-transparent text-primary"
-              }`}
+              className={
+                showScanner ? appButtonToolbarActive : appButtonToolbar
+              }
             >
               <ScanNavIcon className="h-4 w-4 text-primary" />
               <span>{t("app.navScan")}</span>
@@ -817,7 +824,7 @@ function ExpiryList() {
               {t("expiry.searching")}
             </p>
           ) : (
-            <LoadingSpinnerBlock wrapperClassName="flex justify-center rounded-xl bg-transparent p-4" />
+            <LoadingSpinnerPage />
           )
         ) : null}
 

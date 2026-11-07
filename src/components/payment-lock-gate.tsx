@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useAppSession } from "@/components/app-session-provider";
 import { useT } from "@/components/i18n-provider";
 import { useViewportInsets } from "@/hooks/use-viewport-insets";
-import { appButtonNeutralFull } from "@/lib/app-ui";
+import { appButtonNeutralFull, appPageTopGlowClass } from "@/lib/app-ui";
 import { isPathAllowedWhenPaymentLocked } from "@/lib/payment-lock";
 import { logoutSession } from "@/lib/client-session";
 
@@ -28,10 +28,7 @@ function MemberPaymentLockDialog() {
       aria-labelledby="payment-lock-member-title"
     >
       <div className="relative w-full max-w-[22rem] overflow-hidden rounded-2xl border border-card-border bg-background px-5 pb-5 pt-6 shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-x-0 top-0 h-36 bg-[radial-gradient(ellipse_at_50%_0%,rgb(52_211_153/0.18),transparent_65%)]"
-        />
+        <div aria-hidden className={appPageTopGlowClass} />
         <div className="relative text-center">
           <h2
             id="payment-lock-member-title"

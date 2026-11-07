@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { HomeIconHub } from "@/components/home-icon-hub";
-import { LoadingSpinnerBlock } from "@/components/loading-spinner";
+import { LoadingSpinnerPage } from "@/components/loading-spinner";
 import { MobilePageHeader } from "@/components/mobile-page-header";
 import { BillingReminderDialog } from "@/components/billing-reminder-dialog";
 import { WhatsNewDialog } from "@/components/whats-new-dialog";
@@ -169,7 +169,7 @@ export function HomeHubHome() {
       <MobilePageHeader className="mb-1 shrink-0" />
 
       <div className="mb-5 flex shrink-0 items-start justify-between gap-3">
-        <h1 className="min-w-0 flex-1 text-[1.65rem] font-semibold leading-tight tracking-tight text-foreground">
+        <h1 className="min-w-0 flex-1 text-2xl font-semibold leading-tight tracking-tight text-foreground">
           {bootstrapped ? (
             <>
               <span className="block text-foreground">{greetingBefore.trimEnd()}</span>
@@ -192,7 +192,7 @@ export function HomeHubHome() {
 
       <div className="flex min-h-0 flex-1 flex-col">
         {!bootstrapped ? (
-          <LoadingSpinnerBlock wrapperClassName="flex justify-center py-6" />
+          <LoadingSpinnerPage />
         ) : sessionMissing ? (
           <p className="mb-3 rounded-2xl border border-danger-border bg-danger/10 p-4 text-sm text-error">
             Session not found.{" "}
@@ -224,7 +224,7 @@ export function HomeHubHome() {
           !sessionMissing &&
           stores.length > 0 &&
           !billingReady ? (
-          <LoadingSpinnerBlock wrapperClassName="flex justify-center py-6" />
+          <LoadingSpinnerPage />
         ) : null}
 
         <WhatsNewDialog

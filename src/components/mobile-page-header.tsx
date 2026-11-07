@@ -11,6 +11,7 @@ import {
 import { useT } from "@/components/i18n-provider";
 import { useAppStoreId } from "@/hooks/use-app-store-id";
 import { goHeaderBack } from "@/lib/app-navigation";
+import { appPageTopGlowClass } from "@/lib/app-ui";
 
 function isAppHomePath(pathname: string): boolean {
   return pathname === "/app" || pathname === "/app/";
@@ -42,19 +43,21 @@ export function MobilePageHeader({
   // Safe-area top on every page so the logo is not cropped under the iPhone notch.
   const safeTop =
     "pt-[max(0.75rem,env(safe-area-inset-top,0px))]";
+  // Default mb-3 matches hub peer screens; lists override with mb-0, home with mb-1.
   const base = sticky
-    ? `sticky top-0 z-30 mb-4 overflow-visible border-b border-card-border bg-background/95 pb-3 ${safeTop} backdrop-blur-sm supports-[backdrop-filter]:bg-background/85`
-    : `mb-4 overflow-visible ${safeTop}`;
+    ? `relative sticky top-0 z-30 mb-3 overflow-visible border-b border-card-border bg-background/95 pb-3 ${safeTop} backdrop-blur-sm supports-[backdrop-filter]:bg-background/85`
+    : `relative mb-3 overflow-visible ${safeTop}`;
 
   return (
     <div className={`${base} ${className}`.trim()}>
+      <div aria-hidden className={appPageTopGlowClass} />
       {/*
         Two aligned rows:
         1) logo + wordmark | language
         2) back (under logo) | store
         Same row gap on both sides so back and store sit on one baseline.
       */}
-      <div className="grid grid-cols-[2.75rem_minmax(0,1fr)_auto] items-center gap-x-2.5 gap-y-1.5 overflow-visible">
+      <div className="relative z-[1] grid grid-cols-[2.75rem_minmax(0,1fr)_auto] items-center gap-x-2.5 gap-y-1.5 overflow-visible">
         <Link
           href="/app"
           className="col-start-1 row-start-1 justify-self-center focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
@@ -104,7 +107,7 @@ export function MobilePageHeader({
       </div>
 
       {title || action ? (
-        <div className="mt-2 flex items-start justify-between gap-2">
+        <div className="relative z-[1] mt-2 flex items-start justify-between gap-2">
           {title ? (
             <h1 className="min-w-0 flex-1 break-words text-2xl font-semibold text-foreground">
               {title}

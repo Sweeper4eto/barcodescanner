@@ -23,7 +23,11 @@ import {
   navigateApp,
   replaceApp,
 } from "@/lib/app-navigation";
-import { appButtonCancelFull } from "@/lib/app-ui";
+import {
+  appButtonCancelFull,
+  appButtonPrimary,
+  appFormInput,
+} from "@/lib/app-ui";
 import { normalizeBarcode } from "@/lib/barcode";
 import { isAdhocBarcode } from "@/lib/inventory-entry-display";
 import { lookupProductByBarcode } from "@/lib/scan-barcode-lookup";
@@ -546,7 +550,7 @@ export function ScanFlow() {
             <label className="block text-sm font-medium text-foreground">
               {t("common.barcode")}
               <input
-                className="mt-1 w-full rounded-xl border border-input-border bg-input px-3 py-3 text-base text-foreground"
+                className={`mt-1 ${appFormInput}`}
                 value={barcode}
                 onChange={(event) => setBarcode(event.target.value)}
               />
@@ -555,7 +559,7 @@ export function ScanFlow() {
           <label className="block text-sm font-medium text-foreground">
             {t("scan.enterName")}
             <input
-              className="mt-1 w-full rounded-xl border border-input-border bg-input px-3 py-3 text-base text-foreground"
+              className={`mt-1 ${appFormInput}`}
               value={name}
               onChange={(event) => setName(event.target.value)}
               autoFocus
@@ -665,7 +669,7 @@ function ScanMissingActionCard({
       <button
         type="button"
         onClick={onAction}
-        className="inline-flex h-8 w-[6.25rem] shrink-0 items-center justify-center gap-1 rounded-lg border border-primary px-2 text-xs font-semibold text-primary"
+        className={`${appButtonPrimary} w-[6.25rem] shrink-0`}
       >
         {actionIcon}
         <span className="truncate">{actionLabel}</span>
