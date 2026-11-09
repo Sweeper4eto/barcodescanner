@@ -117,10 +117,20 @@ export function repairTruncatedItemsJson(raw: string): string | null {
   return `{"items":${raw.slice(arrayStart, lastCompleteObjectEnd + 1)}]}`;
 }
 
+/**
+ * Models often return a bare `[{...}, ...]` instead of `{"items":[...]}`.
+ * Wrap so downstream parse/repair can treat it like the required shape.
+ */
+export function wrapBareItemsArrayJson(raw: string): string {
+  const body = raw.trim();
+  if (!body.startsWith("[")) return body;
+  return `{"items":${body}}`;
+}
+
 function extractJsonObject(text: string): unknown {
   const trimmed = text.trim();
   const fenced = /^```(?:json)?\s*([\s\S]*?)```$/i.exec(trimmed);
-  const body = fenced ? fenced[1].trim() : trimmed;
+  const body = wrapBareItemsArrayJson(fenced ? fenced[1].trim() : trimmed);
   const start = body.indexOf("{");
   if (start < 0) {
     throw new Error("OCR_PARSE_FAILED");
@@ -225,8 +235,13 @@ function toRows(payload: unknown): DocumentOcrRow[] {
 
 const SYSTEM_PROMPT = `Extract product lines from a photo of a Bulgarian store document (delivery note / izpisvane / expiry list / invoice).
 
-Return ONLY compact JSON:
+OUTPUT FORMAT (mandatory — violations break import):
+- Return ONLY one JSON object. No markdown fences, no commentary, no trailing text.
+- Root MUST be an object with key "items" (array). Shape:
 {"items":[{"name":"...","barcode":null,"articul":"...","expiryPrinted":"DD.MM.YYYY","expiryDate":null,"quantity":1}]}
+- NEVER return a bare array like [{"name":"..."}, ...] — that is INVALID. Always wrap: {"items":[...]}
+- NEVER wrap items as {"products":[...]} or {"rows":[...]} — the key must be exactly "items".
+- First character of the response must be { and last meaningful character must be }.
 
 STEP 1 — FIND THE COLUMNS FIRST (before reading any product):
 - Locate the table header row (e.g. №, Наименование / Артикул / Код / Баркод / К-во / Количество / Годност / Срок на годност). Header text is never a product.
