@@ -118,12 +118,19 @@ export function repairTruncatedItemsJson(raw: string): string | null {
 }
 
 /**
+ * Bare-array wrap is intentionally OFF for now: accepting `[...]` without a
+ * retake risked letting through OCR content that previously failed closed.
+ * Prompt still requires `{"items":[...]}`; set true only after we measure it.
+ */
+export const WRAP_BARE_OCR_ITEMS_ARRAY = false;
+
+/**
  * Models often return a bare `[{...}, ...]` instead of `{"items":[...]}`.
- * Wrap so downstream parse/repair can treat it like the required shape.
+ * When enabled, wrap so parse/repair can treat it like the required shape.
  */
 export function wrapBareItemsArrayJson(raw: string): string {
   const body = raw.trim();
-  if (!body.startsWith("[")) return body;
+  if (!WRAP_BARE_OCR_ITEMS_ARRAY || !body.startsWith("[")) return body;
   return `{"items":${body}}`;
 }
 

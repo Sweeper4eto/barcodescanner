@@ -5,13 +5,9 @@ import {
   wrapBareItemsArrayJson,
 } from "../src/lib/document-ai";
 
-test("wrapBareItemsArrayJson wraps a bare row array as {items:[...]}", () => {
+test("wrapBareItemsArrayJson is disabled — bare arrays stay bare (fail closed)", () => {
   const raw = `[{"name":"A","quantity":1},{"name":"B","quantity":2}]`;
-  const wrapped = wrapBareItemsArrayJson(raw);
-  assert.equal(wrapped, `{"items":${raw}}`);
-  const parsed = JSON.parse(wrapped);
-  assert.equal(parsed.items.length, 2);
-  assert.equal(parsed.items[0].name, "A");
+  assert.equal(wrapBareItemsArrayJson(raw), raw);
 });
 
 test("wrapBareItemsArrayJson leaves object-with-items unchanged", () => {
