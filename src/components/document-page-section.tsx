@@ -73,24 +73,24 @@ export function DocumentPageSection({
       </div>
 
       {!selectionMode ? (
-        <div className="flex gap-2 px-2 py-2">
+        <div className="flex items-center gap-2 px-2 py-2">
           <button
             type="button"
             disabled={busy || processing}
             onClick={onRetake}
-            className={`${appButtonPrimary} flex-1`}
+            className={`${appButtonPrimary} min-w-0 flex-1`}
           >
-            <CameraIcon className="size-3.5 shrink-0" />
-            {t("addDocument.retakePage")}
+            <CameraIcon className="size-4 shrink-0" />
+            <span className="truncate">{t("addDocument.retakePage")}</span>
           </button>
           <button
             type="button"
             disabled={busy || processing}
             onClick={onReattach}
-            className={`${appButtonNeutral} flex-1`}
+            className={`${appButtonNeutral} min-w-0 flex-1`}
           >
-            <RefreshIcon className="size-3.5 shrink-0" />
-            {t("addDocument.reattachPage")}
+            <RefreshIcon className="size-4 shrink-0" />
+            <span className="truncate">{t("addDocument.reattachPage")}</span>
           </button>
           <button
             type="button"
@@ -100,7 +100,7 @@ export function DocumentPageSection({
             aria-label={t("addDocument.removeNoExpiryPageHint", {
               count: noExpiryCount,
             })}
-            className={appButtonPrimary}
+            className={`${appButtonPrimary} shrink-0 whitespace-nowrap`}
           >
             {t("addDocument.removeNoExpiry")}
             {noExpiryCount > 0 ? (

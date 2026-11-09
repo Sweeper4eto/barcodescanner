@@ -484,6 +484,33 @@ select option {
   cursor: default;
 }
 
+.home-hub-tile-attention .home-hub-glyph {
+  box-shadow:
+    0 0 0 2px rgb(52 211 153 / 0.55),
+    0 0 18px rgb(52 211 153 / 0.35);
+  animation: home-hub-attention 1.7s ease-in-out infinite;
+}
+
+@keyframes home-hub-attention {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 2px rgb(52 211 153 / 0.45),
+      0 0 10px rgb(52 211 153 / 0.2);
+  }
+  50% {
+    box-shadow:
+      0 0 0 3px rgb(52 211 153 / 0.75),
+      0 0 22px rgb(52 211 153 / 0.45);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-hub-tile-attention .home-hub-glyph {
+    animation: none;
+  }
+}
+
 .home-hub-tile-locked .home-hub-glyph {
   color: rgb(161 161 170);
 }

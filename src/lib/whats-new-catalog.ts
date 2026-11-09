@@ -1315,6 +1315,22 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Екраните в приложението споделят едни и същи бутони, превключватели, glow в хедъра, padding и центриран спинер.",
     href: "/app",
   },
+  {
+    key: "2026-11-checklists-mvp",
+    titleEn:
+      "Checklists per location: daily/weekly/monthly or one date, favourites, mark done, and a home glow when something is due today.",
+    titleBg:
+      "Чеклисти по локация: ежедневни/седмични/месечни или на дата, любими, отмятане като направени и светеща икона на Начало, когато има задача за днес.",
+    href: "/app/checklists",
+  },
+  {
+    key: "2026-11-checklists-favourites-catalog",
+    titleEn:
+      "Checklist favourites are a searchable slider of templates — tap to add to the working list; star list items to save templates.",
+    titleBg:
+      "Любимите в чеклиста са плъзгащ се ред с търсене — докосвате шаблон, за да влезе в списъка; със ★ запазвате задача като шаблон.",
+    href: "/app/checklists",
+  },
 ];
 
 

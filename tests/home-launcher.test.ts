@@ -22,6 +22,7 @@ test("default page-1 layout matches product order with gaps", () => {
     team: true,
     billing: true,
     analytics: true,
+    checklists: true,
   });
   assert.equal(layout.slots.length, HOME_LAUNCHER_TOTAL_SLOTS);
   assert.deepEqual(layout.slots.slice(0, 9), [
@@ -51,6 +52,7 @@ test("default puts schedule at page-1 position 8; Soon stay on page 2", () => {
     team: false,
     billing: false,
     analytics: false,
+    checklists: true,
   });
   assert.equal(layout.slots[0], "expiry");
   assert.equal(layout.slots[1], null);
@@ -72,6 +74,7 @@ test("default puts schedule at page-1 position 8; Soon stay on page 2", () => {
       team: false,
       billing: false,
       analytics: false,
+      checklists: true,
     }).includes("analytics"),
   );
   assert.ok(
@@ -80,6 +83,7 @@ test("default puts schedule at page-1 position 8; Soon stay on page 2", () => {
       team: false,
       billing: false,
       analytics: false,
+      checklists: true,
     }).includes("schedule"),
   );
 });
@@ -91,6 +95,7 @@ test("analytics tile is owner-only in available modules", () => {
       team: true,
       billing: false,
       analytics: true,
+      checklists: true,
     }).includes("analytics"),
   );
   assert.ok(
@@ -99,7 +104,29 @@ test("analytics tile is owner-only in available modules", () => {
       team: true,
       billing: false,
       analytics: false,
+      checklists: true,
     }).includes("analytics"),
+  );
+});
+
+test("checklists tile is retail-only in available modules", () => {
+  assert.ok(
+    availableHomeModules({
+      schedule: false,
+      team: true,
+      billing: false,
+      analytics: false,
+      checklists: true,
+    }).includes("checklists"),
+  );
+  assert.ok(
+    !availableHomeModules({
+      schedule: false,
+      team: true,
+      billing: false,
+      analytics: false,
+      checklists: false,
+    }).includes("checklists"),
   );
 });
 
@@ -109,6 +136,7 @@ test("reconcile with no saved layout uses defaults", () => {
     team: true,
     billing: true,
     analytics: true,
+    checklists: true,
   });
   assert.deepEqual(next.slots.slice(0, 9), [
     "expiry",
@@ -136,6 +164,7 @@ test("reconcile keeps sparse active positions and places new in preferred slot",
       team: true,
       billing: false,
       analytics: true,
+      checklists: true,
     },
   );
 
@@ -167,6 +196,7 @@ test("newly enabled billing takes preferred slot 9 without packing gaps", () => 
       team: true,
       billing: true,
       analytics: true,
+      checklists: true,
     },
   );
 
@@ -185,6 +215,7 @@ test("move swaps or places into empty slot", () => {
     team: false,
     billing: false,
     analytics: false,
+    checklists: true,
   });
   // expiry at 0, notifications at 2, contact at 6
   const moved = moveHomeLauncherIcon(base, 0, 8);
@@ -202,6 +233,7 @@ test("occupied pages include locked page-2 tiles", () => {
     team: false,
     billing: false,
     analytics: false,
+    checklists: true,
   });
   assert.equal(occupiedHomeLauncherPages(base), 2);
   const onPage3 = moveHomeLauncherIcon(
@@ -220,7 +252,13 @@ test("legacy document tile is dropped from saved layouts", () => {
 
   const next = reconcileHomeLauncherLayout(
     { slots },
-    { schedule: false, team: false, billing: false, analytics: false },
+    {
+      schedule: false,
+      team: false,
+      billing: false,
+      analytics: false,
+      checklists: true,
+    },
   );
 
   assert.equal(next.slots[0], "expiry");
@@ -239,7 +277,13 @@ test("reconcile keeps Soon tiles moved onto page 1", () => {
 
   const next = reconcileHomeLauncherLayout(
     { slots },
-    { schedule: false, team: true, billing: false, analytics: true },
+    {
+      schedule: false,
+      team: true,
+      billing: false,
+      analytics: true,
+      checklists: true,
+    },
   );
 
   assert.equal(next.slots[3], "analytics");
@@ -255,10 +299,17 @@ test("reconcile drops analytics for non-owners", () => {
 
   const next = reconcileHomeLauncherLayout(
     { slots },
-    { schedule: false, team: false, billing: false, analytics: false },
+    {
+      schedule: false,
+      team: false,
+      billing: false,
+      analytics: false,
+      checklists: false,
+    },
   );
 
   assert.ok(!next.slots.includes("analytics"));
+  assert.ok(!next.slots.includes("checklists"));
 });
 
 test("mergeHiddenOptionalSlots keeps billing while availability omits it", () => {
@@ -275,7 +326,13 @@ test("mergeHiddenOptionalSlots keeps billing while availability omits it", () =>
   const merged = mergeHiddenOptionalSlots(
     { slots: display },
     { slots: previous },
-    { schedule: false, team: false, billing: false, analytics: false },
+    {
+      schedule: false,
+      team: false,
+      billing: false,
+      analytics: false,
+      checklists: false,
+    },
   );
 
   assert.equal(merged.slots[4], "billing");
@@ -302,6 +359,7 @@ test("write then read keeps exact rearranged slots (memory + equality)", () => {
     team: true,
     billing: false,
     analytics: true,
+    checklists: true,
   });
   assert.equal(shown.slots[3], "expiry");
   assert.equal(shown.slots[0], "contact");

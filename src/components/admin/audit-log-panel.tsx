@@ -32,7 +32,15 @@ type AuditEntry = {
   occurredAt: string;
 };
 
-type AuditFilter = "all" | "auth" | "inventory" | "products" | "admin";
+type AuditFilter =
+  | "all"
+  | "auth"
+  | "inventory"
+  | "inventory_added"
+  | "inventory_removed"
+  | "inventory_write_off"
+  | "products"
+  | "admin";
 type AccountKind = "business" | "household";
 
 type StoreOption = {
@@ -340,6 +348,18 @@ export function AuditLogPanel() {
               { value: "all", label: t("admin.auditFilters.all") },
               { value: "auth", label: t("admin.auditFilters.auth") },
               { value: "inventory", label: t("admin.auditFilters.inventory") },
+              {
+                value: "inventory_added",
+                label: t("admin.auditFilters.inventory_added"),
+              },
+              {
+                value: "inventory_removed",
+                label: t("admin.auditFilters.inventory_removed"),
+              },
+              {
+                value: "inventory_write_off",
+                label: t("admin.auditFilters.inventory_write_off"),
+              },
               { value: "products", label: t("admin.auditFilters.products") },
               { value: "admin", label: t("admin.auditFilters.admin") },
             ]}

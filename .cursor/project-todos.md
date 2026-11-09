@@ -18,7 +18,8 @@ Keep entries short. Prefer `open` / `doing` / `done` / `dropped`.
 - [x] **App UI token unify** — buttons/toggles/spinners/header glow/paddings across `/app/*`
 - [ ] **2.** Bluetooth barcode scanner
 - [ ] **3.** PDA / warehouse handheld scan
-- [ ] **33.** Daily shortlist “what to check today”
+- [x] **Checklists MVP** — per location; daily/weekly/monthly/once; list = working items; favourites = catalog to pull from; mark done + 6‑mo retention; home glow
+- [ ] **33.** Daily shortlist “what to check today” (auto from expiry — after checklists)
 - [ ] **34.** Staff accountability — who checked what / when (feeds analytics #8)
 - [ ] **35.** Compliance / HACCP reports & digital journals
 - [ ] **43.** Scales sync
@@ -33,7 +34,7 @@ Keep entries short. Prefer `open` / `doing` / `done` / `dropped`.
 - [ ] **42.** Electronic price tags (ESL sync)
 - [ ] **74.** Share list via QR
 - [ ] Temperature monitoring logs
-- [ ] Hygiene checklists
+- [ ] Hygiene checklists (templates / multi-row — after MVP)
 - [ ] DDD protocols archive
 - [ ] BABH / inspector read-only access
 - [ ] Warehouse replenishment / morning orders

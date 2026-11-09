@@ -116,9 +116,8 @@ function moduleDefs(storeQuery: string): Record<HomeModuleId, ModuleDef> {
     checklists: {
       id: "checklists",
       labelKey: "app.hubChecklists",
-      href: () => "/app",
+      href: () => `/app/checklists${storeQuery}`,
       icon: <HubChecklistsIcon />,
-      locked: true,
     },
     temperature: {
       id: "temperature",
@@ -165,6 +164,7 @@ export function HomeIconHub({
       availability,
     ),
   );
+  const [checklistDueCount, setChecklistDueCount] = useState(0);
   const [page, setPage] = useState(0);
   const [rearranging, setRearranging] = useState(false);
   const [draggingSlot, setDraggingSlot] = useState<number | null>(null);
@@ -610,7 +610,34 @@ export function HomeIconHub({
     availability.team,
     availability.billing,
     availability.analytics,
+    availability.checklists,
   ]);
+
+  useEffect(() => {
+    if (!availability.checklists || !storeId) {
+      setChecklistDueCount(0);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch(
+          `/api/checklists/badge?storeId=${encodeURIComponent(storeId)}`,
+          { credentials: "same-origin", cache: "no-store" },
+        );
+        if (!res.ok || cancelled) return;
+        const data = (await res.json()) as { dueTodayIncomplete?: number };
+        if (!cancelled) {
+          setChecklistDueCount(Math.max(0, Number(data.dueTodayIncomplete) || 0));
+        }
+      } catch {
+        if (!cancelled) setChecklistDueCount(0);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [availability.checklists, storeId]);
 
   useEffect(() => {
     setPortalReady(true);
@@ -963,11 +990,16 @@ export function HomeIconHub({
                   (() => {
                     const def = defs[moduleId];
                     const locked = Boolean(def.locked) || isHomeModuleLocked(moduleId);
+                    const attention =
+                      moduleId === "checklists" &&
+                      checklistDueCount > 0 &&
+                      !locked &&
+                      !rearranging;
                     const tileClass = `home-hub-tile${
                       isDropTarget ? " home-hub-drop-target-tile" : ""
                     }${disabled || locked ? " home-hub-tile-locked" : ""}${
-                      disabled ? " pointer-events-none" : ""
-                    }${
+                      attention ? " home-hub-tile-attention" : ""
+                    }${disabled ? " pointer-events-none" : ""}${
                       rearranging || locked
                         ? ""
                         : " transition-transform active:scale-[0.97]"
@@ -985,7 +1017,22 @@ export function HomeIconHub({
                           type="button"
                           className={tileClass}
                           aria-disabled={locked || undefined}
-                          title={locked ? t("app.hubComingSoon") : undefined}
+                          aria-label={
+                            attention
+                              ? t("checklists.hubDueAria", {
+                                  count: checklistDueCount,
+                                })
+                              : undefined
+                          }
+                          title={
+                            locked
+                              ? t("app.hubComingSoon")
+                              : attention
+                                ? t("checklists.hubDueAria", {
+                                    count: checklistDueCount,
+                                  })
+                                : undefined
+                          }
                           onPointerDown={(e) =>
                             onTilePointerDown(absolute, moduleId, e)
                           }

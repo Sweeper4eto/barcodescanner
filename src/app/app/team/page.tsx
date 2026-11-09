@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CancelButton } from "@/components/cancel-button";
 import { LoadingSpinner, LoadingSpinnerPage } from "@/components/loading-spinner";
 import { MobilePageHeader } from "@/components/mobile-page-header";
-import { TrashIcon } from "@/components/app-nav-icons";
+import { RegisterIcon, TrashIcon } from "@/components/app-nav-icons";
 import { useT } from "@/components/i18n-provider";
 import { useViewportInsets } from "@/hooks/use-viewport-insets";
 import { navigateApp } from "@/lib/app-navigation";
@@ -572,7 +572,8 @@ export default function TeamPage() {
               onClick={openCreate}
               className={appButtonPrimary}
             >
-              + {t("team.addMember")}
+              <RegisterIcon className="size-4 shrink-0" />
+              {t("team.newUser")}
             </button>
           ) : null}
         </div>

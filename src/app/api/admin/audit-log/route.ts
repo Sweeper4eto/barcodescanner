@@ -10,7 +10,16 @@ import {
 } from "@/lib/audit-log";
 import { apiT } from "@/i18n";
 
-const FILTERS: AuditFilter[] = ["all", "auth", "inventory", "products", "admin"];
+const FILTERS: AuditFilter[] = [
+  "all",
+  "auth",
+  "inventory",
+  "inventory_added",
+  "inventory_removed",
+  "inventory_write_off",
+  "products",
+  "admin",
+];
 const ACCOUNT_KINDS: AuditAccountKind[] = ["business", "household"];
 
 export async function GET(request: Request) {

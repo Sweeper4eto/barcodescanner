@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { auditAuthLoginFailed } from "../src/lib/audit-details";
 import {
   OWNER_ACTIVITY_EVENTS,
+  auditDetailsHasPositiveWriteOff,
   auditStoreDetailsNeedle,
   buildAuditLogWhere,
 } from "../src/lib/audit-log";
@@ -26,6 +27,36 @@ test("buildAuditLogWhere filters by username store and ip", () => {
       { ipAddress: { contains: "149.62" } },
     ],
   });
+});
+
+test("buildAuditLogWhere filters inventory added and removed", () => {
+  const added = buildAuditLogWhere({ filter: "inventory_added" });
+  assert.deepEqual(added, {
+    AND: [{ event: { in: ["inventory_added", "inventory_merged"] } }],
+  });
+
+  const removed = buildAuditLogWhere({ filter: "inventory_removed" });
+  assert.deepEqual(removed, {
+    AND: [{ event: { in: ["inventory_removed"] } }],
+  });
+});
+
+test("buildAuditLogWhere filters write-offs via details", () => {
+  const where = buildAuditLogWhere({ filter: "inventory_write_off" });
+  assert.ok(where.AND);
+  const clauses = where.AND as Array<Record<string, unknown>>;
+  assert.deepEqual(clauses[0], { event: { in: ["inventory_removed"] } });
+  const detailsOr = clauses[1] as { OR: Array<{ details: { contains: string } }> };
+  assert.equal(detailsOr.OR.length, 9);
+  assert.equal(detailsOr.OR[0]?.details.contains, "write-off 1");
+  assert.equal(detailsOr.OR[8]?.details.contains, "write-off 9");
+});
+
+test("auditDetailsHasPositiveWriteOff", () => {
+  assert.equal(auditDetailsHasPositiveWriteOff('qty 2; write-off 0; store "A"'), false);
+  assert.equal(auditDetailsHasPositiveWriteOff('qty 2; write-off 2; store "A"'), true);
+  assert.equal(auditDetailsHasPositiveWriteOff('qty 2; write-off 10; store "A"'), true);
+  assert.equal(auditDetailsHasPositiveWriteOff('qty 2; store "A"'), false);
 });
 
 test("buildAuditLogWhere filters by client via user relation", () => {

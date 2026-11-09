@@ -153,6 +153,28 @@ function AnalyticsHomeIcon({ className = "size-7" }: { className?: string }) {
   );
 }
 
+function ChecklistHomeIcon({ className = "size-7" }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <path d="M9 6h11" />
+      <path d="M9 12h11" />
+      <path d="M9 18h11" />
+      <path d="M4.5 6.5 5.5 7.5 7 5.5" />
+      <path d="M4.5 12.5 5.5 13.5 7 11.5" />
+      <path d="M4.5 18.5 5.5 19.5 7 17.5" />
+    </svg>
+  );
+}
+
 function HomeLinkCard({
   href,
   title,
@@ -187,7 +209,7 @@ function HomeLinkCard({
 export function HomeClassicMenu() {
   const router = useRouter();
   const { t } = useT();
-  const { refresh: refreshSession } = useAppSession();
+  const { refresh: refreshSession, homeUser } = useAppSession();
   const [stores, setStores] = useState<Store[]>([]);
   const [username, setUsername] = useState("");
   const [isOwner, setIsOwner] = useState(false);
@@ -350,6 +372,17 @@ export function HomeClassicMenu() {
             href="/app/analytics"
             title={t("app.analytics")}
             icon={<AnalyticsHomeIcon className="size-5" />}
+          />
+        ) : null}
+
+        {bootstrapped &&
+        homeUser === false &&
+        !sessionMissing &&
+        stores.length > 0 ? (
+          <HomeLinkCard
+            href="/app/checklists"
+            title={t("app.hubChecklists")}
+            icon={<ChecklistHomeIcon className="size-5" />}
           />
         ) : null}
 

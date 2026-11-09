@@ -43,7 +43,15 @@ export type AuditEvent =
   | "buy_list_updated"
   | "activity_reverted";
 
-export type AuditFilter = "all" | "auth" | "inventory" | "products" | "admin";
+export type AuditFilter =
+  | "all"
+  | "auth"
+  | "inventory"
+  | "inventory_added"
+  | "inventory_removed"
+  | "inventory_write_off"
+  | "products"
+  | "admin";
 
 export const AUDIT_PAGE_SIZES = [10, 20, 50] as const;
 
@@ -229,6 +237,11 @@ function eventsForFilter(filter: AuditFilter): AuditEvent[] | null {
       return AUTH_EVENTS;
     case "inventory":
       return INVENTORY_EVENTS;
+    case "inventory_added":
+      return ["inventory_added", "inventory_merged"];
+    case "inventory_removed":
+    case "inventory_write_off":
+      return ["inventory_removed"];
     case "products":
       return PRODUCT_EVENTS;
     case "admin":
@@ -236,6 +249,15 @@ function eventsForFilter(filter: AuditFilter): AuditEvent[] | null {
     default:
       return null;
   }
+}
+
+/** Marked in audit details by `auditInventoryRemoved` (`write-off N`). */
+export function auditDetailsHasPositiveWriteOff(
+  details: string | null | undefined,
+): boolean {
+  const match = /write-off\s+(\d+)/i.exec(details ?? "");
+  if (!match?.[1]) return false;
+  return Number.parseInt(match[1], 10) > 0;
 }
 
 export type AuditAccountKind = "business" | "household";
@@ -313,6 +335,16 @@ export function buildAuditLogWhere(query: AuditLogQuery): Prisma.AuditLogWhereIn
   const ip = query.ip?.trim();
   if (ip) {
     and.push({ ipAddress: { contains: ip } });
+  }
+
+  // Write-offs are still `inventory_removed` with `write-off N` (N≥1) in details.
+  // Match digit 1–9 so `write-off 0` is excluded and `write-off 10+` still match.
+  if (filter === "inventory_write_off") {
+    and.push({
+      OR: [1, 2, 3, 4, 5, 6, 7, 8, 9].map((digit) => ({
+        details: { contains: `write-off ${digit}` },
+      })),
+    });
   }
 
   // Free-text `q` is applied in queryAuditLog with Unicode-aware matching

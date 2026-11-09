@@ -48,6 +48,8 @@ model User {
   scheduleShifts      ScheduleShift[]
   scheduleDayExclusions ScheduleDayExclusion[]
   finalizedScheduleWeeks StoreScheduleWeek[] @relation("ScheduleFinalizedBy")
+  checklistTasksCreated  ChecklistTask[] @relation("ChecklistTaskCreatedBy")
+  checklistCompletions   ChecklistCompletion[] @relation("ChecklistCompletedBy")
   /** Expiry push notification preferences (phases 1–3). */
   expiryNotifyEarlyEnabled     Boolean @default(true)
   expiryNotifyEarlyDays        Int     @default(14)
@@ -146,12 +148,81 @@ model Store {
   inventory      InventoryEntry[]
   buyList        BuyListEntry[]
   favourites     FavouriteProduct[]
+  checklistTasks ChecklistTask[]
+  checklistFavourites ChecklistFavourite[]
   supportRequests SupportRequest[]
   scheduleWeeks  StoreScheduleWeek[]
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
 
   @@index([clientId])
+}
+
+/**
+ * Favourite checklist templates for a location (catalog).
+ * Tap → add a ChecklistTask to the working list (like buy-list favourites).
+ */
+model ChecklistFavourite {
+  id         String   @id @default(cuid())
+  storeId    String
+  store      Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  title      String
+  note       String?
+  /** daily | weekly | monthly | once */
+  recurrence String
+  dueDate    String?
+  weekday    Int?
+  monthDay   Int?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([storeId, title])
+  @@index([storeId])
+}
+
+/**
+ * Working checklist items for a location (retail). Completions ≤ 6 months;
+ * see purgeChecklistRetention.
+ */
+model ChecklistTask {
+  id              String   @id @default(cuid())
+  storeId         String
+  store           Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  title           String
+  note            String?
+  /** daily | weekly | monthly | once */
+  recurrence      String
+  /** YYYY-MM-DD when recurrence = once */
+  dueDate         String?
+  /** 0 = Monday … 6 = Sunday when weekly */
+  weekday         Int?
+  /** 1–31 when monthly */
+  monthDay        Int?
+  active          Boolean  @default(true)
+  createdByUserId String?
+  createdByUser   User?    @relation("ChecklistTaskCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  completions     ChecklistCompletion[]
+
+  @@index([storeId, active])
+  @@index([createdAt])
+  @@index([dueDate])
+}
+
+model ChecklistCompletion {
+  id                String        @id @default(cuid())
+  taskId            String
+  task              ChecklistTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  /** Calendar day YYYY-MM-DD this completion applies to */
+  dueDate           String
+  completedAt       DateTime      @default(now())
+  completedByUserId String?
+  completedByUser   User?         @relation("ChecklistCompletedBy", fields: [completedByUserId], references: [id], onDelete: SetNull)
+
+  @@unique([taskId, dueDate])
+  @@index([dueDate])
+  @@index([completedByUserId])
 }
 
 enum ScheduleWeekStatus {

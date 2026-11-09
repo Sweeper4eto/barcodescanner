@@ -39,7 +39,7 @@ function LogoutIcon({ className = "size-4" }: { className?: string }) {
 export function HomeHubHome() {
   const router = useRouter();
   const { t } = useT();
-  const { refresh: refreshSession } = useAppSession();
+  const { refresh: refreshSession, homeUser } = useAppSession();
   const [stores, setStores] = useState<Store[]>([]);
   const [storeId, setStoreId] = useState("");
   const [username, setUsername] = useState("");
@@ -149,13 +149,15 @@ export function HomeHubHome() {
   const [greetingBefore, greetingAfter = ""] = greetingTemplate.split("\u0000");
 
   const availability = useMemo<HomeLauncherAvailability>(() => {
+    const retail = homeUser === false && stores.length > 0;
     return {
       schedule: schedulePublic && stores.length > 0,
       team: isOwner && stores.length > 0,
       billing: isOwner && billingEnabled,
       analytics: isOwner && stores.length > 0,
+      checklists: retail,
     };
-  }, [schedulePublic, stores.length, isOwner, billingEnabled]);
+  }, [schedulePublic, stores.length, isOwner, billingEnabled, homeUser]);
 
   const showHub =
     bootstrapped &&
