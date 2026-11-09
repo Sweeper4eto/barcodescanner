@@ -1,10 +1,15 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireSession } from "@/lib/auth";
-import { requireRetailOwner } from "@/lib/checklist-access";
+import {
+  checklistsDisabledResponse,
+  requireRetailOwner,
+} from "@/lib/checklist-access";
 import {
   checklistCalendarYmd,
+  checklistCompletionWindowStartYmd,
   normalizeChecklistFields,
+  pickChecklistPeriodCompletion,
   purgeChecklistRetention,
   toChecklistFavouriteDto,
   toChecklistTaskDto,
@@ -17,6 +22,7 @@ const createSchema = z.object({
   storeId: z.string().min(1),
   title: z.string().trim().min(1).max(200),
   note: z.string().trim().max(2000).optional().nullable(),
+  comment: z.string().trim().max(2000).optional().nullable(),
   recurrence: z.enum(["daily", "weekly", "monthly", "once"]),
   dueDate: z
     .string()
@@ -30,6 +36,9 @@ const createSchema = z.object({
 });
 
 export async function GET(request: Request) {
+  const disabled = checklistsDisabledResponse(request);
+  if (disabled) return disabled;
+
   let session;
   try {
     session = await requireSession();
@@ -59,14 +68,14 @@ export async function GET(request: Request) {
   await purgeChecklistRetention(db).catch(() => undefined);
 
   const todayYmd = checklistCalendarYmd();
+  const windowStart = checklistCompletionWindowStartYmd(todayYmd);
   const [rows, favouriteRows, user] = await Promise.all([
     db.checklistTask.findMany({
       where: { storeId, active: true },
       orderBy: { createdAt: "desc" },
       include: {
         completions: {
-          where: { dueDate: todayYmd },
-          take: 1,
+          where: { dueDate: { gte: windowStart, lte: todayYmd } },
           include: {
             completedByUser: {
               select: { id: true, username: true, displayName: true },
@@ -89,19 +98,24 @@ export async function GET(request: Request) {
     favouriteRows.map((row) => row.title.trim().toLowerCase()),
   );
 
-  const tasks = rows.map((row) =>
-    toChecklistTaskDto({
+  const tasks = rows.map((row) => {
+    const periodCompletion = pickChecklistPeriodCompletion(
+      row.completions,
+      row.recurrence,
+      todayYmd,
+    );
+    return toChecklistTaskDto({
       ...row,
       inFavourites: favouriteTitles.has(row.title.trim().toLowerCase()),
       todayYmd,
-      todayCompletion: row.completions[0]
+      todayCompletion: periodCompletion
         ? {
-            completedAt: row.completions[0].completedAt,
-            completedByUser: row.completions[0].completedByUser,
+            completedAt: periodCompletion.completedAt,
+            completedByUser: periodCompletion.completedByUser,
           }
         : null,
-    }),
-  );
+    });
+  });
 
   return NextResponse.json({
     todayYmd,
@@ -114,6 +128,9 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const disabled = checklistsDisabledResponse(request);
+  if (disabled) return disabled;
+
   let session;
   try {
     session = await requireSession();
@@ -162,12 +179,14 @@ export async function POST(request: Request) {
 
   const title = parsed.data.title.trim();
   const note = parsed.data.note?.trim() || null;
+  const comment = parsed.data.comment?.trim() || null;
 
   const row = await db.checklistTask.create({
     data: {
       storeId: parsed.data.storeId,
       title,
       note,
+      comment,
       recurrence: fields.recurrence,
       dueDate: fields.dueDate,
       weekday: fields.weekday,

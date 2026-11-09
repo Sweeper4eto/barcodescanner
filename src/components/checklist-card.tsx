@@ -97,6 +97,22 @@ export function ChecklistCard({
               {recurrenceLabel}
               {task.dueToday ? ` · ${t("checklists.dueToday")}` : ""}
             </p>
+            {task.note?.trim() ? (
+              <p
+                title={task.note}
+                className="mt-0.5 line-clamp-1 text-[10px] leading-tight text-muted"
+              >
+                {t("checklists.details")}: {task.note.trim()}
+              </p>
+            ) : null}
+            {task.comment?.trim() ? (
+              <p
+                title={task.comment}
+                className="mt-0.5 line-clamp-1 text-[10px] leading-tight text-muted"
+              >
+                {t("checklists.comment")}: {task.comment.trim()}
+              </p>
+            ) : null}
             {checked && task.completedTodayBy ? (
               <p className="text-[10px] leading-tight text-muted">
                 {t("checklists.doneBy", {

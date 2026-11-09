@@ -189,7 +189,10 @@ model ChecklistTask {
   storeId         String
   store           Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
   title           String
+  /** Owner instructions / details (staff read-only). */
   note            String?
+  /** Staff/owner free-text comment on the working item. */
+  comment         String?
   /** daily | weekly | monthly | once */
   recurrence      String
   /** YYYY-MM-DD when recurrence = once */

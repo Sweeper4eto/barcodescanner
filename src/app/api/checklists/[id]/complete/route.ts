@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireSession } from "@/lib/auth";
+import { checklistsDisabledResponse } from "@/lib/checklist-access";
 import {
   checklistCalendarYmd,
+  checklistPeriodBounds,
   isChecklistTaskDueOn,
+  pickChecklistPeriodCompletion,
   toChecklistTaskDto,
 } from "@/lib/checklist";
 import { db } from "@/lib/db";
@@ -23,6 +26,9 @@ export async function POST(
   request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
+  const disabled = checklistsDisabledResponse(request);
+  if (disabled) return disabled;
+
   let session;
   try {
     session = await requireSession();
@@ -60,43 +66,50 @@ export async function POST(
   }
 
   const dueDate = parsed.data.dueDate ?? checklistCalendarYmd();
-  if (
-    !isChecklistTaskDueOn(task, dueDate) &&
-    parsed.data.completed
-  ) {
-    // Allow undo anytime for that dueDate; marking done only when due.
+  if (!isChecklistTaskDueOn(task, dueDate) && parsed.data.completed) {
+    // Allow undo anytime for that period; marking done only when due.
     return NextResponse.json(
       { error: apiT(request, "errors.invalidData") },
       { status: 400 },
     );
   }
 
+  const period = checklistPeriodBounds(task.recurrence, dueDate);
+
   if (parsed.data.completed) {
-    await db.checklistCompletion.upsert({
-      where: { taskId_dueDate: { taskId: id, dueDate } },
-      create: {
+    // One completion per period: clear any earlier mark in the window, then
+    // store today's calendar day as the completion key.
+    await db.checklistCompletion.deleteMany({
+      where: {
+        taskId: id,
+        dueDate: { gte: period.start, lte: period.end },
+      },
+    });
+    await db.checklistCompletion.create({
+      data: {
         taskId: id,
         dueDate,
-        completedByUserId: session.userId,
-      },
-      update: {
-        completedAt: new Date(),
         completedByUserId: session.userId,
       },
     });
   } else {
     await db.checklistCompletion.deleteMany({
-      where: { taskId: id, dueDate },
+      where: {
+        taskId: id,
+        dueDate: { gte: period.start, lte: period.end },
+      },
     });
   }
 
   const todayYmd = checklistCalendarYmd();
+  const loadPeriod = checklistPeriodBounds(task.recurrence, todayYmd);
   const row = await db.checklistTask.findUniqueOrThrow({
     where: { id },
     include: {
       completions: {
-        where: { dueDate: todayYmd },
-        take: 1,
+        where: {
+          dueDate: { gte: loadPeriod.start, lte: loadPeriod.end },
+        },
         include: {
           completedByUser: {
             select: { id: true, username: true, displayName: true },
@@ -110,15 +123,21 @@ export async function POST(
     select: { id: true },
   });
 
+  const periodCompletion = pickChecklistPeriodCompletion(
+    row.completions,
+    row.recurrence,
+    todayYmd,
+  );
+
   return NextResponse.json({
     task: toChecklistTaskDto({
       ...row,
       inFavourites: Boolean(fav),
       todayYmd,
-      todayCompletion: row.completions[0]
+      todayCompletion: periodCompletion
         ? {
-            completedAt: row.completions[0].completedAt,
-            completedByUser: row.completions[0].completedByUser,
+            completedAt: periodCompletion.completedAt,
+            completedByUser: periodCompletion.completedByUser,
           }
         : null,
     }),

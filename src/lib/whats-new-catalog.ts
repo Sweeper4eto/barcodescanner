@@ -1331,6 +1331,22 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Любимите в чеклиста са плъзгащ се ред с търсене — докосвате шаблон, за да влезе в списъка; със ★ запазвате задача като шаблон.",
     href: "/app/checklists",
   },
+  {
+    key: "2026-11-checklists-weekly-monthly-period",
+    titleEn:
+      "Checklist weekly tasks are due anytime Mon–Sun (once that week); monthly anytime that month (once).",
+    titleBg:
+      "Седмичните задачи в чеклиста се изпълняват веднъж в седмицата (който и да е ден); месечните — веднъж в месеца.",
+    href: "/app/checklists",
+  },
+  {
+    key: "2026-11-checklists-details-comment",
+    titleEn:
+      "Checklist tasks have Details (owner) and Comment — staff can edit the comment only.",
+    titleBg:
+      "В задачите от чеклиста има Детайли (собственик) и Коментар — служителите редактират само коментара.",
+    href: "/app/checklists",
+  },
 ];
 
 

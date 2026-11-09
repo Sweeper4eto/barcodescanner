@@ -2,6 +2,9 @@
  * Retail per-location checklists: due rules, favourites UX, 6-month retention.
  */
 
+/** Kill-switch: hide hub/menu + block page/API until the feature is ready. */
+export const CHECKLISTS_FEATURE_ENABLED = false;
+
 export const CHECKLIST_TIME_ZONE = "Europe/Sofia";
 export const CHECKLIST_RETENTION_MONTHS = 6;
 
@@ -59,6 +62,82 @@ export function checklistMonthDay(ymd: string): number {
   return Number.isFinite(day) ? day : 1;
 }
 
+/** Monday YYYY-MM-DD of the ISO-ish week containing `ymd` (Mon–Sun). */
+export function checklistWeekStartYmd(
+  ymd: string,
+  timeZone: string = CHECKLIST_TIME_ZONE,
+): string {
+  const weekday = checklistWeekdayIndex(ymd, timeZone); // Mon=0
+  return addCalendarDaysYmd(ymd, -weekday);
+}
+
+export function checklistWeekEndYmd(
+  ymd: string,
+  timeZone: string = CHECKLIST_TIME_ZONE,
+): string {
+  return addCalendarDaysYmd(checklistWeekStartYmd(ymd, timeZone), 6);
+}
+
+export function checklistMonthStartYmd(ymd: string): string {
+  return `${ymd.slice(0, 7)}-01`;
+}
+
+export function checklistMonthEndYmd(ymd: string): string {
+  const [y, m] = ymd.split("-").map(Number);
+  const lastDay = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  return `${y}-${String(m).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+}
+
+export function addCalendarDaysYmd(ymd: string, deltaDays: number): string {
+  const [y, m, d] = ymd.split("-").map(Number);
+  const date = new Date(Date.UTC(y, m - 1, d + deltaDays));
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}-${String(date.getUTCDate()).padStart(2, "0")}`;
+}
+
+/**
+ * Completion window for a recurrence on calendar day `ymd`.
+ * Weekly = that Mon–Sun; monthly = that calendar month; else = the day itself.
+ */
+export function checklistPeriodBounds(
+  recurrence: string,
+  ymd: string,
+  timeZone: string = CHECKLIST_TIME_ZONE,
+): { start: string; end: string } {
+  if (recurrence === "weekly") {
+    return {
+      start: checklistWeekStartYmd(ymd, timeZone),
+      end: checklistWeekEndYmd(ymd, timeZone),
+    };
+  }
+  if (recurrence === "monthly") {
+    return {
+      start: checklistMonthStartYmd(ymd),
+      end: checklistMonthEndYmd(ymd),
+    };
+  }
+  return { start: ymd, end: ymd };
+}
+
+/** Earliest day we need when loading period completions for "today". */
+export function checklistCompletionWindowStartYmd(
+  ymd: string,
+  timeZone: string = CHECKLIST_TIME_ZONE,
+): string {
+  const weekStart = checklistWeekStartYmd(ymd, timeZone);
+  const monthStart = checklistMonthStartYmd(ymd);
+  return weekStart < monthStart ? weekStart : monthStart;
+}
+
+export function completionInChecklistPeriod(
+  dueDate: string,
+  recurrence: string,
+  ymd: string,
+  timeZone: string = CHECKLIST_TIME_ZONE,
+): boolean {
+  const { start, end } = checklistPeriodBounds(recurrence, ymd, timeZone);
+  return dueDate >= start && dueDate <= end;
+}
+
 export function isChecklistRecurrence(
   value: unknown,
 ): value is ChecklistRecurrence {
@@ -88,29 +167,23 @@ export function checklistRetentionCutoffYmd(
   );
 }
 
-/** Whether the task should appear as due on this calendar day. */
+/**
+ * Whether the task is due on this calendar day.
+ * Weekly: any day Mon–Sun (complete once that week).
+ * Monthly: any day of the month (complete once that month).
+ */
 export function isChecklistTaskDueOn(
   task: ChecklistTaskLike,
   ymd: string,
-  timeZone: string = CHECKLIST_TIME_ZONE,
+  _timeZone: string = CHECKLIST_TIME_ZONE,
 ): boolean {
   if (task.active === false) return false;
   const recurrence = task.recurrence;
   if (recurrence === "daily") return true;
+  if (recurrence === "weekly") return true;
+  if (recurrence === "monthly") return true;
   if (recurrence === "once") {
     return Boolean(task.dueDate && task.dueDate === ymd);
-  }
-  if (recurrence === "weekly") {
-    if (task.weekday == null || task.weekday < 0 || task.weekday > 6) {
-      return false;
-    }
-    return checklistWeekdayIndex(ymd, timeZone) === task.weekday;
-  }
-  if (recurrence === "monthly") {
-    if (task.monthDay == null || task.monthDay < 1 || task.monthDay > 31) {
-      return false;
-    }
-    return checklistMonthDay(ymd) === task.monthDay;
   }
   return false;
 }
@@ -200,6 +273,7 @@ export type ChecklistTaskDto = {
   storeId: string;
   title: string;
   note: string | null;
+  comment: string | null;
   recurrence: ChecklistRecurrence;
   dueDate: string | null;
   weekday: number | null;
@@ -235,24 +309,7 @@ export function normalizeChecklistFields(data: {
       monthDay: null,
     };
   }
-  if (recurrence === "weekly") {
-    if (data.weekday == null) return { error: "weekday" };
-    return {
-      recurrence,
-      dueDate: null,
-      weekday: data.weekday,
-      monthDay: null,
-    };
-  }
-  if (recurrence === "monthly") {
-    if (data.monthDay == null) return { error: "monthDay" };
-    return {
-      recurrence,
-      dueDate: null,
-      weekday: null,
-      monthDay: data.monthDay,
-    };
-  }
+  // Weekly / monthly: no fixed weekday or month-day — due any day in the period.
   return {
     recurrence,
     dueDate: null,
@@ -289,11 +346,37 @@ export function toChecklistFavouriteDto(input: {
   };
 }
 
+export type ChecklistCompletionLike = {
+  dueDate: string;
+  completedAt: Date;
+  completedByUser?: {
+    id: string;
+    username: string;
+    displayName: string | null;
+  } | null;
+};
+
+/** Newest completion that falls in the task's current period for `ymd`. */
+export function pickChecklistPeriodCompletion<T extends ChecklistCompletionLike>(
+  completions: T[],
+  recurrence: string,
+  ymd: string,
+  timeZone: string = CHECKLIST_TIME_ZONE,
+): T | null {
+  const inPeriod = completions.filter((row) =>
+    completionInChecklistPeriod(row.dueDate, recurrence, ymd, timeZone),
+  );
+  if (inPeriod.length === 0) return null;
+  inPeriod.sort((a, b) => b.completedAt.getTime() - a.completedAt.getTime());
+  return inPeriod[0] ?? null;
+}
+
 export function toChecklistTaskDto(input: {
   id: string;
   storeId: string;
   title: string;
   note: string | null;
+  comment?: string | null;
   recurrence: string;
   dueDate: string | null;
   weekday: number | null;
@@ -327,12 +410,14 @@ export function toChecklistTaskDto(input: {
     input.todayYmd,
     input.timeZone,
   );
+  // For weekly/monthly, "completedToday" means completed in the current period.
   const completedToday = Boolean(input.todayCompletion);
   return {
     id: input.id,
     storeId: input.storeId,
     title: input.title,
     note: input.note,
+    comment: input.comment ?? null,
     recurrence,
     dueDate: input.dueDate,
     weekday: input.weekday,

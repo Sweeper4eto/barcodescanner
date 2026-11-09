@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { requireSession } from "@/lib/auth";
-import { requireRetailOwner } from "@/lib/checklist-access";
+import {
+  checklistsDisabledResponse,
+  requireRetailOwner,
+} from "@/lib/checklist-access";
 import { db } from "@/lib/db";
 import { userCanAccessRetailStore } from "@/lib/store-access";
 import { apiT } from "@/i18n";
@@ -9,6 +12,9 @@ export async function DELETE(
   request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
+  const disabled = checklistsDisabledResponse(request);
+  if (disabled) return disabled;
+
   let session;
   try {
     session = await requireSession();

@@ -10,6 +10,7 @@ import { BillingReminderDialog } from "@/components/billing-reminder-dialog";
 import { WhatsNewDialog } from "@/components/whats-new-dialog";
 import { useT } from "@/components/i18n-provider";
 import { useAppSession } from "@/components/app-session-provider";
+import { CHECKLISTS_FEATURE_ENABLED } from "@/lib/checklist";
 import { logoutSession } from "@/lib/client-session";
 import { getStoredStoreId, setStoredStoreId, clearStoredStoreId } from "@/lib/store-selection";
 
@@ -375,7 +376,8 @@ export function HomeClassicMenu() {
           />
         ) : null}
 
-        {bootstrapped &&
+        {CHECKLISTS_FEATURE_ENABLED &&
+        bootstrapped &&
         homeUser === false &&
         !sessionMissing &&
         stores.length > 0 ? (

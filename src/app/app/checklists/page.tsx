@@ -22,9 +22,10 @@ import {
   appPageTopGlowClass,
   appSearchInput,
 } from "@/lib/app-ui";
-import type {
-  ChecklistFavouriteDto,
-  ChecklistTaskDto,
+import {
+  CHECKLISTS_FEATURE_ENABLED,
+  type ChecklistFavouriteDto,
+  type ChecklistTaskDto,
 } from "@/lib/checklist";
 
 type ListResponse = {
@@ -49,29 +50,8 @@ function recurrenceLabel(
       ? t("checklists.recurrenceOnceOn", { date: task.dueDate })
       : t("checklists.recurrenceOnce");
   }
-  if (task.recurrence === "weekly") {
-    const keys = [
-      "checklists.weekdayMon",
-      "checklists.weekdayTue",
-      "checklists.weekdayWed",
-      "checklists.weekdayThu",
-      "checklists.weekdayFri",
-      "checklists.weekdaySat",
-      "checklists.weekdaySun",
-    ] as const;
-    const day =
-      task.weekday != null && task.weekday >= 0 && task.weekday <= 6
-        ? t(keys[task.weekday])
-        : "";
-    return day
-      ? t("checklists.recurrenceWeeklyOn", { day })
-      : t("checklists.recurrenceWeekly");
-  }
-  if (task.recurrence === "monthly") {
-    return task.monthDay
-      ? t("checklists.recurrenceMonthlyOn", { day: task.monthDay })
-      : t("checklists.recurrenceMonthly");
-  }
+  if (task.recurrence === "weekly") return t("checklists.recurrenceWeekly");
+  if (task.recurrence === "monthly") return t("checklists.recurrenceMonthly");
   return task.recurrence;
 }
 
@@ -104,6 +84,10 @@ export default function ChecklistsPage() {
   }, [search]);
 
   useEffect(() => {
+    if (!CHECKLISTS_FEATURE_ENABLED) {
+      replaceApp("/app");
+      return;
+    }
     if (!sessionReady) return;
     if (homeUser) {
       replaceApp("/app");
@@ -111,6 +95,12 @@ export default function ChecklistsPage() {
   }, [sessionReady, homeUser]);
 
   const load = useCallback(async () => {
+    if (!CHECKLISTS_FEATURE_ENABLED) {
+      setTasks([]);
+      setFavourites([]);
+      setLoading(false);
+      return;
+    }
     if (!storeId) {
       setTasks([]);
       setFavourites([]);
@@ -320,10 +310,11 @@ export default function ChecklistsPage() {
       storeId,
       title: draft.title,
       note: draft.note || null,
+      comment: draft.comment || null,
       recurrence: draft.recurrence,
       dueDate: draft.recurrence === "once" ? draft.dueDate : null,
-      weekday: draft.recurrence === "weekly" ? draft.weekday : null,
-      monthDay: draft.recurrence === "monthly" ? draft.monthDay : null,
+      weekday: null,
+      monthDay: null,
       saveAsFavourite: draft.saveAsFavourite,
     };
 
@@ -372,6 +363,28 @@ export default function ChecklistsPage() {
       );
       setSheet(null);
     }
+  }
+
+  async function saveComment(comment: string) {
+    if (!sheet || sheet.mode === "create") return;
+    const taskId = sheet.task.id;
+    const res = await fetch(`/api/checklists/${taskId}`, {
+      method: "PATCH",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ comment: comment || null }),
+    });
+    const data = (await res.json().catch(() => ({}))) as {
+      task?: ChecklistTaskDto;
+      error?: string;
+    };
+    if (!res.ok || !data.task) {
+      throw new Error(data.error || t("errors.invalidData"));
+    }
+    setTasks((prev) =>
+      prev.map((row) => (row.id === data.task!.id ? data.task! : row)),
+    );
+    setSheet({ mode: isOwner ? "edit" : "view", task: data.task });
   }
 
   async function confirmRemove() {
@@ -440,6 +453,10 @@ export default function ChecklistsPage() {
         </ul>
       </section>
     );
+  }
+
+  if (!CHECKLISTS_FEATURE_ENABLED) {
+    return <LoadingSpinnerPage fullScreen />;
   }
 
   if (!sessionReady || !storeReady || loading) {
@@ -579,6 +596,9 @@ export default function ChecklistsPage() {
             isOwner && (sheet.mode === "create" || sheet.mode === "edit")
               ? saveDraft
               : undefined
+          }
+          onSaveComment={
+            sheet.mode !== "create" ? saveComment : undefined
           }
           onToggleDone={
             sheet.mode !== "create"

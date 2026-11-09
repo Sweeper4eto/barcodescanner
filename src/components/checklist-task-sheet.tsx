@@ -21,6 +21,7 @@ import type {
 export type ChecklistDraft = {
   title: string;
   note: string;
+  comment: string;
   recurrence: ChecklistRecurrence;
   dueDate: string;
   weekday: number;
@@ -35,25 +36,18 @@ type Props = {
   favouriteChoices?: ChecklistFavouriteDto[];
   onClose: () => void;
   onSave?: (draft: ChecklistDraft) => Promise<void>;
+  /** Staff (and owner) saving only the comment field. */
+  onSaveComment?: (comment: string) => Promise<void>;
   onToggleDone?: () => Promise<void>;
   /** Pull favourite into the working list (create mode). */
   onAddFavouriteToList?: (favourite: ChecklistFavouriteDto) => Promise<void>;
 };
 
-const WEEKDAY_KEYS = [
-  "checklists.weekdayMon",
-  "checklists.weekdayTue",
-  "checklists.weekdayWed",
-  "checklists.weekdayThu",
-  "checklists.weekdayFri",
-  "checklists.weekdaySat",
-  "checklists.weekdaySun",
-] as const;
-
 function emptyDraft(): ChecklistDraft {
   return {
     title: "",
     note: "",
+    comment: "",
     recurrence: "daily",
     dueDate: "",
     weekday: 0,
@@ -66,6 +60,7 @@ function fromTask(task: ChecklistTaskDto): ChecklistDraft {
   return {
     title: task.title,
     note: task.note ?? "",
+    comment: task.comment ?? "",
     recurrence: task.recurrence,
     dueDate: task.dueDate ?? "",
     weekday: task.weekday ?? 0,
@@ -81,12 +76,14 @@ export function ChecklistTaskSheet({
   favouriteChoices = [],
   onClose,
   onSave,
+  onSaveComment,
   onToggleDone,
   onAddFavouriteToList,
 }: Props) {
   const { t } = useT();
   const { offsetTop, keyboardInset } = useViewportInsets();
   const editable = isOwner && (mode === "create" || mode === "edit");
+  const commentEditable = Boolean(onSaveComment) || editable;
   const [draft, setDraft] = useState<ChecklistDraft>(() =>
     initial ? fromTask(initial) : emptyDraft(),
   );
@@ -104,11 +101,6 @@ export function ChecklistTaskSheet({
     { value: "monthly" as const, label: t("checklists.recurrenceMonthly") },
     { value: "once" as const, label: t("checklists.recurrenceOnce") },
   ];
-
-  const weekdayOptions = WEEKDAY_KEYS.map((key, index) => ({
-    value: String(index),
-    label: t(key),
-  }));
 
   async function handleSave() {
     if (!onSave) return;
@@ -132,6 +124,19 @@ export function ChecklistTaskSheet({
     }
   }
 
+  async function handleSaveComment() {
+    if (!onSaveComment) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await onSaveComment(draft.comment.trim());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("errors.networkError"));
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function handlePullFavourite(favourite: ChecklistFavouriteDto) {
     if (!onAddFavouriteToList) return;
     setSaving(true);
@@ -144,6 +149,14 @@ export function ChecklistTaskSheet({
       setSaving(false);
     }
   }
+
+  const showOwnerSave = editable && onSave;
+  const showStaffCommentSave = !editable && commentEditable && onSaveComment;
+  const showMarkDone =
+    !showOwnerSave &&
+    !showStaffCommentSave &&
+    onToggleDone &&
+    Boolean(initial?.dueToday);
 
   return (
     <div
@@ -210,7 +223,7 @@ export function ChecklistTaskSheet({
 
           <label className="block">
             <span className="mb-1 block text-sm font-semibold text-foreground">
-              {t("checklists.note")}
+              {t("checklists.details")}
             </span>
             <textarea
               className={`${appFormInput} min-h-24 resize-y`}
@@ -222,6 +235,32 @@ export function ChecklistTaskSheet({
               }
             />
           </label>
+
+          {mode !== "create" || editable ? (
+            <label className="block">
+              <span className="mb-1 block text-sm font-semibold text-foreground">
+                {t("checklists.comment")}
+              </span>
+              <textarea
+                className={`${appFormInput} min-h-24 resize-y`}
+                value={draft.comment}
+                disabled={!commentEditable}
+                maxLength={2000}
+                placeholder={t("checklists.commentPlaceholder")}
+                onChange={(event) =>
+                  setDraft((prev) => ({
+                    ...prev,
+                    comment: event.target.value,
+                  }))
+                }
+              />
+              {!isOwner ? (
+                <p className="mt-1 text-xs text-muted">
+                  {t("checklists.commentStaffHint")}
+                </p>
+              ) : null}
+            </label>
+          ) : null}
 
           {editable ? (
             <MenuSelect
@@ -265,48 +304,15 @@ export function ChecklistTaskSheet({
           ) : null}
 
           {draft.recurrence === "weekly" ? (
-            editable ? (
-              <MenuSelect
-                label={t("checklists.weekday")}
-                value={String(draft.weekday)}
-                options={weekdayOptions}
-                onChange={(value) =>
-                  setDraft((prev) => ({
-                    ...prev,
-                    weekday: Number(value),
-                  }))
-                }
-              />
-            ) : (
-              <p className="text-sm text-muted">
-                {weekdayOptions[draft.weekday]?.label}
-              </p>
-            )
+            <p className="text-sm text-muted">
+              {t("checklists.recurrenceWeeklyHint")}
+            </p>
           ) : null}
 
           {draft.recurrence === "monthly" ? (
-            <label className="block">
-              <span className="mb-1 block text-sm font-semibold text-foreground">
-                {t("checklists.monthDay")}
-              </span>
-              <input
-                type="number"
-                min={1}
-                max={31}
-                className={appFormInput}
-                value={draft.monthDay}
-                disabled={!editable}
-                onChange={(event) =>
-                  setDraft((prev) => ({
-                    ...prev,
-                    monthDay: Math.min(
-                      31,
-                      Math.max(1, Number(event.target.value) || 1),
-                    ),
-                  }))
-                }
-              />
-            </label>
+            <p className="text-sm text-muted">
+              {t("checklists.recurrenceMonthlyHint")}
+            </p>
           ) : null}
 
           {editable && mode === "create" ? (
@@ -351,19 +357,10 @@ export function ChecklistTaskSheet({
           ) : null}
         </div>
 
-        <div
-          className={`${appFooterButtonGrid} shrink-0 pb-[max(0.75rem,env(safe-area-inset-bottom))]`}
-        >
-          <CancelButton onClick={onClose}>{t("common.cancel")}</CancelButton>
-          {editable && onSave ? (
+        <div className="shrink-0 space-y-2 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+          {showStaffCommentSave && onToggleDone && initial?.dueToday ? (
             <ConfirmButton
-              disabled={saving}
-              onClick={() => void handleSave()}
-            >
-              {saving ? t("common.loading") : t("common.save")}
-            </ConfirmButton>
-          ) : onToggleDone && initial?.dueToday ? (
-            <ConfirmButton
+              className="w-full"
               disabled={saving}
               onClick={() => {
                 setSaving(true);
@@ -374,9 +371,39 @@ export function ChecklistTaskSheet({
                 ? t("checklists.markNotDone")
                 : t("checklists.markDone")}
             </ConfirmButton>
-          ) : (
-            <ConfirmButton onClick={onClose}>{t("common.ok")}</ConfirmButton>
-          )}
+          ) : null}
+          <div className={appFooterButtonGrid}>
+            <CancelButton onClick={onClose}>{t("common.cancel")}</CancelButton>
+            {showOwnerSave ? (
+              <ConfirmButton
+                disabled={saving}
+                onClick={() => void handleSave()}
+              >
+                {saving ? t("common.loading") : t("common.save")}
+              </ConfirmButton>
+            ) : showStaffCommentSave ? (
+              <ConfirmButton
+                disabled={saving}
+                onClick={() => void handleSaveComment()}
+              >
+                {saving ? t("common.loading") : t("common.save")}
+              </ConfirmButton>
+            ) : showMarkDone ? (
+              <ConfirmButton
+                disabled={saving}
+                onClick={() => {
+                  setSaving(true);
+                  void onToggleDone!().finally(() => setSaving(false));
+                }}
+              >
+                {initial?.completedToday
+                  ? t("checklists.markNotDone")
+                  : t("checklists.markDone")}
+              </ConfirmButton>
+            ) : (
+              <ConfirmButton onClick={onClose}>{t("common.ok")}</ConfirmButton>
+            )}
+          </div>
         </div>
       </div>
     </div>

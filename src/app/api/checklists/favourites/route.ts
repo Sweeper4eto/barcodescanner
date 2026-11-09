@@ -1,10 +1,15 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireSession } from "@/lib/auth";
-import { requireRetailOwner } from "@/lib/checklist-access";
+import {
+  checklistsDisabledResponse,
+  requireRetailOwner,
+} from "@/lib/checklist-access";
 import {
   checklistCalendarYmd,
+  checklistCompletionWindowStartYmd,
   normalizeChecklistFields,
+  pickChecklistPeriodCompletion,
   toChecklistFavouriteDto,
   toChecklistTaskDto,
 } from "@/lib/checklist";
@@ -33,6 +38,9 @@ const addFromFavouriteSchema = z.object({
 
 /** Owner: save a template into the favourites catalog. */
 export async function POST(request: Request) {
+  const disabled = checklistsDisabledResponse(request);
+  if (disabled) return disabled;
+
   let session;
   try {
     session = await requireSession();
@@ -113,6 +121,9 @@ export async function POST(request: Request) {
  * If an active task with the same title already exists, return it.
  */
 export async function PUT(request: Request) {
+  const disabled = checklistsDisabledResponse(request);
+  if (disabled) return disabled;
+
   let session;
   try {
     session = await requireSession();
@@ -154,6 +165,7 @@ export async function PUT(request: Request) {
   }
 
   const todayYmd = checklistCalendarYmd();
+  const windowStart = checklistCompletionWindowStartYmd(todayYmd);
   const existing = await db.checklistTask.findFirst({
     where: {
       storeId: parsed.data.storeId,
@@ -162,8 +174,7 @@ export async function PUT(request: Request) {
     },
     include: {
       completions: {
-        where: { dueDate: todayYmd },
-        take: 1,
+        where: { dueDate: { gte: windowStart, lte: todayYmd } },
         include: {
           completedByUser: {
             select: { id: true, username: true, displayName: true },
@@ -174,15 +185,20 @@ export async function PUT(request: Request) {
   });
 
   if (existing) {
+    const periodCompletion = pickChecklistPeriodCompletion(
+      existing.completions,
+      existing.recurrence,
+      todayYmd,
+    );
     return NextResponse.json({
       task: toChecklistTaskDto({
         ...existing,
         inFavourites: true,
         todayYmd,
-        todayCompletion: existing.completions[0]
+        todayCompletion: periodCompletion
           ? {
-              completedAt: existing.completions[0].completedAt,
-              completedByUser: existing.completions[0].completedByUser,
+              completedAt: periodCompletion.completedAt,
+              completedByUser: periodCompletion.completedByUser,
             }
           : null,
       }),

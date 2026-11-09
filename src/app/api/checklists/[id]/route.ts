@@ -1,19 +1,25 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireSession } from "@/lib/auth";
-import { requireRetailOwner } from "@/lib/checklist-access";
+import {
+  checklistsDisabledResponse,
+  requireRetailOwner,
+} from "@/lib/checklist-access";
 import {
   checklistCalendarYmd,
+  checklistPeriodBounds,
   normalizeChecklistFields,
+  pickChecklistPeriodCompletion,
   toChecklistTaskDto,
 } from "@/lib/checklist";
 import { db } from "@/lib/db";
 import { userCanAccessRetailStore } from "@/lib/store-access";
 import { apiT } from "@/i18n";
 
-const patchSchema = z.object({
+const ownerPatchSchema = z.object({
   title: z.string().trim().min(1).max(200).optional(),
   note: z.string().trim().max(2000).optional().nullable(),
+  comment: z.string().trim().max(2000).optional().nullable(),
   recurrence: z.enum(["daily", "weekly", "monthly", "once"]).optional(),
   dueDate: z
     .string()
@@ -25,20 +31,69 @@ const patchSchema = z.object({
   active: z.boolean().optional(),
 });
 
-async function loadTaskForOwner(taskId: string, userId: string) {
+/** Staff may only update the free-text comment. */
+const staffCommentPatchSchema = z.object({
+  comment: z.string().trim().max(2000).nullable(),
+});
+
+async function loadTaskForStoreAccess(taskId: string, userId: string) {
   const task = await db.checklistTask.findUnique({ where: { id: taskId } });
   if (!task) return { error: "not_found" as const };
   const store = await userCanAccessRetailStore(userId, task.storeId);
   if (!store) return { error: "forbidden" as const };
   const owner = await requireRetailOwner(userId);
-  if (!owner) return { error: "forbidden" as const };
-  return { task };
+  return { task, isOwner: Boolean(owner) };
+}
+
+async function taskResponse(taskId: string) {
+  const row = await db.checklistTask.findUniqueOrThrow({
+    where: { id: taskId },
+    include: {
+      completions: {
+        include: {
+          completedByUser: {
+            select: { id: true, username: true, displayName: true },
+          },
+        },
+      },
+    },
+  });
+  const fav = await db.checklistFavourite.findFirst({
+    where: { storeId: row.storeId, title: row.title },
+    select: { id: true },
+  });
+  const todayYmd = checklistCalendarYmd();
+  const period = checklistPeriodBounds(row.recurrence, todayYmd);
+  const periodCompletions = row.completions.filter(
+    (c) => c.dueDate >= period.start && c.dueDate <= period.end,
+  );
+  const periodCompletion = pickChecklistPeriodCompletion(
+    periodCompletions,
+    row.recurrence,
+    todayYmd,
+  );
+  return {
+    task: toChecklistTaskDto({
+      ...row,
+      inFavourites: Boolean(fav),
+      todayYmd,
+      todayCompletion: periodCompletion
+        ? {
+            completedAt: periodCompletion.completedAt,
+            completedByUser: periodCompletion.completedByUser,
+          }
+        : null,
+    }),
+  };
 }
 
 export async function PATCH(
   request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
+  const disabled = checklistsDisabledResponse(request);
+  if (disabled) return disabled;
+
   let session;
   try {
     session = await requireSession();
@@ -50,7 +105,7 @@ export async function PATCH(
   }
 
   const { id } = await context.params;
-  const loaded = await loadTaskForOwner(id, session.userId);
+  const loaded = await loadTaskForStoreAccess(id, session.userId);
   if ("error" in loaded) {
     const status = loaded.error === "not_found" ? 404 : 403;
     return NextResponse.json(
@@ -67,7 +122,25 @@ export async function PATCH(
   }
 
   const json = await request.json().catch(() => null);
-  const parsed = patchSchema.safeParse(json);
+
+  if (!loaded.isOwner) {
+    const parsed = staffCommentPatchSchema.safeParse(json);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: apiT(request, "errors.forbidden") },
+        { status: 403 },
+      );
+    }
+    await db.checklistTask.update({
+      where: { id },
+      data: {
+        comment: parsed.data.comment?.trim() || null,
+      },
+    });
+    return NextResponse.json(await taskResponse(id));
+  }
+
+  const parsed = ownerPatchSchema.safeParse(json);
   if (!parsed.success) {
     return NextResponse.json(
       { error: apiT(request, "errors.invalidData") },
@@ -93,56 +166,34 @@ export async function PATCH(
     );
   }
 
-  const row = await db.checklistTask.update({
+  await db.checklistTask.update({
     where: { id },
     data: {
       title: data.title?.trim(),
       note:
         data.note !== undefined ? data.note?.trim() || null : undefined,
+      comment:
+        data.comment !== undefined
+          ? data.comment?.trim() || null
+          : undefined,
       recurrence: fields.recurrence,
       dueDate: fields.dueDate,
       weekday: fields.weekday,
       monthDay: fields.monthDay,
       active: data.active,
     },
-    include: {
-      completions: {
-        where: { dueDate: checklistCalendarYmd() },
-        take: 1,
-        include: {
-          completedByUser: {
-            select: { id: true, username: true, displayName: true },
-          },
-        },
-      },
-    },
   });
 
-  const fav = await db.checklistFavourite.findFirst({
-    where: { storeId: row.storeId, title: row.title },
-    select: { id: true },
-  });
-
-  const todayYmd = checklistCalendarYmd();
-  return NextResponse.json({
-    task: toChecklistTaskDto({
-      ...row,
-      inFavourites: Boolean(fav),
-      todayYmd,
-      todayCompletion: row.completions[0]
-        ? {
-            completedAt: row.completions[0].completedAt,
-            completedByUser: row.completions[0].completedByUser,
-          }
-        : null,
-    }),
-  });
+  return NextResponse.json(await taskResponse(id));
 }
 
 export async function DELETE(
   request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
+  const disabled = checklistsDisabledResponse(request);
+  if (disabled) return disabled;
+
   let session;
   try {
     session = await requireSession();
@@ -154,7 +205,7 @@ export async function DELETE(
   }
 
   const { id } = await context.params;
-  const loaded = await loadTaskForOwner(id, session.userId);
+  const loaded = await loadTaskForStoreAccess(id, session.userId);
   if ("error" in loaded) {
     const status = loaded.error === "not_found" ? 404 : 403;
     return NextResponse.json(
@@ -167,6 +218,12 @@ export async function DELETE(
         ),
       },
       { status },
+    );
+  }
+  if (!loaded.isOwner) {
+    return NextResponse.json(
+      { error: apiT(request, "errors.forbidden") },
+      { status: 403 },
     );
   }
 

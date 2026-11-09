@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 import { requireSession } from "@/lib/auth";
+import { checklistsDisabledResponse } from "@/lib/checklist-access";
 import {
   checklistCalendarYmd,
+  checklistCompletionWindowStartYmd,
   isChecklistTaskDueOn,
+  pickChecklistPeriodCompletion,
   purgeChecklistRetention,
 } from "@/lib/checklist";
 import { db } from "@/lib/db";
@@ -10,6 +13,9 @@ import { userCanAccessRetailStore } from "@/lib/store-access";
 import { apiT } from "@/i18n";
 
 export async function GET(request: Request) {
+  const disabled = checklistsDisabledResponse(request);
+  if (disabled) return disabled;
+
   let session;
   try {
     session = await requireSession();
@@ -36,6 +42,7 @@ export async function GET(request: Request) {
   await purgeChecklistRetention(db).catch(() => undefined);
 
   const todayYmd = checklistCalendarYmd();
+  const windowStart = checklistCompletionWindowStartYmd(todayYmd);
   const tasks = await db.checklistTask.findMany({
     where: { storeId, active: true },
     select: {
@@ -45,9 +52,8 @@ export async function GET(request: Request) {
       monthDay: true,
       active: true,
       completions: {
-        where: { dueDate: todayYmd },
-        select: { id: true },
-        take: 1,
+        where: { dueDate: { gte: windowStart, lte: todayYmd } },
+        select: { id: true, dueDate: true, completedAt: true },
       },
     },
   });
@@ -55,7 +61,12 @@ export async function GET(request: Request) {
   let dueTodayIncomplete = 0;
   for (const task of tasks) {
     if (!isChecklistTaskDueOn(task, todayYmd)) continue;
-    if (task.completions.length === 0) dueTodayIncomplete += 1;
+    const done = pickChecklistPeriodCompletion(
+      task.completions,
+      task.recurrence,
+      todayYmd,
+    );
+    if (!done) dueTodayIncomplete += 1;
   }
 
   return NextResponse.json({ dueTodayIncomplete, todayYmd });

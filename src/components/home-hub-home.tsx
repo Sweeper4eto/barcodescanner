@@ -11,6 +11,7 @@ import { WhatsNewDialog } from "@/components/whats-new-dialog";
 import { useT } from "@/components/i18n-provider";
 import { useAppSession } from "@/components/app-session-provider";
 import { logoutSession } from "@/lib/client-session";
+import { CHECKLISTS_FEATURE_ENABLED } from "@/lib/checklist";
 import type { HomeLauncherAvailability } from "@/lib/home-launcher";
 import { getStoredStoreId, setStoredStoreId, clearStoredStoreId } from "@/lib/store-selection";
 
@@ -155,7 +156,7 @@ export function HomeHubHome() {
       team: isOwner && stores.length > 0,
       billing: isOwner && billingEnabled,
       analytics: isOwner && stores.length > 0,
-      checklists: retail,
+      checklists: retail && CHECKLISTS_FEATURE_ENABLED,
     };
   }, [schedulePublic, stores.length, isOwner, billingEnabled, homeUser]);
 

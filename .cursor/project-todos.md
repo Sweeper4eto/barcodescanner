@@ -19,6 +19,7 @@ Keep entries short. Prefer `open` / `doing` / `done` / `dropped`.
 - [ ] **2.** Bluetooth barcode scanner
 - [ ] **3.** PDA / warehouse handheld scan
 - [x] **Checklists MVP** — per location; daily/weekly/monthly/once; list = working items; favourites = catalog to pull from; mark done + 6‑mo retention; home glow
+- [ ] **Checklists polish + re-enable** — globally off (`CHECKLISTS_FEATURE_ENABLED`); turn on when ready
 - [ ] **33.** Daily shortlist “what to check today” (auto from expiry — after checklists)
 - [ ] **34.** Staff accountability — who checked what / when (feeds analytics #8)
 - [ ] **35.** Compliance / HACCP reports & digital journals
