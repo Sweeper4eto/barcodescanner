@@ -164,6 +164,12 @@ function isIosLike(): boolean {
   );
 }
 
+/** Galaxy A53 5G model codes (SM-A536*) — aspect+[max-h] collapses preview width. */
+export function isSamsungGalaxyA53(): boolean {
+  if (typeof navigator === "undefined") return false;
+  return /SM-A536/i.test(navigator.userAgent || "");
+}
+
 /**
  * Historically we preferred the system camera picker on iOS for sharper stills.
  * That path uses `<input capture>`, which can ask for camera access on every
@@ -603,11 +609,18 @@ export function CameraCapture({
   /** Document: confirm before leaving live camera or discarding a still preview. */
   /** Only when discarding a still — live Отказ has nothing to lose. */
   const [pendingExit, setPendingExit] = useState<"discardPreview" | null>(null);
+  /** Tall full-width preview only on Galaxy A53 — leave other phones on aspect-[3/4]. */
+  const [a53TallPreview, setA53TallPreview] = useState(false);
   const autoStartedRef = useRef(false);
   const lastPreviewTapRef = useRef(0);
   const documentLayout = variant === "document";
   const showCorners = showViewfinder || documentLayout;
   const { offsetTop, keyboardInset } = useViewportInsets();
+
+  useEffect(() => {
+    if (!documentLayout) return;
+    setA53TallPreview(isSamsungGalaxyA53());
+  }, [documentLayout]);
 
   useScreenWakeLock(
     active || starting || capturing || submitting || Boolean(preview),
@@ -811,15 +824,24 @@ export function CameraCapture({
     retakePhoto();
   }
 
+  // Keep object-contain so live framing matches the captured still (see = get).
   const previewFrameClass = documentLayout
     ? "pointer-events-none h-full w-full object-contain"
     : compact
       ? "pointer-events-none h-full w-full object-contain"
       : "pointer-events-none max-h-[min(52dvh,24rem)] w-full object-contain";
 
-  // Leave room above the pinned toolbar + bottom nav so the shutter is not cropped.
+  // Default: aspect-[3/4] (matches portrait stream, less side letterboxing).
+  // Galaxy A53 only: drop aspect + use full-width height — otherwise max-h
+  // shrinks width and the preview becomes a tiny window.
+  const documentPreviewShellDefault =
+    "relative mx-auto flex aspect-[3/4] max-h-[calc(100svh-var(--app-bottom-nav-frame)-env(safe-area-inset-bottom,0px)-7.5rem)] w-full items-center justify-center overflow-hidden rounded-2xl border border-card-border bg-black";
+  const documentPreviewShellA53 =
+    "relative mx-auto flex h-[calc(100dvh-var(--app-bottom-nav-frame)-env(safe-area-inset-bottom,0px)-8.75rem)] max-h-[calc(100svh-var(--app-bottom-nav-frame)-env(safe-area-inset-bottom,0px)-8.75rem)] min-h-[18rem] w-full items-center justify-center overflow-hidden rounded-2xl border border-card-border bg-black";
   const previewShellClass = documentLayout
-    ? "relative mx-auto flex aspect-[3/4] max-h-[calc(100svh-var(--app-bottom-nav-frame)-env(safe-area-inset-bottom,0px)-7.5rem)] w-full items-center justify-center overflow-hidden rounded-2xl border border-card-border bg-black"
+    ? a53TallPreview
+      ? documentPreviewShellA53
+      : documentPreviewShellDefault
     : compact
       ? "relative mx-auto flex h-[min(28dvh,12.5rem)] w-full items-center justify-center overflow-hidden rounded-xl border border-card-border bg-black"
       : "relative mx-auto flex max-h-[min(52dvh,24rem)] w-full items-center justify-center overflow-hidden rounded-xl border border-card-border bg-black";

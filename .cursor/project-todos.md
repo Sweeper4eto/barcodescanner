@@ -19,7 +19,7 @@ Keep entries short. Prefer `open` / `doing` / `done` / `dropped`.
 - [x] **App UI token unify** — buttons/toggles/spinners/header glow/paddings across `/app/*`
 - [ ] **2.** Bluetooth barcode scanner
 - [ ] **3.** PDA / warehouse handheld scan
-- [x] **Samsung A53 document scan** — CameraCapture prefers main rear over ultrawide/macro (Chrome)
+- [x] **Samsung A53 document scan** — prefer main rear; taller preview only on SM-A536 (UA)
 - [x] **Checklists MVP** — per location; daily/weekly/monthly/once; list = working items; favourites = catalog to pull from; mark done + 6‑mo retention; home glow
 - [ ] **Checklists polish + re-enable** — globally off (`CHECKLISTS_FEATURE_ENABLED`); turn on when ready
 - [ ] **33.** Daily shortlist “what to check today” (auto from expiry — after checklists)
