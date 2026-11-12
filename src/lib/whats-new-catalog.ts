@@ -1347,6 +1347,14 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "В задачите от чеклиста има Детайли (собственик) и Коментар — служителите редактират само коментара.",
     href: "/app/checklists",
   },
+  {
+    key: "2026-11-document-scan-prefer-main-rear",
+    titleEn:
+      "Document scan prefers the main rear camera on multi-lens phones (avoids ultrawide/macro blur).",
+    titleBg:
+      "Сканирането на документи предпочита основната задна камера при телефони с няколко обектива (избягва ултраширока/макро).",
+    href: "/app/add-document",
+  },
 ];
 
 

@@ -1,6 +1,12 @@
 import type { Html5Qrcode } from "html5-qrcode";
 import { decodeBarcodeFromCanvas, decodeBarcodeFromVideo } from "@/lib/barcode-decode";
 
+export {
+  barcodeCameraScore,
+  isLikelyBadBarcodeCamera,
+  orderBarcodeCameras,
+} from "@/lib/camera-select";
+
 type EnhanceMode =
   | "contrast"
   | "highContrast"

@@ -15,7 +15,16 @@ import { appFooterButtonGrid } from "@/lib/app-ui";
 import { useT } from "@/components/i18n-provider";
 import { ScannerViewfinderOverlay } from "@/components/scanner-viewfinder-overlay";
 import { useScreenWakeLock } from "@/hooks/use-screen-wake-lock";
-import { startEnhancedAutoScan, startFastVideoScan, toggleBarcodeTorch, applyBarcodeCameraConstraints, startAutoRefocus, captureScannerPreview } from "@/lib/barcode-camera";
+import {
+  startEnhancedAutoScan,
+  startFastVideoScan,
+  toggleBarcodeTorch,
+  applyBarcodeCameraConstraints,
+  startAutoRefocus,
+  captureScannerPreview,
+  isLikelyBadBarcodeCamera,
+  orderBarcodeCameras,
+} from "@/lib/barcode-camera";
 import { prepareBarcodeDecoders } from "@/lib/barcode-decode";
 import { CrossDecoderBarcodeConsensus, isPlausibleBarcode, normalizeBarcode } from "@/lib/barcode";
 import {
@@ -113,11 +122,19 @@ function readCachedCameraId(): string | null {
   }
 }
 
-function pickRearCamera(cameras: CameraDevice[]): string | undefined {
-  const rear = cameras.find((camera) =>
-    /back|rear|environment/i.test(camera.label),
-  );
-  return rear?.id ?? cameras[0]?.id;
+function pickPreferredBarcodeCamera(
+  cameras: CameraDevice[],
+): string | undefined {
+  const ordered = orderBarcodeCameras(cameras);
+  return ordered[0]?.id;
+}
+
+function runningTrackLabel(containerId: string): string {
+  const root = document.getElementById(containerId);
+  const video = root?.querySelector("video");
+  const stream = video?.srcObject;
+  if (!(stream instanceof MediaStream)) return "";
+  return stream.getVideoTracks()[0]?.label ?? "";
 }
 
 async function safeStopScanner(scanner: Html5Qrcode | null | undefined): Promise<void> {
@@ -264,25 +281,73 @@ async function startScanner(
 
   await waitForScannerLayout(containerId);
 
-  const cachedCameraId = readCachedCameraId();
-  if (cachedCameraId) {
+  const clearCameraCache = () => {
     try {
-      await scanner.start(cachedCameraId, SCAN_CONFIG, onScanSuccess, () => undefined);
-      return afterCameraStart();
+      sessionStorage.removeItem(CAMERA_CACHE_KEY);
+      sessionStorage.removeItem(LEGACY_CAMERA_CACHE_KEY);
+    } catch {
+      // ignore
+    }
+  };
+
+  const startByDeviceId = async (cameraId: string): Promise<boolean> => {
+    try {
+      await scanner.start(cameraId, SCAN_CONFIG, onScanSuccess, () => undefined);
+      const label = runningTrackLabel(containerId);
+      if (isLikelyBadBarcodeCamera(label)) {
+        await resetScanner(scanner);
+        clearCameraCache();
+        return false;
+      }
+      cacheCameraId(cameraId);
+      return true;
     } catch (error) {
       lastError = error;
       await resetScanner(scanner);
-      try {
-        sessionStorage.removeItem(CAMERA_CACHE_KEY);
-      } catch {
-        // ignore
-      }
+      return false;
     }
+  };
+
+  const cachedCameraId = readCachedCameraId();
+  if (cachedCameraId) {
+    if (await startByDeviceId(cachedCameraId)) {
+      return afterCameraStart();
+    }
+    clearCameraCache();
   }
 
+  // Permission + labels: facingMode first, then re-pick the best rear (not ultra).
   for (const camera of CAMERA_ATTEMPTS) {
     try {
       await scanner.start(camera, SCAN_CONFIG, onScanSuccess, () => undefined);
+      try {
+        const cameras = await Html5Qrcode.getCameras();
+        if (cameras.length > 1) {
+          const preferredId = pickPreferredBarcodeCamera(cameras);
+          const label = runningTrackLabel(containerId);
+          const current = cameras.find(
+            (row) =>
+              Boolean(label) &&
+              (row.label === label ||
+                label.includes(row.label) ||
+                row.label.includes(label)),
+          );
+          const currentBad =
+            isLikelyBadBarcodeCamera(label) ||
+            (current ? isLikelyBadBarcodeCamera(current.label) : false);
+          // Samsung A53 etc.: facingMode often opens ultrawide — switch to main rear.
+          if (preferredId && currentBad) {
+            await resetScanner(scanner);
+            if (await startByDeviceId(preferredId)) {
+              return afterCameraStart();
+            }
+            // Fall through to try remaining ranked devices.
+            break;
+          }
+        }
+      } catch {
+        // Enumeration optional after a working stream.
+      }
       return afterCameraStart();
     } catch (error) {
       lastError = error;
@@ -291,20 +356,10 @@ async function startScanner(
   }
 
   try {
-    const cameras = await Html5Qrcode.getCameras();
-    const rearId = cameras.length ? pickRearCamera(cameras) : undefined;
-    const cameraIds = rearId
-      ? [rearId, ...cameras.filter((camera) => camera.id !== rearId).map((c) => c.id)]
-      : cameras.map((camera) => camera.id);
-
-    for (const cameraId of cameraIds) {
-      try {
-        await scanner.start(cameraId, SCAN_CONFIG, onScanSuccess, () => undefined);
-        cacheCameraId(cameraId);
+    const cameras = orderBarcodeCameras(await Html5Qrcode.getCameras());
+    for (const camera of cameras) {
+      if (await startByDeviceId(camera.id)) {
         return afterCameraStart();
-      } catch (error) {
-        lastError = error;
-        await resetScanner(scanner);
       }
     }
   } catch {

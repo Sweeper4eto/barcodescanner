@@ -16,6 +16,11 @@ import {
   appButtonPrimaryFull,
   appFooterButtonGrid,
 } from "@/lib/app-ui";
+import {
+  cameraLabelScore,
+  isLikelyBadCaptureCamera,
+  pickPreferredCameraId,
+} from "@/lib/camera-select";
 
 type Props = {
   onCapture: (dataUrl: string) => void;
@@ -208,60 +213,13 @@ function cameraErrorKey(
   return "camera.unavailable";
 }
 
-async function openCameraStream(): Promise<MediaStream> {
-  if (!navigator.mediaDevices?.getUserMedia) {
-    throw new Error("NO_MEDIA_DEVICES");
-  }
+function stopMediaStream(stream: MediaStream): void {
+  stream.getTracks().forEach((track) => track.stop());
+}
 
-  // Push for maximum rear-camera resolution the device will grant.
-  // Safari often ignores huge ideals; still ask high, then fall back.
-  const constraints: MediaStreamConstraints[] = [
-    {
-      video: {
-        facingMode: { exact: "environment" },
-        width: { ideal: 4032 },
-        height: { ideal: 3024 },
-        frameRate: { ideal: 30 },
-      },
-      audio: false,
-    },
-    {
-      video: {
-        facingMode: { ideal: "environment" },
-        width: { ideal: 4032 },
-        height: { ideal: 3024 },
-      },
-      audio: false,
-    },
-    {
-      video: {
-        facingMode: { ideal: "environment" },
-        width: { ideal: 3840 },
-        height: { ideal: 2160 },
-      },
-      audio: false,
-    },
-    {
-      video: {
-        facingMode: { ideal: "environment" },
-        width: { ideal: 1920 },
-        height: { ideal: 1080 },
-      },
-      audio: false,
-    },
-    { video: { facingMode: { ideal: "environment" } }, audio: false },
-    {
-      video: {
-        facingMode: { ideal: "user" },
-        width: { ideal: 1920 },
-        height: { ideal: 1080 },
-      },
-      audio: false,
-    },
-    { video: { facingMode: { ideal: "user" } }, audio: false },
-    { video: true, audio: false },
-  ];
-
+async function openStreamWithConstraints(
+  constraints: MediaStreamConstraints[],
+): Promise<MediaStream> {
   let lastError: unknown;
   for (const constraint of constraints) {
     try {
@@ -272,8 +230,128 @@ async function openCameraStream(): Promise<MediaStream> {
       lastError = error;
     }
   }
-
   throw lastError ?? new Error("CAMERA_UNAVAILABLE");
+}
+
+/** High-res rear first; fall back so A53 / older WebViews still open. */
+const FACING_CAMERA_CONSTRAINTS: MediaStreamConstraints[] = [
+  {
+    video: {
+      facingMode: { exact: "environment" },
+      width: { ideal: 4032 },
+      height: { ideal: 3024 },
+      frameRate: { ideal: 30 },
+    },
+    audio: false,
+  },
+  {
+    video: {
+      facingMode: { ideal: "environment" },
+      width: { ideal: 4032 },
+      height: { ideal: 3024 },
+    },
+    audio: false,
+  },
+  {
+    video: {
+      facingMode: { ideal: "environment" },
+      width: { ideal: 3840 },
+      height: { ideal: 2160 },
+    },
+    audio: false,
+  },
+  {
+    video: {
+      facingMode: { ideal: "environment" },
+      width: { ideal: 1920 },
+      height: { ideal: 1080 },
+    },
+    audio: false,
+  },
+  { video: { facingMode: { ideal: "environment" } }, audio: false },
+  {
+    video: {
+      facingMode: { ideal: "user" },
+      width: { ideal: 1920 },
+      height: { ideal: 1080 },
+    },
+    audio: false,
+  },
+  { video: { facingMode: { ideal: "user" } }, audio: false },
+  { video: true, audio: false },
+];
+
+function deviceIdConstraints(deviceId: string): MediaStreamConstraints[] {
+  return [
+    {
+      video: {
+        deviceId: { exact: deviceId },
+        width: { ideal: 4032 },
+        height: { ideal: 3024 },
+      },
+      audio: false,
+    },
+    {
+      video: {
+        deviceId: { ideal: deviceId },
+        width: { ideal: 1920 },
+        height: { ideal: 1080 },
+      },
+      audio: false,
+    },
+    { video: { deviceId: { ideal: deviceId } }, audio: false },
+  ];
+}
+
+/**
+ * Open the live document camera. After permission, re-pick the main rear lens
+ * when Chrome handed us ultrawide/macro (common on Galaxy A53).
+ */
+async function openCameraStream(): Promise<MediaStream> {
+  if (!navigator.mediaDevices?.getUserMedia) {
+    throw new Error("NO_MEDIA_DEVICES");
+  }
+
+  let stream = await openStreamWithConstraints(FACING_CAMERA_CONSTRAINTS);
+
+  try {
+    const devices = (await navigator.mediaDevices.enumerateDevices()).filter(
+      (device) => device.kind === "videoinput",
+    );
+    const preferredId = pickPreferredCameraId(
+      devices.map((device) => ({
+        deviceId: device.deviceId,
+        label: device.label,
+      })),
+    );
+    const track = stream.getVideoTracks()[0];
+    const settings = track?.getSettings?.() ?? {};
+    const currentId =
+      typeof settings.deviceId === "string" ? settings.deviceId : "";
+    const currentLabel =
+      track?.label ||
+      devices.find((device) => device.deviceId === currentId)?.label ||
+      "";
+    const preferredLabel =
+      devices.find((device) => device.deviceId === preferredId)?.label || "";
+    const shouldSwitch =
+      Boolean(preferredId) &&
+      preferredId !== currentId &&
+      (isLikelyBadCaptureCamera(currentLabel) ||
+        cameraLabelScore(preferredLabel) > cameraLabelScore(currentLabel) + 10);
+
+    if (shouldSwitch && preferredId) {
+      const next = await openStreamWithConstraints(
+        deviceIdConstraints(preferredId),
+      );
+      stopMediaStream(stream);
+      stream = next;
+    }
+  } catch {
+    // Keep the facingMode stream if deviceId re-pick fails.
+  }
+
+  return stream;
 }
 
 function capabilityMax(
