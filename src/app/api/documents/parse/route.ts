@@ -36,12 +36,6 @@ const parseSchema = z
     message: "image required",
   });
 
-function providerErrorDetail(message: string): string {
-  if (!message.startsWith("OCR_PROVIDER:")) return message;
-  const rest = message.slice("OCR_PROVIDER:".length);
-  return /^\d{3}:/.test(rest) ? rest.slice(4).trim() : rest.trim();
-}
-
 function publicOcrError(request: Request, message: string): string {
   const lower = message.toLowerCase();
   if (message === "OCR_CASCADE_EXHAUSTED") {
@@ -54,10 +48,7 @@ function publicOcrError(request: Request, message: string): string {
     return apiT(request, "errors.documentAiQuotaExceeded");
   }
   if (message.startsWith("OCR_PROVIDER:")) {
-    const detail = providerErrorDetail(message);
-    return detail
-      ? `Document AI error: ${detail}`
-      : apiT(request, "errors.documentParseFailed");
+    return apiT(request, "errors.documentParseFailed");
   }
   if (message.startsWith("OCR_EMPTY:")) {
     return apiT(request, "errors.documentNoItems");
@@ -222,12 +213,7 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error("document parse: unhandled error", error);
     return NextResponse.json(
-      {
-        error:
-          error instanceof Error && error.message
-            ? `Server error: ${error.message}`
-            : apiT(request, "errors.documentParseFailed"),
-      },
+      { error: apiT(request, "errors.documentParseFailed") },
       { status: 500 },
     );
   }

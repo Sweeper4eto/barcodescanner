@@ -49,17 +49,23 @@ function sessionCookieSecure(request?: Request): boolean {
   if (process.env.SESSION_COOKIE_SECURE === "true") return true;
   if (process.env.SESSION_COOKIE_SECURE === "false") return false;
 
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.APP_URL ?? "";
+  if (appUrl.startsWith("https://")) return true;
+  if (appUrl.startsWith("http://")) return false;
+
+  // Production defaults to Secure when app URL is unset (fail closed).
+  if (process.env.NODE_ENV === "production") return true;
+
   if (request) {
     const proto = (
-      request.headers.get("x-forwarded-proto") ??
+      request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim() ??
       new URL(request.url).protocol.replace(":", "")
     ).toLowerCase();
     if (proto === "https") return true;
     if (proto === "http") return false;
   }
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.APP_URL ?? "";
-  return appUrl.startsWith("https://");
+  return false;
 }
 
 export function sessionCookieOptions(request?: Request) {

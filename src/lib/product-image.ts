@@ -13,8 +13,42 @@ const EXT_BY_TYPE: Record<string, string> = {
   "image/gif": "gif",
 };
 
+/** Hosts we may download product images from (SSRF allowlist). */
+const REMOTE_IMAGE_HOST_SUFFIXES = [
+  "openfoodfacts.org",
+  "openfoodfacts.net",
+  "openfoodfacts.com",
+] as const;
+
 export function isRemoteImageUrl(value: string | null | undefined): boolean {
   return Boolean(value && /^https?:\/\//i.test(value));
+}
+
+export function isAllowedRemoteImageUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "https:" && url.protocol !== "http:") return false;
+    if (url.username || url.password) return false;
+    const host = url.hostname.toLowerCase();
+    if (
+      host === "localhost" ||
+      host === "127.0.0.1" ||
+      host === "::1" ||
+      host.endsWith(".local") ||
+      host.endsWith(".internal")
+    ) {
+      return false;
+    }
+    // Block literal IPs (private or otherwise) — OFF uses DNS names.
+    if (/^\d{1,3}(\.\d{1,3}){3}$/.test(host) || host.includes(":")) {
+      return false;
+    }
+    return REMOTE_IMAGE_HOST_SUFFIXES.some(
+      (suffix) => host === suffix || host.endsWith(`.${suffix}`),
+    );
+  } catch {
+    return false;
+  }
 }
 
 function extensionFromUrl(url: string): string | null {
@@ -35,7 +69,9 @@ export async function saveRemoteProductImage(
   imageUrl: string,
   fetchImpl: typeof fetch = fetch,
 ): Promise<string | null> {
-  if (!isRemoteImageUrl(imageUrl)) return null;
+  if (!isRemoteImageUrl(imageUrl) || !isAllowedRemoteImageUrl(imageUrl)) {
+    return null;
+  }
 
   try {
     const response = await fetchImpl(imageUrl, {
@@ -44,11 +80,36 @@ export async function saveRemoteProductImage(
         Accept: "image/*",
       },
       signal: AbortSignal.timeout(15000),
-      redirect: "follow",
+      // Manual redirects so each hop is re-checked against the allowlist.
+      redirect: "manual",
     });
-    if (!response.ok) return null;
 
-    const contentType = (response.headers.get("content-type") || "")
+    let finalResponse = response;
+    let hops = 0;
+    while (
+      finalResponse.status >= 300 &&
+      finalResponse.status < 400 &&
+      hops < 3
+    ) {
+      const location = finalResponse.headers.get("location");
+      if (!location) return null;
+      const nextUrl = new URL(location, imageUrl).toString();
+      if (!isAllowedRemoteImageUrl(nextUrl)) return null;
+      hops += 1;
+      finalResponse = await fetchImpl(nextUrl, {
+        headers: {
+          "User-Agent": OFF_USER_AGENT,
+          Accept: "image/*",
+        },
+        signal: AbortSignal.timeout(15000),
+        redirect: "manual",
+      });
+      imageUrl = nextUrl;
+    }
+
+    if (!finalResponse.ok) return null;
+
+    const contentType = (finalResponse.headers.get("content-type") || "")
       .split(";")[0]
       .trim()
       .toLowerCase();
@@ -56,7 +117,7 @@ export async function saveRemoteProductImage(
       EXT_BY_TYPE[contentType] || extensionFromUrl(imageUrl) || "jpg";
     if (!["jpg", "png", "webp", "gif"].includes(ext)) return null;
 
-    const buffer = Buffer.from(await response.arrayBuffer());
+    const buffer = Buffer.from(await finalResponse.arrayBuffer());
     if (!buffer.length || buffer.length > MAX_UPLOAD_FILE_BYTES) return null;
 
     return saveUploadBuffer(buffer, ext);

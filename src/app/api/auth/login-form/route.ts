@@ -7,31 +7,22 @@ import {
 } from "@/lib/audit-log";
 import { loginUser } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { createLoginTicket } from "@/lib/login-tickets";
 import {
   clearLoginFailures,
   getLoginLockRemainingMs,
   recordLoginFailure,
 } from "@/lib/login-rate-limit";
 import { applySessionCookie } from "@/lib/session";
-
-function publicOrigin(request: Request): string {
-  const host =
-    request.headers.get("x-forwarded-host") ?? request.headers.get("host");
-  const proto = (
-    request.headers.get("x-forwarded-proto") ??
-    new URL(request.url).protocol.replace(":", "")
-  ).replace(/:$/, "");
-  if (host) return `${proto}://${host}`;
-  return new URL(request.url).origin;
-}
+import { publicUrl } from "@/lib/request-origin";
 
 function redirectTo(request: Request, path: string) {
-  return NextResponse.redirect(new URL(path, publicOrigin(request)), 303);
+  return NextResponse.redirect(publicUrl(request, path), 303);
 }
 
 /**
- * Form POST login → set cookies → 303 straight to /app?__session=…
- * (no intermediate "Signing in / Continue" page).
+ * Form POST login → set cookies → 303 to /auth/establish?k=… (opaque ticket).
+ * Establish completes the session without putting a JWT in any URL.
  */
 export async function POST(request: Request) {
   try {
@@ -121,7 +112,8 @@ export async function POST(request: Request) {
         ? "/admin"
         : "/app";
 
-    const target = `${nextPath}?__session=${encodeURIComponent(result.token)}`;
+    const ticket = createLoginTicket(result.token);
+    const target = `/auth/establish?k=${encodeURIComponent(ticket)}&next=${encodeURIComponent(nextPath)}`;
     console.info("[login-form] ok", username, "→", nextPath);
     const response = redirectTo(request, target);
     applySessionCookie(response, result.token, request);

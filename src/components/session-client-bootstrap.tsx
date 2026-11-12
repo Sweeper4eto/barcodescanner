@@ -4,8 +4,8 @@ import { useEffect } from "react";
 import { CLIENT_COOKIE_NAME } from "@/lib/session-token";
 
 /**
- * Drop a leftover JS-readable session cookie and strip ?__session= from the
- * address bar. The httpOnly cookie is set by the server on this response.
+ * Drop a leftover JS-readable session cookie and strip any legacy session
+ * query params from the address bar.
  */
 export function SessionClientBootstrap() {
   useEffect(() => {
@@ -13,8 +13,14 @@ export function SessionClientBootstrap() {
       document.cookie = `${CLIENT_COOKIE_NAME}=; Path=/; Max-Age=0; SameSite=Lax`;
       sessionStorage.removeItem(CLIENT_COOKIE_NAME);
       const url = new URL(window.location.href);
-      if (!url.searchParams.has("__session")) return;
-      url.searchParams.delete("__session");
+      let changed = false;
+      for (const key of ["__k", "__session", "t", "k"] as const) {
+        if (url.searchParams.has(key)) {
+          url.searchParams.delete(key);
+          changed = true;
+        }
+      }
+      if (!changed) return;
       const clean = `${url.pathname}${url.search}${url.hash}`;
       window.history.replaceState({}, "", clean);
     } catch {

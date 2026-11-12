@@ -622,7 +622,7 @@ async function extractWithGeminiOnce(
   mime: string,
   base64: string,
 ): Promise<string> {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
 
   // Gemini 2.5: disable thinking via budget 0 (faster OCR, more JSON room).
   // Gemini 3.x: thinkingLevel "low" — less rewriting, lower latency/cost.
@@ -647,7 +647,10 @@ async function extractWithGeminiOnce(
   try {
     response = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": apiKey,
+      },
       signal: AbortSignal.timeout(timeoutMs),
       body: JSON.stringify({
         contents: [

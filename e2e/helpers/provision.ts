@@ -201,8 +201,7 @@ export async function createTeamUserViaPage(
  * JS-readable session cookie from older builds.
  */
 export async function logoutViaPage(page: Page): Promise<void> {
-  // Leave /app first. A URL that still has ?__session= would sign the browser
-  // back in on the next document load.
+  // Leave /app first. A URL that still has ?__k= could re-bootstrap briefly.
   await page.goto("/terms");
   await page.evaluate(async () => {
     await fetch("/api/auth/logout", {

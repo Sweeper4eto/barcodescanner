@@ -4,22 +4,13 @@ import {
   applySessionCookie,
   COOKIE_NAME,
   LEGACY_COOKIE_NAME,
+  sessionCookieOptions,
 } from "@/lib/session";
 import { verifySessionToken } from "@/lib/session-token";
-
-function publicOrigin(request: Request): string {
-  const host =
-    request.headers.get("x-forwarded-host") ?? request.headers.get("host");
-  const proto = (
-    request.headers.get("x-forwarded-proto") ??
-    new URL(request.url).protocol.replace(":", "")
-  ).replace(/:$/, "");
-  if (host) return `${proto}://${host}`;
-  return new URL(request.url).origin;
-}
+import { publicUrl } from "@/lib/request-origin";
 
 function redirectTo(request: Request, path: string) {
-  return NextResponse.redirect(new URL(path, publicOrigin(request)), 303);
+  return NextResponse.redirect(publicUrl(request, path), 303);
 }
 
 function cookieFrom(request: Request, name: string): string {
@@ -35,27 +26,40 @@ function cookieFrom(request: Request, name: string): string {
   return "";
 }
 
-/** Silent redirect only — no HTML / Continue screen. */
+/**
+ * 200 HTML bounce with Set-Cookie — more reliable on mobile Safari than a
+ * 303 that may drop the cookie. No JWT in the destination URL.
+ */
 function finishWithSession(
   request: Request,
   token: string,
   nextPath: string,
 ) {
-  const target = `${nextPath}?__session=${encodeURIComponent(token)}`;
-  const response = redirectTo(request, target);
+  const dest = publicUrl(request, nextPath).toString();
+  const safeDest = JSON.stringify(dest);
+  const html = `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"/><meta http-equiv="refresh" content="0;url=${dest.replace(/"/g, "")}"/><title>Signing in</title></head><body><script>location.replace(${safeDest})</script></body></html>`;
+  const response = new NextResponse(html, {
+    status: 200,
+    headers: {
+      "content-type": "text/html; charset=utf-8",
+      "cache-control": "no-store",
+    },
+  });
   applySessionCookie(response, token, request);
+  // Reinforce path/options on this document response.
+  response.cookies.set(COOKIE_NAME, token, sessionCookieOptions(request));
   return response;
 }
 
 async function establish(request: Request) {
   const url = new URL(request.url);
   const ticketId = url.searchParams.get("k")?.trim() ?? "";
-  const legacyToken = url.searchParams.get("t")?.trim() ?? "";
   const next = url.searchParams.get("next")?.trim() || "/app";
   const safeNext =
     next.startsWith("/") && !next.startsWith("//") ? next : "/app";
 
-  const token = (ticketId ? resolveLoginTicket(ticketId) : null) ?? legacyToken;
+  // Opaque tickets only — legacy ?t=<JWT> is rejected.
+  const token = ticketId ? resolveLoginTicket(ticketId) : null;
 
   if (!token) {
     const existing =
