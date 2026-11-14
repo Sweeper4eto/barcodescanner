@@ -11,7 +11,7 @@ import { useAppSession } from "@/components/app-session-provider";
 import { useT } from "@/components/i18n-provider";
 import { useAppStoreId } from "@/hooks/use-app-store-id";
 import { navigateApp } from "@/lib/app-navigation";
-import { appPageTopGlowClass } from "@/lib/app-ui";
+import { appContentMaxW, appPageTopGlowClass } from "@/lib/app-ui";
 import {
   validateSupportEmail,
   validateSupportPhone,
@@ -254,7 +254,7 @@ export default function ContactSupportPage() {
 
   if (sent) {
     return (
-      <div className="relative mx-auto flex min-w-0 max-w-lg flex-col overflow-x-visible px-4 pb-6 pt-1">
+      <div className={`relative mx-auto flex min-w-0 w-full ${appContentMaxW} flex-col overflow-x-visible px-4 pb-6 pt-1`}>
         <div aria-hidden className={appPageTopGlowClass} />
         <div className="relative z-10 flex flex-1 flex-col items-center justify-center text-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -311,7 +311,7 @@ export default function ContactSupportPage() {
   }
 
   return (
-    <div className="relative mx-auto min-w-0 max-w-lg overflow-x-visible px-4 pb-4 pt-1">
+    <div className={`relative mx-auto min-w-0 w-full ${appContentMaxW} overflow-x-visible px-4 pb-4 pt-1`}>
       <div className="relative z-40">
         <MobilePageHeader className="mb-3" />
       </div>

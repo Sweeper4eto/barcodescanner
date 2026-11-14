@@ -14,6 +14,7 @@ import {
   appButtonCancelFull,
   appButtonDangerFull,
   appButtonPrimaryFull,
+  appContentMaxW,
   appFooterButtonGrid,
 } from "@/lib/app-ui";
 import {
@@ -929,7 +930,7 @@ export function CameraCapture({
 
   const documentToolbar = documentLayout && !preview && (
     <div
-      className="fixed inset-x-0 z-30 mx-auto grid w-full max-w-lg grid-cols-[1fr_auto_1fr] items-end gap-2 bg-background/95 px-4 pb-0 pt-0 backdrop-blur-sm supports-[backdrop-filter]:bg-background/90"
+      className={`fixed inset-x-0 z-30 mx-auto grid w-full ${appContentMaxW} grid-cols-[1fr_auto_1fr] items-end gap-2 bg-background/95 px-4 pb-0 pt-0 backdrop-blur-sm supports-[backdrop-filter]:bg-background/90`}
       style={documentToolbarPinStyle}
     >
       <div className="min-w-0 self-end">
@@ -977,7 +978,7 @@ export function CameraCapture({
 
   const documentPreviewToolbar = documentLayout && preview ? (
     <div
-      className={`fixed inset-x-0 z-30 mx-auto w-full max-w-lg bg-background/95 px-4 pb-0 pt-0 backdrop-blur-sm supports-[backdrop-filter]:bg-background/90 ${appFooterButtonGrid}`}
+      className={`fixed inset-x-0 z-30 mx-auto w-full ${appContentMaxW} bg-background/95 px-4 pb-0 pt-0 backdrop-blur-sm supports-[backdrop-filter]:bg-background/90 ${appFooterButtonGrid}`}
       style={documentToolbarPinStyle}
     >
       <button

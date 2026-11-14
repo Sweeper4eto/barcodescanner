@@ -47,6 +47,7 @@ import {
   appButtonNeutral,
   appButtonToolbar,
   appButtonToolbarActive,
+  appContentMaxW,
   appFooterButtonGrid,
   appSearchInput,
 } from "@/lib/app-ui";
@@ -65,6 +66,7 @@ type Entry = {
   id: string;
   barcode: string;
   articul: string | null;
+  lot: string | null;
   imagePath: string | null;
   quantity: number;
   enteredAt: string;
@@ -300,6 +302,7 @@ function ExpiryList() {
         const nextEntries = (data.entries ?? []).map((entry) => ({
           ...entry,
           articul: entry.articul ?? null,
+          lot: entry.lot ?? null,
           imagePath: entry.imagePath ?? null,
         }));
         setEntries((current) => (append ? [...current, ...nextEntries] : nextEntries));
@@ -665,6 +668,7 @@ function ExpiryList() {
               ...entry,
               barcode: updated.barcode,
               articul: updated.articul ?? null,
+              lot: updated.lot ?? null,
               imagePath: updated.imagePath ?? null,
               quantity: updated.quantity,
               expiryDate: updated.expiryDate,
@@ -693,6 +697,7 @@ function ExpiryList() {
             id: updated.id,
             barcode: updated.barcode,
             articul: updated.articul ?? null,
+            lot: updated.lot ?? null,
             imagePath: updated.imagePath ?? null,
             quantity: updated.quantity,
             enteredAt: updated.enteredAt ?? new Date().toISOString(),
@@ -736,7 +741,7 @@ function ExpiryList() {
   const isEditingDiscount = Boolean(priceReduceEntry?.priceReducedAt);
 
   return (
-    <div className="mx-auto flex h-[calc(100svh-var(--app-bottom-nav-frame)-env(safe-area-inset-bottom,0px))] min-h-0 w-full max-w-lg flex-col overflow-x-visible pt-1">
+    <div className={`mx-auto flex h-[calc(100svh-var(--app-bottom-nav-frame)-env(safe-area-inset-bottom,0px))] min-h-0 w-full ${appContentMaxW} flex-col overflow-x-visible pt-1`}>
       <div className={`${listPageChromeClassName} px-4`}>
         <MobilePageHeader
           title={
@@ -988,7 +993,7 @@ function ExpiryList() {
           className="fixed inset-x-0 z-[60] flex items-end justify-center bg-black/40"
           style={{ top: offsetTop, bottom: keyboardInset }}
         >
-          <div className="w-full max-w-lg px-3 pb-[calc(var(--app-bottom-nav-height)+env(safe-area-inset-bottom,0px)+0.5rem)]">
+          <div className={`w-full ${appContentMaxW} px-3 pb-[calc(var(--app-bottom-nav-height)+env(safe-area-inset-bottom,0px)+0.5rem)]`}>
             <div className="rounded-xl border border-card-border bg-background p-3">
               <p className="text-sm font-semibold">
                 {isEditingDiscount

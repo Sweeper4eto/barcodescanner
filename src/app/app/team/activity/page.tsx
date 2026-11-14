@@ -23,6 +23,7 @@ import {
   appButtonPrimary,
   appButtonPrimaryFull,
   appChromeInset,
+  appContentMaxW,
   appFooterButtonGrid,
   appListInset,
   appPageShell,
@@ -676,7 +677,7 @@ export default function TeamActivityPage() {
 
       {selectionMode ? (
         <div
-          className="fixed inset-x-0 z-50 mx-auto w-full max-w-lg border-t border-card-border bg-background/95 px-3 pb-2 pt-2 backdrop-blur-sm supports-[backdrop-filter]:bg-background/90"
+          className={`fixed inset-x-0 z-50 mx-auto w-full ${appContentMaxW} border-t border-card-border bg-background/95 px-3 pb-2 pt-2 backdrop-blur-sm supports-[backdrop-filter]:bg-background/90`}
           style={{
             bottom:
               "calc(var(--app-bottom-nav-height) + env(safe-area-inset-bottom, 0px))",

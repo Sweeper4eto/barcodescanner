@@ -22,7 +22,7 @@ export function isLikelyInvalidBarcode(value: string): boolean {
 /** Clean OCR output without moving values between barcode and articul. */
 export function sanitizeDocumentRow(row: DocumentOcrRow): DocumentOcrRow {
   const { name, expiryYmd } = row;
-  let { barcode, articul, quantity } = row;
+  let { barcode, articul, lot, quantity } = row;
 
   if (barcode) {
     const trimmed = barcode.trim();
@@ -33,9 +33,8 @@ export function sanitizeDocumentRow(row: DocumentOcrRow): DocumentOcrRow {
     }
   }
 
-  if (articul) {
-    articul = articul.trim() || null;
-  }
+  articul = articul?.trim() || null;
+  lot = lot?.trim() || null;
 
   const qty = Math.round(quantity);
   quantity = Math.min(
@@ -43,7 +42,7 @@ export function sanitizeDocumentRow(row: DocumentOcrRow): DocumentOcrRow {
     MAX_DOCUMENT_QUANTITY,
   );
 
-  return { name, barcode, articul, expiryYmd, quantity };
+  return { name, barcode, articul, lot, expiryYmd, quantity };
 }
 
 function nameWords(name: string): string[] {
@@ -61,7 +60,7 @@ function nameWords(name: string): string[] {
  * two-word brand lines are real rows.
  */
 export function isLikelyNameFragment(row: DocumentOcrRow): boolean {
-  if (row.barcode || row.articul) return false;
+  if (row.barcode || row.articul || row.lot) return false;
   const name = row.name.trim();
   if (!name) return false;
   const words = nameWords(name);
@@ -244,7 +243,7 @@ export function mergeWrappedNameContinuations(
 
 /** Strong product identity — used to avoid stealing a real first-row Godnost. */
 function rowLooksLikeCompleteProduct(row: DocumentOcrRow): boolean {
-  if (row.barcode || row.articul) return true;
+  if (row.barcode || row.articul || row.lot) return true;
   if (nameWords(row.name).length >= 4) return true;
   if (hasPackWeightSuffix(row.name)) return true;
   return false;

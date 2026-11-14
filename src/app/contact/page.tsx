@@ -9,6 +9,7 @@ import { LanguageSwitch } from "@/components/language-switch";
 import { useT } from "@/components/i18n-provider";
 import { MenuSelect } from "@/components/menu-select";
 import { MobileI18nProvider } from "@/components/mobile-i18n-provider";
+import { appContentMaxW } from "@/lib/app-ui";
 import {
   validateSupportEmail,
   validateSupportPhone,
@@ -98,7 +99,7 @@ function ContactPageContent() {
   }
 
   return (
-    <div className="mx-auto flex min-h-svh w-full min-w-0 max-w-lg flex-col px-4 pb-10 pt-[max(1rem,env(safe-area-inset-top,0px))]">
+    <div className={`mx-auto flex min-h-svh w-full min-w-0 ${appContentMaxW} flex-col px-4 pb-10 pt-[max(1rem,env(safe-area-inset-top,0px))]`}>
       <div className="mb-6 flex items-center justify-between gap-3">
         <Link href="/" className="inline-flex items-center gap-2">
           {/* eslint-disable-next-line @next/next/no-img-element */}

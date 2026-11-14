@@ -1355,6 +1355,38 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Сканирането на документи предпочита основната задна камера при телефони с няколко обектива (избягва ултраширока/макро).",
     href: "/app/add-document",
   },
+  {
+    key: "2026-11-document-prefer-ocr-name",
+    titleEn:
+      "Document scan keeps the product name from the photo when OCR finds one; barcode catalog name is only a fallback.",
+    titleBg:
+      "При сканиране на документ се показва името от снимката, ако OCR го разчете; името от баркода в каталога е само резерва.",
+    href: "/app/add-document",
+  },
+  {
+    key: "2026-11-document-extract-lot",
+    titleEn:
+      "Document scan can read lot/batch (Партида, Лот, Серия, Емисия, …) and save it on the expiry item.",
+    titleBg:
+      "Сканирането на документи разчита партида/лот (Партида, Лот, Серия, Емисия, …) и я записва към артикула.",
+    href: "/app/add-document",
+  },
+  {
+    key: "2026-11-expiry-articul-lot-copy",
+    titleEn:
+      "Expiry details have copy buttons next to SKU, lot, and barcode.",
+    titleBg:
+      "В детайлите на артикул има бутони за копиране до артикул, партида и баркод.",
+    href: "/app/expiry",
+  },
+  {
+    key: "2026-11-tablet-wider-layout",
+    titleEn:
+      "On tablets the app uses a wider content column so lists and forms are less phone-narrow.",
+    titleBg:
+      "На таблет приложението ползва по-широка колона, за да не изглеждат списъците и формите като на телефон.",
+    href: "/app",
+  },
 ];
 
 

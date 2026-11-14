@@ -25,6 +25,7 @@ const itemSchema = z.object({
   name: z.string().optional().nullable(),
   barcode: z.string().optional().nullable(),
   articul: z.string().optional().nullable(),
+  lot: z.string().optional().nullable(),
   expiryYmd: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   quantity: z.number().int().positive(),
   productId: z.string().optional().nullable(),
@@ -148,6 +149,7 @@ export async function POST(request: Request) {
 
     for (const item of parsed.data.items) {
       const articul = item.articul?.trim() || null;
+      const lot = item.lot?.trim() || null;
       const name = item.name?.trim() ?? "";
       const barcode = normalizeBarcode(item.barcode ?? "") || null;
       const expiryDate = normalizeExpiryDate(
@@ -177,6 +179,7 @@ export async function POST(request: Request) {
           data: {
             quantity: existing.quantity + item.quantity,
             ...(articul ? { articul } : {}),
+            ...(lot ? { lot } : {}),
           },
           include: { product: true },
         });
@@ -214,6 +217,7 @@ export async function POST(request: Request) {
           productId: product.id,
           barcode: product.barcode,
           articul,
+          lot,
           imagePath: null,
           quantity: item.quantity,
           expiryDate,

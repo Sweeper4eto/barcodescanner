@@ -17,6 +17,7 @@ const base: DocumentDraftItem = {
   name: "Milk",
   barcode: "",
   articul: "123",
+  lot: "",
   expiryYmd: "2026-12-01",
   quantity: "2",
   productId: null,

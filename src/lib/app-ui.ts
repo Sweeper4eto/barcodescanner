@@ -5,7 +5,13 @@
  * Buttons are always outline (never `bg-primary` fill).
  */
 
-export const appPageShell = "mx-auto min-w-0 max-w-lg";
+/**
+ * Content column max-width: phone (`max-w-lg`), tablet (`md`/`lg` wider).
+ * Use with `mx-auto w-full` (or via `appPageShell`) so chrome stays aligned.
+ */
+export const appContentMaxW = "max-w-lg md:max-w-2xl lg:max-w-3xl";
+
+export const appPageShell = `mx-auto min-w-0 w-full ${appContentMaxW}`;
 
 /** List cards / expiry-style rows */
 export const appListInset = "px-1.5";

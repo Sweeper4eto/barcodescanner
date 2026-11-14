@@ -21,6 +21,7 @@ type Entry = {
   id: string;
   barcode: string;
   articul: string | null;
+  lot?: string | null;
   imagePath: string | null;
   quantity: number;
   enteredAt: string;

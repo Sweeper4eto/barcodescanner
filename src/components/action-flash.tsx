@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { appContentMaxW } from "@/lib/app-ui";
 
 type Props = {
   message: string | null;
@@ -35,7 +36,7 @@ export function ActionFlash({
   return (
     <p
       role={tone === "error" ? "alert" : "status"}
-      className={`pointer-events-none fixed inset-x-0 z-50 mx-auto w-[calc(100%-1.5rem)] max-w-lg rounded-xl border px-3 py-2.5 text-center text-sm font-medium backdrop-blur-sm ${toneClass}`}
+      className={`pointer-events-none fixed inset-x-0 z-50 mx-auto w-[calc(100%-1.5rem)] ${appContentMaxW} rounded-xl border px-3 py-2.5 text-center text-sm font-medium backdrop-blur-sm ${toneClass}`}
       style={{
         bottom:
           "calc(var(--app-bottom-nav-height) + env(safe-area-inset-bottom, 0px) + 0.5rem)",

@@ -4,7 +4,11 @@ import { useEffect } from "react";
 import { useT } from "@/components/i18n-provider";
 import { HomeIcon, RefreshIcon } from "@/components/app-nav-icons";
 import { navigateApp } from "@/lib/app-navigation";
-import { appButtonNeutralFull, appButtonPrimaryFull } from "@/lib/app-ui";
+import {
+  appButtonNeutralFull,
+  appButtonPrimaryFull,
+  appContentMaxW,
+} from "@/lib/app-ui";
 
 export default function AppError({
   error,
@@ -20,7 +24,7 @@ export default function AppError({
   }, [error]);
 
   return (
-    <div className="mx-auto flex min-h-full max-w-lg flex-col items-center justify-center gap-4 px-4 py-10 text-center">
+    <div className={`mx-auto flex min-h-full w-full ${appContentMaxW} flex-col items-center justify-center gap-4 px-4 py-10 text-center`}>
       <p className="text-lg font-semibold text-foreground">{t("errors.pageLoadFailed")}</p>
       <p className="text-sm text-muted">{t("errors.pageLoadFailedHint")}</p>
       <div className="flex w-full flex-col gap-2 sm:flex-row sm:justify-center">

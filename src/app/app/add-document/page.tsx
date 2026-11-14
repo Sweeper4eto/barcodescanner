@@ -39,6 +39,7 @@ import {
   appButtonPrimaryFull,
   appButtonNeutralFull,
   appButtonToolbar,
+  appContentMaxW,
   appFooterButtonGrid,
   appListInset,
   appSearchInput,
@@ -69,7 +70,7 @@ import {
 
 /** Full-height review shell — no horizontal pad (content uses appListInset). */
 const reviewPageShellClassName =
-  "mx-auto flex h-[calc(100svh-var(--app-bottom-nav-frame)-env(safe-area-inset-bottom,0px))] min-h-0 w-full max-w-lg flex-col overflow-x-visible pt-1";
+  `mx-auto flex h-[calc(100svh-var(--app-bottom-nav-frame)-env(safe-area-inset-bottom,0px))] min-h-0 w-full ${appContentMaxW} flex-col overflow-x-visible pt-1`;
 
 const MAX_REATTACH_BYTES = 12 * 1024 * 1024;
 
@@ -248,6 +249,7 @@ function AddDocumentContent() {
     name?: string;
     barcode?: string | null;
     articul?: string | null;
+    lot?: string | null;
     expiryYmd?: string | null;
     quantity?: number;
     productId?: string | null;
@@ -298,6 +300,7 @@ function AddDocumentContent() {
       name: item.name ?? "",
       barcode: item.barcode ?? "",
       articul: item.articul ?? "",
+      lot: item.lot ?? "",
       expiryYmd: item.expiryYmd ?? "",
       quantity: String(item.quantity && item.quantity >= 1 ? item.quantity : 1),
       productId: item.productId ?? null,
@@ -762,6 +765,7 @@ function AddDocumentContent() {
             name: item.name.trim(),
             barcode: item.barcode.trim() || null,
             articul: item.articul.trim() || null,
+            lot: item.lot.trim() || null,
             expiryYmd: item.expiryYmd,
             quantity: Number(item.quantity),
             productId: item.productId,
@@ -801,7 +805,7 @@ function AddDocumentContent() {
 
   if (checking) {
     return (
-      <div className="mx-auto min-w-0 max-w-lg overflow-x-visible px-4 pb-6 pt-1">
+      <div className={`mx-auto min-w-0 w-full ${appContentMaxW} overflow-x-visible px-4 pb-6 pt-1`}>
         <MobilePageHeader title={t("addDocument.title")} sticky />
         <LoadingSpinnerPage />
       </div>
@@ -823,8 +827,8 @@ function AddDocumentContent() {
           isReviewStep
             ? reviewPageShellClassName
             : hideHeaderForLiveCamera
-              ? "mx-auto min-w-0 max-w-lg overflow-x-visible px-4 pb-5 pt-[max(0.5rem,env(safe-area-inset-top,0px))]"
-              : "mx-auto min-w-0 max-w-lg overflow-x-visible px-4 pb-5 pt-1"
+              ? `mx-auto min-w-0 w-full ${appContentMaxW} overflow-x-visible px-4 pb-5 pt-[max(0.5rem,env(safe-area-inset-top,0px))]`
+              : `mx-auto min-w-0 w-full ${appContentMaxW} overflow-x-visible px-4 pb-5 pt-1`
         }
       >
         {!isReviewStep && !hideHeaderForLiveCamera ? (

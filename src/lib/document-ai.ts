@@ -15,6 +15,8 @@ const rowSchema = z.object({
   name: z.string().optional().nullable(),
   barcode: z.string().optional().nullable(),
   articul: z.string().optional().nullable(),
+  /** Batch / lot: Партида, Пар., Лот, Серия, Емисия, Lot, Batch, … */
+  lot: z.string().optional().nullable(),
   expiryDate: z.string().optional().nullable(),
   /** Exact Godnost cell as printed, e.g. "01.12.2027" (day.month.year). */
   expiryPrinted: z.string().optional().nullable(),
@@ -29,6 +31,7 @@ export type DocumentOcrRow = {
   name: string;
   barcode: string | null;
   articul: string | null;
+  lot: string | null;
   expiryYmd: string | null;
   quantity: number;
 };
@@ -183,11 +186,15 @@ function toRows(payload: unknown): DocumentOcrRow[] {
       const name = item.name?.trim() ?? "";
       const barcode = item.barcode?.trim() || null;
       const articul = item.articul?.trim() || null;
+      const lot = item.lot?.trim() || null;
       const expiryYmd = resolveDocumentExpiry(item.expiryDate, item.expiryPrinted);
       const quantity = normalizeQuantity(item.quantity);
-      return { name, barcode, articul, expiryYmd, quantity };
+      return { name, barcode, articul, lot, expiryYmd, quantity };
     })
-    .filter((row) => row.name || row.barcode || row.articul || row.expiryYmd);
+    .filter(
+      (row) =>
+        row.name || row.barcode || row.articul || row.lot || row.expiryYmd,
+    );
 
   if (process.env.OCR_DEBUG === "1") {
     console.log(
@@ -245,26 +252,26 @@ const SYSTEM_PROMPT = `Extract product lines from a photo of a Bulgarian store d
 OUTPUT FORMAT (mandatory — violations break import):
 - Return ONLY one JSON object. No markdown fences, no commentary, no trailing text.
 - Root MUST be an object with key "items" (array). Shape:
-{"items":[{"name":"...","barcode":null,"articul":"...","expiryPrinted":"DD.MM.YYYY","expiryDate":null,"quantity":1}]}
+{"items":[{"name":"...","barcode":null,"articul":"...","lot":null,"expiryPrinted":"DD.MM.YYYY","expiryDate":null,"quantity":1}]}
 - NEVER return a bare array like [{"name":"..."}, ...] — that is INVALID. Always wrap: {"items":[...]}
 - NEVER wrap items as {"products":[...]} or {"rows":[...]} — the key must be exactly "items".
 - First character of the response must be { and last meaningful character must be }.
 
 STEP 1 — FIND THE COLUMNS FIRST (before reading any product):
-- Locate the table header row (e.g. №, Наименование / Артикул / Код / Баркод / К-во / Количество / Годност / Срок на годност). Header text is never a product.
-- Fix the horizontal position of each column: name, articul (SKU), barcode (EAN), quantity, Godnost. Not every page has every column — a missing column means that field is null for every item.
+- Locate the table header row (e.g. №, Наименование / Артикул / Код / Баркод / К-во / Количество / Годност / Срок на годност / Партида / Пар. / Лот / Серия / Емисия / Lot / Batch). Header text is never a product.
+- Fix the horizontal position of each column: name, articul (SKU), barcode (EAN), quantity, Godnost, lot (batch). Not every page has every column — a missing column means that field is null for every item.
 - Then follow each column straight down the page (along the table's tilt if the photo is angled) — a value belongs to a field only if it sits inside that column. Never move a value into a neighboring column.
 - Only after the columns are fixed, go product by product (STEP 2 below).
 
 PHOTO CONDITIONS (common — do NOT "help" by guessing):
 The page may be angled, off-center, dim, glare-lit, or folded/curled on an edge. That never authorizes fixing alignment by moving cells between rows.
-If a cell is hard to read because of angle/light/fold/cut-off → that field is null. NEVER borrow name, articul, quantity, or Godnost from the row above or below to "fill in".
+If a cell is hard to read because of angle/light/fold/cut-off → that field is null. NEVER borrow name, articul, lot, quantity, or Godnost from the row above or below to "fill in".
 
 STEP 2 — ROWS. #1 FAILURE TO AVOID — COLUMN ZIP / ROW SHIFT (most common):
 Never read a whole column of names, then a whole column of dates, then zip them.
 For EACH product, look at ONE horizontal band of the table and copy ONLY the cells that belong to that band:
-  name + articul + quantity + Godnost (+ barcode if present) → one JSON object → next product.
-ABSOLUTE RULE — NEVER BORROW: if Godnost (or qty/articul) on a band is blank/unreadable → leave that field null for THAT item only. Do not take the date/qty/SKU from the band above or below — not even when neighbors look empty, similar, or "obvious".
+  name + articul + quantity + Godnost (+ barcode if present) (+ lot if present) → one JSON object → next product.
+ABSOLUTE RULE — NEVER BORROW: if Godnost (or qty/articul/lot) on a band is blank/unreadable → leave that field null for THAT item only. Do not take the date/qty/SKU/lot from the band above or below — not even when neighbors look empty, similar, or "obvious".
 A lone "1" in/near the Godnost column is NOT a date — use expiryPrinted null (never "1").
 Whole-column shift symptoms (never do this):
 - every item gets the NEXT row's date and the last item has null (dates too high), or
@@ -304,6 +311,8 @@ OTHER:
   - Do NOT transliterate or "fix" Latin ↔ Cyrillic lookalikes (keep "Max"/"Мах", "x"/"х", "гр"/"г" as on the page).
   - Do NOT add/remove spaces inside the printed name except joining a true wrapped name line.
 - articul = SKU; barcode = EAN only; never swap them.
+- lot = batch / партия value when printed (headers or inline labels like Партида, Пар., Лот, Серия, Емисия, Lot, Batch, Serie). Copy the value only — not the label word. If absent → null.
+- If lot text is printed after the Godnost date in the same cell (e.g. "23.06.2027 L268623"), put the date in expiryPrinted and the lot code in lot when clearly separable; otherwise keep full text in expiryPrinted and lot null.
 - quantity = pieces if printed, else 1.
 - Ignore headers, addresses, totals, signatures.
 - Page-edge cut-off crumbs (1–2 words with no columns): omit; do not attach a neighbor's qty/date.

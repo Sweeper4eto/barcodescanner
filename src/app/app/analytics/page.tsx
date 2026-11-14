@@ -19,6 +19,7 @@ import { replaceApp } from "@/lib/app-navigation";
 import {
   appButtonNeutral,
   appChromeInset,
+  appContentMaxW,
   appListInset,
   appPageShell,
 } from "@/lib/app-ui";
@@ -608,7 +609,7 @@ function WasteProductDetailSheet({
       onClick={onClose}
     >
       <div
-        className="max-h-[85svh] w-full max-w-lg overflow-y-auto rounded-2xl border border-card-border bg-background p-4 shadow-xl"
+        className={`max-h-[85svh] w-full ${appContentMaxW} overflow-y-auto rounded-2xl border border-card-border bg-background p-4 shadow-xl`}
         onClick={(event) => event.stopPropagation()}
       >
         <div className="mb-3 flex items-start justify-between gap-3">

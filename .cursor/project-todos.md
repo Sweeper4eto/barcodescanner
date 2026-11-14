@@ -17,9 +17,12 @@ Keep entries short. Prefer `open` / `doing` / `done` / `dropped`.
 - [x] **Home icon hub (gradient)** — local only for now; long-press rearrange, free 9 slots/page, drop=save
 - [x] **Per-account new UI switch** — Admin → account toggle; new regs default ON; classic still available off
 - [x] **App UI token unify** — buttons/toggles/spinners/header glow/paddings across `/app/*`
+- [x] **Tablet wider layout** — `appContentMaxW` (`md:max-w-2xl` / `lg:max-w-3xl`) on shell, nav, sheets
 - [ ] **2.** Bluetooth barcode scanner
 - [ ] **3.** PDA / warehouse handheld scan
 - [x] **Samsung A53 document scan** — prefer main rear; taller preview only on SM-A536 (UA)
+- [x] **Document scan name priority** — OCR name from photo wins; barcode/DB name only if OCR empty
+- [x] **Document scan lot/batch** — extract Партида/Лот/Серия/Емисия → `InventoryEntry.lot`
 - [x] **Checklists MVP** — per location; daily/weekly/monthly/once; list = working items; favourites = catalog to pull from; mark done + 6‑mo retention; home glow
 - [ ] **Checklists polish + re-enable** — globally off (`CHECKLISTS_FEATURE_ENABLED`); turn on when ready
 - [ ] **33.** Daily shortlist “what to check today” (auto from expiry — after checklists)

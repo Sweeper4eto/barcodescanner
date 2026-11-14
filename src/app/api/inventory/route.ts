@@ -38,6 +38,7 @@ const createSchema = z.object({
   productId: z.string().optional(),
   name: z.string().optional(),
   articul: z.string().optional(),
+  lot: z.string().optional(),
   imagePath: z.string().nullable().optional(),
   quantity: z.number().int().positive(),
   expiryDate: z.string().datetime(),
@@ -72,6 +73,7 @@ export async function POST(request: Request) {
   }
 
   const articul = parsed.data.articul?.trim() || null;
+  const lot = parsed.data.lot?.trim() || null;
   const entryImagePath = parsed.data.imagePath?.trim() || null;
   const name = parsed.data.name?.trim() ?? "";
   let product = parsed.data.productId
@@ -156,6 +158,7 @@ export async function POST(request: Request) {
         quantity: existing.quantity + parsed.data.quantity,
         expiryDate,
         ...(articul ? { articul } : {}),
+        ...(lot ? { lot } : {}),
         ...(entryImagePath ? { imagePath: entryImagePath } : {}),
       },
       include: inventoryEntryInclude,
@@ -195,6 +198,7 @@ export async function POST(request: Request) {
       productId: product.id,
       barcode: product.barcode,
       articul,
+      lot,
       imagePath: entryImagePath,
       quantity: parsed.data.quantity,
       expiryDate,
@@ -339,6 +343,7 @@ const patchSchema = z.object({
   priceReduced: z.boolean().optional(),
   priceDiscountPercent: z.number().int().min(5).max(100).optional(),
   articul: z.string().nullable().optional(),
+  lot: z.string().nullable().optional(),
   imagePath: z.string().nullable().optional(),
   name: z.string().nullable().optional(),
   barcode: z.string().nullable().optional(),
@@ -378,6 +383,7 @@ export async function PATCH(request: Request) {
     parsed.data.quantity !== undefined ||
     parsed.data.expiryDate !== undefined ||
     parsed.data.articul !== undefined ||
+    parsed.data.lot !== undefined ||
     parsed.data.imagePath !== undefined ||
     parsed.data.name !== undefined ||
     parsed.data.barcode !== undefined;
@@ -541,6 +547,7 @@ export async function PATCH(request: Request) {
     parsed.data.expiryDate !== undefined ||
     parsed.data.priceReduced !== undefined ||
     parsed.data.articul !== undefined ||
+    parsed.data.lot !== undefined ||
     parsed.data.imagePath !== undefined ||
     parsed.data.name !== undefined ||
     parsed.data.barcode !== undefined;
@@ -608,6 +615,7 @@ export async function PATCH(request: Request) {
       parsed.data.quantity !== undefined ||
       parsed.data.expiryDate !== undefined ||
       parsed.data.articul !== undefined ||
+      parsed.data.lot !== undefined ||
       parsed.data.imagePath !== undefined ||
       parsed.data.priceReduced !== undefined;
 
@@ -713,6 +721,9 @@ export async function PATCH(request: Request) {
           : {}),
         ...(parsed.data.articul !== undefined
           ? { articul: parsed.data.articul?.trim() || null }
+          : {}),
+        ...(parsed.data.lot !== undefined
+          ? { lot: parsed.data.lot?.trim() || null }
           : {}),
         ...(parsed.data.imagePath !== undefined
           ? { imagePath: parsed.data.imagePath?.trim() || null }

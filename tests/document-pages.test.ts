@@ -21,6 +21,7 @@ const item = (
 ): DocumentDraftItem => ({
   barcode: "",
   articul: "",
+  lot: "",
   expiryYmd: "2026-12-01",
   quantity: "1",
   productId: null,

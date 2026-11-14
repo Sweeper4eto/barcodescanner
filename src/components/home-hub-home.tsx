@@ -12,6 +12,7 @@ import { useT } from "@/components/i18n-provider";
 import { useAppSession } from "@/components/app-session-provider";
 import { logoutSession } from "@/lib/client-session";
 import { CHECKLISTS_FEATURE_ENABLED } from "@/lib/checklist";
+import { appContentMaxW } from "@/lib/app-ui";
 import type { HomeLauncherAvailability } from "@/lib/home-launcher";
 import { getStoredStoreId, setStoredStoreId, clearStoredStoreId } from "@/lib/store-selection";
 
@@ -168,7 +169,7 @@ export function HomeHubHome() {
     Boolean(username);
 
   return (
-    <div className="mx-auto flex min-h-[calc(100svh-var(--app-bottom-nav-frame)-env(safe-area-inset-bottom,0px))] w-full max-w-lg flex-col overflow-x-visible px-4 pt-1 md:max-w-xl lg:max-w-2xl">
+    <div className={`mx-auto flex min-h-[calc(100svh-var(--app-bottom-nav-frame)-env(safe-area-inset-bottom,0px))] w-full ${appContentMaxW} flex-col overflow-x-visible px-4 pt-1`}>
       <MobilePageHeader className="mb-1 shrink-0" />
 
       <div className="mb-5 flex shrink-0 items-start justify-between gap-3">

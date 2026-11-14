@@ -72,7 +72,7 @@ function CopyTextButton({
       type="button"
       aria-label={copied ? copiedLabel : label}
       title={copied ? copiedLabel : label}
-      className="flex size-8 shrink-0 items-center justify-center rounded-md border border-card-border text-muted hover:text-foreground"
+      className="flex size-7 shrink-0 items-center justify-center rounded-md border border-card-border text-muted hover:text-foreground"
       onClick={() => void onCopy()}
     >
       {copied ? (
@@ -88,6 +88,7 @@ export type ExpiryDetailEntry = {
   id: string;
   barcode: string;
   articul: string | null;
+  lot: string | null;
   imagePath: string | null;
   quantity: number;
   expiryDate: string;
@@ -154,6 +155,7 @@ export function ExpiryEntryDetailSheet({
   const [discountPercentDraft, setDiscountPercentDraft] =
     useState(savedDiscountPercent);
   const [articulDraft, setArticulDraft] = useState(entry.articul ?? "");
+  const [lotDraft, setLotDraft] = useState(entry.lot ?? "");
   const [nameDraft, setNameDraft] = useState(entry.product.name);
   const [barcodeDraft, setBarcodeDraft] = useState(
     isAdhocBarcode(entry.barcode) ? "" : entry.barcode,
@@ -185,6 +187,7 @@ export function ExpiryEntryDetailSheet({
     (!homeUser && priceReducedDraft !== savedPriceReduced) ||
     discountChanged ||
     articulDraft.trim() !== (entry.articul ?? "").trim() ||
+    lotDraft.trim() !== (entry.lot ?? "").trim() ||
     nameDraft.trim() !== entry.product.name.trim() ||
     barcodeDraft.trim() !== savedBarcodeDisplay.trim();
   const canConfirm = hasChanges && quantityValid;
@@ -197,6 +200,7 @@ export function ExpiryEntryDetailSheet({
       entry.priceDiscountPercent ?? DEFAULT_DISCOUNT_PERCENT,
     );
     setArticulDraft(entry.articul ?? "");
+    setLotDraft(entry.lot ?? "");
     setNameDraft(entry.product.name);
     setBarcodeDraft(isAdhocBarcode(entry.barcode) ? "" : entry.barcode);
     setImageDraft(null);
@@ -211,6 +215,7 @@ export function ExpiryEntryDetailSheet({
     entry.priceReducedAt,
     entry.priceDiscountPercent,
     entry.articul,
+    entry.lot,
     entry.imagePath,
     entry.barcode,
     entry.product.name,
@@ -273,6 +278,7 @@ export function ExpiryEntryDetailSheet({
         priceReducedDraft &&
         discountPercentDraft !== savedDiscountPercent) ||
       articulDraft.trim() !== (entry.articul ?? "").trim() ||
+      lotDraft.trim() !== (entry.lot ?? "").trim() ||
       nameDraft.trim() !== entry.product.name.trim() ||
       barcodeDraft.trim() !== savedBarcodeDisplay.trim();
     if (!nextHasChanges) return;
@@ -307,6 +313,9 @@ export function ExpiryEntryDetailSheet({
       }
       if (articulDraft.trim() !== (entry.articul ?? "").trim()) {
         body.articul = articulDraft.trim() || null;
+      }
+      if (lotDraft.trim() !== (entry.lot ?? "").trim()) {
+        body.lot = lotDraft.trim() || null;
       }
       if (nameDraft.trim() !== entry.product.name.trim()) {
         body.name = nameDraft.trim();
@@ -459,25 +468,50 @@ export function ExpiryEntryDetailSheet({
                 ) : null}
               </div>
 
-              <div className="mt-auto space-y-0 pt-1.5">
-                <label className="block">
+              <div className="mt-auto flex flex-col gap-0.5">
+                <label className="flex flex-col gap-0">
                   <span className="text-[10px] font-medium leading-none text-muted">
                     {t("expiry.articul")}
                   </span>
-                  <input
-                    className="mt-px h-8 w-full rounded-md border border-card-border bg-transparent px-1.5 text-sm leading-none text-foreground outline-none focus:border-primary"
-                    value={articulDraft}
-                    onChange={(event) => setArticulDraft(event.target.value)}
-                    disabled={saving}
-                  />
-                </label>
-                <label className="block">
-                  <span className="text-[10px] font-medium leading-none text-muted">
-                    {t("common.barcode")}
-                  </span>
-                  <div className="mt-px flex min-w-0 items-center gap-1">
+                  <div className="flex min-w-0 items-center gap-1">
                     <input
-                      className="h-8 min-w-0 flex-1 rounded-md border border-card-border bg-transparent px-1.5 font-mono text-sm leading-none text-foreground outline-none focus:border-primary"
+                      className="h-7 min-w-0 flex-1 rounded-md border border-card-border bg-transparent px-1.5 font-mono text-sm leading-none text-foreground outline-none focus:border-primary"
+                      value={articulDraft}
+                      onChange={(event) => setArticulDraft(event.target.value)}
+                      disabled={saving}
+                    />
+                    <CopyTextButton
+                      text={articulDraft.trim()}
+                      label={t("expiry.copyArticul")}
+                      copiedLabel={t("expiry.copied")}
+                    />
+                  </div>
+                </label>
+                <label className="flex flex-col gap-0">
+                  <span className="text-[10px] font-medium leading-none text-muted">
+                    {t("expiry.lot")}
+                  </span>
+                  <div className="flex min-w-0 items-center gap-1">
+                    <input
+                      className="h-7 min-w-0 flex-1 rounded-md border border-card-border bg-transparent px-1.5 font-mono text-sm leading-none text-foreground outline-none focus:border-primary"
+                      value={lotDraft}
+                      onChange={(event) => setLotDraft(event.target.value)}
+                      disabled={saving}
+                    />
+                    <CopyTextButton
+                      text={lotDraft.trim()}
+                      label={t("expiry.copyLot")}
+                      copiedLabel={t("expiry.copied")}
+                    />
+                  </div>
+                </label>
+                <label className="flex flex-col gap-0">
+                  <span className="text-[10px] font-medium leading-none text-muted">
+                    {t("expiry.barcode")}
+                  </span>
+                  <div className="flex min-w-0 items-center gap-1">
+                    <input
+                      className="h-7 min-w-0 flex-1 rounded-md border border-card-border bg-transparent px-1.5 font-mono text-sm leading-none text-foreground outline-none focus:border-primary"
                       value={barcodeDraft}
                       onChange={(event) => setBarcodeDraft(event.target.value)}
                       disabled={saving}

@@ -12,6 +12,7 @@ import type { LegalDocument } from "@/content/legal";
 import {
   appButtonCancelFull,
   appButtonPrimaryFull,
+  appContentMaxW,
   appPageTopGlowClass,
 } from "@/lib/app-ui";
 
@@ -38,7 +39,7 @@ function LegalDocumentContent({
   }
 
   return (
-    <div className="relative mx-auto flex min-h-svh w-full min-w-0 max-w-lg flex-col px-4 pb-10 pt-[max(0.75rem,env(safe-area-inset-top,0px))]">
+    <div className={`relative mx-auto flex min-h-svh w-full min-w-0 ${appContentMaxW} flex-col px-4 pb-10 pt-[max(0.75rem,env(safe-area-inset-top,0px))]`}>
       <div aria-hidden className={appPageTopGlowClass} />
 
       <div className="relative z-10 mb-4 grid grid-cols-[2.75rem_minmax(0,1fr)_auto] items-center gap-x-2.5 gap-y-1.5">

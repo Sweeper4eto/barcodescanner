@@ -6,6 +6,7 @@ import {
   appButtonNeutral,
   appButtonNeutralFull,
   appButtonPrimaryFull,
+  appContentMaxW,
   appFooterButtonGrid,
 } from "@/lib/app-ui";
 
@@ -87,7 +88,7 @@ export function SchedulePicturePreview({
   if (!preview) return null;
 
   return (
-    <div className="fixed inset-0 z-[80] mx-auto flex w-full max-w-lg flex-col bg-background">
+    <div className={`fixed inset-0 z-[80] mx-auto flex w-full ${appContentMaxW} flex-col bg-background`}>
       <div className="min-h-0 flex-1 overflow-auto px-3 pt-3">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={preview.url} alt="" className="w-full" />

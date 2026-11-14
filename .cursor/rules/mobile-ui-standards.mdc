@@ -16,7 +16,7 @@ Reuse tokens from `src/lib/app-ui.ts`. Do **not** invent new button heights, fon
 
 ## Page width & list layout
 
-- **Shell:** `appPageShell` (`max-w-lg mx-auto`).
+- **Shell:** `appPageShell` / `appContentMaxW` — phone `max-w-lg`, tablet `md:max-w-2xl`, large tablet `lg:max-w-3xl` (centered). Prefer these tokens over bare `max-w-lg` on app pages and bottom nav.
 - **Card lists** (expiry, document review): `appListInset` (`px-1.5`) for cards **and** aligned chrome (title, search, sticky footers on that screen).
 - **Search field (lists):** `appSearchInput` (`h-9 rounded-lg`).
 

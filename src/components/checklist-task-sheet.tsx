@@ -9,6 +9,7 @@ import { StarFavouriteIcon } from "@/components/app-nav-icons";
 import { useT } from "@/components/i18n-provider";
 import { useViewportInsets } from "@/hooks/use-viewport-insets";
 import {
+  appContentMaxW,
   appFooterButtonGrid,
   appFormInput,
 } from "@/lib/app-ui";
@@ -163,7 +164,7 @@ export function ChecklistTaskSheet({
       className="fixed inset-0 z-50 flex flex-col bg-background"
       style={{ paddingTop: offsetTop, paddingBottom: keyboardInset }}
     >
-      <div className="mx-auto flex min-h-0 w-full max-w-lg flex-1 flex-col px-4 pt-1">
+      <div className={`mx-auto flex min-h-0 w-full ${appContentMaxW} flex-1 flex-col px-4 pt-1`}>
         <MobilePageHeader className="mb-2 shrink-0" />
         <h1 className="mb-3 text-2xl font-semibold text-foreground">
           {mode === "create"

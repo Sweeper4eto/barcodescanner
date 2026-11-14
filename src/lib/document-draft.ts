@@ -5,6 +5,7 @@ export type DocumentDraftItem = {
   name: string;
   barcode: string;
   articul: string;
+  lot: string;
   expiryYmd: string;
   quantity: string;
   productId: string | null;
@@ -299,6 +300,7 @@ export function draftMatchesSearch(
   return (
     item.name.toLowerCase().includes(q) ||
     item.barcode.toLowerCase().includes(q) ||
-    item.articul.toLowerCase().includes(q)
+    item.articul.toLowerCase().includes(q) ||
+    item.lot.toLowerCase().includes(q)
   );
 }

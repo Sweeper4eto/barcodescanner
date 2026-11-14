@@ -7,7 +7,14 @@ import {
 import type { DocumentOcrRow } from "../src/lib/document-ai";
 
 function row(name: string, expiryYmd: string | null): DocumentOcrRow {
-  return { name, barcode: null, articul: null, expiryYmd, quantity: 1 };
+  return {
+    name,
+    barcode: null,
+    articul: null,
+    lot: null,
+    expiryYmd,
+    quantity: 1,
+  };
 }
 
 describe("document expiry alert", () => {

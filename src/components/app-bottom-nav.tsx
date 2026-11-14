@@ -16,7 +16,11 @@ import { useAppSession } from "@/components/app-session-provider";
 import { useNavigationLeaveRequest } from "@/components/navigation-leave-guard";
 import { useAppStoreId } from "@/components/store-selection-provider";
 import { useViewportInsets } from "@/hooks/use-viewport-insets";
-import { appButtonDangerFull, appFooterButtonGrid } from "@/lib/app-ui";
+import {
+  appButtonDangerFull,
+  appContentMaxW,
+  appFooterButtonGrid,
+} from "@/lib/app-ui";
 import { shouldShowAppBottomNav } from "@/lib/app-navigation";
 import {
   getTabReselectNeedsConfirm,
@@ -205,7 +209,7 @@ export function AppBottomNav() {
         aria-label={t("app.bottomNav")}
         className="fixed inset-x-0 bottom-0 z-40 border-t border-card-border bg-background/95 backdrop-blur-sm supports-[backdrop-filter]:bg-background/90"
       >
-        <div className="mx-auto grid min-h-[var(--app-bottom-nav-height)] min-w-0 max-w-lg grid-cols-3 px-2 pb-[calc(env(safe-area-inset-bottom,0px)+0.35rem)] pt-1">
+        <div className={`mx-auto grid min-h-[var(--app-bottom-nav-height)] min-w-0 w-full ${appContentMaxW} grid-cols-3 px-2 pb-[calc(env(safe-area-inset-bottom,0px)+0.35rem)] pt-1`}>
           {tabs.map((tab) => {
             const active = tab.match(pathname);
             const className = `relative flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-1 py-1 text-[11px] font-medium leading-none transition-colors ${

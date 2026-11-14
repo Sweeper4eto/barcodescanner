@@ -15,7 +15,7 @@ import { useT } from "@/components/i18n-provider";
 import { useAppStoreId, useLockStoreSelection } from "@/hooks/use-app-store-id";
 import { normalizeBarcode } from "@/lib/barcode";
 import { exitToExpiryList, replaceApp } from "@/lib/app-navigation";
-import { appFormInput } from "@/lib/app-ui";
+import { appContentMaxW, appFormInput } from "@/lib/app-ui";
 import { useWizardStep } from "@/lib/wizard-history";
 import {
   getPreviousAddProductStep,
@@ -159,7 +159,7 @@ function AddProductFlow() {
   }
 
   return (
-    <div className="mx-auto min-w-0 max-w-lg overflow-x-visible px-4 pb-6 pt-1">
+    <div className={`mx-auto min-w-0 w-full ${appContentMaxW} overflow-x-visible px-4 pb-6 pt-1`}>
       <MobilePageHeader
         title={t("addProduct.title")}
         onBack={handleAddProductHeaderBack}

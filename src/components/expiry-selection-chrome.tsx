@@ -5,6 +5,7 @@ import {
   appButtonDangerFull,
   appButtonNeutral,
   appButtonPrimaryFull,
+  appContentMaxW,
   appFooterButtonGrid,
 } from "@/lib/app-ui";
 
@@ -23,7 +24,7 @@ export function ExpirySelectionFooter({
 
   return (
     <div
-      className="fixed inset-x-0 z-50 mx-auto w-full max-w-lg border-t border-card-border bg-background/95 px-3 pb-2 pt-2 backdrop-blur-sm supports-[backdrop-filter]:bg-background/90"
+      className={`fixed inset-x-0 z-50 mx-auto w-full ${appContentMaxW} border-t border-card-border bg-background/95 px-3 pb-2 pt-2 backdrop-blur-sm supports-[backdrop-filter]:bg-background/90`}
       style={{
         bottom:
           "calc(var(--app-bottom-nav-height) + env(safe-area-inset-bottom, 0px))",
@@ -64,7 +65,7 @@ export function ExpiryExportPreview({
   if (!preview) return null;
 
   return (
-    <div className="fixed inset-0 z-[70] mx-auto flex w-full max-w-lg flex-col bg-background">
+    <div className={`fixed inset-0 z-[70] mx-auto flex w-full ${appContentMaxW} flex-col bg-background`}>
       <div className="min-h-0 flex-1 overflow-auto px-3 pt-3">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={preview.url} alt="" className="w-full" />

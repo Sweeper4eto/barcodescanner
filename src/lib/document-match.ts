@@ -20,6 +20,7 @@ export type DocumentDraftItem = {
   name: string;
   barcode: string | null;
   articul: string | null;
+  lot: string | null;
   expiryYmd: string | null;
   quantity: number;
   productId: string | null;
@@ -29,17 +30,28 @@ export type DocumentDraftItem = {
 
 type ProductSelect = MatchedProduct;
 
+/** Prefer the name read from the document photo; fall back to catalog/DB. */
+export function pickDocumentDraftName(
+  ocrName: string | null | undefined,
+  catalogName: string | null | undefined,
+): string {
+  const fromPhoto = String(ocrName || "").trim();
+  if (fromPhoto) return fromPhoto;
+  return String(catalogName || "").trim();
+}
+
 function draftFromRow(
   row: DocumentOcrRow,
   product: MatchedProduct | null,
   matchSource: DocumentDraftItem["matchSource"],
 ): DocumentDraftItem {
   return {
-    name: product?.name || row.name,
+    name: pickDocumentDraftName(row.name, product?.name),
     barcode:
       product?.barcode ||
       (row.barcode ? normalizeBarcode(row.barcode) || row.barcode : null),
     articul: row.articul,
+    lot: row.lot,
     expiryYmd: row.expiryYmd,
     quantity: row.quantity,
     productId: product?.id ?? null,

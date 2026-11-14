@@ -26,6 +26,7 @@ import {
 import {
   appButtonCancelFull,
   appButtonPrimary,
+  appContentMaxW,
   appFormInput,
 } from "@/lib/app-ui";
 import { normalizeBarcode } from "@/lib/barcode";
@@ -382,7 +383,7 @@ export function ScanFlow() {
       className={
         step === "date"
           ? listPageShellClassName
-          : "mx-auto min-w-0 max-w-lg overflow-x-visible px-4 pb-6 pt-1"
+          : `mx-auto min-w-0 w-full ${appContentMaxW} overflow-x-visible px-4 pb-6 pt-1`
       }
     >
       {mounted ? (

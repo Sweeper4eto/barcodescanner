@@ -52,7 +52,7 @@ function CopyTextButton({
       type="button"
       aria-label={copied ? copiedLabel : label}
       title={copied ? copiedLabel : label}
-      className="flex size-8 shrink-0 items-center justify-center rounded-md border border-card-border text-muted hover:text-foreground"
+      className="flex size-7 shrink-0 items-center justify-center rounded-md border border-card-border text-muted hover:text-foreground"
       onClick={() => void onCopy()}
     >
       {copied ? (
@@ -308,14 +308,14 @@ export function BuyListEntryDetailSheet({
                 ) : null}
               </div>
 
-              <div className="mt-auto space-y-0 pt-1.5">
-                <label className="block">
+              <div className="mt-auto flex flex-col gap-0.5">
+                <label className="flex flex-col gap-0">
                   <span className="text-[10px] font-medium leading-none text-muted">
                     {t("common.barcode")}
                   </span>
-                  <div className="mt-px flex min-w-0 items-center gap-1">
+                  <div className="flex min-w-0 items-center gap-1">
                     <input
-                      className="h-8 min-w-0 flex-1 rounded-md border border-card-border bg-transparent px-1.5 font-mono text-sm leading-none text-foreground outline-none focus:border-primary"
+                      className="h-7 min-w-0 flex-1 rounded-md border border-card-border bg-transparent px-1.5 font-mono text-sm leading-none text-foreground outline-none focus:border-primary"
                       value={barcodeDraft}
                       onChange={(event) => setBarcodeDraft(event.target.value)}
                       disabled={saving}
