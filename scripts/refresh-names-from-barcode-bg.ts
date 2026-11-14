@@ -1,9 +1,10 @@
 /**
  * Refresh dirty Product.name rows from barcode.bg (Microinvest BG catalog).
  *
- * By default only dirty names are queued (digits-only, starts with number/symbol,
- * name==barcode, disallowed specials, low-quality SKU junk). Use --all to scan
- * every product.
+ * Run clean-product-names.ts first (local). This script then queues remaining
+ * dirty names: missing, digits-only, symbols-only, name==barcode, starts with
+ * digit/symbol, or disallowed specials (allowed: "Кисело Мляко 3.5 %").
+ * Use --all to scan every product.
  *
  * Polite single-thread requests with adaptive delay:
  * - on rate-limit / timeout → cooldown, then permanently slow down
@@ -330,37 +331,45 @@ async function main(): Promise<void> {
   let okStreak = 0;
   let consecutiveBlocks = 0;
 
-  const rows = (
-    progress?.lastId
-      ? (db
-          .prepare(
-            `
-            SELECT id, barcode, name
-            FROM Product
-            WHERE id > ?
-            ORDER BY id
-            `,
-          )
-          .all(progress.lastId) as Array<{
-          id: string;
-          barcode: string;
-          name: string;
-        }>)
-      : (db
-          .prepare(
-            `
-            SELECT id, barcode, name
-            FROM Product
-            ORDER BY id
-            `,
-          )
-          .all() as Array<{ id: string; barcode: string; name: string }>)
-  ).filter((row) =>
-    args.onlyDirty ? isDirtyProductName(row.name, row.barcode) : true,
+  // Page the full catalog; JS applies the full dirty rules (incl. leading digit/symbol).
+  const pageQuery = db.prepare(`
+    SELECT id, barcode, name
+    FROM Product
+    WHERE id > ?
+    ORDER BY id
+    LIMIT ?
+  `);
+  const pageSize = 5000;
+  const rows: Array<{ id: string; barcode: string; name: string }> = [];
+  let scanId = progress?.lastId ?? "";
+  let scanned = 0;
+  console.log(
+    "Building dirty queue (after local clean: missing / digits / symbols / barcode clone / leading junk / bad specials)…",
   );
+  while (true) {
+    if (args.limit > 0 && rows.length >= args.limit) break;
+    const page = pageQuery.all(scanId, pageSize) as Array<{
+      id: string;
+      barcode: string;
+      name: string;
+    }>;
+    if (!page.length) break;
+    for (const row of page) {
+      scanned += 1;
+      if (!args.onlyDirty || isDirtyProductName(row.name, row.barcode)) {
+        rows.push(row);
+        if (args.limit > 0 && rows.length >= args.limit) break;
+      }
+    }
+    scanId = page[page.length - 1].id;
+    if (scanned % 500_000 < pageSize) {
+      console.log(`... scanned ${scanned}, dirty so far ${rows.length}`);
+    }
+    if (page.length < pageSize) break;
+  }
 
-  const limited = args.limit > 0 ? rows.slice(0, args.limit) : rows;
-  console.log(`Queue: ${limited.length} products`);
+  const limited = rows;
+  console.log(`Queue: ${limited.length} products (scanned ${scanned})`);
 
   const update = db.prepare(
     `UPDATE Product SET name = ?, updatedAt = ? WHERE id = ?`,

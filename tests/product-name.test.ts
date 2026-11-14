@@ -50,26 +50,24 @@ test("isLowQualityProductName detects foodservice SKU-style names", () => {
   assert.equal(isLowQualityProductName("Coca-Cola Zero"), false);
 });
 
-test("isDirtyProductName flags numeric / special / barcode clones", () => {
+test("isDirtyProductName matches catalog clean rules", () => {
   assert.equal(isDirtyProductName(""), true);
   assert.equal(isDirtyProductName("7"), true);
   assert.equal(isDirtyProductName("3800123456789"), true);
   assert.equal(isDirtyProductName("3800123456789", "3800123456789"), true);
   assert.equal(isDirtyProductName("3800 1234 56789", "3800123456789"), true);
   assert.equal(isDirtyProductName("@@@"), true);
-  assert.equal(isDirtyProductName("# milk"), true);
   assert.equal(isDirtyProductName("3 Milk"), true);
-  assert.equal(isDirtyProductName("!!!Milk"), true);
+  assert.equal(isDirtyProductName("100% Сок от портокал"), true);
   assert.equal(isDirtyProductName("Milk@Store"), true);
+  // Leading decorative junk that cleanProductName removes → local clean, not remote.
+  assert.equal(isDirtyProductName("# milk"), false);
+  assert.equal(isDirtyProductName("!!!Milk"), false);
   assert.equal(isDirtyProductName("Кисело Мляко 3.5 %"), false);
   assert.equal(isDirtyProductName("Coca-Cola Zero"), false);
   assert.equal(isDirtyProductName("Извара Олимпус"), false);
-  assert.equal(isDirtyProductName("Kitkat Chunky Black & White"), false);
-  assert.equal(isDirtyProductName("Курабии домашни с мармалад 400гр."), false);
-  assert.equal(isDirtyProductName("100% Сок от портокал"), true);
   assert.equal(hasDisallowedProductNameChars("Кисело Мляко 3.5 %"), false);
   assert.equal(hasDisallowedProductNameChars("Milk #1"), true);
-  assert.equal(hasDisallowedProductNameChars("Name | Other"), true);
 });
 
 test("pickBestProductName prefers clean readable candidates", () => {

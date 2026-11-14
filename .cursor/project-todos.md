@@ -47,7 +47,7 @@ Keep entries short. Prefer `open` / `doing` / `done` / `dropped`.
 ## Later / parked
 
 - [ ] Failed-login usernames in prod (needs deploy of login_failed stash)
-- [ ] **barcode.bg name refresh** — dirty-only by default (`isDirtyProductName`); polite delay; run on prod when ready (`--resume`)
+- [ ] **barcode.bg name refresh** — local `clean-product-names` first; remote dirty = missing/digits/symbols/barcode-clone/leading digit|symbol/bad specials
 
 ## Feature triage (catalog only — ✅23 · 🔴35 · ⚪16)
 

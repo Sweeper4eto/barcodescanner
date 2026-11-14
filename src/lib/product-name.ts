@@ -143,8 +143,12 @@ export function hasDisallowedProductNameChars(name: string): boolean {
 }
 
 /**
- * Catalog names that should be looked up / fixed (barcode.bg or other sources).
- * Optional barcode: treats name-equal-to-barcode as dirty.
+ * Catalog name that still needs fixing after local cleanProductName.
+ *
+ * Remote lookup (barcode.bg / other): missing, digits-only, symbols-only,
+ * name==barcode, starts with digit/symbol, or disallowed specials.
+ * Allowed specials: mild retail punctuation and a measure like "3.5 %" at the end.
+ * Local-only junk (HTML entities, quotes) is handled by clean-product-names.ts first.
  */
 export function isDirtyProductName(
   name: string,
@@ -154,32 +158,25 @@ export function isDirtyProductName(
   const trimmed = raw.trim();
   if (!trimmed || trimmed.length < 2) return true;
 
-  if (/^[!#"']/.test(trimmed)) return true;
-  if (/(?:&quot;|&amp;|&gt;|Prodhead)/i.test(raw)) return true;
-
   const barcodeDigits = digitsOnly(barcode || "");
   if (barcodeDigits.length >= 4) {
     const compact = trimmed.replace(/\s+/g, "");
     if (compact === barcodeDigits) return true;
-    if (digitsOnly(trimmed) === barcodeDigits && !/\p{L}/u.test(trimmed)) {
-      return true;
-    }
   }
 
-  // Only digits / only symbols (no letters).
+  // Only digits / only specials (no letters) on the raw trimmed value.
   if (/^\d+$/.test(trimmed)) return true;
+  if (!/\p{L}/u.test(trimmed) && /^\d[\d\s]*$/.test(trimmed)) return true;
   if (!/\p{L}/u.test(trimmed)) return true;
 
-  // Must start with a letter (not digit / special / punctuation).
-  if (!/^\p{L}/u.test(trimmed)) return true;
-
+  // Judge the locally cleaned form so !!!Milk / HTML junk can be fixed without remote.
   const cleaned = cleanProductName(raw);
   if (!cleaned || cleaned.length < 2) return true;
-  // Still has import junk that cleaning would strip.
-  if (cleaned !== trimmed) return true;
+  if (/^\d+$/.test(cleaned)) return true;
+  if (!/\p{L}/u.test(cleaned)) return true;
+  // Must start with a letter — not a digit, %, #, etc.
   if (!/^\p{L}/u.test(cleaned)) return true;
   if (hasDisallowedProductNameChars(cleaned)) return true;
-  if (isLowQualityProductName(cleaned)) return true;
 
   return false;
 }
