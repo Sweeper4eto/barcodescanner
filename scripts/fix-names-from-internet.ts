@@ -19,6 +19,7 @@ import fs from "node:fs";
 import {
   cleanProductName,
   isAcceptableInternetProductName,
+  isDirtyProductName,
   isLowQualityProductName,
   pickBestProductName,
 } from "../src/lib/product-name";
@@ -73,16 +74,8 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function isDirtyName(name: string): boolean {
-  const n = name || "";
-  if (!n.trim() || n.trim().length < 2) return true;
-  if (/^[!#"']/.test(n.trim())) return true;
-  if (/(?:&quot;|&amp;|&gt;|Prodhead)/i.test(n)) return true;
-  if (/^\d+[A-Za-z]/.test(n.trim())) return true;
-  if (isLowQualityProductName(n)) return true;
-  const cleaned = cleanProductName(n);
-  if (cleaned && cleaned !== n) return true;
-  return false;
+function isDirtyName(name: string, barcode?: string | null): boolean {
+  return isDirtyProductName(name, barcode);
 }
 
 function score(name: string): number {
@@ -550,7 +543,9 @@ async function main() {
     )
     .all() as Array<{ id: string; barcode: string; name: string }>;
 
-  const queue = candidates.filter((row) => isDirtyName(row.name));
+  const queue = candidates.filter((row) =>
+    isDirtyName(row.name, row.barcode),
+  );
   const limited = args.limit > 0 ? queue.slice(0, args.limit) : queue;
 
   console.log(`Dirty candidates: ${limited.length}`);

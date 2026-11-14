@@ -111,6 +111,79 @@ export function isLowQualityProductName(name: string): boolean {
   return false;
 }
 
+function digitsOnly(value: string): string {
+  return String(value || "").replace(/\D/g, "");
+}
+
+/**
+ * Special chars allowed in an otherwise clean retail name:
+ * - hyphen / apostrophe / & / commas / parentheses (common retail titles)
+ * - amounts + units: "3.5 %", "400гр.", "200g", "1,5л"
+ * Anything else (* # @ | ` …) is disallowed. Leading digits/symbols are handled
+ * separately by isDirtyProductName.
+ */
+export function hasDisallowedProductNameChars(name: string): boolean {
+  const cleaned = cleanProductName(name);
+  if (!cleaned) return true;
+
+  // Strip amounts + common unit suffixes (optional trailing period).
+  let rest = cleaned
+    .replace(
+      /\d+[.,]\d+\s*(?:%|кг|kg|гр|г|g|mg|мл|ml|л|l|шт)\.?/gi,
+      " ",
+    )
+    .replace(/\d+\s*(?:%|кг|kg|гр|г|g|mg|мл|ml|л|l|шт)\.?/gi, " ")
+    .replace(/\d+[.,]\d+/g, " ")
+    .replace(/\d+/g, " ");
+
+  // Drop common trademark marks, then allow mild retail punctuation.
+  rest = rest.replace(/[®™©]/g, "");
+  rest = rest.replace(/[\p{L}\s'\u2019\u2018&,():+°.°/-]+/gu, "");
+  return rest.length > 0;
+}
+
+/**
+ * Catalog names that should be looked up / fixed (barcode.bg or other sources).
+ * Optional barcode: treats name-equal-to-barcode as dirty.
+ */
+export function isDirtyProductName(
+  name: string,
+  barcode?: string | null,
+): boolean {
+  const raw = String(name || "");
+  const trimmed = raw.trim();
+  if (!trimmed || trimmed.length < 2) return true;
+
+  if (/^[!#"']/.test(trimmed)) return true;
+  if (/(?:&quot;|&amp;|&gt;|Prodhead)/i.test(raw)) return true;
+
+  const barcodeDigits = digitsOnly(barcode || "");
+  if (barcodeDigits.length >= 4) {
+    const compact = trimmed.replace(/\s+/g, "");
+    if (compact === barcodeDigits) return true;
+    if (digitsOnly(trimmed) === barcodeDigits && !/\p{L}/u.test(trimmed)) {
+      return true;
+    }
+  }
+
+  // Only digits / only symbols (no letters).
+  if (/^\d+$/.test(trimmed)) return true;
+  if (!/\p{L}/u.test(trimmed)) return true;
+
+  // Must start with a letter (not digit / special / punctuation).
+  if (!/^\p{L}/u.test(trimmed)) return true;
+
+  const cleaned = cleanProductName(raw);
+  if (!cleaned || cleaned.length < 2) return true;
+  // Still has import junk that cleaning would strip.
+  if (cleaned !== trimmed) return true;
+  if (!/^\p{L}/u.test(cleaned)) return true;
+  if (hasDisallowedProductNameChars(cleaned)) return true;
+  if (isLowQualityProductName(cleaned)) return true;
+
+  return false;
+}
+
 /**
  * Titles from free barcode sites that are usually wrong for a grocery catalog:
  * collectors, empties, Amazon SEO spam, tools, electronics, etc.

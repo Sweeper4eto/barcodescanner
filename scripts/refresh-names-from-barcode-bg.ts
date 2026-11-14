@@ -1,5 +1,9 @@
 /**
- * Refresh Product.name from barcode.bg (Microinvest BG catalog).
+ * Refresh dirty Product.name rows from barcode.bg (Microinvest BG catalog).
+ *
+ * By default only dirty names are queued (digits-only, starts with number/symbol,
+ * name==barcode, disallowed specials, low-quality SKU junk). Use --all to scan
+ * every product.
  *
  * Polite single-thread requests with adaptive delay:
  * - on rate-limit / timeout → cooldown, then permanently slow down
@@ -10,7 +14,7 @@
  *   npx tsx scripts/refresh-names-from-barcode-bg.ts
  *   npx tsx scripts/refresh-names-from-barcode-bg.ts --resume
  *   npx tsx scripts/refresh-names-from-barcode-bg.ts --force
- *   npx tsx scripts/refresh-names-from-barcode-bg.ts --only-dirty
+ *   npx tsx scripts/refresh-names-from-barcode-bg.ts --all
  *
  * Optional overrides: --delay-ms (starting delay), --min-delay-ms, --max-delay-ms
  */
@@ -21,7 +25,7 @@ import Database from "better-sqlite3";
 import {
   cleanProductName,
   isAcceptableInternetProductName,
-  isLowQualityProductName,
+  isDirtyProductName,
   pickBestProductName,
 } from "../src/lib/product-name";
 
@@ -70,7 +74,7 @@ function parseArgs(argv: string[]): Args {
     cooldownMs: 3 * 60_000,
     resume: false,
     force: false,
-    onlyDirty: false,
+    onlyDirty: true,
     timeoutMs: 20_000,
   };
   for (let i = 0; i < argv.length; i += 1) {
@@ -79,6 +83,7 @@ function parseArgs(argv: string[]): Args {
     else if (a === "--resume") args.resume = true;
     else if (a === "--force") args.force = true;
     else if (a === "--only-dirty") args.onlyDirty = true;
+    else if (a === "--all") args.onlyDirty = false;
     else if (a === "--limit") args.limit = Number(argv[++i] ?? "0");
     else if (a === "--delay-ms") args.delayMs = Number(argv[++i] ?? "3500");
     else if (a === "--min-delay-ms")
@@ -160,22 +165,11 @@ function decodeBasicEntities(text: string): string {
     .replace(/&gt;/gi, ">");
 }
 
-function isDirtyName(name: string): boolean {
-  const n = name || "";
-  if (!n.trim() || n.trim().length < 2) return true;
-  if (/^[!#"']/.test(n.trim())) return true;
-  if (/(?:&quot;|&amp;|&gt;|Prodhead)/i.test(n)) return true;
-  if (isLowQualityProductName(n)) return true;
-  const cleaned = cleanProductName(n);
-  if (cleaned && cleaned !== n) return true;
-  return false;
-}
-
 function scoreName(name: string): number {
   const cleaned = cleanProductName(name);
   if (!cleaned) return -1000;
   let s = Math.min(cleaned.length, 100);
-  if (isLowQualityProductName(cleaned)) s -= 60;
+  if (isDirtyProductName(cleaned)) s -= 60;
   if (/[\u0400-\u04FF]/.test(cleaned)) s += 15;
   if (/[a-zа-я]/u.test(cleaned) && /[A-ZА-Я]/u.test(cleaned)) s += 5;
   return s;
@@ -185,11 +179,14 @@ function shouldAcceptRemote(
   current: string,
   remote: string,
   force: boolean,
+  barcode?: string,
 ): boolean {
   if (!isAcceptableInternetProductName(remote)) return false;
   if (force) return true;
   if (!current.trim()) return true;
-  if (isDirtyName(current)) return scoreName(remote) > scoreName(current) - 5;
+  if (isDirtyProductName(current, barcode)) {
+    return scoreName(remote) > scoreName(current) - 5;
+  }
   return scoreName(remote) > scoreName(current) + 8;
 }
 
@@ -358,7 +355,9 @@ async function main(): Promise<void> {
             `,
           )
           .all() as Array<{ id: string; barcode: string; name: string }>)
-  ).filter((row) => (args.onlyDirty ? isDirtyName(row.name) : true));
+  ).filter((row) =>
+    args.onlyDirty ? isDirtyProductName(row.name, row.barcode) : true,
+  );
 
   const limited = args.limit > 0 ? rows.slice(0, args.limit) : rows;
   console.log(`Queue: ${limited.length} products`);
@@ -412,7 +411,9 @@ async function main(): Promise<void> {
 
       if (!remote) {
         stats.missing += 1;
-      } else if (shouldAcceptRemote(row.name, remote, args.force)) {
+      } else if (
+        shouldAcceptRemote(row.name, remote, args.force, row.barcode)
+      ) {
         const chosen = cleanProductName(remote);
         if (chosen && chosen !== row.name) {
           if (!args.dryRun) {
