@@ -47,6 +47,7 @@ Keep entries short. Prefer `open` / `doing` / `done` / `dropped`.
 ## Later / parked
 
 - [ ] Failed-login usernames in prod (needs deploy of login_failed stash)
+- [ ] **barcode.bg name refresh** — `scripts/refresh-names-from-barcode-bg.ts` (slow/polite; run locally when needed)
 
 ## Feature triage (catalog only — ✅23 · 🔴35 · ⚪16)
 
