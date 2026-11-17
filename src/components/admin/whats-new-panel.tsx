@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { BroadcastPushPanel } from "@/components/admin/broadcast-push-panel";
 import { SecondaryButton } from "@/components/auth-forms";
 import { LoadingSpinnerBlock } from "@/components/loading-spinner";
 import { useT } from "@/components/i18n-provider";
@@ -102,6 +103,8 @@ export function WhatsNewPanel() {
 
   return (
     <div className="space-y-6">
+      <BroadcastPushPanel />
+
       <section>
         <h2 className="text-lg font-semibold text-foreground">
           {t("admin.whatsNewTitle")}

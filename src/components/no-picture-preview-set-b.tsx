@@ -1,4 +1,5 @@
 import type { ComponentType, ReactNode } from "react";
+import { PLACEHOLDER_ART_SIZE_CLASS } from "@/components/no-picture-placeholder";
 import {
   ArtApple,
   ArtBakeryCroissant,
@@ -159,7 +160,9 @@ function Shell({
       {tone === "mint" ? (
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(52,211,153,0.14),transparent_70%)]" />
       ) : null}
-      <div className="relative flex h-[62%] w-[62%] items-center justify-center text-muted/85">
+      <div
+        className={`relative flex ${PLACEHOLDER_ART_SIZE_CLASS} items-center justify-center text-muted/85`}
+      >
         {children}
       </div>
     </div>

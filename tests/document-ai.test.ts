@@ -184,6 +184,17 @@ describe("parseDocumentExpiry", () => {
   it("accepts date with trailing lot/batch text", () => {
     assert.equal(parseDocumentExpiry("23.06.2027 L268623"), "2027-06-23");
     assert.equal(parseDocumentExpiry("2027-06-23 L268623"), "2027-06-23");
+    assert.equal(parseDocumentExpiry("23.06.2027 L11122026"), "2027-06-23");
+  });
+
+  it("never treats L-prefixed lot codes as expiry dates", () => {
+    // L11122026 encodes 11.12.2026 as a batch code — not Godnost.
+    assert.equal(parseDocumentExpiry("L11122026"), null);
+    assert.equal(parseDocumentExpiry("L11.12.2026"), null);
+    assert.equal(parsePrintedExpiry("L11122026"), null);
+    assert.equal(parsePrintedExpiry("л11122026"), null);
+    assert.equal(resolveDocumentExpiry(null, "L11122026"), null);
+    assert.equal(resolveDocumentExpiry("2026-12-11", "L11122026"), "2026-12-11");
   });
 
   it("rejects impossible calendar dates", () => {

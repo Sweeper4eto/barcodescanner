@@ -4,9 +4,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { ChecklistCard } from "@/components/checklist-card";
 import {
   ChecklistTaskSheet,
+  resolveChecklistCommentImagePath,
   type ChecklistDraft,
 } from "@/components/checklist-task-sheet";
-import { StarFavouriteIcon } from "@/components/app-nav-icons";
+import {
+  ChevronBackIcon,
+  ChevronRightIcon,
+} from "@/components/app-nav-icons";
 import { LoadingSpinnerPage } from "@/components/loading-spinner";
 import { MobilePageHeader } from "@/components/mobile-page-header";
 import { RemoveConfirmDialog } from "@/components/remove-confirm-dialog";
@@ -24,7 +28,8 @@ import {
 } from "@/lib/app-ui";
 import {
   CHECKLISTS_FEATURE_ENABLED,
-  type ChecklistFavouriteDto,
+  checklistCalendarYmd,
+  isChecklistTaskDueOn,
   type ChecklistTaskDto,
 } from "@/lib/checklist";
 
@@ -32,10 +37,60 @@ type ListResponse = {
   todayYmd: string;
   isOwner: boolean;
   dueTodayIncomplete: number;
-  favourites: ChecklistFavouriteDto[];
   tasks: ChecklistTaskDto[];
   error?: string;
 };
+
+function parseYmdLocal(ymd: string): Date {
+  const [y, m, d] = ymd.split("-").map(Number);
+  return new Date(y, m - 1, d, 12, 0, 0, 0);
+}
+
+function toYmdLocal(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+/** Monday-start week containing `ymd`. */
+function weekDaysFromYmd(ymd: string): { ymd: string; date: Date }[] {
+  const base = parseYmdLocal(ymd);
+  const day = (base.getDay() + 6) % 7; // Mon=0 … Sun=6
+  const monday = new Date(base);
+  monday.setDate(base.getDate() - day);
+  return Array.from({ length: 7 }, (_, i) => {
+    const date = new Date(monday);
+    date.setDate(monday.getDate() + i);
+    return { ymd: toYmdLocal(date), date };
+  });
+}
+
+/** Shift a YMD by whole days (keeps noon local). */
+function shiftYmd(ymd: string, days: number): string {
+  const date = parseYmdLocal(ymd);
+  date.setDate(date.getDate() + days);
+  return toYmdLocal(date);
+}
+
+function formatDayMonth(ymd: string, locale: string): string {
+  return parseYmdLocal(ymd).toLocaleDateString(locale, {
+    day: "numeric",
+    month: "long",
+  });
+}
+
+function formatWeekdayShort(date: Date, locale: string): string {
+  return date.toLocaleDateString(locale, { weekday: "short" });
+}
+
+function formatLongDate(ymd: string, locale: string): string {
+  return parseYmdLocal(ymd).toLocaleDateString(locale, {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  });
+}
 
 function recurrenceLabel(
   task: Pick<
@@ -55,26 +110,47 @@ function recurrenceLabel(
   return task.recurrence;
 }
 
+function recurrenceBadge(
+  task: Pick<ChecklistTaskDto, "recurrence" | "dueDate">,
+  t: ReturnType<typeof useT>["t"],
+): string {
+  if (task.recurrence === "daily") return t("checklists.badgeDaily");
+  if (task.recurrence === "weekly") return t("checklists.badgeWeekly");
+  if (task.recurrence === "monthly") return t("checklists.badgeMonthly");
+  if (task.recurrence === "once" && task.dueDate) {
+    const timeMatch = task.dueDate.match(/T(\d{2}:\d{2})/);
+    if (timeMatch) return timeMatch[1];
+    const parts = task.dueDate.split("-");
+    if (parts.length === 3) return `${parts[2]}.${parts[1]}`;
+    return task.dueDate;
+  }
+  return t("checklists.recurrenceOnce");
+}
+
 export default function ChecklistsPage() {
-  const { t } = useT();
+  const { t, dateLocale } = useT();
   const { ready: sessionReady, homeUser } = useAppSession();
   const { storeId, ready: storeReady } = useAppStoreId();
   const [tasks, setTasks] = useState<ChecklistTaskDto[]>([]);
-  const [favourites, setFavourites] = useState<ChecklistFavouriteDto[]>([]);
+  const [todayYmd, setTodayYmd] = useState(() => checklistCalendarYmd());
+  const [selectedYmd, setSelectedYmd] = useState(() => checklistCalendarYmd());
   const [isOwner, setIsOwner] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [addingFavouriteId, setAddingFavouriteId] = useState<string | null>(
-    null,
-  );
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [recurrenceFilter, setRecurrenceFilter] = useState<
+    "all" | "daily" | "weekly" | "monthly"
+  >("all");
   const [sheet, setSheet] = useState<
     | { mode: "create" }
     | { mode: "edit" | "view"; task: ChecklistTaskDto }
     | null
   >(null);
   const [removeId, setRemoveId] = useState<string | null>(null);
+  const [uncheckTask, setUncheckTask] = useState<ChecklistTaskDto | null>(
+    null,
+  );
 
   useEffect(() => {
     const id = window.setTimeout(() => {
@@ -97,13 +173,11 @@ export default function ChecklistsPage() {
   const load = useCallback(async () => {
     if (!CHECKLISTS_FEATURE_ENABLED) {
       setTasks([]);
-      setFavourites([]);
       setLoading(false);
       return;
     }
     if (!storeId) {
       setTasks([]);
-      setFavourites([]);
       setLoading(false);
       setError(t("errors.missingStoreId"));
       return;
@@ -119,11 +193,12 @@ export default function ChecklistsPage() {
       if (!res.ok) {
         setError(data.error || t("errors.networkError"));
         setTasks([]);
-        setFavourites([]);
         return;
       }
+      const serverToday = data.todayYmd || checklistCalendarYmd();
+      setTodayYmd(serverToday);
+      setSelectedYmd((prev) => prev || serverToday);
       setTasks(data.tasks ?? []);
-      setFavourites(data.favourites ?? []);
       setIsOwner(Boolean(data.isOwner));
     } catch {
       setError(t("errors.networkError"));
@@ -138,38 +213,82 @@ export default function ChecklistsPage() {
   }, [sessionReady, storeReady, homeUser, load]);
 
   const searchQuery = debouncedSearch.trim().toLowerCase();
+  const viewingToday = selectedYmd === todayYmd;
+  const weekDays = useMemo(() => weekDaysFromYmd(selectedYmd), [selectedYmd]);
+  const weekContainsToday = useMemo(
+    () => weekDays.some((day) => day.ymd === todayYmd),
+    [weekDays, todayYmd],
+  );
 
-  const filteredFavourites = useMemo(() => {
-    if (!searchQuery) return favourites;
-    return favourites.filter((favourite) => {
-      const title = favourite.title.toLowerCase();
-      const note = (favourite.note ?? "").toLowerCase();
-      return title.includes(searchQuery) || note.includes(searchQuery);
-    });
-  }, [favourites, searchQuery]);
+  function shiftWeek(deltaWeeks: number) {
+    const next = shiftYmd(selectedYmd, deltaWeeks * 7);
+    // If the new week includes today, land on today; else keep weekday.
+    const nextWeek = weekDaysFromYmd(next);
+    if (nextWeek.some((day) => day.ymd === todayYmd)) {
+      setSelectedYmd(todayYmd);
+      return;
+    }
+    setSelectedYmd(next);
+  }
 
-  const filteredTasks = useMemo(() => {
-    if (!searchQuery) return tasks;
+  const dayTasks = useMemo(() => {
     return tasks.filter((task) => {
+      if (!isChecklistTaskDueOn(task, selectedYmd)) return false;
+      if (recurrenceFilter !== "all" && task.recurrence !== recurrenceFilter) {
+        return false;
+      }
+      if (!searchQuery) return true;
       const title = task.title.toLowerCase();
       const note = (task.note ?? "").toLowerCase();
       return title.includes(searchQuery) || note.includes(searchQuery);
     });
-  }, [tasks, searchQuery]);
+  }, [tasks, selectedYmd, searchQuery, recurrenceFilter]);
 
   const sections = useMemo(() => {
-    const dueToday = filteredTasks.filter(
-      (task) => task.dueToday && !task.completedToday,
+    // Completion flags from API are for "today" only.
+    const todo = dayTasks.filter((task) =>
+      viewingToday ? !task.completedToday : true,
     );
-    const upcoming = filteredTasks.filter(
-      (task) => !task.dueToday && !task.completedToday,
-    );
-    const doneToday = filteredTasks.filter((task) => task.completedToday);
-    return { dueToday, upcoming, doneToday };
-  }, [filteredTasks]);
+    const done = viewingToday
+      ? dayTasks.filter((task) => task.completedToday)
+      : [];
+    return { todo, done };
+  }, [dayTasks, viewingToday]);
 
-  async function toggleChecked(task: ChecklistTaskDto) {
-    const next = !task.completedToday;
+  const progress = useMemo(() => {
+    const total = dayTasks.length;
+    const doneCount = viewingToday
+      ? dayTasks.filter((task) => task.completedToday).length
+      : 0;
+    const pct = total === 0 ? 0 : Math.round((doneCount / total) * 100);
+    return { total, doneCount, pct };
+  }, [dayTasks, viewingToday]);
+
+  function requestToggleChecked(
+    task: ChecklistTaskDto,
+    extras?: {
+      comment?: string;
+      commentImagePath?: string | null;
+      commentImageDataUrl?: string | null;
+    },
+  ) {
+    if (!viewingToday) return;
+    if (task.completedToday) {
+      setUncheckTask(task);
+      return;
+    }
+    void applyToggleChecked(task, true, extras);
+  }
+
+  async function applyToggleChecked(
+    task: ChecklistTaskDto,
+    next: boolean,
+    extras?: {
+      comment?: string;
+      commentImagePath?: string | null;
+      commentImageDataUrl?: string | null;
+    },
+  ) {
     setTasks((prev) =>
       prev.map((row) =>
         row.id === task.id
@@ -185,11 +304,20 @@ export default function ChecklistsPage() {
       ),
     );
     try {
+      const body: Record<string, unknown> = { completed: next };
+      if (extras) {
+        const imagePath = await resolveChecklistCommentImagePath({
+          commentImagePath: extras.commentImagePath ?? task.commentImagePath,
+          commentImageDataUrl: extras.commentImageDataUrl ?? null,
+        });
+        if (extras.comment !== undefined) body.comment = extras.comment || null;
+        body.commentImagePath = imagePath;
+      }
       const res = await fetch(`/api/checklists/${task.id}/complete`, {
         method: "POST",
         credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ completed: next }),
+        body: JSON.stringify(body),
       });
       const data = (await res.json().catch(() => ({}))) as {
         task?: ChecklistTaskDto;
@@ -206,116 +334,30 @@ export default function ChecklistsPage() {
     }
   }
 
-  async function addFavouriteToList(favourite: ChecklistFavouriteDto) {
-    if (!storeId) return;
-    setAddingFavouriteId(favourite.id);
-    try {
-      const res = await fetch("/api/checklists/favourites", {
-        method: "PUT",
-        credentials: "same-origin",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ storeId, favouriteId: favourite.id }),
-      });
-      const data = (await res.json().catch(() => ({}))) as {
-        task?: ChecklistTaskDto;
-        created?: boolean;
-        error?: string;
-      };
-      if (!res.ok || !data.task) {
-        throw new Error(data.error || t("errors.invalidData"));
-      }
-      setTasks((prev) => {
-        if (prev.some((row) => row.id === data.task!.id)) {
-          return prev.map((row) =>
-            row.id === data.task!.id ? data.task! : row,
-          );
-        }
-        return [data.task!, ...prev];
-      });
+  async function confirmUncheck() {
+    if (!uncheckTask) return;
+    const task = uncheckTask;
+    setUncheckTask(null);
+    if (sheet && sheet.mode !== "create" && sheet.task.id === task.id) {
       setSheet(null);
-    } finally {
-      setAddingFavouriteId(null);
     }
-  }
-
-  async function toggleFavouriteCatalog(task: ChecklistTaskDto) {
-    if (!isOwner || !storeId) return;
-    if (task.inFavourites) {
-      const match = favourites.find(
-        (row) =>
-          row.title.trim().toLowerCase() === task.title.trim().toLowerCase(),
-      );
-      if (!match) {
-        await load();
-        return;
-      }
-      setFavourites((prev) => prev.filter((row) => row.id !== match.id));
-      setTasks((prev) =>
-        prev.map((row) =>
-          row.title.trim().toLowerCase() === task.title.trim().toLowerCase()
-            ? { ...row, inFavourites: false }
-            : row,
-        ),
-      );
-      try {
-        const res = await fetch(`/api/checklists/favourites/${match.id}`, {
-          method: "DELETE",
-          credentials: "same-origin",
-        });
-        if (!res.ok) await load();
-      } catch {
-        await load();
-      }
-      return;
-    }
-
-    try {
-      const res = await fetch("/api/checklists/favourites", {
-        method: "POST",
-        credentials: "same-origin",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          storeId,
-          title: task.title,
-          note: task.note,
-          recurrence: task.recurrence,
-          dueDate: task.dueDate,
-          weekday: task.weekday,
-          monthDay: task.monthDay,
-        }),
-      });
-      const data = (await res.json().catch(() => ({}))) as {
-        favourite?: ChecklistFavouriteDto;
-      };
-      if (!res.ok || !data.favourite) {
-        await load();
-        return;
-      }
-      setFavourites((prev) => [data.favourite!, ...prev.filter((row) => row.id !== data.favourite!.id)]);
-      setTasks((prev) =>
-        prev.map((row) =>
-          row.title.trim().toLowerCase() === task.title.trim().toLowerCase()
-            ? { ...row, inFavourites: true }
-            : row,
-        ),
-      );
-    } catch {
-      await load();
-    }
+    await applyToggleChecked(task, false);
   }
 
   async function saveDraft(draft: ChecklistDraft) {
     if (!storeId) throw new Error(t("errors.missingStoreId"));
+    const commentImagePath = await resolveChecklistCommentImagePath(draft);
     const body = {
       storeId,
       title: draft.title,
       note: draft.note || null,
       comment: draft.comment || null,
+      commentImagePath,
       recurrence: draft.recurrence,
       dueDate: draft.recurrence === "once" ? draft.dueDate : null,
       weekday: null,
       monthDay: null,
-      saveAsFavourite: draft.saveAsFavourite,
+      saveAsFavourite: false,
     };
 
     if (sheet?.mode === "create") {
@@ -327,19 +369,12 @@ export default function ChecklistsPage() {
       });
       const data = (await res.json().catch(() => ({}))) as {
         task?: ChecklistTaskDto;
-        favourite?: ChecklistFavouriteDto | null;
         error?: string;
       };
       if (!res.ok || !data.task) {
         throw new Error(data.error || t("errors.invalidData"));
       }
       setTasks((prev) => [data.task!, ...prev]);
-      if (data.favourite) {
-        setFavourites((prev) => [
-          data.favourite!,
-          ...prev.filter((row) => row.id !== data.favourite!.id),
-        ]);
-      }
       setSheet(null);
       return;
     }
@@ -365,14 +400,22 @@ export default function ChecklistsPage() {
     }
   }
 
-  async function saveComment(comment: string) {
+  async function saveComment(draft: {
+    comment: string;
+    commentImagePath: string | null;
+    commentImageDataUrl: string | null;
+  }) {
     if (!sheet || sheet.mode === "create") return;
     const taskId = sheet.task.id;
+    const commentImagePath = await resolveChecklistCommentImagePath(draft);
     const res = await fetch(`/api/checklists/${taskId}`, {
       method: "PATCH",
       credentials: "same-origin",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ comment: comment || null }),
+      body: JSON.stringify({
+        comment: draft.comment || null,
+        commentImagePath,
+      }),
     });
     const data = (await res.json().catch(() => ({}))) as {
       task?: ChecklistTaskDto;
@@ -392,6 +435,7 @@ export default function ChecklistsPage() {
     const id = removeId;
     setRemoveId(null);
     setTasks((prev) => prev.filter((row) => row.id !== id));
+    setSheet(null);
     try {
       const res = await fetch(`/api/checklists/${id}`, {
         method: "DELETE",
@@ -403,55 +447,28 @@ export default function ChecklistsPage() {
     }
   }
 
-  async function removeFavourite(favourite: ChecklistFavouriteDto) {
-    if (!isOwner) return;
-    setFavourites((prev) => prev.filter((row) => row.id !== favourite.id));
-    setTasks((prev) =>
-      prev.map((row) =>
-        row.title.trim().toLowerCase() === favourite.title.trim().toLowerCase()
-          ? { ...row, inFavourites: false }
-          : row,
-      ),
-    );
-    try {
-      const res = await fetch(`/api/checklists/favourites/${favourite.id}`, {
-        method: "DELETE",
-        credentials: "same-origin",
-      });
-      if (!res.ok) await load();
-    } catch {
-      await load();
-    }
-  }
-
-  function renderSection(title: string, rows: ChecklistTaskDto[]) {
+  function renderTaskList(rows: ChecklistTaskDto[]) {
     if (rows.length === 0) return null;
     return (
-      <section className="mb-4">
-        <h2 className="mb-2 text-sm font-semibold text-foreground">{title}</h2>
-        <ul className="space-y-2">
-          {rows.map((task) => (
-            <li key={task.id}>
-              <ChecklistCard
-                task={task}
-                isOwner={isOwner}
-                recurrenceLabel={recurrenceLabel(task, t)}
-                onOpen={() =>
-                  setSheet({
-                    mode: isOwner ? "edit" : "view",
-                    task,
-                  })
-                }
-                onToggleChecked={() => void toggleChecked(task)}
-                onToggleFavourite={
-                  isOwner ? () => void toggleFavouriteCatalog(task) : undefined
-                }
-                onRemove={isOwner ? () => setRemoveId(task.id) : undefined}
-              />
-            </li>
-          ))}
-        </ul>
-      </section>
+      <ul className="space-y-2">
+        {rows.map((task) => (
+          <li key={task.id}>
+            <ChecklistCard
+              task={task}
+              recurrenceLabel={recurrenceLabel(task, t)}
+              recurrenceBadge={recurrenceBadge(task, t)}
+              canToggle={viewingToday}
+              onOpen={() =>
+                setSheet({
+                  mode: isOwner ? "edit" : "view",
+                  task,
+                })
+              }
+              onToggleChecked={() => requestToggleChecked(task)}
+            />
+          </li>
+        ))}
+      </ul>
     );
   }
 
@@ -467,24 +484,124 @@ export default function ChecklistsPage() {
     return <LoadingSpinnerPage fullScreen />;
   }
 
+  const weekStart = weekDays[0]?.ymd;
+  const weekEnd = weekDays[6]?.ymd;
+
   return (
     <div className={`${appPageShell} relative ${appListInset} pb-24 pt-1`}>
       <div className={appPageTopGlowClass} aria-hidden />
       <MobilePageHeader className="mb-2" />
 
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <h1 className="text-2xl font-semibold text-foreground">
-          {t("checklists.titlePage")}
-        </h1>
+      <div className="mb-1 flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-semibold text-foreground">
+            {t("checklists.titlePage")}
+          </h1>
+          <p className="mt-0.5 text-sm capitalize text-muted">
+            {formatLongDate(selectedYmd, dateLocale)}
+          </p>
+        </div>
         {isOwner ? (
           <button
             type="button"
             className={appButtonPrimary}
             onClick={() => setSheet({ mode: "create" })}
           >
-            {t("checklists.add")}
+            + {t("checklists.add")}
           </button>
         ) : null}
+      </div>
+
+      <div className="mb-3 mt-3 rounded-2xl border border-card-border bg-zinc-950/80 px-3 py-3">
+        <div className="mb-2 flex items-baseline justify-between gap-2">
+          <p className="text-sm font-medium text-foreground">
+            {t("checklists.progressLabel", {
+              done: String(progress.doneCount),
+              total: String(progress.total),
+            })}
+          </p>
+          <p className="text-sm font-semibold tabular-nums text-primary">
+            {progress.pct}%
+          </p>
+        </div>
+        <div
+          className="h-2.5 overflow-hidden rounded-full bg-zinc-800"
+          role="progressbar"
+          aria-valuenow={progress.pct}
+          aria-valuemin={0}
+          aria-valuemax={100}
+        >
+          <div
+            className="h-full rounded-full bg-primary transition-[width]"
+            style={{ width: `${progress.pct}%` }}
+          />
+        </div>
+      </div>
+
+      <div className="mb-3">
+        <div className="mb-1.5 flex items-center gap-1">
+          <button
+            type="button"
+            aria-label={t("checklists.weekPrev")}
+            title={t("checklists.weekPrev")}
+            className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg border border-card-border text-foreground"
+            onClick={() => shiftWeek(-1)}
+          >
+            <ChevronBackIcon className="size-4" />
+          </button>
+          <p className="min-w-0 flex-1 text-center text-xs font-semibold text-muted">
+            {t(
+              weekContainsToday
+                ? "checklists.thisWeekRange"
+                : "checklists.weekRange",
+              {
+                range:
+                  weekStart && weekEnd
+                    ? `${formatDayMonth(weekStart, dateLocale)} – ${formatDayMonth(weekEnd, dateLocale)}`
+                    : "",
+              },
+            )}
+          </p>
+          <button
+            type="button"
+            aria-label={t("checklists.weekNext")}
+            title={t("checklists.weekNext")}
+            className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg border border-card-border text-foreground"
+            onClick={() => shiftWeek(1)}
+          >
+            <ChevronRightIcon className="size-4" />
+          </button>
+        </div>
+        <div className="grid grid-cols-7 gap-1">
+          {weekDays.map(({ ymd, date }) => {
+            const active = ymd === selectedYmd;
+            const isToday = ymd === todayYmd;
+            return (
+              <button
+                key={ymd}
+                type="button"
+                onClick={() => setSelectedYmd(ymd)}
+                className={`flex flex-col items-center rounded-xl border px-0.5 py-1.5 ${
+                  active
+                    ? "border-primary bg-selected text-primary"
+                    : "border-card-border bg-transparent text-foreground"
+                }`}
+              >
+                <span className="text-[10px] font-medium capitalize leading-none text-muted">
+                  {formatWeekdayShort(date, dateLocale)}
+                </span>
+                <span className="mt-1 text-sm font-semibold tabular-nums leading-none">
+                  {date.getDate()}
+                </span>
+                {isToday && !active ? (
+                  <span className="mt-1 size-1 rounded-full bg-primary" aria-hidden />
+                ) : (
+                  <span className="mt-1 size-1" aria-hidden />
+                )}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       <div className="mb-3">
@@ -497,88 +614,78 @@ export default function ChecklistsPage() {
         />
       </div>
 
+      <div
+        className="mb-3 grid grid-cols-4 gap-1 rounded-xl border border-card-border p-1"
+        role="tablist"
+        aria-label={t("checklists.filterLabel")}
+      >
+        {(
+          [
+            { id: "all", label: t("checklists.filterAll") },
+            { id: "daily", label: t("checklists.filterDaily") },
+            { id: "weekly", label: t("checklists.filterWeekly") },
+            { id: "monthly", label: t("checklists.filterMonthly") },
+          ] as const
+        ).map((opt) => {
+          const active = recurrenceFilter === opt.id;
+          return (
+            <button
+              key={opt.id}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              onClick={() => setRecurrenceFilter(opt.id)}
+              className={`rounded-lg px-1 py-2 text-center text-[11px] font-semibold leading-tight ${
+                active
+                  ? "border border-primary text-primary"
+                  : "border border-transparent text-muted"
+              }`}
+            >
+              {opt.label}
+            </button>
+          );
+        })}
+      </div>
+
       {error ? (
         <p className="mb-3 rounded-xl border border-danger-border bg-danger/10 px-3 py-2 text-sm text-error">
           {error}
         </p>
       ) : null}
 
-      {favourites.length === 0 ? (
-        <p className="mb-4 rounded-xl border border-dashed border-card-border px-3 py-3 text-sm text-muted">
-          {isOwner
-            ? t("checklists.favouritesEmptyOwner")
-            : t("checklists.favouritesEmptyStaff")}
+      {!viewingToday ? (
+        <p className="mb-3 text-xs text-muted">
+          {t("checklists.otherDayHint")}
         </p>
-      ) : filteredFavourites.length > 0 ? (
-        <section className="mb-4" aria-label={t("checklists.sectionFavourites")}>
-          <div className="mb-1.5 flex items-center gap-2">
-            <h2 className="text-[11px] font-semibold uppercase tracking-wide text-foreground">
-              {t("checklists.sectionFavourites")}
-            </h2>
-            <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full border border-primary px-1.5 text-[10px] font-semibold tabular-nums text-primary">
-              {filteredFavourites.length}
-              {searchQuery && filteredFavourites.length !== favourites.length
-                ? `/${favourites.length}`
-                : ""}
-            </span>
-          </div>
-          <div className="-mx-1.5 flex gap-2 overflow-x-auto px-1.5 pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {filteredFavourites.map((favourite) => (
-              <div
-                key={favourite.id}
-                className="relative flex w-[5.75rem] shrink-0 flex-col rounded-lg border border-card-border bg-transparent p-1.5"
-              >
-                {isOwner ? (
-                  <button
-                    type="button"
-                    aria-label={t("favourites.remove")}
-                    title={t("favourites.remove")}
-                    className="absolute -right-0.5 -top-0.5 z-10 flex size-5 items-center justify-center rounded-md border border-card-border bg-background/95 text-amber-400"
-                    onClick={() => void removeFavourite(favourite)}
-                  >
-                    <StarFavouriteIcon className="size-3" filled />
-                  </button>
-                ) : (
-                  <span className="absolute -right-0.5 -top-0.5 flex size-5 items-center justify-center text-amber-400">
-                    <StarFavouriteIcon className="size-3" filled />
-                  </span>
-                )}
-                <button
-                  type="button"
-                  disabled={addingFavouriteId === favourite.id}
-                  onClick={() => void addFavouriteToList(favourite)}
-                  title={t("checklists.addFromFavourite")}
-                  aria-label={`${t("checklists.addFromFavourite")}: ${favourite.title}`}
-                  className="flex min-h-[4.25rem] flex-col gap-1 px-0.5 pt-1 text-left disabled:opacity-60"
-                >
-                  <span className="line-clamp-3 text-[11px] font-semibold leading-snug text-foreground">
-                    {addingFavouriteId === favourite.id
-                      ? t("checklists.addingFavourite")
-                      : favourite.title}
-                  </span>
-                  <span className="mt-auto text-[10px] text-muted">
-                    {t("checklists.addFromFavourite")}
-                  </span>
-                </button>
-              </div>
-            ))}
-          </div>
-        </section>
       ) : null}
-
-      <h2 className="mb-2 text-sm font-semibold text-foreground">
-        {t("checklists.sectionList")}
-      </h2>
 
       {tasks.length === 0 && !error ? (
         <p className="text-sm text-muted">{t("checklists.empty")}</p>
-      ) : filteredTasks.length === 0 ? (
+      ) : dayTasks.length === 0 ? (
         <p className="text-sm text-muted">{t("checklists.noResults")}</p>
       ) : (
         <>
-          {renderSection(t("checklists.sectionDueToday"), sections.dueToday)}
-          {renderSection(t("checklists.sectionUpcoming"), sections.upcoming)}
-          {renderSection(t("checklists.sectionDoneToday"), sections.doneToday)}
+          <section className="mb-4" aria-label={t("checklists.sectionDueToday")}>
+            <h2 className="mb-2 text-sm font-semibold text-foreground">
+              {t("checklists.sectionDueToday")}
+              <span className="ml-1 text-muted">· {sections.todo.length}</span>
+            </h2>
+            {sections.todo.length > 0 ? (
+              renderTaskList(sections.todo)
+            ) : (
+              <p className="text-sm text-muted">{t("checklists.todoEmpty")}</p>
+            )}
+          </section>
+
+          {sections.done.length > 0 ? (
+            <section className="mb-4" aria-label={t("checklists.sectionDoneToday")}>
+              <h2 className="mb-2 text-sm font-semibold text-foreground">
+                {t("checklists.sectionDoneToday")}
+                <span className="ml-1 text-muted">· {sections.done.length}</span>
+              </h2>
+              {renderTaskList(sections.done)}
+            </section>
+          ) : null}
         </>
       )}
 
@@ -587,10 +694,12 @@ export default function ChecklistsPage() {
           mode={sheet.mode}
           isOwner={isOwner}
           initial={sheet.mode === "create" ? null : sheet.task}
-          favouriteChoices={sheet.mode === "create" ? favourites : undefined}
+          canComplete={viewingToday}
           onClose={() => setSheet(null)}
-          onAddFavouriteToList={
-            sheet.mode === "create" ? addFavouriteToList : undefined
+          onRemove={
+            isOwner && sheet.mode !== "create"
+              ? () => setRemoveId(sheet.task.id)
+              : undefined
           }
           onSave={
             isOwner && (sheet.mode === "create" || sheet.mode === "edit")
@@ -601,9 +710,13 @@ export default function ChecklistsPage() {
             sheet.mode !== "create" ? saveComment : undefined
           }
           onToggleDone={
-            sheet.mode !== "create"
-              ? async () => {
-                  await toggleChecked(sheet.task);
+            sheet.mode !== "create" && viewingToday
+              ? async (draft) => {
+                  if (sheet.task.completedToday) {
+                    setUncheckTask(sheet.task);
+                    return;
+                  }
+                  await applyToggleChecked(sheet.task, true, draft);
                   setSheet(null);
                 }
               : undefined
@@ -623,6 +736,18 @@ export default function ChecklistsPage() {
           removeLabel={t("common.delete")}
           onCancel={() => setRemoveId(null)}
           onConfirm={() => void confirmRemove()}
+        />
+      ) : null}
+
+      {uncheckTask ? (
+        <RemoveConfirmDialog
+          title={t("checklists.uncheckTitle")}
+          message={t("checklists.uncheckMessage")}
+          itemLabel={uncheckTask.title}
+          cancelLabel={t("common.cancel")}
+          removeLabel={t("checklists.uncheckConfirm")}
+          onCancel={() => setUncheckTask(null)}
+          onConfirm={() => void confirmUncheck()}
         />
       ) : null}
     </div>

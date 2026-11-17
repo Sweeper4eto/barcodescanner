@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireSession } from "@/lib/auth";
+import {
+  auditChecklistCompleted,
+  auditChecklistUncompleted,
+} from "@/lib/audit-details";
+import { logAuditEvent } from "@/lib/audit-log";
 import { checklistsDisabledResponse } from "@/lib/checklist-access";
 import {
   checklistCalendarYmd,
@@ -11,6 +16,7 @@ import {
 } from "@/lib/checklist";
 import { db } from "@/lib/db";
 import { userCanAccessRetailStore } from "@/lib/store-access";
+import { isLocalUploadPath } from "@/lib/upload";
 import { apiT } from "@/i18n";
 
 const bodySchema = z.object({
@@ -20,6 +26,16 @@ const bodySchema = z.object({
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/)
     .optional(),
+  /** Optional: save comment / photo together with marking done. */
+  comment: z.string().trim().max(2000).optional().nullable(),
+  commentImagePath: z
+    .string()
+    .nullable()
+    .optional()
+    .refine(
+      (value) => value == null || value === "" || isLocalUploadPath(value),
+      "invalid image path",
+    ),
 });
 
 export async function POST(
@@ -76,6 +92,25 @@ export async function POST(
 
   const period = checklistPeriodBounds(task.recurrence, dueDate);
 
+  if (
+    parsed.data.comment !== undefined ||
+    parsed.data.commentImagePath !== undefined
+  ) {
+    await db.checklistTask.update({
+      where: { id },
+      data: {
+        ...(parsed.data.comment !== undefined
+          ? { comment: parsed.data.comment?.trim() || null }
+          : {}),
+        ...(parsed.data.commentImagePath !== undefined
+          ? {
+              commentImagePath: parsed.data.commentImagePath?.trim() || null,
+            }
+          : {}),
+      },
+    });
+  }
+
   if (parsed.data.completed) {
     // One completion per period: clear any earlier mark in the window, then
     // store today's calendar day as the completion key.
@@ -92,6 +127,16 @@ export async function POST(
         completedByUserId: session.userId,
       },
     });
+    await logAuditEvent(
+      request,
+      session,
+      "checklist_completed",
+      auditChecklistCompleted({
+        title: task.title,
+        storeName: store.name,
+        dueDate,
+      }),
+    );
   } else {
     await db.checklistCompletion.deleteMany({
       where: {
@@ -99,6 +144,16 @@ export async function POST(
         dueDate: { gte: period.start, lte: period.end },
       },
     });
+    await logAuditEvent(
+      request,
+      session,
+      "checklist_uncompleted",
+      auditChecklistUncompleted({
+        title: task.title,
+        storeName: store.name,
+        dueDate,
+      }),
+    );
   }
 
   const todayYmd = checklistCalendarYmd();

@@ -3,18 +3,25 @@
 import { useEffect, useState } from "react";
 import { CancelButton } from "@/components/cancel-button";
 import { ConfirmButton } from "@/components/confirm-button";
+import { CameraCapture, uploadImage } from "@/components/camera-capture";
 import { MenuSelect } from "@/components/menu-select";
 import { MobilePageHeader } from "@/components/mobile-page-header";
-import { StarFavouriteIcon } from "@/components/app-nav-icons";
+import { ProductImage } from "@/components/product-image";
+import { CameraIcon, CheckIcon } from "@/components/app-nav-icons";
+import { ChecklistRecurrencePlaceholder } from "@/components/checklist-recurrence-placeholder";
+import { recurrenceAccentClass } from "@/components/checklist-card";
 import { useT } from "@/components/i18n-provider";
 import { useViewportInsets } from "@/hooks/use-viewport-insets";
 import {
+  appButtonDanger,
+  appButtonNeutral,
+  appButtonNeutralFull,
+  appButtonPrimaryFull,
   appContentMaxW,
   appFooterButtonGrid,
   appFormInput,
 } from "@/lib/app-ui";
 import type {
-  ChecklistFavouriteDto,
   ChecklistRecurrence,
   ChecklistTaskDto,
 } from "@/lib/checklist";
@@ -23,6 +30,10 @@ export type ChecklistDraft = {
   title: string;
   note: string;
   comment: string;
+  /** Existing uploaded path, or null to clear. */
+  commentImagePath: string | null;
+  /** Fresh capture waiting to upload on save. */
+  commentImageDataUrl: string | null;
   recurrence: ChecklistRecurrence;
   dueDate: string;
   weekday: number;
@@ -34,14 +45,22 @@ type Props = {
   mode: "create" | "edit" | "view";
   isOwner: boolean;
   initial?: ChecklistTaskDto | null;
-  favouriteChoices?: ChecklistFavouriteDto[];
+  /** Completing is only allowed for the selected/server "today". */
+  canComplete?: boolean;
   onClose: () => void;
   onSave?: (draft: ChecklistDraft) => Promise<void>;
-  /** Staff (and owner) saving only the comment field. */
-  onSaveComment?: (comment: string) => Promise<void>;
-  onToggleDone?: () => Promise<void>;
-  /** Pull favourite into the working list (create mode). */
-  onAddFavouriteToList?: (favourite: ChecklistFavouriteDto) => Promise<void>;
+  /** Staff (and owner) saving only the comment field (+ optional photo). */
+  onSaveComment?: (draft: {
+    comment: string;
+    commentImagePath: string | null;
+    commentImageDataUrl: string | null;
+  }) => Promise<void>;
+  onToggleDone?: (draft?: {
+    comment: string;
+    commentImagePath: string | null;
+    commentImageDataUrl: string | null;
+  }) => Promise<void>;
+  onRemove?: () => void;
 };
 
 function emptyDraft(): ChecklistDraft {
@@ -49,6 +68,8 @@ function emptyDraft(): ChecklistDraft {
     title: "",
     note: "",
     comment: "",
+    commentImagePath: null,
+    commentImageDataUrl: null,
     recurrence: "daily",
     dueDate: "",
     weekday: 0,
@@ -62,24 +83,46 @@ function fromTask(task: ChecklistTaskDto): ChecklistDraft {
     title: task.title,
     note: task.note ?? "",
     comment: task.comment ?? "",
+    commentImagePath: task.commentImagePath ?? null,
+    commentImageDataUrl: null,
     recurrence: task.recurrence,
     dueDate: task.dueDate ?? "",
     weekday: task.weekday ?? 0,
     monthDay: task.monthDay ?? 1,
-    saveAsFavourite: task.inFavourites,
+    saveAsFavourite: false,
   };
+}
+
+function periodBadge(
+  recurrence: ChecklistRecurrence,
+  dueDate: string,
+  t: ReturnType<typeof useT>["t"],
+): string {
+  if (recurrence === "daily") return t("checklists.badgeDaily");
+  if (recurrence === "weekly") {
+    return `${t("checklists.badgeWeekly")} · ${t("checklists.metaWeekly")}`;
+  }
+  if (recurrence === "monthly") {
+    return `${t("checklists.badgeMonthly")} · ${t("checklists.metaMonthly")}`;
+  }
+  if (dueDate) {
+    const parts = dueDate.split("-");
+    if (parts.length === 3) return `${t("checklists.recurrenceOnce")} · ${parts[2]}.${parts[1]}`;
+    return `${t("checklists.recurrenceOnce")} · ${dueDate}`;
+  }
+  return t("checklists.recurrenceOnce");
 }
 
 export function ChecklistTaskSheet({
   mode,
   isOwner,
   initial,
-  favouriteChoices = [],
+  canComplete = true,
   onClose,
   onSave,
   onSaveComment,
   onToggleDone,
-  onAddFavouriteToList,
+  onRemove,
 }: Props) {
   const { t } = useT();
   const { offsetTop, keyboardInset } = useViewportInsets();
@@ -90,11 +133,16 @@ export function ChecklistTaskSheet({
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [addingPhoto, setAddingPhoto] = useState(false);
 
   useEffect(() => {
     setDraft(initial ? fromTask(initial) : emptyDraft());
     setError(null);
+    setAddingPhoto(false);
   }, [initial, mode]);
+
+  const commentPhotoPreview =
+    draft.commentImageDataUrl || draft.commentImagePath;
 
   const recurrenceOptions = [
     { value: "daily" as const, label: t("checklists.recurrenceDaily") },
@@ -102,6 +150,9 @@ export function ChecklistTaskSheet({
     { value: "monthly" as const, label: t("checklists.recurrenceMonthly") },
     { value: "once" as const, label: t("checklists.recurrenceOnce") },
   ];
+
+  const accent = recurrenceAccentClass(draft.recurrence);
+  const statusPending = !initial?.completedToday;
 
   async function handleSave() {
     if (!onSave) return;
@@ -117,7 +168,7 @@ export function ChecklistTaskSheet({
     setSaving(true);
     setError(null);
     try {
-      await onSave({ ...draft, title });
+      await onSave({ ...draft, title, saveAsFavourite: false });
     } catch (err) {
       setError(err instanceof Error ? err.message : t("errors.networkError"));
     } finally {
@@ -130,7 +181,11 @@ export function ChecklistTaskSheet({
     setSaving(true);
     setError(null);
     try {
-      await onSaveComment(draft.comment.trim());
+      await onSaveComment({
+        comment: draft.comment.trim(),
+        commentImagePath: draft.commentImagePath,
+        commentImageDataUrl: draft.commentImageDataUrl,
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : t("errors.networkError"));
     } finally {
@@ -138,12 +193,16 @@ export function ChecklistTaskSheet({
     }
   }
 
-  async function handlePullFavourite(favourite: ChecklistFavouriteDto) {
-    if (!onAddFavouriteToList) return;
+  async function handleToggleDone() {
+    if (!onToggleDone) return;
     setSaving(true);
     setError(null);
     try {
-      await onAddFavouriteToList(favourite);
+      await onToggleDone({
+        comment: draft.comment.trim(),
+        commentImagePath: draft.commentImagePath,
+        commentImageDataUrl: draft.commentImageDataUrl,
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : t("errors.networkError"));
     } finally {
@@ -152,193 +211,239 @@ export function ChecklistTaskSheet({
   }
 
   const showOwnerSave = editable && onSave;
+  const canMarkDone =
+    Boolean(onToggleDone) &&
+    canComplete &&
+    Boolean(initial?.dueToday || initial?.completedToday);
   const showStaffCommentSave = !editable && commentEditable && onSaveComment;
-  const showMarkDone =
-    !showOwnerSave &&
-    !showStaffCommentSave &&
-    onToggleDone &&
-    Boolean(initial?.dueToday);
 
   return (
     <div
       className="fixed inset-0 z-50 flex flex-col bg-background"
       style={{ paddingTop: offsetTop, paddingBottom: keyboardInset }}
     >
-      <div className={`mx-auto flex min-h-0 w-full ${appContentMaxW} flex-1 flex-col px-4 pt-1`}>
-        <MobilePageHeader className="mb-2 shrink-0" />
-        <h1 className="mb-3 text-2xl font-semibold text-foreground">
-          {mode === "create"
-            ? t("checklists.newTask")
-            : editable
-              ? t("checklists.editTask")
-              : t("checklists.taskDetails")}
-        </h1>
+      <div
+        className={`mx-auto flex min-h-0 w-full ${appContentMaxW} flex-1 flex-col px-4 pt-1`}
+      >
+        <MobilePageHeader className="mb-2 shrink-0" onBack={onClose} />
 
         <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pb-4">
-          {mode === "create" && favouriteChoices.length > 0 ? (
-            <section aria-label={t("checklists.pickFavourite")}>
-              <p className="mb-1.5 text-sm font-semibold text-foreground">
-                {t("checklists.pickFavourite")}
-              </p>
-              <p className="mb-2 text-xs text-muted">
-                {t("checklists.pickFavouriteHint")}
-              </p>
-              <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                {favouriteChoices.map((favourite) => (
-                  <button
-                    key={favourite.id}
-                    type="button"
-                    disabled={saving || !onAddFavouriteToList}
-                    onClick={() => void handlePullFavourite(favourite)}
-                    className="flex w-[7.5rem] shrink-0 flex-col gap-1 rounded-xl border border-card-border bg-transparent px-2.5 py-2 text-left disabled:opacity-50"
-                  >
-                    <span className="inline-flex items-center gap-1 text-amber-400">
-                      <StarFavouriteIcon className="size-3.5" filled />
-                      <span className="text-[10px] font-semibold text-muted">
-                        {t("checklists.addFromFavourite")}
-                      </span>
-                    </span>
-                    <span className="line-clamp-3 text-xs font-semibold leading-snug text-foreground">
-                      {favourite.title}
-                    </span>
-                  </button>
-                ))}
+          {mode === "create" ? (
+            <h1 className="text-2xl font-semibold text-foreground">
+              {t("checklists.newTask")}
+            </h1>
+          ) : (
+            <>
+              <div className={`flex items-center gap-2 ${accent}`}>
+                <ChecklistRecurrencePlaceholder
+                  recurrence={draft.recurrence}
+                  toneClassName={accent}
+                  caption={
+                    draft.recurrence === "daily"
+                      ? t("checklists.badgeDaily")
+                      : draft.recurrence === "weekly"
+                        ? t("checklists.badgeWeekly")
+                        : draft.recurrence === "monthly"
+                          ? t("checklists.badgeMonthly")
+                          : draft.dueDate
+                            ? draft.dueDate.split("-").length === 3
+                              ? `${draft.dueDate.split("-")[2]}.${draft.dueDate.split("-")[1]}`
+                              : draft.dueDate
+                            : t("checklists.recurrenceOnce")
+                  }
+                  className="size-12 shrink-0 rounded-xl"
+                />
+                <p className="text-sm font-semibold">
+                  {periodBadge(draft.recurrence, draft.dueDate, t)}
+                </p>
               </div>
-            </section>
-          ) : null}
 
-          <label className="block">
-            <span className="mb-1 block text-sm font-semibold text-foreground">
-              {t("checklists.title")}
-            </span>
-            <input
-              className={appFormInput}
-              value={draft.title}
-              disabled={!editable}
-              maxLength={200}
-              onChange={(event) =>
-                setDraft((prev) => ({ ...prev, title: event.target.value }))
-              }
-            />
-          </label>
+              <div className="flex flex-wrap items-center gap-2">
+                {editable ? (
+                  <input
+                    className={`${appFormInput} text-xl font-semibold`}
+                    value={draft.title}
+                    maxLength={200}
+                    onChange={(event) =>
+                      setDraft((prev) => ({
+                        ...prev,
+                        title: event.target.value,
+                      }))
+                    }
+                  />
+                ) : (
+                  <h1 className="min-w-0 flex-1 text-2xl font-semibold text-foreground">
+                    {draft.title}
+                  </h1>
+                )}
+                <span
+                  className={`inline-flex shrink-0 rounded-full border px-2.5 py-1 text-xs font-semibold ${
+                    statusPending
+                      ? "border-card-border text-muted"
+                      : "border-primary text-primary"
+                  }`}
+                >
+                  {statusPending
+                    ? t("checklists.statusPending")
+                    : t("checklists.statusDone")}
+                </span>
+              </div>
+            </>
+          )}
 
-          <label className="block">
-            <span className="mb-1 block text-sm font-semibold text-foreground">
-              {t("checklists.details")}
-            </span>
-            <textarea
-              className={`${appFormInput} min-h-24 resize-y`}
-              value={draft.note}
-              disabled={!editable}
-              maxLength={2000}
-              onChange={(event) =>
-                setDraft((prev) => ({ ...prev, note: event.target.value }))
-              }
-            />
-          </label>
-
-          {mode !== "create" || editable ? (
+          {mode === "create" ? (
             <label className="block">
               <span className="mb-1 block text-sm font-semibold text-foreground">
-                {t("checklists.comment")}
+                {t("checklists.title")}
               </span>
-              <textarea
-                className={`${appFormInput} min-h-24 resize-y`}
-                value={draft.comment}
-                disabled={!commentEditable}
-                maxLength={2000}
-                placeholder={t("checklists.commentPlaceholder")}
+              <input
+                className={appFormInput}
+                value={draft.title}
+                maxLength={200}
                 onChange={(event) =>
-                  setDraft((prev) => ({
-                    ...prev,
-                    comment: event.target.value,
-                  }))
+                  setDraft((prev) => ({ ...prev, title: event.target.value }))
                 }
               />
+            </label>
+          ) : null}
+
+          <div className="rounded-2xl border border-card-border px-3 py-3">
+            <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted">
+              {t("checklists.adminDescription")}
+            </p>
+            {editable ? (
+              <textarea
+                className={`${appFormInput} min-h-24 resize-y border-0 bg-transparent px-0 py-0`}
+                value={draft.note}
+                maxLength={2000}
+                placeholder={t("checklists.details")}
+                onChange={(event) =>
+                  setDraft((prev) => ({ ...prev, note: event.target.value }))
+                }
+              />
+            ) : (
+              <p className="text-sm leading-snug text-foreground">
+                {draft.note.trim() || t("checklists.noDescription")}
+              </p>
+            )}
+          </div>
+
+          {editable ? (
+            <>
+              <MenuSelect
+                label={t("checklists.recurrence")}
+                value={draft.recurrence}
+                options={recurrenceOptions}
+                onChange={(value) =>
+                  setDraft((prev) => ({ ...prev, recurrence: value }))
+                }
+              />
+
+              {draft.recurrence === "once" ? (
+                <label className="block">
+                  <span className="mb-1 block text-sm font-semibold text-foreground">
+                    {t("checklists.date")}
+                  </span>
+                  <input
+                    type="date"
+                    className={appFormInput}
+                    value={draft.dueDate}
+                    onChange={(event) =>
+                      setDraft((prev) => ({
+                        ...prev,
+                        dueDate: event.target.value,
+                      }))
+                    }
+                  />
+                </label>
+              ) : null}
+
+              {draft.recurrence === "weekly" ? (
+                <p className="text-sm text-muted">
+                  {t("checklists.recurrenceWeeklyHint")}
+                </p>
+              ) : null}
+
+              {draft.recurrence === "monthly" ? (
+                <p className="text-sm text-muted">
+                  {t("checklists.recurrenceMonthlyHint")}
+                </p>
+              ) : null}
+            </>
+          ) : null}
+
+          {mode !== "create" ? (
+            <div className="space-y-2">
+              <label className="block">
+                <span className="mb-1 block text-sm font-semibold text-foreground">
+                  {t("checklists.comment")}
+                </span>
+                <textarea
+                  className={`${appFormInput} min-h-24 resize-y`}
+                  value={draft.comment}
+                  disabled={!commentEditable}
+                  maxLength={2000}
+                  placeholder={t("checklists.commentPlaceholder")}
+                  onChange={(event) =>
+                    setDraft((prev) => ({
+                      ...prev,
+                      comment: event.target.value,
+                    }))
+                  }
+                />
+              </label>
               {!isOwner ? (
-                <p className="mt-1 text-xs text-muted">
+                <p className="text-xs text-muted">
                   {t("checklists.commentStaffHint")}
                 </p>
               ) : null}
-            </label>
-          ) : null}
 
-          {editable ? (
-            <MenuSelect
-              label={t("checklists.recurrence")}
-              value={draft.recurrence}
-              options={recurrenceOptions}
-              onChange={(value) =>
-                setDraft((prev) => ({ ...prev, recurrence: value }))
-              }
-            />
-          ) : (
-            <p className="text-sm text-muted">
-              <span className="font-semibold text-foreground">
-                {t("checklists.recurrence")}:{" "}
-              </span>
-              {
-                recurrenceOptions.find((o) => o.value === draft.recurrence)
-                  ?.label
-              }
-            </p>
-          )}
-
-          {draft.recurrence === "once" ? (
-            <label className="block">
-              <span className="mb-1 block text-sm font-semibold text-foreground">
-                {t("checklists.date")}
-              </span>
-              <input
-                type="date"
-                className={appFormInput}
-                value={draft.dueDate}
-                disabled={!editable}
-                onChange={(event) =>
-                  setDraft((prev) => ({
-                    ...prev,
-                    dueDate: event.target.value,
-                  }))
-                }
-              />
-            </label>
-          ) : null}
-
-          {draft.recurrence === "weekly" ? (
-            <p className="text-sm text-muted">
-              {t("checklists.recurrenceWeeklyHint")}
-            </p>
-          ) : null}
-
-          {draft.recurrence === "monthly" ? (
-            <p className="text-sm text-muted">
-              {t("checklists.recurrenceMonthlyHint")}
-            </p>
-          ) : null}
-
-          {editable && mode === "create" ? (
-            <button
-              type="button"
-              className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-semibold ${
-                draft.saveAsFavourite
-                  ? "border-primary text-primary"
-                  : "border-card-border text-foreground"
-              }`}
-              onClick={() =>
-                setDraft((prev) => ({
-                  ...prev,
-                  saveAsFavourite: !prev.saveAsFavourite,
-                }))
-              }
-            >
-              <StarFavouriteIcon
-                className="size-4"
-                filled={draft.saveAsFavourite}
-              />
-              {draft.saveAsFavourite
-                ? t("checklists.willSaveFavourite")
-                : t("checklists.saveAsFavourite")}
-            </button>
+              <div>
+                <p className="mb-1.5 text-sm font-semibold text-foreground">
+                  {t("checklists.photo")}
+                </p>
+                {commentPhotoPreview ? (
+                  <ProductImage
+                    src={commentPhotoPreview}
+                    alt={t("checklists.commentPhoto")}
+                    zoomOnDoubleTap
+                    className="aspect-[4/3] w-full rounded-xl object-cover"
+                    placeholderClassName="aspect-[4/3] w-full rounded-xl text-xs"
+                  />
+                ) : null}
+                {commentEditable ? (
+                  <div className="mt-2 flex flex-col gap-2">
+                    <button
+                      type="button"
+                      className={`${appButtonNeutralFull} border-dashed`}
+                      disabled={saving}
+                      onClick={() => setAddingPhoto(true)}
+                    >
+                      <CameraIcon className="size-4" />
+                      {commentPhotoPreview
+                        ? t("checklists.changeCommentPhoto")
+                        : t("checklists.addCommentPhoto")}
+                    </button>
+                    {commentPhotoPreview ? (
+                      <button
+                        type="button"
+                        className={appButtonNeutral}
+                        disabled={saving}
+                        onClick={() =>
+                          setDraft((prev) => ({
+                            ...prev,
+                            commentImagePath: null,
+                            commentImageDataUrl: null,
+                          }))
+                        }
+                      >
+                        {t("checklists.removeCommentPhoto")}
+                      </button>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+            </div>
           ) : null}
 
           {initial?.completedToday && initial.completedTodayBy ? (
@@ -359,54 +464,91 @@ export function ChecklistTaskSheet({
         </div>
 
         <div className="shrink-0 space-y-2 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-          {showStaffCommentSave && onToggleDone && initial?.dueToday ? (
-            <ConfirmButton
-              className="w-full"
+          {canMarkDone && !showOwnerSave ? (
+            <button
+              type="button"
               disabled={saving}
-              onClick={() => {
-                setSaving(true);
-                void onToggleDone().finally(() => setSaving(false));
-              }}
+              className={appButtonPrimaryFull}
+              onClick={() => void handleToggleDone()}
             >
-              {initial.completedToday
+              <CheckIcon className="size-4" />
+              {initial?.completedToday
                 ? t("checklists.markNotDone")
                 : t("checklists.markDone")}
-            </ConfirmButton>
+            </button>
           ) : null}
-          <div className={appFooterButtonGrid}>
-            <CancelButton onClick={onClose}>{t("common.cancel")}</CancelButton>
-            {showOwnerSave ? (
-              <ConfirmButton
-                disabled={saving}
-                onClick={() => void handleSave()}
-              >
+
+          {showOwnerSave ? (
+            <div className={appFooterButtonGrid}>
+              <CancelButton onClick={onClose}>{t("common.cancel")}</CancelButton>
+              <ConfirmButton disabled={saving} onClick={() => void handleSave()}>
                 {saving ? t("common.loading") : t("common.save")}
               </ConfirmButton>
-            ) : showStaffCommentSave ? (
+            </div>
+          ) : showStaffCommentSave ? (
+            <div className={appFooterButtonGrid}>
+              <CancelButton onClick={onClose}>{t("common.cancel")}</CancelButton>
               <ConfirmButton
                 disabled={saving}
                 onClick={() => void handleSaveComment()}
               >
                 {saving ? t("common.loading") : t("common.save")}
               </ConfirmButton>
-            ) : showMarkDone ? (
-              <ConfirmButton
-                disabled={saving}
-                onClick={() => {
-                  setSaving(true);
-                  void onToggleDone!().finally(() => setSaving(false));
-                }}
-              >
-                {initial?.completedToday
-                  ? t("checklists.markNotDone")
-                  : t("checklists.markDone")}
-              </ConfirmButton>
-            ) : (
-              <ConfirmButton onClick={onClose}>{t("common.ok")}</ConfirmButton>
-            )}
-          </div>
+            </div>
+          ) : !canMarkDone ? (
+            <CancelButton className="w-full" onClick={onClose}>
+              {t("common.ok")}
+            </CancelButton>
+          ) : null}
+
+          {onRemove ? (
+            <button
+              type="button"
+              className={`w-full ${appButtonDanger}`}
+              onClick={onRemove}
+            >
+              {t("checklists.remove")}
+            </button>
+          ) : null}
         </div>
       </div>
+
+      {addingPhoto ? (
+        <div className="fixed inset-0 z-[70] flex select-none flex-col overflow-y-auto bg-background px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(0.75rem,env(safe-area-inset-top))]">
+          <div className="mx-auto flex w-full max-w-md flex-col gap-3">
+            <p className="text-center text-sm font-medium text-foreground select-none">
+              {t("checklists.addCommentPhoto")}
+            </p>
+            <CameraCapture
+              autoStart
+              forceInAppCamera
+              captureOnPreviewTap
+              confirmMode="instant"
+              keepOldPicture={Boolean(commentPhotoPreview)}
+              onCapture={(dataUrl) => {
+                setDraft((prev) => ({
+                  ...prev,
+                  commentImageDataUrl: dataUrl,
+                }));
+                setAddingPhoto(false);
+                setError(null);
+              }}
+              onCancel={() => setAddingPhoto(false)}
+            />
+          </div>
+        </div>
+      ) : null}
     </div>
   );
+}
+
+/** Upload draft photo if needed; returns path to persist (or null). */
+export async function resolveChecklistCommentImagePath(draft: {
+  commentImagePath: string | null;
+  commentImageDataUrl: string | null;
+}): Promise<string | null> {
+  if (draft.commentImageDataUrl) {
+    return uploadImage(draft.commentImageDataUrl);
+  }
+  return draft.commentImagePath;
 }

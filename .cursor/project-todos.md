@@ -8,6 +8,7 @@ Keep entries short. Prefer `open` / `doing` / `done` / `dropped`.
 
 ## Ops (not product features)
 
+- [x] **Admin broadcast push** — Admin → What's new: free-text EN/BG push to owners+staff / owners / staff only
 - [x] **login_failed audit** — restored to master; admin audit logs failed logins (usernames tried).
 - [x] **Homepage branch** — merged to `master` (`e33db5c`); redeploy prod for homepage + revert.
 - [x] **Security hardening** — opaque login tickets (no JWT in URL); trusted redirect origin; Gemini key header; OCR error sanitize; OFF image SSRF allowlist; Secure cookie fail-closed.
@@ -24,7 +25,7 @@ Keep entries short. Prefer `open` / `doing` / `done` / `dropped`.
 - [x] **Document scan name priority** — OCR name from photo wins; barcode/DB name only if OCR empty
 - [x] **Document scan lot/batch** — extract Партида/Лот/Серия/Емисия → `InventoryEntry.lot`
 - [x] **Checklists MVP** — per location; daily/weekly/monthly/once; list = working items; favourites = catalog to pull from; mark done + 6‑mo retention; home glow
-- [ ] **Checklists polish + re-enable** — globally off (`CHECKLISTS_FEATURE_ENABLED`); turn on when ready
+- [ ] **Checklists polish + re-enable** — doing locally (`CHECKLISTS_FEATURE_ENABLED=true`); UI refreshed; activity log + uncheck confirm done; polish then keep on for ship
 - [ ] **33.** Daily shortlist “what to check today” (auto from expiry — after checklists)
 - [ ] **34.** Staff accountability — who checked what / when (feeds analytics #8)
 - [ ] **35.** Compliance / HACCP reports & digital journals

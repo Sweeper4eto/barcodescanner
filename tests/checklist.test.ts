@@ -205,6 +205,7 @@ test("toChecklistTaskDto marks due/completed for period", () => {
   assert.equal(dto.inFavourites, true);
   assert.equal(dto.note, "Wipe shelves");
   assert.equal(dto.comment, "Done left side");
+  assert.equal(dto.commentImagePath, null);
 });
 
 test("checklistPeriodBounds for daily is the day itself", () => {

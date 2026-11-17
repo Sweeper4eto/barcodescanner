@@ -1387,6 +1387,70 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "На таблет приложението ползва по-широка колона, за да не изглеждат списъците и формите като на телефон.",
     href: "/app",
   },
+  {
+    key: "2026-11-checklist-comment-photo",
+    titleEn:
+      "Checklists: add an optional photo with the comment when you mark a task done.",
+    titleBg:
+      "Чеклисти: можете да добавите снимка към коментара, когато отбелязвате задача като направена.",
+    href: "/app/checklists",
+  },
+  {
+    key: "2026-11-checklist-recurrence-filters",
+    titleEn:
+      "Checklists: filter the list by Daily, Weekly, Monthly, or All.",
+    titleBg:
+      "Чеклисти: филтрирайте списъка на Дневни, Седмични, Месечни или Всички.",
+    href: "/app/checklists",
+  },
+  {
+    key: "2026-11-checklist-recurrence-badge",
+    titleEn:
+      "Checklists: each task and favourite shows a Daily / Weekly / Monthly badge.",
+    titleBg:
+      "Чеклисти: всяка задача и любима показва етикет Ежедневно / Седмично / Месечно.",
+    href: "/app/checklists",
+  },
+  {
+    key: "2026-11-checklist-recurrence-icons",
+    titleEn:
+      "Checklists: period icons — 1 for daily, 7 for weekly, 31 for monthly, clock for one-off.",
+    titleBg:
+      "Чеклисти: икони за периода — 1 за дневни, 7 за седмични, 31 за месечни, часовник за еднократни.",
+    href: "/app/checklists",
+  },
+  {
+    key: "2026-11-checklist-icon-period-labels",
+    titleEn:
+      "Checklists: period tile shows Daily / Weekly / Monthly (or date/time) under the calendar icon.",
+    titleBg:
+      "Чеклисти: в плочката под календара — Дневен / Седмичен / Месечен (или дата/час).",
+    href: "/app/checklists",
+  },
+  {
+    key: "2026-11-checklists-redesign-no-fav",
+    titleEn:
+      "Checklists refreshed: progress, week strip, clearer task cards — favourites removed.",
+    titleBg:
+      "Чеклистите са обновени: напредък, седмица, по-ясни карти — без любими.",
+    href: "/app/checklists",
+  },
+  {
+    key: "2026-11-schedule-week-day-strip",
+    titleEn:
+      "Schedule: same week changer and day dates strip as checklists.",
+    titleBg:
+      "График: същият сменител на седмица и лента с дни като при чеклистите.",
+    href: "/app/schedule",
+  },
+  {
+    key: "2026-11-checklist-activity-uncheck-confirm",
+    titleEn:
+      "Checklists: task done/undone appears in Activity; undoing a done task asks for confirmation.",
+    titleBg:
+      "Чеклисти: изпълнение и отмяна се виждат в Дейност; отмяна на отметната задача иска потвърждение.",
+    href: "/app/checklists",
+  },
 ];
 
 

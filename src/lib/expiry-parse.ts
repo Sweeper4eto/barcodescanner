@@ -555,6 +555,26 @@ export function parseSpokenExpiry(
   return null;
 }
 
+/**
+ * Lot / batch codes often encode a calendar date (e.g. L11122026 → 11.12.2026),
+ * but a leading L/Л (or Lot / Партида / …) means batch — never Godnost.
+ */
+export function looksLikeLotCodeNotExpiry(
+  value: string | null | undefined,
+): boolean {
+  if (!value) return false;
+  const raw = value.trim();
+  if (!raw) return false;
+  // L11122026 / л 11.12.2026 / L-268623
+  if (/^[LЛlл][\s.\-_]?[\dA-Za-zА-Яа-я]/.test(raw)) return true;
+  if (
+    /^(LOT|BATCH|SER(?:IE)?|ПАР(?:Т(?:ИДА)?)?|ЛОТ|СЕР(?:ИЯ)?)\b/i.test(raw)
+  ) {
+    return true;
+  }
+  return false;
+}
+
 /** Parse common EU/BG date strings into YYYY-MM-DD. */
 export function parseDocumentExpiry(
   value: string | null | undefined,
@@ -562,6 +582,8 @@ export function parseDocumentExpiry(
   if (!value) return null;
   const raw = value.trim();
   if (!raw) return null;
+  // Never treat lot codes as dates, even when digits look like DDMMYYYY.
+  if (looksLikeLotCodeNotExpiry(raw)) return null;
 
   const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
   if (iso) {
@@ -603,6 +625,7 @@ export function parsePrintedExpiry(
   if (!value) return null;
   const raw = value.trim();
   if (!raw) return null;
+  if (looksLikeLotCodeNotExpiry(raw)) return null;
 
   // Reject full ISO day values in the printed field — those belong in expiryDate.
   if (/^\d{4}-\d{2}-\d{2}/.test(raw)) return null;
@@ -626,9 +649,13 @@ export function resolveDocumentExpiry(
   expiryDate: string | null | undefined,
   expiryPrinted?: string | null | undefined,
 ): string | null {
-  const fromPrinted = parsePrintedExpiry(expiryPrinted);
+  // Lot-only "Godnost" cell (e.g. L11122026): ignore printed; do not invent a date
+  // from the lot digits. Still allow a separate real expiryDate if the model sent one.
+  const printedIsLot = looksLikeLotCodeNotExpiry(expiryPrinted);
+  const fromPrinted = printedIsLot ? null : parsePrintedExpiry(expiryPrinted);
   if (fromPrinted) return fromPrinted;
   const fromExpiryDate = parseDocumentExpiry(expiryDate);
   if (fromExpiryDate) return fromExpiryDate;
+  if (printedIsLot) return null;
   return parseDocumentExpiry(expiryPrinted);
 }

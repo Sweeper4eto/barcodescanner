@@ -5,6 +5,9 @@ import { ArtMiniMarketScene } from "@/components/goods-placeholder-art-set-b";
 export const NO_PICTURE_ART_ID = "mini-market-scene" as const;
 export const NO_PICTURE_PLACEHOLDER_STYLE = "mint-glow" as const;
 
+/** Inner art size vs tile — keep checklist period icons on the same ratio. */
+export const PLACEHOLDER_ART_SIZE_CLASS = "h-[82%] w-[82%]";
+
 type Props = ComponentPropsWithoutRef<"div">;
 
 export function NoPicturePlaceholder({ className = "", ...props }: Props) {
@@ -17,7 +20,9 @@ export function NoPicturePlaceholder({ className = "", ...props }: Props) {
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(52,211,153,0.22),transparent_68%)]"
         aria-hidden
       />
-      <div className="relative flex h-[58%] w-[58%] items-center justify-center text-accent">
+      <div
+        className={`relative flex ${PLACEHOLDER_ART_SIZE_CLASS} items-center justify-center text-accent`}
+      >
         <ArtMiniMarketScene className="h-full w-full" />
       </div>
     </div>

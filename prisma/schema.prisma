@@ -193,6 +193,8 @@ model ChecklistTask {
   note            String?
   /** Staff/owner free-text comment on the working item. */
   comment         String?
+  /** Optional photo attached to the comment / done proof. */
+  commentImagePath String?
   /** daily | weekly | monthly | once */
   recurrence      String
   /** YYYY-MM-DD when recurrence = once */

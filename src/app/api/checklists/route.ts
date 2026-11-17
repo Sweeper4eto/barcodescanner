@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireSession } from "@/lib/auth";
+import { auditChecklistCreated } from "@/lib/audit-details";
+import { logAuditEvent } from "@/lib/audit-log";
 import {
   checklistsDisabledResponse,
   requireRetailOwner,
@@ -16,6 +18,7 @@ import {
 } from "@/lib/checklist";
 import { db } from "@/lib/db";
 import { userCanAccessRetailStore } from "@/lib/store-access";
+import { isLocalUploadPath } from "@/lib/upload";
 import { apiT } from "@/i18n";
 
 const createSchema = z.object({
@@ -23,6 +26,14 @@ const createSchema = z.object({
   title: z.string().trim().min(1).max(200),
   note: z.string().trim().max(2000).optional().nullable(),
   comment: z.string().trim().max(2000).optional().nullable(),
+  commentImagePath: z
+    .string()
+    .nullable()
+    .optional()
+    .refine(
+      (value) => value == null || value === "" || isLocalUploadPath(value),
+      "invalid image path",
+    ),
   recurrence: z.enum(["daily", "weekly", "monthly", "once"]),
   dueDate: z
     .string()
@@ -180,6 +191,7 @@ export async function POST(request: Request) {
   const title = parsed.data.title.trim();
   const note = parsed.data.note?.trim() || null;
   const comment = parsed.data.comment?.trim() || null;
+  const commentImagePath = parsed.data.commentImagePath?.trim() || null;
 
   const row = await db.checklistTask.create({
     data: {
@@ -187,6 +199,7 @@ export async function POST(request: Request) {
       title,
       note,
       comment,
+      commentImagePath,
       recurrence: fields.recurrence,
       dueDate: fields.dueDate,
       weekday: fields.weekday,
@@ -194,6 +207,17 @@ export async function POST(request: Request) {
       createdByUserId: session.userId,
     },
   });
+
+  await logAuditEvent(
+    request,
+    session,
+    "checklist_created",
+    auditChecklistCreated({
+      title,
+      recurrence: fields.recurrence,
+      storeName: store.name,
+    }),
+  );
 
   let favourite = null;
   if (parsed.data.saveAsFavourite) {

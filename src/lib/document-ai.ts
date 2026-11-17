@@ -2,7 +2,10 @@ import { readFile } from "node:fs/promises";
 import "dotenv/config";
 import { z } from "zod";
 import { sanitizeDocumentRows } from "@/lib/document-row-sanitize";
-import { resolveDocumentExpiry } from "@/lib/expiry-parse";
+import {
+  looksLikeLotCodeNotExpiry,
+  resolveDocumentExpiry,
+} from "@/lib/expiry-parse";
 import { resolveLocalUploadPath } from "@/lib/upload";
 
 export {
@@ -186,8 +189,16 @@ function toRows(payload: unknown): DocumentOcrRow[] {
       const name = item.name?.trim() ?? "";
       const barcode = item.barcode?.trim() || null;
       const articul = item.articul?.trim() || null;
-      const lot = item.lot?.trim() || null;
-      const expiryYmd = resolveDocumentExpiry(item.expiryDate, item.expiryPrinted);
+      const printed = item.expiryPrinted?.trim() || null;
+      // If the model stuffed a lot code into Godnost (L11122026), keep it as lot.
+      let lot = item.lot?.trim() || null;
+      if (!lot && printed && looksLikeLotCodeNotExpiry(printed)) {
+        lot = printed;
+      }
+      const expiryYmd = resolveDocumentExpiry(
+        item.expiryDate,
+        printed && looksLikeLotCodeNotExpiry(printed) ? null : item.expiryPrinted,
+      );
       const quantity = normalizeQuantity(item.quantity);
       return { name, barcode, articul, lot, expiryYmd, quantity };
     })
@@ -313,6 +324,7 @@ OTHER:
 - articul = SKU; barcode = EAN only; never swap them.
 - lot = batch / партия value when printed (headers or inline labels like Партида, Пар., Лот, Серия, Емисия, Lot, Batch, Serie). Copy the value only — not the label word. If absent → null.
 - If lot text is printed after the Godnost date in the same cell (e.g. "23.06.2027 L268623"), put the date in expiryPrinted and the lot code in lot when clearly separable; otherwise keep full text in expiryPrinted and lot null.
+- Lot codes often LOOK like dates (e.g. L11122026 encodes 11.12.2026). A leading L / Л / Lot / Партида / … means LOT — put the full code in lot. NEVER invent expiryPrinted / Godnost from those digits. Only a real Godnost column date (usually DD.MM.YYYY) goes in expiryPrinted.
 - quantity = pieces if printed, else 1.
 - Ignore headers, addresses, totals, signatures.
 - Page-edge cut-off crumbs (1–2 words with no columns): omit; do not attach a neighbor's qty/date.

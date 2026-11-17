@@ -313,7 +313,13 @@ export function AuditLogPanel() {
       return "bg-violet-100 text-violet-800";
     }
     if (event.startsWith("product_")) return "bg-sky-100 text-sky-800";
-    if (event.startsWith("inventory_")) return "bg-amber-100 text-amber-900";
+    if (
+      event.startsWith("inventory_") ||
+      event.startsWith("buy_list_") ||
+      event.startsWith("checklist_")
+    ) {
+      return "bg-amber-100 text-amber-900";
+    }
     return "bg-blue-100 text-blue-800";
   }
 

@@ -3,7 +3,7 @@
  */
 
 /** Kill-switch: hide hub/menu + block page/API until the feature is ready. */
-export const CHECKLISTS_FEATURE_ENABLED = false;
+export const CHECKLISTS_FEATURE_ENABLED = true;
 
 export const CHECKLIST_TIME_ZONE = "Europe/Sofia";
 export const CHECKLIST_RETENTION_MONTHS = 6;
@@ -274,6 +274,7 @@ export type ChecklistTaskDto = {
   title: string;
   note: string | null;
   comment: string | null;
+  commentImagePath: string | null;
   recurrence: ChecklistRecurrence;
   dueDate: string | null;
   weekday: number | null;
@@ -377,6 +378,7 @@ export function toChecklistTaskDto(input: {
   title: string;
   note: string | null;
   comment?: string | null;
+  commentImagePath?: string | null;
   recurrence: string;
   dueDate: string | null;
   weekday: number | null;
@@ -418,6 +420,7 @@ export function toChecklistTaskDto(input: {
     title: input.title,
     note: input.note,
     comment: input.comment ?? null,
+    commentImagePath: input.commentImagePath ?? null,
     recurrence,
     dueDate: input.dueDate,
     weekday: input.weekday,

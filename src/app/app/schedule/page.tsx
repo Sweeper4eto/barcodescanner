@@ -4,7 +4,11 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import { ActionFlash } from "@/components/action-flash";
 import { LoadingSpinnerPage } from "@/components/loading-spinner";
 import { MobilePageHeader } from "@/components/mobile-page-header";
-import { ChevronRightIcon, SaveDiskIcon } from "@/components/app-nav-icons";
+import {
+  ChevronBackIcon,
+  ChevronRightIcon,
+  SaveDiskIcon,
+} from "@/components/app-nav-icons";
 import { useAppSession } from "@/components/app-session-provider";
 import { useT } from "@/components/i18n-provider";
 import { useAppStoreId } from "@/hooks/use-app-store-id";
@@ -60,16 +64,6 @@ type WeekPayload = {
   me: { userId: string; isOwner: boolean };
 };
 
-const DAY_LABELS = [
-  "schedule.dayMon",
-  "schedule.dayTue",
-  "schedule.dayWed",
-  "schedule.dayThu",
-  "schedule.dayFri",
-  "schedule.daySat",
-  "schedule.daySun",
-] as const;
-
 const DAY_FULL_LABELS = [
   "schedule.dayMonFull",
   "schedule.dayTueFull",
@@ -82,15 +76,28 @@ const DAY_FULL_LABELS = [
 
 
 
+function formatDayMonth(date: Date, locale: string): string {
+  return date.toLocaleDateString(locale, {
+    day: "numeric",
+    month: "long",
+  });
+}
+
+function formatWeekdayShort(date: Date, locale: string): string {
+  return date.toLocaleDateString(locale, { weekday: "short" });
+}
+
+function todayDayIndex(): number {
+  const d = new Date().getDay();
+  return d === 0 ? 6 : d - 1;
+}
+
 function SchedulePageInner() {
-  const { t } = useT();
+  const { t, dateLocale } = useT();
   const { storeId, ready: storeReady } = useAppStoreId();
   const { user: sessionUser } = useAppSession();
   const [weekStart, setWeekStart] = useState(() => mondayOfWeek());
-  const [dayIndex, setDayIndex] = useState(() => {
-    const d = new Date().getDay();
-    return d === 0 ? 6 : d - 1;
-  });
+  const [dayIndex, setDayIndex] = useState(() => todayDayIndex());
   const [data, setData] = useState<WeekPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -347,12 +354,31 @@ function SchedulePageInner() {
     }
   }
 
-  const weekLabel = useMemo(() => {
-    const pad = (n: number) => String(n).padStart(2, "0");
+  const currentWeekStart = mondayOfWeek();
+  const weekContainsToday = weekStart === currentWeekStart;
+
+  const weekRangeLabel = useMemo(() => {
     const start = parseYmd(weekStart);
     const end = parseYmd(addDaysYmd(weekStart, 6));
-    return `${pad(start.getDate())}.${pad(start.getMonth() + 1)} – ${pad(end.getDate())}.${pad(end.getMonth() + 1)}`;
-  }, [weekStart]);
+    return `${formatDayMonth(start, dateLocale)} – ${formatDayMonth(end, dateLocale)}`;
+  }, [weekStart, dateLocale]);
+
+  const weekDays = useMemo(
+    () =>
+      Array.from({ length: 7 }, (_, idx) => {
+        const ymd = addDaysYmd(weekStart, idx);
+        return { idx, ymd, date: parseYmd(ymd) };
+      }),
+    [weekStart],
+  );
+
+  function shiftWeek(deltaWeeks: number) {
+    const next = addDaysYmd(weekStart, deltaWeeks * 7);
+    setWeekStart(next);
+    if (next === currentWeekStart) {
+      setDayIndex(todayDayIndex());
+    }
+  }
 
   const selectedDayLabel = useMemo(() => {
     const pad = (n: number) => String(n).padStart(2, "0");
@@ -462,7 +488,7 @@ function SchedulePageInner() {
       </div>
 
       <div className={`${appListInset} mt-3 space-y-3`}>
-        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+        <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold text-foreground">
               {selectedDayLabel.name}
@@ -471,39 +497,16 @@ function SchedulePageInner() {
               {selectedDayLabel.dateLabel}
             </p>
           </div>
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              className="inline-flex size-8 items-center justify-center rounded-full border border-primary/45 text-primary disabled:opacity-50"
-              aria-label="Previous week"
-              onClick={() => setWeekStart(addDaysYmd(weekStart, -7))}
-            >
-              <ChevronRightIcon className="size-4 rotate-180" />
-            </button>
-            <p className="px-1 text-sm font-semibold tabular-nums text-foreground">
-              {weekLabel}
-            </p>
-            <button
-              type="button"
-              className="inline-flex size-8 items-center justify-center rounded-full border border-primary/45 text-primary disabled:opacity-50"
-              aria-label="Next week"
-              onClick={() => setWeekStart(addDaysYmd(weekStart, 7))}
-            >
-              <ChevronRightIcon className="size-4" />
-            </button>
-          </div>
-          <div className="flex justify-end">
-            <button
-              type="button"
-              className="inline-flex size-8 items-center justify-center rounded-full border border-primary/45 text-primary disabled:opacity-50"
-              aria-label={t("schedule.saveWeek")}
-              title={t("schedule.saveWeek")}
-              disabled={!data || loading || savingExport}
-              onClick={() => setSaveFormatOpen(true)}
-            >
-              <SaveDiskIcon className="size-4" />
-            </button>
-          </div>
+          <button
+            type="button"
+            className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg border border-card-border text-foreground disabled:opacity-50"
+            aria-label={t("schedule.saveWeek")}
+            title={t("schedule.saveWeek")}
+            disabled={!data || loading || savingExport}
+            onClick={() => setSaveFormatOpen(true)}
+          >
+            <SaveDiskIcon className="size-4" />
+          </button>
         </div>
 
         <ScheduleSaveFormatDialog
@@ -520,32 +523,76 @@ function SchedulePageInner() {
           onClose={closePicturePreview}
         />
 
-        <div className="grid grid-cols-7 gap-1">
-          {DAY_LABELS.map((key, idx) => {
-            const active = idx === dayIndex;
-            const day = data?.days.find((d) => d.dayIndex === idx);
-            const dayDone = day?.status === "FINALIZED";
-            return (
-              <button
-                key={key}
-                type="button"
-                onClick={() => setDayIndex(idx)}
-                className={`flex min-w-0 flex-col items-center justify-start gap-0.5 rounded-lg border px-0.5 py-1 text-[0.65rem] font-semibold leading-tight ${
-                  active
-                    ? "border-primary bg-selected text-primary"
-                    : "border-card-border text-muted"
-                }`}
-              >
-                <span className="min-w-0 truncate">{t(key)}</span>
-                <span
-                  className="inline-flex h-2.5 w-full shrink-0 items-center justify-center text-[9px] leading-none text-primary"
-                  aria-hidden={!dayDone}
+        <div>
+          <div className="mb-1.5 flex items-center gap-1">
+            <button
+              type="button"
+              aria-label={t("checklists.weekPrev")}
+              title={t("checklists.weekPrev")}
+              className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg border border-card-border text-foreground"
+              onClick={() => shiftWeek(-1)}
+            >
+              <ChevronBackIcon className="size-4" />
+            </button>
+            <p className="min-w-0 flex-1 text-center text-xs font-semibold text-muted">
+              {t(
+                weekContainsToday
+                  ? "checklists.thisWeekRange"
+                  : "checklists.weekRange",
+                { range: weekRangeLabel },
+              )}
+            </p>
+            <button
+              type="button"
+              aria-label={t("checklists.weekNext")}
+              title={t("checklists.weekNext")}
+              className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg border border-card-border text-foreground"
+              onClick={() => shiftWeek(1)}
+            >
+              <ChevronRightIcon className="size-4" />
+            </button>
+          </div>
+          <div className="grid grid-cols-7 gap-1">
+            {weekDays.map(({ idx, date }) => {
+              const active = idx === dayIndex;
+              const isToday = weekContainsToday && idx === todayDayIndex();
+              const day = data?.days.find((d) => d.dayIndex === idx);
+              const dayDone = day?.status === "FINALIZED";
+              return (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => setDayIndex(idx)}
+                  className={`flex flex-col items-center rounded-xl border px-0.5 py-1.5 ${
+                    active
+                      ? "border-primary bg-selected text-primary"
+                      : "border-card-border bg-transparent text-foreground"
+                  }`}
                 >
-                  {dayDone ? "✓" : null}
-                </span>
-              </button>
-            );
-          })}
+                  <span className="text-[10px] font-medium capitalize leading-none text-muted">
+                    {formatWeekdayShort(date, dateLocale)}
+                  </span>
+                  <span className="mt-1 text-sm font-semibold tabular-nums leading-none">
+                    {date.getDate()}
+                  </span>
+                  <span className="mt-1 flex h-2.5 items-center justify-center">
+                    {dayDone ? (
+                      <span className="text-[9px] font-semibold leading-none text-primary">
+                        ✓
+                      </span>
+                    ) : isToday && !active ? (
+                      <span
+                        className="size-1 rounded-full bg-primary"
+                        aria-hidden
+                      />
+                    ) : (
+                      <span className="size-1" aria-hidden />
+                    )}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {isOwner ? (

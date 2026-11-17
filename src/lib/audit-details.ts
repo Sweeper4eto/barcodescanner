@@ -408,6 +408,63 @@ export function auditBuyListRemoved(input: {
   ]);
 }
 
+export function auditChecklistCreated(input: {
+  title: string;
+  recurrence: string;
+  storeName: string;
+}): string {
+  return auditJoin([
+    `checklist "${input.title}"`,
+    `recurrence ${input.recurrence}`,
+    `store "${input.storeName}"`,
+  ]);
+}
+
+export function auditChecklistUpdated(input: {
+  title: string;
+  storeName: string;
+  changes?: Array<string | null>;
+}): string {
+  return auditSubjectWithChanges(`checklist "${input.title}"`, [
+    `store "${input.storeName}"`,
+    ...(input.changes ?? []),
+  ]);
+}
+
+export function auditChecklistRemoved(input: {
+  title: string;
+  storeName: string;
+}): string {
+  return auditJoin([
+    `removed checklist "${input.title}"`,
+    `store "${input.storeName}"`,
+  ]);
+}
+
+export function auditChecklistCompleted(input: {
+  title: string;
+  storeName: string;
+  dueDate: string;
+}): string {
+  return auditJoin([
+    `completed checklist "${input.title}"`,
+    `due ${input.dueDate}`,
+    `store "${input.storeName}"`,
+  ]);
+}
+
+export function auditChecklistUncompleted(input: {
+  title: string;
+  storeName: string;
+  dueDate: string;
+}): string {
+  return auditJoin([
+    `uncompleted checklist "${input.title}"`,
+    `due ${input.dueDate}`,
+    `store "${input.storeName}"`,
+  ]);
+}
+
 export function auditBuyListUpdated(input: {
   productName: string;
   barcode: string;

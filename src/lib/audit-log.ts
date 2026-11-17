@@ -41,6 +41,11 @@ export type AuditEvent =
   | "buy_list_merged"
   | "buy_list_removed"
   | "buy_list_updated"
+  | "checklist_created"
+  | "checklist_updated"
+  | "checklist_removed"
+  | "checklist_completed"
+  | "checklist_uncompleted"
   | "activity_reverted";
 
 export type AuditFilter =
@@ -62,6 +67,14 @@ const AUTH_EVENTS: AuditEvent[] = [
   "register",
   "user_password_changed",
 ];
+const CHECKLIST_EVENTS: AuditEvent[] = [
+  "checklist_created",
+  "checklist_updated",
+  "checklist_removed",
+  "checklist_completed",
+  "checklist_uncompleted",
+];
+
 const INVENTORY_EVENTS: AuditEvent[] = [
   "inventory_added",
   "inventory_merged",
@@ -73,6 +86,7 @@ const INVENTORY_EVENTS: AuditEvent[] = [
   "buy_list_merged",
   "buy_list_removed",
   "buy_list_updated",
+  ...CHECKLIST_EVENTS,
   "activity_reverted",
 ];
 const PRODUCT_EVENTS: AuditEvent[] = [
