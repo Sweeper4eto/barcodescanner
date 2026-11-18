@@ -211,6 +211,7 @@ async function showCard(
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
+    html { color-scheme: only light; }
     html, body { margin: 0; height: 100%; }
     body {
       display: flex;
@@ -218,10 +219,10 @@ async function showCard(
       align-items: center;
       font-family: "Segoe UI", system-ui, sans-serif;
       background:
-        radial-gradient(1200px 600px at 20% 0%, #16352a 0%, transparent 55%),
-        radial-gradient(900px 500px at 100% 100%, #1a2a3a 0%, transparent 50%),
-        #0b1210;
-      color: #f4f7f5;
+        radial-gradient(1200px 600px at 20% 0%, #1f4a38 0%, transparent 55%),
+        radial-gradient(900px 500px at 100% 100%, #243448 0%, transparent 50%),
+        #101820;
+      color: #ffffff;
       padding: 36px 28px 28px;
       box-sizing: border-box;
       min-height: 100%;
@@ -231,7 +232,7 @@ async function showCard(
       align-items: center;
       justify-content: center;
       gap: 0.85rem;
-      margin: 0 0 2.4rem;
+      margin: 0 0 2rem;
       flex-shrink: 0;
     }
     .brand-row img {
@@ -249,26 +250,32 @@ async function showCard(
     }
     .card {
       max-width: 28rem;
+      width: 100%;
       text-align: center;
       margin-top: auto;
       margin-bottom: auto;
-      animation: rise 700ms ease-out both;
+      padding: 1.35rem 1.15rem;
+      border-radius: 1.15rem;
+      background: rgba(8, 14, 18, 0.72);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+      opacity: 1;
     }
     h1 {
-      font-size: 1.65rem;
+      font-size: 1.7rem;
       line-height: 1.25;
-      font-weight: 650;
+      font-weight: 700;
       margin: 0 0 1rem;
+      color: #ffffff !important;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
     }
     p {
       margin: 0;
-      font-size: 1.05rem;
+      font-size: 1.08rem;
       line-height: 1.55;
-      color: rgba(244,247,245,0.82);
-    }
-    @keyframes rise {
-      from { opacity: 0; transform: translateY(14px); }
-      to { opacity: 1; transform: none; }
+      font-weight: 500;
+      color: #f2f5f4 !important;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
     }
   </style>
 </head>
@@ -652,7 +659,7 @@ async function main() {
     await showCard(page, {
       title: "Това е само бърз преглед",
       body: "С expire365 идват още десетки функции — сканиране, документи, задачи, екип, статистика и още много.",
-      holdMs: 5200,
+      holdMs: 6500,
     });
   } finally {
     const video = page.video();
