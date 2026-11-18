@@ -1,10 +1,10 @@
 /**
  * Code-owned What’s New checklist.
  * When shipping user-facing changes, append a new entry here (unique `key`).
- * Admin GET syncs these into the DB as Draft rows — admin only Push / Unpublish.
+ * Admin GET syncs these into the DB as Draft rows. Admin only Push / Unpublish.
  */
 export type WhatsNewCatalogEntry = {
-  /** Stable id — never reuse after shipping. */
+  /** Stable id. Never reuse after shipping. */
   key: string;
   titleEn: string;
   titleBg: string;
@@ -23,9 +23,9 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
   {
     key: "2026-09-document-ai-admin-push",
     titleEn:
-      "Admins get a push alert when document scan AI (Gemini) fails — rate-limited so it won’t spam.",
+      "Admins get a push alert when document scan AI (Gemini) fails. Rate-limited so it won’t spam.",
     titleBg:
-      "Админите получават push при срив на AI за сканиране на документи (Gemini) — с лимит, за да няма спам.",
+      "Админите получават push при срив на AI за сканиране на документи (Gemini). С лимит, за да няма спам.",
     href: "/admin",
   },
   {
@@ -39,9 +39,9 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
   {
     key: "2026-09-expiry-search-dates",
     titleEn:
-      "Expiry search also finds items by expiry or added date — full or partial (25/09/2026, 25.09, 25…).",
+      "Expiry search also finds items by expiry or added date. Full or partial (25/09/2026, 25.09, 25…).",
     titleBg:
-      "Търсенето в Годност намира и по дата на годност или добавяне — пълна или частична (25.09.2026, 25.09, 25…).",
+      "Търсенето в Годност намира и по дата на годност или добавяне. Пълна или частична (25.09.2026, 25.09, 25…).",
     href: "/app/expiry",
   },
   {
@@ -91,9 +91,9 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
   {
     key: "2026-09-document-preview-two-buttons",
     titleEn:
-      "Document photo preview: Back retakes, Next continues — no extra Cancel or circle button.",
+      "Document photo preview: Back retakes, Next continues. No extra Cancel or circle button.",
     titleBg:
-      "Преглед на документ: Назад за нова снимка, Напред за продължаване — без Отказ и кръгъл бутон.",
+      "Преглед на документ: Назад за нова снимка, Напред за продължаване. Без Отказ и кръгъл бутон.",
     href: "/app/add-document",
   },
   {
@@ -159,7 +159,7 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
     titleEn:
       "Editing expiry scrolls the calendar into view so dates stay visible on small phones.",
     titleBg:
-      "При редакция на годност календарът се показва на екрана — датите остават видими и на малки телефони.",
+      "При редакция на годност календарът се показва на екрана. Датите остават видими и на малки телефони.",
     href: "/app/expiry",
   },
   {
@@ -172,9 +172,9 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
   {
     key: "2026-08-instant-new-picture",
     titleEn:
-      "New picture applies right away — Keep old picture if you change your mind.",
+      "New picture applies right away. Keep old picture if you change your mind.",
     titleBg:
-      "Нова снимка се прилага веднага — „Запази старата снимка“, ако размислите.",
+      "Нова снимка се прилага веднага. „Запази старата снимка“, ако размислите.",
   },
   {
     key: "2026-08-document-preview-toolbar",
@@ -187,9 +187,9 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
   {
     key: "2026-08-outline-action-buttons",
     titleEn:
-      "Clearer buttons — green outline to confirm, red outline to remove.",
+      "Clearer buttons. Green outline to confirm, red outline to remove.",
     titleBg:
-      "По-ясни бутони — зелен контур за потвърждение, червен за премахване.",
+      "По-ясни бутони. Зелен контур за потвърждение, червен за премахване.",
   },
   {
     key: "2026-08-whats-new-sheet",
@@ -223,17 +223,17 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
   {
     key: "2026-09-expiry-dual-tier-times",
     titleEn:
-      "Early and Urgent expiry alerts each have their own daily time — you get both when both are due.",
+      "Early and Urgent expiry alerts each have their own daily time. You get both when both are due.",
     titleBg:
-      "Ранно и Спешно известие за годност имат отделен час всеки ден — получавате и двете, когато са насрочени.",
+      "Ранно и Спешно известие за годност имат отделен час всеки ден. Получавате и двете, когато са насрочени.",
     href: "/app/settings/notifications",
   },
   {
     key: "2026-09-document-scan-no-reprompt",
     titleEn:
-      "Document scan on iPhone keeps the in-app camera open — no permission prompt on every new scan.",
+      "Document scan on iPhone keeps the in-app camera open. No permission prompt on every new scan.",
     titleBg:
-      "Сканиране на документ на iPhone остава в приложението — без повторно питане за камера при нов скан.",
+      "Сканиране на документ на iPhone остава в приложението. Без повторно питане за камера при нов скан.",
     href: "/app/add-document",
   },
   {
@@ -247,9 +247,9 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
   {
     key: "2026-09-retail-no-default-location",
     titleEn:
-      "Business accounts start without a location — bottom menu stays locked until a location is assigned; home and support stay available.",
+      "Business accounts start without a location. Bottom menu stays locked until a location is assigned; home and support stay available.",
     titleBg:
-      "Бизнес акаунтите започват без обект — долното меню е заключено до назначаване на обект; началото и поддръжката остават достъпни.",
+      "Бизнес акаунтите започват без обект. Долното меню е заключено до назначаване на обект; началото и поддръжката остават достъпни.",
     href: "/app",
   },
   {
@@ -279,9 +279,9 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
   {
     key: "2026-09-retail-default-main-location",
     titleEn:
-      "New business accounts start with a Main location again — ready to scan right after signup (rename anytime).",
+      "New business accounts start with a Main location again. Ready to scan right after signup (rename anytime).",
     titleBg:
-      "Новите бизнес акаунти отново започват с обект Main — готови за скен веднага след регистрация (преименувайте когато искате).",
+      "Новите бизнес акаунти отново започват с обект Main. Готови за скен веднага след регистрация (преименувайте когато искате).",
     href: "/app",
   },
   {
@@ -295,17 +295,17 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
   {
     key: "2026-10-home-menu-compact",
     titleEn:
-      "Home menu is more compact — Team, Billing, Support, and alerts show title only.",
+      "Home menu is more compact. Team, Billing, Support, and alerts show title only.",
     titleBg:
-      "Началните менюта са по-компактни — Екип, Плащания, Поддръжка и известия са само със заглавие.",
+      "Началните менюта са по-компактни. Екип, Плащания, Поддръжка и известия са само със заглавие.",
     href: "/app",
   },
   {
     key: "2026-10-store-schedule-mvp",
     titleEn:
-      "Schedule (per location): open from Team — staff set desired hours; owners run auto or manual and finalize.",
+      "Schedule (per location): open from Team. Staff set desired hours; owners run auto or manual and finalize.",
     titleBg:
-      "График (по обект): от Екип — персоналът задава желани часове; собственикът пуска авто или ръчно и финализира.",
+      "График (по обект): от Екип. Персоналът задава желани часове; собственикът пуска авто или ръчно и финализира.",
     href: "/app/team",
   },
   {
@@ -343,9 +343,9 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
   {
     key: "2026-10-schedule-day-coverage",
     titleEn:
-      "Schedule shows day coverage at the top — whether 07:00–22:00 is fully filled by staff shifts.",
+      "Schedule shows day coverage at the top. Whether 07:00–22:00 is fully filled by staff shifts.",
     titleBg:
-      "Графикът показва покритие на деня отгоре — дали 07:00–22:00 е напълно запълнен от смените.",
+      "Графикът показва покритие на деня отгоре. Дали 07:00–22:00 е напълно запълнен от смените.",
     href: "/app/schedule",
   },
   {
@@ -383,17 +383,17 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
   {
     key: "2026-10-team-display-name",
     titleEn:
-      "Team: optional Name field for each person — shown in the team list and schedule.",
+      "Team: optional Name field for each person. Shown in the team list and schedule.",
     titleBg:
-      "Екип: по желание поле Име за всеки — показва се в списъка и в графика.",
+      "Екип: по желание поле Име за всеки. Показва се в списъка и в графика.",
     href: "/app/team",
   },
   {
     key: "2026-10-schedule-week-save-print",
     titleEn:
-      "Schedule: save icon next to the week switches — print or save the week as PDF (table per day).",
+      "Schedule: save icon next to the week switches. Print or save the week as PDF (table per day).",
     titleBg:
-      "График: икона за запис до седмицата — печат или PDF на седмицата (таблица по дни).",
+      "График: икона за запис до седмицата. Печат или PDF на седмицата (таблица по дни).",
     href: "/app/schedule",
   },
   {
@@ -519,9 +519,9 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
   {
     key: "2026-10-schedule-no-desired-hours",
     titleEn:
-      "Schedule: desired hours are removed — staff can view the week; owners still set and finalize shifts.",
+      "Schedule: desired hours are removed. Staff can view the week; owners still set and finalize shifts.",
     titleBg:
-      "График: желаните часове са премахнати — служителите само преглеждат седмицата; собствениците задават и финализират смените.",
+      "График: желаните часове са премахнати. Служителите само преглеждат седмицата; собствениците задават и финализират смените.",
     href: "/app/schedule",
   },
   {
@@ -583,17 +583,17 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
   {
     key: "2026-10-team-activity-log",
     titleEn:
-      "Team: owners can open Activity log — only your locations and your users, with search and filters.",
+      "Team: owners can open Activity log. Only your locations and your users, with search and filters.",
     titleBg:
-      "Екип: собствениците отварят „Дневник на действията“ — само вашите обекти и хора, с търсене и филтри.",
+      "Екип: собствениците отварят „Дневник на действията“. Само вашите обекти и хора, с търсене и филтри.",
     href: "/app/team/activity",
   },
   {
     key: "2026-10-business-no-default-main",
     titleEn:
-      "New business signups no longer get a Main location — contact support to add one before using the app.",
+      "New business signups no longer get a Main location. Contact support to add one before using the app.",
     titleBg:
-      "Новите бизнес регистрации вече не получават автоматично обект Main — свържете се с поддръжката за добавяне на обект, преди да ползвате приложението.",
+      "Новите бизнес регистрации вече не получават автоматично обект Main. Свържете се с поддръжката за добавяне на обект, преди да ползвате приложението.",
     href: "/app",
   },
   {
@@ -607,9 +607,9 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
   {
     key: "2026-10-remember-last-location",
     titleEn:
-      "Your last selected location is remembered after logout — it’s selected again when you sign back in.",
+      "Your last selected location is remembered after logout. It’s selected again when you sign back in.",
     titleBg:
-      "Последният избран обект се запомня след изход — при следващ вход отново е избран.",
+      "Последният избран обект се запомня след изход. При следващ вход отново е избран.",
     href: "/app",
   },
   {
@@ -679,25 +679,25 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
   {
     key: "2026-10-alerts-both-tiers-off-saves",
     titleEn:
-      "Expiry alerts: turn Early and Urgent both off, then Save — alerts disable instead of blocking save.",
+      "Expiry alerts: turn Early and Urgent both off, then Save. Alerts disable instead of blocking save.",
     titleBg:
-      "Известия за годност: изключете Ранно и Спешно и Запази — известията се спират, вместо да блокират записа.",
+      "Известия за годност: изключете Ранно и Спешно и Запази. Известията се спират, вместо да блокират записа.",
     href: "/app/settings/notifications",
   },
   {
     key: "2026-10-register-household-disabled",
     titleEn:
-      "Registration: Household is shown but unavailable for now — new signups are Business only.",
+      "Registration: Household is shown but unavailable for now. New signups are Business only.",
     titleBg:
-      "Регистрация: Домакинство се вижда, но временно не може да се избере — новите акаунти са само Бизнес.",
+      "Регистрация: Домакинство се вижда, но временно не може да се избере. Новите акаунти са само Бизнес.",
     href: "/register",
   },
   {
     key: "2026-10-document-multi-page-sections",
     titleEn:
-      "Document scan: multi-photo review groups items by photo — Retake or Reattach one page without losing the others.",
+      "Document scan: multi-photo review groups items by photo. Retake or Reattach one page without losing the others.",
     titleBg:
-      "Скан на документ: при няколко снимки артикулите са по секции — Повтори или Прикачи само една страница, без да губите останалите.",
+      "Скан на документ: при няколко снимки артикулите са по секции. Повтори или Прикачи само една страница, без да губите останалите.",
     href: "/app/add-document",
   },
   {
@@ -727,9 +727,9 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
   {
     key: "2026-10-document-server-deskew",
     titleEn:
-      "Document scan: automatic photo straighten was turned off — it was slowing Retake and mis-rotating some pages.",
+      "Document scan: automatic photo straighten was turned off. It was slowing Retake and mis-rotating some pages.",
     titleBg:
-      "Скан на документ: автоматичното изправяне на снимки е изключено — забавяше Повтори и обръщаше някои страници грешно.",
+      "Скан на документ: автоматичното изправяне на снимки е изключено. Забавяше Повтори и обръщаше някои страници грешно.",
     href: "/app/add-document",
   },
   {
@@ -806,17 +806,17 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
   {
     key: "2026-10-expiry-search-all-matches",
     titleEn:
-      "Expiry search finds every matching item in the store — including ones that expire soon — even when the list is very long.",
+      "Expiry search finds every matching item in the store - including ones that expire soon - even when the list is very long.",
     titleBg:
-      "Търсенето в Годност намира всички съвпадащи артикули в обекта — включително тези, които изтичат скоро — дори при много дълъг списък.",
+      "Търсенето в Годност намира всички съвпадащи артикули в обекта - включително тези, които изтичат скоро - дори при много дълъг списък.",
     href: "/app/expiry",
   },
   {
     key: "2026-10-expiry-bulk-select-cap",
     titleEn:
-      "Expiry multi-select stops at 50 items for staff and 150 for owners — you cannot select more than you can remove at once.",
+      "Expiry multi-select stops at 50 items for staff and 150 for owners. You cannot select more than you can remove at once.",
     titleBg:
-      "Множественият избор в Годност спира на 50 артикула за служители и 150 за собственици — не може да изберете повече, отколкото можете да премахнете наведнъж.",
+      "Множественият избор в Годност спира на 50 артикула за служители и 150 за собственици. Не може да изберете повече, отколкото можете да премахнете наведнъж.",
     href: "/app/expiry",
   },
   {
@@ -830,9 +830,9 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
   {
     key: "2026-10-push-independent-day-windows",
     titleEn:
-      "Expiry alerts: Urgent and Early day windows are independent — e.g. Urgent 7 days and Early 3 days both work.",
+      "Expiry alerts: Urgent and Early day windows are independent. E.g. Urgent 7 days and Early 3 days both work.",
     titleBg:
-      "Известия за годност: дните за Спешно и Ранно са независими — например Спешно 7 дни и Ранно 3 дни работят заедно.",
+      "Известия за годност: дните за Спешно и Ранно са независими. Например Спешно 7 дни и Ранно 3 дни работят заедно.",
     href: "/app/settings/notifications",
   },
   {
@@ -862,9 +862,9 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
   {
     key: "2026-10-nav-retap-restarts",
     titleEn:
-      "Tap Add, Document, or Expiry again while you are already there — confirm “Start over?” to restart that screen from the beginning.",
+      "Tap Add, Document, or Expiry again while you are already there. Confirm “Start over?” to restart that screen from the beginning.",
     titleBg:
-      "Докоснете отново Добави, Документ или Годност, докато сте там — потвърдете „Отначало?“, за да рестартирате екрана.",
+      "Докоснете отново Добави, Документ или Годност, докато сте там. Потвърдете „Отначало?“, за да рестартирате екрана.",
     href: "/app/scan",
   },
   {
@@ -880,7 +880,7 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
     titleEn:
       "Document (Scan): re-tap restarts immediately only before anything is captured. After the flow has started, “Start over?” asks first.",
     titleBg:
-      "Сканирай: повторен таб рестартира веднага само преди да има заснето. След като потокът е започнал — първо „Отначало?“.",
+      "Сканирай: повторен таб рестартира веднага само преди да има заснето. След като потокът е започнал. Първо „Отначало?“.",
     href: "/app/add-document",
   },
   {
@@ -894,17 +894,17 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
   {
     key: "2026-10-scan-shutter-frame-camera",
     titleEn:
-      "Document camera: the shutter is a thin corner frame with a camera icon inside — no filled circle.",
+      "Document camera: the shutter is a thin corner frame with a camera icon inside. No filled circle.",
     titleBg:
-      "Камера за документ: бутонът за снимка е тънка рамка от ъгли с икона на камера вътре — без запълнен кръг.",
+      "Камера за документ: бутонът за снимка е тънка рамка от ъгли с икона на камера вътре. Без запълнен кръг.",
     href: "/app/add-document",
   },
   {
     key: "2026-10-document-no-scan-line",
     titleEn:
-      "Document camera: no bouncing scan line — that animation is only for barcode scanning. Document framing keeps the corner guides.",
+      "Document camera: no bouncing scan line. That animation is only for barcode scanning. Document framing keeps the corner guides.",
     titleBg:
-      "Камера за документ: без движеща се линия — тази анимация е само за баркод. За документ остават ъгловите водачи.",
+      "Камера за документ: без движеща се линия. Тази анимация е само за баркод. За документ остават ъгловите водачи.",
     href: "/app/add-document",
   },
   {
@@ -942,17 +942,17 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
   {
     key: "2026-10-pay-methods-page",
     titleEn:
-      "Pay: see the amount due, then choose Bank Transfer or Revolut — each opens details you can copy.",
+      "Pay: see the amount due, then choose Bank Transfer or Revolut. Each opens details you can copy.",
     titleBg:
-      "Плащане: виждате дължимата сума и избирате банков превод или Revolut — всеки отваря детайли за копиране.",
+      "Плащане: виждате дължимата сума и избирате банков превод или Revolut. Всеки отваря детайли за копиране.",
     href: "/app/billing/pay",
   },
   {
     key: "2026-10-payment-reference",
     titleEn:
-      "Pay: each transfer shows a unique payment reference (основание) for your account and month — copy it into the bank transfer.",
+      "Pay: each transfer shows a unique payment reference (основание) for your account and month. Copy it into the bank transfer.",
     titleBg:
-      "Плащане: при превод виждате уникално основание за вашия акаунт и месец — копирайте го в банковия превод.",
+      "Плащане: при превод виждате уникално основание за вашия акаунт и месец. Копирайте го в банковия превод.",
     href: "/app/billing/pay",
   },
   {
@@ -998,9 +998,9 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
   {
     key: "2026-11-marketing-homepage-desktop",
     titleEn:
-      "The public homepage is redesigned for desktop and mobile — wider layout, clearer hero, and feature grids.",
+      "The public homepage is redesigned for desktop and mobile. Wider layout, clearer hero, and feature grids.",
     titleBg:
-      "Публичната начална страница е преработена за десктоп и мобилен — по-широк изглед, по-ясен герой и мрежи с функции.",
+      "Публичната начална страница е преработена за десктоп и мобилен. По-широк изглед, по-ясен герой и мрежи с функции.",
     href: "/",
   },
   {
@@ -1014,9 +1014,9 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
   {
     key: "2026-11-activity-revert-hint",
     titleEn:
-      "Activity explains when Revert is available — only new inventory/list actions after the update can be undone.",
+      "Activity explains when Revert is available. Only new inventory/list actions after the update can be undone.",
     titleBg:
-      "В Действия пише кога е налична „Отмени“ — само нови промени по инвентар/списък след обновяването могат да се отменят.",
+      "В Действия пише кога е налична „Отмени“. Само нови промени по инвентар/списък след обновяването могат да се отменят.",
     href: "/app/team/activity",
   },
   {
@@ -1030,17 +1030,17 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
   {
     key: "2026-11-home-icon-hub",
     titleEn:
-      "Home uses soft gradient shortcuts — long-press to rearrange into any of the 9 slots; drop saves.",
+      "Home uses soft gradient shortcuts. Long-press to rearrange into any of the 9 slots; drop saves.",
     titleBg:
-      "Началото е с меки градиентни икони — задръж за пренареждане във всеки от 9-те слота; пускането записва.",
+      "Началото е с меки градиентни икони. Задръж за пренареждане във всеки от 9-те слота; пускането записва.",
     href: "/app",
   },
   {
     key: "2026-11-home-hide-bottom-nav",
     titleEn:
-      "Home and other hub screens hide the bottom tabs — Expiry / Add / Cart appear after you open Expiry.",
+      "Home and other hub screens hide the bottom tabs. Expiry / Add / Cart appear after you open Expiry.",
     titleBg:
-      "На Начало и другите екрани от хъба долните табове са скрити — Годност / Добави / Количка се показват след отваряне на Годност.",
+      "На Начало и другите екрани от хъба долните табове са скрити. Годност / Добави / Количка се показват след отваряне на Годност.",
     href: "/app",
   },
   {
@@ -1054,9 +1054,9 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
   {
     key: "2026-11-ticket-style-document-review",
     titleEn:
-      "Document review cards match the darker ticket look — same borders, remove control, and green multi-select.",
+      "Document review cards match the darker ticket look. Same borders, remove control, and green multi-select.",
     titleBg:
-      "Картите в прегледа на документи са в същия тъмен ticket стил — очертания, премахни и зелен мултиселект.",
+      "Картите в прегледа на документи са в същия тъмен ticket стил. Очертания, премахни и зелен мултиселект.",
     href: "/app/add-document",
   },
   {
@@ -1070,9 +1070,9 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
   {
     key: "2026-11-hub-no-cart-tile",
     titleEn:
-      "Home shortcuts no longer include Cart — open it from Expiry’s bottom tabs.",
+      "Home shortcuts no longer include Cart. Open it from Expiry’s bottom tabs.",
     titleBg:
-      "На Начало вече няма икона Количка — отваря се от долните табове в Годност.",
+      "На Начало вече няма икона Количка. Отваря се от долните табове в Годност.",
     href: "/app",
   },
   {
@@ -1096,7 +1096,7 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
     titleEn:
       "Home shows Analysis, Journal, Checklists, and Temperature as disabled “Soon” shortcuts.",
     titleBg:
-      "На Начало има Анализ, Дневник, Чеклисти и °C дневник — изключени с етикет „Скоро“.",
+      "На Начало има Анализ, Дневник, Чеклисти и °C дневник. Изключени с етикет „Скоро“.",
     href: "/app",
   },
   {
@@ -1138,17 +1138,17 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
   {
     key: "2026-11-hub-no-document-tile",
     titleEn:
-      "Home no longer has a Document shortcut — open Expiry, then use Document from that flow’s tabs.",
+      "Home no longer has a Document shortcut. Open Expiry, then use Document from that flow’s tabs.",
     titleBg:
-      "На Начало вече няма икона Документ — отвори Годност и ползвай Документ от табовете там.",
+      "На Начало вече няма икона Документ. Отвори Годност и ползвай Документ от табовете там.",
     href: "/app/expiry",
   },
   {
     key: "2026-11-hub-default-slot-order",
     titleEn:
-      "Home default icon order: Expiry, Team, Notifications — Support, Schedule, Payments lower on the grid; Soon tiles on page 2.",
+      "Home default icon order: Expiry, Team, Notifications. Support, Schedule, Payments lower on the grid; Soon tiles on page 2.",
     titleBg:
-      "По подразбиране на Начало: Годност, Екип, Известия — после Поддръжка, График и Плащания; „Скоро“ иконите са на страница 2.",
+      "По подразбиране на Начало: Годност, Екип, Известия. После Поддръжка, График и Плащания; „Скоро“ иконите са на страница 2.",
     href: "/app",
   },
   {
@@ -1178,9 +1178,9 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
   {
     key: "2026-11-activity-goods-layout",
     titleEn:
-      "Activity log shows products as name + qty/expiry — barcodes and article numbers are hidden.",
+      "Activity log shows products as name + qty/expiry. Barcodes and article numbers are hidden.",
     titleBg:
-      "В дневника стоките са име + кол./годност — без баркод и артикулен номер.",
+      "В дневника стоките са име + кол./годност. Без баркод и артикулен номер.",
     href: "/app/team/activity",
   },
   {
@@ -1194,9 +1194,9 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
   {
     key: "2026-11-notifications-inline-compact",
     titleEn:
-      "Expiry alerts settings are compact: days and time on one row, toggle at the end — editable even when Push isn’t on.",
+      "Expiry alerts settings are compact: days and time on one row, toggle at the end. Editable even when Push isn’t on.",
     titleBg:
-      "Известията са по-компактни: дни и час на един ред, превключвател в края — редактират се и без активен Push.",
+      "Известията са по-компактни: дни и час на един ред, превключвател в края. Редактират се и без активен Push.",
     href: "/app/settings/notifications",
   },
   {
@@ -1210,17 +1210,17 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
   {
     key: "2026-11-expiry-write-off",
     titleEn:
-      "When removing from Expiry, mark how many units are write-off (waste) — also for bulk remove.",
+      "When removing from Expiry, mark how many units are write-off (waste). Also for bulk remove.",
     titleBg:
-      "При премахване от Годност маркирате колко бройки са брак — и при групово премахване.",
+      "При премахване от Годност маркирате колко бройки са брак. И при групово премахване.",
     href: "/app/expiry",
   },
   {
     key: "2026-11-owner-analytics",
     titleEn:
-      "Owners: new Analytics screen — missed expired, write-off trends, markdowns, team leaders, coverage gaps.",
+      "Owners: new Analytics screen. Missed expired, write-off trends, markdowns, team leaders, coverage gaps.",
     titleBg:
-      "Собственици: нов екран Анализ — пропуснати, брак, намаления, екип, дни без проверка.",
+      "Собственици: нов екран Анализ. Пропуснати, брак, намаления, екип, дни без проверка.",
     href: "/app/analytics",
   },
   {
@@ -1248,9 +1248,9 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
   {
     key: "2026-11-statistics-per-store",
     titleEn:
-      "Statistics are per location — switch store in the header to see that site’s numbers.",
+      "Statistics are per location. Switch store in the header to see that site’s numbers.",
     titleBg:
-      "Статистиката е по обект — смени магазина в хедъра, за да видиш числата за него.",
+      "Статистиката е по обект. Смени магазина в хедъра, за да видиш числата за него.",
     href: "/app/analytics",
   },
   {
@@ -1278,17 +1278,17 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
   {
     key: "2026-11-hub-hold-feedback",
     titleEn:
-      "Home icons show a clear hold cue while you press — rearrange mode no longer waits until you lift your finger.",
+      "Home icons show a clear hold cue while you press. Rearrange mode no longer waits until you lift your finger.",
     titleBg:
-      "Иконите на Начало показват ясно задържане докато държиш — режимът за пренареждане вече не чака да пуснеш пръста.",
+      "Иконите на Начало показват ясно задържане докато държиш. Режимът за пренареждане вече не чака да пуснеш пръста.",
     href: "/app",
   },
   {
     key: "2026-11-hub-page3-drop",
     titleEn:
-      "Home rearrange can open the 3rd page while dragging — drop an icon onto an empty slot to keep it there.",
+      "Home rearrange can open the 3rd page while dragging. Drop an icon onto an empty slot to keep it there.",
     titleBg:
-      "Пренареждане на Начало: докато влачиш се отваря и 3-та страница — пусни иконата върху празен слот, за да остане там.",
+      "Пренареждане на Начало: докато влачиш се отваря и 3-та страница. Пусни иконата върху празен слот, за да остане там.",
     href: "/app",
   },
   {
@@ -1326,9 +1326,9 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
   {
     key: "2026-11-checklists-favourites-catalog",
     titleEn:
-      "Checklist favourites are a searchable slider of templates — tap to add to the working list; star list items to save templates.",
+      "Checklist favourites are a searchable slider of templates. Tap to add to the working list; star list items to save templates.",
     titleBg:
-      "Любимите в чеклиста са плъзгащ се ред с търсене — докосвате шаблон, за да влезе в списъка; със ★ запазвате задача като шаблон.",
+      "Любимите в чеклиста са плъзгащ се ред с търсене. Докосвате шаблон, за да влезе в списъка; със ★ запазвате задача като шаблон.",
     href: "/app/checklists",
   },
   {
@@ -1336,15 +1336,15 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
     titleEn:
       "Checklist weekly tasks are due anytime Mon–Sun (once that week); monthly anytime that month (once).",
     titleBg:
-      "Седмичните задачи в чеклиста се изпълняват веднъж в седмицата (който и да е ден); месечните — веднъж в месеца.",
+      "Седмичните задачи в чеклиста се изпълняват веднъж в седмицата (който и да е ден); месечните. Веднъж в месеца.",
     href: "/app/checklists",
   },
   {
     key: "2026-11-checklists-details-comment",
     titleEn:
-      "Checklist tasks have Details (owner) and Comment — staff can edit the comment only.",
+      "Checklist tasks have Details (owner) and Comment. Staff can edit the comment only.",
     titleBg:
-      "В задачите от чеклиста има Детайли (собственик) и Коментар — служителите редактират само коментара.",
+      "В задачите от чеклиста има Детайли (собственик) и Коментар. Служителите редактират само коментара.",
     href: "/app/checklists",
   },
   {
@@ -1414,9 +1414,9 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
   {
     key: "2026-11-checklist-recurrence-icons",
     titleEn:
-      "Checklists: period icons — 1 for daily, 7 for weekly, 31 for monthly, clock for one-off.",
+      "Checklists: period icons: 1 for daily, 7 for weekly, 31 for monthly, clock for one-off.",
     titleBg:
-      "Чеклисти: икони за периода — 1 за дневни, 7 за седмични, 31 за месечни, часовник за еднократни.",
+      "Чеклисти: икони за периода: 1 за дневни, 7 за седмични, 31 за месечни, часовник за еднократни.",
     href: "/app/checklists",
   },
   {
@@ -1424,15 +1424,15 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
     titleEn:
       "Checklists: period tile shows Daily / Weekly / Monthly (or date/time) under the calendar icon.",
     titleBg:
-      "Чеклисти: в плочката под календара — Дневен / Седмичен / Месечен (или дата/час).",
+      "Чеклисти: в плочката под календара. Дневен / Седмичен / Месечен (или дата/час).",
     href: "/app/checklists",
   },
   {
     key: "2026-11-checklists-redesign-no-fav",
     titleEn:
-      "Checklists refreshed: progress, week strip, clearer task cards — favourites removed.",
+      "Checklists refreshed: progress, week strip, clearer task cards. Favourites removed.",
     titleBg:
-      "Чеклистите са обновени: напредък, седмица, по-ясни карти — без любими.",
+      "Чеклистите са обновени: напредък, седмица, по-ясни карти. Без любими.",
     href: "/app/checklists",
   },
   {
@@ -1470,9 +1470,9 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
   {
     key: "2026-11-checklists-live-page1",
     titleEn:
-      "Tasks are live — the icon sits on the first home screen by default.",
+      "Tasks are live. The icon sits on the first home screen by default.",
     titleBg:
-      "Задачите са активни — иконата е на първия екран на началото по подразбиране.",
+      "Задачите са активни. Иконата е на първия екран на началото по подразбиране.",
     href: "/app/checklists",
   },
   {
@@ -1484,17 +1484,17 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
   {
     key: "2026-11-document-upload-pdf-excel",
     titleEn:
-      "Scan document Upload asks Picture or File — PDF, Excel, and CSV work too.",
+      "Scan document Upload asks Picture or File. PDF, Excel, and CSV work too.",
     titleBg:
-      "Качване при сканиране пита Снимка или Файл — работят и PDF, Excel и CSV.",
+      "Качване при сканиране пита Снимка или Файл. Работят и PDF, Excel и CSV.",
     href: "/app/add-document",
   },
   {
     key: "2026-11-tasks-assignee",
     titleEn:
-      "Tasks: owners can assign to Everyone or one person — personal tasks stay private to that user.",
+      "Tasks: owners can assign to Everyone or one person. Personal tasks stay private to that user.",
     titleBg:
-      "Задачи: собствениците задават Всички или един човек — личните задачи вижда само той.",
+      "Задачи: собствениците задават Всички или един човек. Личните задачи вижда само той.",
     href: "/app/checklists",
   },
   {
