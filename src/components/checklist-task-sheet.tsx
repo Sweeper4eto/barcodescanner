@@ -22,9 +22,12 @@ import {
   appFormInput,
 } from "@/lib/app-ui";
 import type {
+  ChecklistAssigneeDto,
   ChecklistRecurrence,
   ChecklistTaskDto,
 } from "@/lib/checklist";
+
+export const CHECKLIST_ASSIGNEE_EVERYONE = "everyone";
 
 export type ChecklistDraft = {
   title: string;
@@ -39,12 +42,16 @@ export type ChecklistDraft = {
   weekday: number;
   monthDay: number;
   saveAsFavourite: boolean;
+  /** `everyone` or a user id. */
+  assigneeUserId: string;
 };
 
 type Props = {
   mode: "create" | "edit" | "view";
   isOwner: boolean;
   initial?: ChecklistTaskDto | null;
+  /** Store members for the assignee picker (owners only). */
+  assigneeOptions?: ChecklistAssigneeDto[];
   /** Completing is only allowed for the selected/server "today". */
   canComplete?: boolean;
   onClose: () => void;
@@ -75,6 +82,7 @@ function emptyDraft(): ChecklistDraft {
     weekday: 0,
     monthDay: 1,
     saveAsFavourite: false,
+    assigneeUserId: CHECKLIST_ASSIGNEE_EVERYONE,
   };
 }
 
@@ -90,6 +98,7 @@ function fromTask(task: ChecklistTaskDto): ChecklistDraft {
     weekday: task.weekday ?? 0,
     monthDay: task.monthDay ?? 1,
     saveAsFavourite: false,
+    assigneeUserId: task.assigneeUserId ?? CHECKLIST_ASSIGNEE_EVERYONE,
   };
 }
 
@@ -117,6 +126,7 @@ export function ChecklistTaskSheet({
   mode,
   isOwner,
   initial,
+  assigneeOptions = [],
   canComplete = true,
   onClose,
   onSave,
@@ -330,14 +340,44 @@ export function ChecklistTaskSheet({
 
           {editable ? (
             <>
-              <MenuSelect
-                label={t("checklists.recurrence")}
-                value={draft.recurrence}
-                options={recurrenceOptions}
-                onChange={(value) =>
-                  setDraft((prev) => ({ ...prev, recurrence: value }))
-                }
-              />
+              <div className="grid grid-cols-2 items-start gap-2">
+                <div className="min-w-0">
+                  <MenuSelect
+                    label={t("checklists.recurrence")}
+                    value={draft.recurrence}
+                    options={recurrenceOptions}
+                    onChange={(value) =>
+                      setDraft((prev) => ({ ...prev, recurrence: value }))
+                    }
+                  />
+                </div>
+                <div className="min-w-0">
+                  <MenuSelect
+                    label={t("checklists.assignee")}
+                    value={draft.assigneeUserId}
+                    options={[
+                      {
+                        value: CHECKLIST_ASSIGNEE_EVERYONE,
+                        label: t("checklists.assigneeEveryone"),
+                      },
+                      ...assigneeOptions.map((user) => ({
+                        value: user.id,
+                        label: user.displayName?.trim() || user.username,
+                      })),
+                    ]}
+                    onChange={(value) =>
+                      setDraft((prev) => ({ ...prev, assigneeUserId: value }))
+                    }
+                    sortByLabel
+                    pinnedValues={[CHECKLIST_ASSIGNEE_EVERYONE]}
+                    searchable={assigneeOptions.length > 6}
+                    searchPlaceholder={t("checklists.assigneeSearch")}
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-muted">
+                {t("checklists.assigneeHint")}
+              </p>
 
               {draft.recurrence === "once" ? (
                 <label className="block">
@@ -370,6 +410,17 @@ export function ChecklistTaskSheet({
                 </p>
               ) : null}
             </>
+          ) : null}
+
+          {!editable && mode !== "create" ? (
+            <p className="text-sm text-muted">
+              {t("checklists.assigneeLabel", {
+                name: initial?.assignee
+                  ? initial.assignee.displayName?.trim() ||
+                    initial.assignee.username
+                  : t("checklists.assigneeEveryone"),
+              })}
+            </p>
           ) : null}
 
           {mode !== "create" ? (

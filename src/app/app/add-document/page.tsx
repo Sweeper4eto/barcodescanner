@@ -20,6 +20,14 @@ import {
 } from "@/components/app-nav-icons";
 import { CameraCapture, prepareDocumentImage } from "@/components/camera-capture";
 import { assessDocumentPhotoQuality } from "@/lib/document-image";
+import {
+  DOCUMENT_FILE_ACCEPT,
+  DOCUMENT_IMAGE_ACCEPT,
+  ensureDataUrlMime,
+  isAcceptedDocumentFile,
+  isAcceptedImageFile,
+  isImageDataUrl,
+} from "@/lib/document-upload-types";
 import { DocumentDraftDetailSheet } from "@/components/document-draft-detail-sheet";
 import { DocumentPageSection } from "@/components/document-page-section";
 import { DocumentProcessingPanel } from "@/components/document-processing-panel";
@@ -338,8 +346,11 @@ function AddDocumentContent() {
         });
       });
 
+      const isPhoto = isImageDataUrl(dataUrl);
+
       // Local design/testing uses OCR mocks — don't block on photo quality.
-      if (process.env.NODE_ENV === "production") {
+      // PDF / Excel / CSV skip photo quality + canvas prepare.
+      if (isPhoto && process.env.NODE_ENV === "production") {
         const quality = await assessDocumentPhotoQuality(dataUrl);
         if (!quality.ok) {
           const key =
@@ -355,7 +366,9 @@ function AddDocumentContent() {
         }
       }
 
-      const prepared = await prepareDocumentImage(dataUrl);
+      const prepared = isPhoto
+        ? await prepareDocumentImage(dataUrl)
+        : dataUrl;
       const response = await parseDocument(prepared);
       if (response.status === 413) {
         return { ok: false, error: t("errors.documentTooLarge"), retryable: false };
@@ -594,8 +607,8 @@ function AddDocumentContent() {
       return;
     }
 
-    if (!/^image\//i.test(file.type) && !/\.(heic|heif|jpe?g|png|webp|gif)$/i.test(file.name)) {
-      setError(t("errors.invalidFileFormat"));
+    if (!isAcceptedImageFile(file) && !isAcceptedDocumentFile(file)) {
+      setError(t("errors.invalidDocumentFormat"));
       return;
     }
     if (file.size > MAX_REATTACH_BYTES) {
@@ -604,15 +617,19 @@ function AddDocumentContent() {
     }
 
     try {
-      const dataUrl = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => {
-          if (typeof reader.result === "string") resolve(reader.result);
-          else reject(new Error("read failed"));
-        };
-        reader.onerror = () => reject(reader.error ?? new Error("read failed"));
-        reader.readAsDataURL(file);
-      });
+      const dataUrl = ensureDataUrlMime(
+        await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            if (typeof reader.result === "string") resolve(reader.result);
+            else reject(new Error("read failed"));
+          };
+          reader.onerror = () =>
+            reject(reader.error ?? new Error("read failed"));
+          reader.readAsDataURL(file);
+        }),
+        file.name,
+      );
       await replacePageWithImage(pageId, dataUrl, file.name);
     } catch {
       setError(t("errors.uploadFailed"));
@@ -817,7 +834,7 @@ function AddDocumentContent() {
       <input
         ref={reattachInputRef}
         type="file"
-        accept="image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif,.heic,.heif"
+        accept={`${DOCUMENT_IMAGE_ACCEPT},${DOCUMENT_FILE_ACCEPT}`}
         className="hidden"
         onChange={(event) => void onReattachFileSelected(event)}
       />

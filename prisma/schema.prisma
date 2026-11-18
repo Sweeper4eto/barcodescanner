@@ -49,6 +49,7 @@ model User {
   scheduleDayExclusions ScheduleDayExclusion[]
   finalizedScheduleWeeks StoreScheduleWeek[] @relation("ScheduleFinalizedBy")
   checklistTasksCreated  ChecklistTask[] @relation("ChecklistTaskCreatedBy")
+  checklistTasksAssigned ChecklistTask[] @relation("ChecklistTaskAssignee")
   checklistCompletions   ChecklistCompletion[] @relation("ChecklistCompletedBy")
   /** Expiry push notification preferences (phases 1–3). */
   expiryNotifyEarlyEnabled     Boolean @default(true)
@@ -204,6 +205,12 @@ model ChecklistTask {
   /** 1–31 when monthly */
   monthDay        Int?
   active          Boolean  @default(true)
+  /**
+   * Null = Everyone (all store members). Set = only that user sees the task
+   * (owners still see all for management).
+   */
+  assigneeUserId  String?
+  assigneeUser    User?    @relation("ChecklistTaskAssignee", fields: [assigneeUserId], references: [id], onDelete: SetNull)
   createdByUserId String?
   createdByUser   User?    @relation("ChecklistTaskCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
   createdAt       DateTime @default(now())
@@ -211,6 +218,7 @@ model ChecklistTask {
   completions     ChecklistCompletion[]
 
   @@index([storeId, active])
+  @@index([storeId, assigneeUserId])
   @@index([createdAt])
   @@index([dueDate])
 }

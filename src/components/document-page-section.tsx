@@ -10,6 +10,7 @@ import {
   draftMatchesSearch,
   draftMissingExpiry,
 } from "@/lib/document-draft";
+import { isImageDataUrl } from "@/lib/document-upload-types";
 import { appButtonNeutral, appButtonPrimary } from "@/lib/app-ui";
 
 type Props = {
@@ -58,12 +59,21 @@ export function DocumentPageSection({
       className="overflow-hidden rounded-2xl border border-card-border scroll-mt-2"
     >
       <div className="flex items-center gap-2 border-b border-card-border px-2 py-2">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={page.imageDataUrl}
-          alt=""
-          className="size-12 shrink-0 rounded-lg border border-card-border object-cover"
-        />
+        {isImageDataUrl(page.imageDataUrl) ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={page.imageDataUrl}
+            alt=""
+            className="size-12 shrink-0 rounded-lg border border-card-border object-cover"
+          />
+        ) : (
+          <div
+            className="flex size-12 shrink-0 items-center justify-center rounded-lg border border-card-border bg-card text-[0.65rem] font-bold uppercase tracking-wide text-muted"
+            aria-hidden
+          >
+            {t("addDocument.fileThumb")}
+          </div>
+        )}
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold text-foreground">{title}</p>
           {page.label.trim() ? (

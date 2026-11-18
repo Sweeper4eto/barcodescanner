@@ -10,8 +10,10 @@ import { logAuditEvent } from "@/lib/audit-log";
 import {
   checklistsDisabledResponse,
   requireRetailOwner,
+  resolveChecklistAssigneeUserId,
 } from "@/lib/checklist-access";
 import {
+  canViewChecklistTask,
   checklistCalendarYmd,
   checklistPeriodBounds,
   normalizeChecklistFields,
@@ -46,6 +48,7 @@ const ownerPatchSchema = z.object({
   weekday: z.number().int().min(0).max(6).optional().nullable(),
   monthDay: z.number().int().min(1).max(31).optional().nullable(),
   active: z.boolean().optional(),
+  assigneeUserId: z.string().min(1).nullable().optional(),
 });
 
 /** Staff may only update the free-text comment (+ optional photo). */
@@ -60,13 +63,20 @@ async function loadTaskForStoreAccess(taskId: string, userId: string) {
   const store = await userCanAccessRetailStore(userId, task.storeId);
   if (!store) return { error: "forbidden" as const };
   const owner = await requireRetailOwner(userId);
-  return { task, store, isOwner: Boolean(owner) };
+  const isOwner = Boolean(owner);
+  if (!canViewChecklistTask(task, userId, isOwner)) {
+    return { error: "not_found" as const };
+  }
+  return { task, store, isOwner };
 }
 
 async function taskResponse(taskId: string) {
   const row = await db.checklistTask.findUniqueOrThrow({
     where: { id: taskId },
     include: {
+      assigneeUser: {
+        select: { id: true, username: true, displayName: true },
+      },
       completions: {
         include: {
           completedByUser: {
@@ -225,6 +235,20 @@ export async function PATCH(
     data.commentImagePath !== undefined
       ? data.commentImagePath?.trim() || null
       : loaded.task.commentImagePath;
+  let nextAssignee = loaded.task.assigneeUserId;
+  if (data.assigneeUserId !== undefined) {
+    const assigneeResolved = await resolveChecklistAssigneeUserId(
+      loaded.task.storeId,
+      data.assigneeUserId,
+    );
+    if (assigneeResolved && typeof assigneeResolved === "object") {
+      return NextResponse.json(
+        { error: apiT(request, "errors.invalidData") },
+        { status: 400 },
+      );
+    }
+    nextAssignee = assigneeResolved;
+  }
 
   await db.checklistTask.update({
     where: { id },
@@ -245,6 +269,9 @@ export async function PATCH(
       weekday: fields.weekday,
       monthDay: fields.monthDay,
       active: data.active,
+      ...(data.assigneeUserId !== undefined
+        ? { assigneeUserId: nextAssignee }
+        : {}),
     },
   });
 
@@ -273,6 +300,11 @@ export async function PATCH(
       "active",
       loaded.task.active,
       data.active ?? loaded.task.active,
+    ),
+    auditFieldChange(
+      "assignee",
+      loaded.task.assigneeUserId,
+      nextAssignee,
     ),
   ];
   if (changes.some(Boolean)) {

@@ -59,6 +59,12 @@ function publicOcrError(request: Request, message: string): string {
   if (message === "OCR_NOT_CONFIGURED") {
     return apiT(request, "errors.documentAiNotConfigured");
   }
+  if (message === "UNSUPPORTED_DOCUMENT_TYPE") {
+    return apiT(request, "errors.invalidDocumentFormat");
+  }
+  if (message === "OCR_DOCUMENT_NEEDS_GEMINI") {
+    return apiT(request, "errors.documentNeedsGemini");
+  }
   return apiT(request, "errors.documentParseFailed");
 }
 

@@ -77,6 +77,14 @@ export function ChecklistCard({
             >
               {task.title}
             </p>
+            {task.assignee ? (
+              <p className="mt-0.5 truncate text-[10px] leading-tight text-muted">
+                {t("checklists.assigneeLabel", {
+                  name:
+                    task.assignee.displayName?.trim() || task.assignee.username,
+                })}
+              </p>
+            ) : null}
             {checked && task.completedTodayBy ? (
               <p className="mt-0.5 truncate text-[10px] leading-tight text-muted">
                 {t("checklists.doneBy", {

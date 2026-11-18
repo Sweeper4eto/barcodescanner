@@ -92,6 +92,15 @@ export const bg = {
     capTeamTitle: "Екип и обекти",
     capTeamBody:
       "Няколко обекта, роли и споделен изглед. Всеки вижда нужното.",
+    capTasksTitle: "Задачи",
+    capTasksBody:
+      "Дневни, седмични и месечни задачи за обекта. Назначавате на всички или на един.",
+    capCustomizeTitle: "Кастомизация на екрана",
+    capCustomizeBody:
+      "Подреждате иконите на началото както ви е удобно — премествате и сменяте страници.",
+    capAnalyticsTitle: "Анализи",
+    capAnalyticsBody:
+      "Статистика за отпадък, намаления и работа на екипа — какво се случва в обекта.",
     howTitle: "Как работи",
     howStep1Title: "Сканирате или снимате",
     howStep1Body: "Баркод на рафта или цял документ за доставка с камерата.",
@@ -258,6 +267,10 @@ export const bg = {
     goHome: "Към приложението",
     invalidImage: "Невалидно изображение",
     invalidFileFormat: "Невалиден файлов формат",
+    invalidDocumentFormat:
+      "Използвайте снимка, PDF, Excel (.xls/.xlsx), CSV или текстов файл.",
+    documentNeedsGemini:
+      "PDF и Excel изискват Gemini OCR, конфигуриран на сървъра.",
     fileTooLarge: "Файлът е твърде голям (макс. 12 MB)",
     pushNotConfigured: "Известията не са конфигурирани на сървъра",
     homeUserRequired: "Тази функция е достъпна само за домакински акаунти",
@@ -779,8 +792,9 @@ export const bg = {
     title: "Сканирай документ",
     locationConfirmation: "Потвърждение на обект",
     locationName: "Име на обект",
-    hint: "Снимайте списъка или качете една или повече страници.",
-    multiHint: "Качване: няколко страници ОК.",
+    hint: "Снимайте списъка или качете снимки, PDF или Excel/CSV.",
+    multiHint: "Качване: снимки или файлове (PDF/Excel) — няколко ОК.",
+    fileThumb: "Файл",
     frameHint:
       "Поставете документа в рамката и се уверете, че всички ръбове се виждат.",
     multiTip:
@@ -1055,6 +1069,12 @@ export const bg = {
     title: "Задача",
     note: "Детайли",
     details: "Детайли",
+    assignee: "За кого",
+    assigneeEveryone: "Всички",
+    assigneeHint:
+      "Всички споделят задачата. Изберете човек за лична задача — виждат я само те (и собствениците).",
+    assigneeLabel: "За {name}",
+    assigneeSearch: "Търси хора",
     comment: "Коментар",
     commentPlaceholder: "Добавете коментар…",
     commentStaffHint:
@@ -1314,6 +1334,11 @@ export const bg = {
     keepOldPicture: "Запази старата снимка",
     upload: "Качване",
     uploadExisting: "Качване",
+    uploadSourceTitle: "Качване от",
+    uploadSourceHint:
+      "Снимка отваря галерията. Файл отваря файловия избор на телефона (Изтеглени, Файлове, Drive…). PDF, Excel и CSV са ОК.",
+    uploadPicture: "Снимка",
+    uploadFile: "Файл",
     productPhoto: "Снимка на продукт",
     changePhotoTitle: "Направи нова снимка",
     iosNativeHint:

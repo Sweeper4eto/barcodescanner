@@ -90,6 +90,15 @@ export const en = {
     capTeamTitle: "Team & locations",
     capTeamBody:
       "Several stores, staff roles, and a shared view. Each person sees what they need.",
+    capTasksTitle: "Tasks",
+    capTasksBody:
+      "Daily, weekly, and monthly store tasks. Assign to everyone or one person.",
+    capCustomizeTitle: "Home screen layout",
+    capCustomizeBody:
+      "Rearrange home icons the way you work — move tiles and switch pages.",
+    capAnalyticsTitle: "Analytics",
+    capAnalyticsBody:
+      "Waste, markdowns, and staff activity — see what is happening in the store.",
     howTitle: "How it works",
     howStep1Title: "Scan or photograph",
     howStep1Body: "Barcode on the shelf, or a full delivery document with the camera.",
@@ -256,6 +265,10 @@ export const en = {
     goHome: "Go to app",
     invalidImage: "Invalid image",
     invalidFileFormat: "Invalid file format",
+    invalidDocumentFormat:
+      "Use a photo, PDF, Excel (.xls/.xlsx), CSV, or text file.",
+    documentNeedsGemini:
+      "PDF and spreadsheet import needs Gemini OCR configured on the server.",
     fileTooLarge: "File is too large (max 12 MB)",
     pushNotConfigured: "Push notifications are not configured on the server",
     homeUserRequired: "This feature is only available for household accounts",
@@ -775,8 +788,9 @@ export const en = {
     title: "Scan document",
     locationConfirmation: "Location confirmation",
     locationName: "Location name",
-    hint: "Photo the delivery list, or upload one or more pages.",
-    multiHint: "Upload: multiple pages OK.",
+    hint: "Photo the delivery list, or upload photos, PDF, or Excel/CSV.",
+    multiHint: "Upload: photos or files (PDF/Excel) — multiple OK.",
+    fileThumb: "File",
     frameHint:
       "Position the document within the frame and make sure all edges are visible.",
     multiTip: "Tip: You can select multiple pages with Upload and scan more later.",
@@ -1050,6 +1064,12 @@ export const en = {
     title: "Task",
     note: "Details",
     details: "Details",
+    assignee: "Assigned to",
+    assigneeEveryone: "Everyone",
+    assigneeHint:
+      "Everyone shares the task. Pick a person for a private task only they (and owners) can see.",
+    assigneeLabel: "For {name}",
+    assigneeSearch: "Search people",
     comment: "Comment",
     commentPlaceholder: "Add a comment…",
     commentStaffHint: "You can edit the comment only. Other fields are set by the owner.",
@@ -1303,6 +1323,11 @@ export const en = {
     keepOldPicture: "Keep old picture",
     upload: "Upload",
     uploadExisting: "Upload",
+    uploadSourceTitle: "Upload from",
+    uploadSourceHint:
+      "Picture opens your gallery. File opens the phone file picker (Downloads, Files, Drive…). PDF, Excel, and CSV work.",
+    uploadPicture: "Picture",
+    uploadFile: "File",
     productPhoto: "Product photo",
     changePhotoTitle: "Take a new photo",
     iosNativeHint:

@@ -10,7 +10,7 @@ const fromEnv =
 const nextConfig: NextConfig = {
   reactCompiler: true,
   // sharp: document deskew. osm-pbf-parser/protobufjs: load .proto files from disk at runtime.
-  serverExternalPackages: ["sharp", "osm-pbf-parser", "protobufjs"],
+  serverExternalPackages: ["sharp", "osm-pbf-parser", "protobufjs", "xlsx"],
   // Production VPS builds (4GB) OOM during Next's typecheck; validate runs tsc locally.
   typescript: {
     ignoreBuildErrors:

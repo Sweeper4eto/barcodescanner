@@ -1,9 +1,13 @@
 import { NextResponse } from "next/server";
 import { requireSession } from "@/lib/auth";
-import { checklistsDisabledResponse } from "@/lib/checklist-access";
+import {
+  checklistsDisabledResponse,
+  requireRetailOwner,
+} from "@/lib/checklist-access";
 import {
   checklistCalendarYmd,
   checklistCompletionWindowStartYmd,
+  checklistVisibilityWhere,
   isChecklistTaskDueOn,
   pickChecklistPeriodCompletion,
   purgeChecklistRetention,
@@ -43,8 +47,13 @@ export async function GET(request: Request) {
 
   const todayYmd = checklistCalendarYmd();
   const windowStart = checklistCompletionWindowStartYmd(todayYmd);
+  const isOwner = Boolean(await requireRetailOwner(session.userId));
   const tasks = await db.checklistTask.findMany({
-    where: { storeId, active: true },
+    where: {
+      storeId,
+      active: true,
+      ...checklistVisibilityWhere(session.userId, isOwner),
+    },
     select: {
       recurrence: true,
       dueDate: true,

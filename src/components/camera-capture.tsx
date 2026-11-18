@@ -13,6 +13,7 @@ import { useViewportInsets } from "@/hooks/use-viewport-insets";
 import {
   appButtonCancelFull,
   appButtonDangerFull,
+  appButtonNeutralFull,
   appButtonPrimaryFull,
   appContentMaxW,
   appFooterButtonGrid,
@@ -22,6 +23,13 @@ import {
   isLikelyBadCaptureCamera,
   pickPreferredCameraId,
 } from "@/lib/camera-select";
+import {
+  DOCUMENT_FILE_ACCEPT,
+  DOCUMENT_IMAGE_ACCEPT,
+  ensureDataUrlMime,
+  isAcceptedDocumentFile,
+  isAcceptedImageFile,
+} from "@/lib/document-upload-types";
 
 type Props = {
   onCapture: (dataUrl: string) => void;
@@ -143,15 +151,6 @@ function FrameCameraIcon({ className = "" }: { className?: string }) {
 }
 
 const MAX_UPLOAD_BYTES = 12 * 1024 * 1024; // keep in sync with MAX_UPLOAD_FILE_BYTES in upload.ts
-const ACCEPTED_TYPES = new Set([
-  "image/jpeg",
-  "image/jpg",
-  "image/png",
-  "image/webp",
-  "image/gif",
-  "image/heic",
-  "image/heif",
-]);
 
 function isIosLike(): boolean {
   if (typeof navigator === "undefined") return false;
@@ -188,15 +187,6 @@ export function resolveUseNativeCapture(
   _prefersNative: boolean,
 ): boolean {
   // Always prefer in-app camera so a one-time Allow sticks for the site.
-  return false;
-}
-
-function isAcceptedImageFile(file: File): boolean {
-  if (ACCEPTED_TYPES.has(file.type)) return true;
-  // iOS sometimes omits MIME type; fall back to extension.
-  if (!file.type && /\.(jpe?g|png|webp|gif|heic|heif)$/i.test(file.name)) {
-    return true;
-  }
   return false;
 }
 
@@ -596,6 +586,7 @@ export function CameraCapture({
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
+  const documentFileInputRef = useRef<HTMLInputElement>(null);
   const nativeCameraInputRef = useRef<HTMLInputElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const [active, setActive] = useState(false);
@@ -607,6 +598,8 @@ export function CameraCapture({
   const [error, setError] = useState("");
   const [useNativeCapture, setUseNativeCapture] = useState(false);
   const [platformReady, setPlatformReady] = useState(false);
+  /** Document Upload: Picture vs file (PDF/Excel/…). */
+  const [uploadSourceOpen, setUploadSourceOpen] = useState(false);
   /** Document: confirm before leaving live camera or discarding a still preview. */
   /** Only when discarding a still — live Отказ has nothing to lose. */
   const [pendingExit, setPendingExit] = useState<"discardPreview" | null>(null);
@@ -732,7 +725,9 @@ export function CameraCapture({
     }
   }
 
-  async function onFileSelected(event: React.ChangeEvent<HTMLInputElement>) {
+  async function onImageFileSelected(
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) {
     const files = event.target.files ? Array.from(event.target.files) : [];
     event.target.value = "";
     if (files.length === 0) return;
@@ -753,7 +748,10 @@ export function CameraCapture({
       if (files.length > 1 && onMultipleCapture) {
         const pages = await Promise.all(
           files.map(async (file) => ({
-            dataUrl: await readFileAsDataUrl(file),
+            dataUrl: ensureDataUrlMime(
+              await readFileAsDataUrl(file),
+              file.name,
+            ),
             name: file.name?.trim() || "",
           })),
         );
@@ -761,13 +759,62 @@ export function CameraCapture({
         onMultipleCapture(pages);
         return;
       }
-      const dataUrl = await readFileAsDataUrl(files[0]);
+      const dataUrl = ensureDataUrlMime(
+        await readFileAsDataUrl(files[0]),
+        files[0].name,
+      );
       stopCamera();
       if (confirmMode === "instant") {
         onCapture(dataUrl);
         return;
       }
       setPreview(dataUrl);
+    } catch {
+      setError(t("errors.uploadFailed"));
+    }
+  }
+
+  /** PDF / Excel / CSV — skip still preview; hand off straight to OCR. */
+  async function onDocumentFileSelected(
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) {
+    const files = event.target.files ? Array.from(event.target.files) : [];
+    event.target.value = "";
+    if (files.length === 0) return;
+
+    for (const file of files) {
+      if (!isAcceptedDocumentFile(file)) {
+        setError(t("errors.invalidDocumentFormat"));
+        return;
+      }
+      if (file.size > MAX_UPLOAD_BYTES) {
+        setError(t("errors.fileTooLarge"));
+        return;
+      }
+    }
+
+    setError("");
+    try {
+      if (files.length > 1 && onMultipleCapture) {
+        const pages = await Promise.all(
+          files.map(async (file) => ({
+            dataUrl: ensureDataUrlMime(
+              await readFileAsDataUrl(file),
+              file.name,
+            ),
+            name: file.name?.trim() || "",
+          })),
+        );
+        stopCamera();
+        onMultipleCapture(pages);
+        return;
+      }
+      const dataUrl = ensureDataUrlMime(
+        await readFileAsDataUrl(files[0]),
+        files[0].name,
+      );
+      stopCamera();
+      onCapture(dataUrl);
     } catch {
       setError(t("errors.uploadFailed"));
     }
@@ -847,9 +894,6 @@ export function CameraCapture({
       ? "relative mx-auto flex h-[min(28dvh,12.5rem)] w-full items-center justify-center overflow-hidden rounded-xl border border-card-border bg-black"
       : "relative mx-auto flex max-h-[min(52dvh,24rem)] w-full items-center justify-center overflow-hidden rounded-xl border border-card-border bg-black";
 
-  const acceptAttr =
-    "image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif,.heic,.heif";
-
   const showNativePath = useNativeCapture && !forceInAppCamera;
   const productSaveFlow = confirmMode === "save";
   const cancelLabel = keepOldPicture
@@ -857,7 +901,21 @@ export function CameraCapture({
     : t("common.cancel");
 
   function openUploadPicker() {
+    if (documentLayout) {
+      setUploadSourceOpen(true);
+      return;
+    }
     galleryInputRef.current?.click();
+  }
+
+  function chooseUploadPicture() {
+    setUploadSourceOpen(false);
+    galleryInputRef.current?.click();
+  }
+
+  function chooseUploadFile() {
+    setUploadSourceOpen(false);
+    documentFileInputRef.current?.click();
   }
 
   function triggerCapture() {
@@ -891,16 +949,26 @@ export function CameraCapture({
         accept="image/*"
         capture="environment"
         className="hidden"
-        onChange={(event) => void onFileSelected(event)}
+        onChange={(event) => void onImageFileSelected(event)}
       />
       <input
         ref={galleryInputRef}
         type="file"
-        accept={acceptAttr}
+        accept={DOCUMENT_IMAGE_ACCEPT}
         multiple={allowMultipleFiles}
         className="hidden"
-        onChange={(event) => void onFileSelected(event)}
+        onChange={(event) => void onImageFileSelected(event)}
       />
+      {documentLayout ? (
+        <input
+          ref={documentFileInputRef}
+          type="file"
+          accept={DOCUMENT_FILE_ACCEPT}
+          multiple={allowMultipleFiles}
+          className="hidden"
+          onChange={(event) => void onDocumentFileSelected(event)}
+        />
+      ) : null}
     </>
   );
 
@@ -1262,6 +1330,54 @@ export function CameraCapture({
               >
                 {exitConfirmCopy.confirm}
               </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {uploadSourceOpen ? (
+        <div
+          className="fixed inset-x-0 z-[70] flex items-center justify-center bg-black/60 px-5"
+          style={{
+            top: offsetTop,
+            bottom: `calc(${bottomNav} + ${keyboardInset}px)`,
+          }}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="camera-upload-source-title"
+          onClick={() => setUploadSourceOpen(false)}
+        >
+          <div
+            className="w-full max-w-[22rem] rounded-2xl border border-card-border bg-background px-5 pb-5 pt-6 shadow-[0_20px_50px_rgba(0,0,0,0.5)]"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2
+              id="camera-upload-source-title"
+              className="text-center text-[1.35rem] font-semibold leading-tight text-foreground"
+            >
+              {t("camera.uploadSourceTitle")}
+            </h2>
+            <p className="mt-3 text-center text-sm leading-relaxed text-muted">
+              {t("camera.uploadSourceHint")}
+            </p>
+            <div className="mt-6 flex flex-col gap-2">
+              <button
+                type="button"
+                className={appButtonPrimaryFull}
+                onClick={chooseUploadPicture}
+              >
+                {t("camera.uploadPicture")}
+              </button>
+              <button
+                type="button"
+                className={appButtonNeutralFull}
+                onClick={chooseUploadFile}
+              >
+                {t("camera.uploadFile")}
+              </button>
+              <CancelButton onClick={() => setUploadSourceOpen(false)}>
+                {t("common.cancel")}
+              </CancelButton>
             </div>
           </div>
         </div>

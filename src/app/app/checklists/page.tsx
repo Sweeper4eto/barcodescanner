@@ -5,6 +5,7 @@ import { ChecklistCard } from "@/components/checklist-card";
 import {
   ChecklistTaskSheet,
   resolveChecklistCommentImagePath,
+  CHECKLIST_ASSIGNEE_EVERYONE,
   type ChecklistDraft,
 } from "@/components/checklist-task-sheet";
 import {
@@ -30,6 +31,7 @@ import {
   CHECKLISTS_FEATURE_ENABLED,
   checklistCalendarYmd,
   isChecklistTaskDueOn,
+  type ChecklistAssigneeDto,
   type ChecklistTaskDto,
 } from "@/lib/checklist";
 
@@ -38,6 +40,7 @@ type ListResponse = {
   isOwner: boolean;
   dueTodayIncomplete: number;
   tasks: ChecklistTaskDto[];
+  assignees?: ChecklistAssigneeDto[];
   error?: string;
 };
 
@@ -136,6 +139,7 @@ export default function ChecklistsPage() {
   const { ready: sessionReady, homeUser } = useAppSession();
   const { storeId, ready: storeReady } = useAppStoreId();
   const [tasks, setTasks] = useState<ChecklistTaskDto[]>([]);
+  const [assignees, setAssignees] = useState<ChecklistAssigneeDto[]>([]);
   const [todayYmd, setTodayYmd] = useState(() => checklistCalendarYmd());
   const [selectedYmd, setSelectedYmd] = useState(() => checklistCalendarYmd());
   const [isOwner, setIsOwner] = useState(false);
@@ -203,6 +207,7 @@ export default function ChecklistsPage() {
       setTodayYmd(serverToday);
       setSelectedYmd((prev) => prev || serverToday);
       setTasks(data.tasks ?? []);
+      setAssignees(data.assignees ?? []);
       setIsOwner(Boolean(data.isOwner));
     } catch {
       setError(t("errors.networkError"));
@@ -382,6 +387,10 @@ export default function ChecklistsPage() {
       weekday: null,
       monthDay: null,
       saveAsFavourite: false,
+      assigneeUserId:
+        draft.assigneeUserId === CHECKLIST_ASSIGNEE_EVERYONE
+          ? null
+          : draft.assigneeUserId,
     };
 
     if (sheet?.mode === "create") {
@@ -720,6 +729,7 @@ export default function ChecklistsPage() {
           mode={sheet.mode}
           isOwner={isOwner}
           initial={sheet.mode === "create" ? null : sheet.task}
+          assigneeOptions={assignees}
           canComplete={viewingToday}
           onClose={() => setSheet(null)}
           onRemove={

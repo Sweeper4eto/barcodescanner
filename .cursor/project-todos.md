@@ -24,9 +24,11 @@ Keep entries short. Prefer `open` / `doing` / `done` / `dropped`.
 - [x] **Samsung A53 document scan** — prefer main rear; taller preview only on SM-A536 (UA)
 - [x] **Document scan name priority** — OCR name from photo wins; barcode/DB name only if OCR empty
 - [x] **Document scan lot/batch** — extract Партида/Лот/Серия/Емисия → `InventoryEntry.lot`
+- [x] **Document upload PDF/Excel** — Upload → Picture or File; PDF/CSV/Excel OCR via Gemini
 - [x] **Checklists MVP** — per location; daily/weekly/monthly/once; list = working items; favourites = catalog to pull from; mark done + 6‑mo retention; home glow
 - [x] **Checklists polish + re-enable** — `CHECKLISTS_FEATURE_ENABLED=true`; hub badge + page-1 default slot; activity/uncheck/owner mark-done
-- [ ] **33.** Daily shortlist “what to check today” (auto from expiry — after checklists)
+- [x] **Tasks assignee** — Everyone or one store user; staff see only shared + own
+- [x] **33.** Daily shortlist — dropped (expiry filters/list already cover it)
 - [ ] **34.** Staff accountability — who checked what / when (feeds analytics #8)
 - [ ] **35.** Compliance / HACCP reports & digital journals
 - [ ] **43.** Scales sync
@@ -53,7 +55,7 @@ Keep entries short. Prefer `open` / `doing` / `done` / `dropped`.
 - [ ] Failed-login usernames in prod (needs deploy of login_failed stash)
 - [ ] **barcode.bg name refresh** — local `clean-product-names` first; remote dirty = missing/digits/symbols/barcode-clone/leading digit|symbol/bad specials
 
-## Feature triage (catalog only — ✅23 · 🔴35 · ⚪16)
+## Feature triage (catalog only — ✅23 · 🔴34 · ⚪17)
 
 Legend: ✅ have · 🔴 missing · ⚪ not worth it now  
 (Not a backlog. Copy into **Build next** when you want to build it.)
@@ -90,7 +92,7 @@ Legend: ✅ have · 🔴 missing · ⚪ not worth it now
 30. ⚪ WhatsApp alerts (bot possible, QR session awkward)
 31. ✅ Configurable days-before-expiry alerts
 32. ⚪ Priority engine (margin / section / regulation)
-33. 🔴 Daily shortlist “what to check today”
+33. ⚪ Daily shortlist “what to check today” (dropped — expiry list covers it)
 34. 🔴 Staff accountability (who / when / which section)
 35. 🔴 Compliance / HACCP reports
 36. ✅ Manual price markdown

@@ -105,6 +105,28 @@ function TeamIcon({ className = "" }: { className?: string }) {
   );
 }
 
+function TasksIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 6h11M9 12h11M9 18h11" />
+      <path d="m4 6 1.2 1.2L7.5 5" />
+      <path d="m4 12 1.2 1.2L7.5 11" />
+      <path d="m4 18 1.2 1.2L7.5 17" />
+    </svg>
+  );
+}
+
+function CustomizeIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="7" height="7" rx="1.5" />
+      <rect x="14" y="3" width="7" height="7" rx="1.5" />
+      <rect x="3" y="14" width="7" height="7" rx="1.5" />
+      <rect x="14" y="14" width="7" height="7" rx="1.5" />
+    </svg>
+  );
+}
+
 function isStandaloneDisplay(): boolean {
   if (typeof window === "undefined") return false;
   const media = window.matchMedia("(display-mode: standalone)").matches;
@@ -191,6 +213,17 @@ function HomePageContent() {
     { icon: ListIcon, title: t("home.capExpiryTitle"), body: t("home.capExpiryBody") },
     { icon: BellIcon, title: t("home.capAlertsTitle"), body: t("home.capAlertsBody") },
     { icon: TeamIcon, title: t("home.capTeamTitle"), body: t("home.capTeamBody") },
+    { icon: TasksIcon, title: t("home.capTasksTitle"), body: t("home.capTasksBody") },
+    {
+      icon: CustomizeIcon,
+      title: t("home.capCustomizeTitle"),
+      body: t("home.capCustomizeBody"),
+    },
+    {
+      icon: ChartIcon,
+      title: t("home.capAnalyticsTitle"),
+      body: t("home.capAnalyticsBody"),
+    },
   ] as const;
 
   const howSteps = [

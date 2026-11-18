@@ -6,8 +6,12 @@ import {
   auditChecklistUncompleted,
 } from "@/lib/audit-details";
 import { logAuditEvent } from "@/lib/audit-log";
-import { checklistsDisabledResponse } from "@/lib/checklist-access";
 import {
+  checklistsDisabledResponse,
+  requireRetailOwner,
+} from "@/lib/checklist-access";
+import {
+  canViewChecklistTask,
   checklistCalendarYmd,
   checklistPeriodBounds,
   isChecklistTaskDueOn,
@@ -69,6 +73,14 @@ export async function POST(
     return NextResponse.json(
       { error: apiT(request, "errors.noStoreAccess") },
       { status: 403 },
+    );
+  }
+
+  const isOwner = Boolean(await requireRetailOwner(session.userId));
+  if (!canViewChecklistTask(task, session.userId, isOwner)) {
+    return NextResponse.json(
+      { error: apiT(request, "errors.entryNotFound") },
+      { status: 404 },
     );
   }
 
@@ -161,6 +173,9 @@ export async function POST(
   const row = await db.checklistTask.findUniqueOrThrow({
     where: { id },
     include: {
+      assigneeUser: {
+        select: { id: true, username: true, displayName: true },
+      },
       completions: {
         where: {
           dueDate: { gte: loadPeriod.start, lte: loadPeriod.end },

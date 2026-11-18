@@ -2,6 +2,13 @@ import { readFile } from "node:fs/promises";
 import "dotenv/config";
 import { z } from "zod";
 import { sanitizeDocumentRows } from "@/lib/document-row-sanitize";
+import { spreadsheetBytesToText } from "@/lib/document-spreadsheet";
+import {
+  isDocumentFileMime,
+  isImageMime,
+  isSpreadsheetMime,
+  mimeFromFilename,
+} from "@/lib/document-upload-types";
 import {
   looksLikeLotCodeNotExpiry,
   resolveDocumentExpiry,
@@ -258,7 +265,8 @@ function toRows(payload: unknown): DocumentOcrRow[] {
   return sanitized;
 }
 
-const SYSTEM_PROMPT = `Extract product lines from a photo of a Bulgarian store document (delivery note / izpisvane / expiry list / invoice).
+const SYSTEM_PROMPT = `Extract product lines from a Bulgarian store document (delivery note / izpisvane / expiry list / invoice).
+The input may be a photo, a PDF page, or a spreadsheet/CSV export of the same kind of table.
 
 OUTPUT FORMAT (mandatory — violations break import):
 - Return ONLY one JSON object. No markdown fences, no commentary, no trailing text.
@@ -935,6 +943,31 @@ async function extractDocumentRowsOnce(
   return toRows(extractJsonObject(text));
 }
 
+async function prepareMimeAndBase64ForOcr(
+  mime: string,
+  base64: string,
+): Promise<{ mime: string; base64: string }> {
+  const normalized = mime.toLowerCase().split(";")[0].trim();
+  if (isImageMime(normalized) || normalized === "application/pdf") {
+    return { mime: normalized, base64 };
+  }
+  if (isSpreadsheetMime(normalized)) {
+    const text = spreadsheetBytesToText(
+      Buffer.from(base64, "base64"),
+      normalized,
+    );
+    if (!text.trim()) throw new Error("OCR_EMPTY:EMPTY");
+    return {
+      mime: "text/plain",
+      base64: Buffer.from(text, "utf8").toString("base64"),
+    };
+  }
+  if (isDocumentFileMime(normalized)) {
+    return { mime: normalized, base64 };
+  }
+  throw new Error("UNSUPPORTED_DOCUMENT_TYPE");
+}
+
 export async function extractDocumentRows(
   dataUrl: string,
 ): Promise<DocumentOcrRow[]> {
@@ -946,7 +979,35 @@ export async function extractDocumentRows(
   // Server deskew (document-deskew.ts) was removed from this path — it slowed
   // every scan and often forced ±8° rotations. Keep that module opt-in later.
   const { mime, base64 } = stripDataUrl(dataUrl);
-  return extractDocumentRowsOnce(config, mime, base64);
+  const prepared = await prepareMimeAndBase64ForOcr(mime, base64);
+
+  // OpenAI vision path only accepts images — non-image files need Gemini.
+  if (
+    config.provider === "openai" &&
+    !isImageMime(prepared.mime)
+  ) {
+    const gemini = documentAiConfiguredPreferGemini();
+    if (!gemini) {
+      throw new Error("OCR_DOCUMENT_NEEDS_GEMINI");
+    }
+    return extractDocumentRowsOnce(gemini, prepared.mime, prepared.base64);
+  }
+
+  return extractDocumentRowsOnce(config, prepared.mime, prepared.base64);
+}
+
+function documentAiConfiguredPreferGemini(): {
+  provider: "gemini";
+  apiKey: string;
+  model: string;
+} | null {
+  const geminiKey = process.env.GEMINI_API_KEY?.trim();
+  if (!geminiKey) return null;
+  return {
+    provider: "gemini",
+    apiKey: geminiKey,
+    model: resolveModel(process.env.DOCUMENT_AI_MODEL, DEFAULT_GEMINI_MODEL),
+  };
 }
 
 export async function extractDocumentRowsFromPath(
@@ -957,15 +1018,8 @@ export async function extractDocumentRowsFromPath(
     throw new Error("INVALID_IMAGE");
   }
   const buffer = await readFile(filePath);
-  const ext = filePath.split(".").pop()?.toLowerCase() || "jpg";
-  const mime =
-    ext === "png"
-      ? "image/png"
-      : ext === "webp"
-        ? "image/webp"
-        : ext === "gif"
-          ? "image/gif"
-          : "image/jpeg";
+  const name = filePath.split(/[/\\]/).pop() || "file.jpg";
+  const mime = mimeFromFilename(name) ?? "image/jpeg";
   const dataUrl = `data:${mime};base64,${buffer.toString("base64")}`;
   return extractDocumentRows(dataUrl);
 }

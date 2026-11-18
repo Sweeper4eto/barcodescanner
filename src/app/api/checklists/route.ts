@@ -5,11 +5,14 @@ import { auditChecklistCreated } from "@/lib/audit-details";
 import { logAuditEvent } from "@/lib/audit-log";
 import {
   checklistsDisabledResponse,
+  listChecklistAssigneeOptions,
   requireRetailOwner,
+  resolveChecklistAssigneeUserId,
 } from "@/lib/checklist-access";
 import {
   checklistCalendarYmd,
   checklistCompletionWindowStartYmd,
+  checklistVisibilityWhere,
   normalizeChecklistFields,
   pickChecklistPeriodCompletion,
   purgeChecklistRetention,
@@ -44,6 +47,8 @@ const createSchema = z.object({
   monthDay: z.number().int().min(1).max(31).optional().nullable(),
   /** Also save this definition into the favourites catalog. */
   saveAsFavourite: z.boolean().optional(),
+  /** Null / "everyone" / omitted = shared. Else a store user id. */
+  assigneeUserId: z.string().min(1).nullable().optional(),
 });
 
 export async function GET(request: Request) {
@@ -80,11 +85,23 @@ export async function GET(request: Request) {
 
   const todayYmd = checklistCalendarYmd();
   const windowStart = checklistCompletionWindowStartYmd(todayYmd);
-  const [rows, favouriteRows, user] = await Promise.all([
+  const user = await db.user.findUnique({
+    where: { id: session.userId },
+    select: { clientRole: true },
+  });
+  const isOwner = user?.clientRole === "OWNER";
+  const [rows, favouriteRows, assignees] = await Promise.all([
     db.checklistTask.findMany({
-      where: { storeId, active: true },
+      where: {
+        storeId,
+        active: true,
+        ...checklistVisibilityWhere(session.userId, isOwner),
+      },
       orderBy: { createdAt: "desc" },
       include: {
+        assigneeUser: {
+          select: { id: true, username: true, displayName: true },
+        },
         completions: {
           where: { dueDate: { gte: windowStart, lte: todayYmd } },
           include: {
@@ -99,10 +116,7 @@ export async function GET(request: Request) {
       where: { storeId },
       orderBy: { updatedAt: "desc" },
     }),
-    db.user.findUnique({
-      where: { id: session.userId },
-      select: { clientRole: true },
-    }),
+    isOwner ? listChecklistAssigneeOptions(storeId) : Promise.resolve([]),
   ]);
 
   const favouriteTitles = new Set(
@@ -130,10 +144,11 @@ export async function GET(request: Request) {
 
   return NextResponse.json({
     todayYmd,
-    isOwner: user?.clientRole === "OWNER",
+    isOwner,
     dueTodayIncomplete: tasks.filter((t) => t.dueToday && !t.completedToday)
       .length,
     favourites: favouriteRows.map(toChecklistFavouriteDto),
+    assignees,
     tasks,
   });
 }
@@ -192,6 +207,16 @@ export async function POST(request: Request) {
   const note = parsed.data.note?.trim() || null;
   const comment = parsed.data.comment?.trim() || null;
   const commentImagePath = parsed.data.commentImagePath?.trim() || null;
+  const assigneeResolved = await resolveChecklistAssigneeUserId(
+    parsed.data.storeId,
+    parsed.data.assigneeUserId,
+  );
+  if (assigneeResolved && typeof assigneeResolved === "object") {
+    return NextResponse.json(
+      { error: apiT(request, "errors.invalidData") },
+      { status: 400 },
+    );
+  }
 
   const row = await db.checklistTask.create({
     data: {
@@ -204,7 +229,13 @@ export async function POST(request: Request) {
       dueDate: fields.dueDate,
       weekday: fields.weekday,
       monthDay: fields.monthDay,
+      assigneeUserId: assigneeResolved,
       createdByUserId: session.userId,
+    },
+    include: {
+      assigneeUser: {
+        select: { id: true, username: true, displayName: true },
+      },
     },
   });
 

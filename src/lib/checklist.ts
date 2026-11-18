@@ -269,6 +269,12 @@ export type ChecklistFavouriteDto = {
   updatedAt: string;
 };
 
+export type ChecklistAssigneeDto = {
+  id: string;
+  username: string;
+  displayName: string | null;
+};
+
 export type ChecklistTaskDto = {
   id: string;
   storeId: string;
@@ -281,6 +287,11 @@ export type ChecklistTaskDto = {
   weekday: number | null;
   monthDay: number | null;
   active: boolean;
+  /**
+   * Null = Everyone. Set = personalized task for that user.
+   */
+  assigneeUserId: string | null;
+  assignee: ChecklistAssigneeDto | null;
   /** True when a favourite catalog entry exists for this store + title. */
   inFavourites: boolean;
   createdAt: string;
@@ -294,6 +305,26 @@ export type ChecklistTaskDto = {
     displayName: string | null;
   } | null;
 };
+
+/** Staff only see Everyone + own; owners see all (manage personal tasks). */
+export function checklistVisibilityWhere(
+  userId: string,
+  isOwner: boolean,
+): { OR: Array<{ assigneeUserId: null } | { assigneeUserId: string }> } | Record<string, never> {
+  if (isOwner) return {};
+  return {
+    OR: [{ assigneeUserId: null }, { assigneeUserId: userId }],
+  };
+}
+
+export function canViewChecklistTask(
+  task: { assigneeUserId?: string | null },
+  userId: string,
+  isOwner: boolean,
+): boolean {
+  if (isOwner) return true;
+  return task.assigneeUserId == null || task.assigneeUserId === userId;
+}
 
 export function normalizeChecklistFields(data: {
   recurrence: ChecklistRecurrence;
@@ -385,6 +416,12 @@ export function toChecklistTaskDto(input: {
   weekday: number | null;
   monthDay: number | null;
   active: boolean;
+  assigneeUserId?: string | null;
+  assigneeUser?: {
+    id: string;
+    username: string;
+    displayName: string | null;
+  } | null;
   inFavourites?: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -415,6 +452,15 @@ export function toChecklistTaskDto(input: {
   );
   // For weekly/monthly, "completedToday" means completed in the current period.
   const completedToday = Boolean(input.todayCompletion);
+  const assigneeUserId = input.assigneeUserId ?? null;
+  const assignee =
+    assigneeUserId && input.assigneeUser
+      ? {
+          id: input.assigneeUser.id,
+          username: input.assigneeUser.username,
+          displayName: input.assigneeUser.displayName,
+        }
+      : null;
   return {
     id: input.id,
     storeId: input.storeId,
@@ -427,6 +473,8 @@ export function toChecklistTaskDto(input: {
     weekday: input.weekday,
     monthDay: input.monthDay,
     active: input.active,
+    assigneeUserId,
+    assignee,
     inFavourites: Boolean(input.inFavourites),
     createdAt: input.createdAt.toISOString(),
     updatedAt: input.updatedAt.toISOString(),

@@ -1481,6 +1481,36 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
     titleBg: "Чеклистите вече се казват Задачи на Начало и в приложението.",
     href: "/app/checklists",
   },
+  {
+    key: "2026-11-document-upload-pdf-excel",
+    titleEn:
+      "Scan document Upload asks Picture or File — PDF, Excel, and CSV work too.",
+    titleBg:
+      "Качване при сканиране пита Снимка или Файл — работят и PDF, Excel и CSV.",
+    href: "/app/add-document",
+  },
+  {
+    key: "2026-11-tasks-assignee",
+    titleEn:
+      "Tasks: owners can assign to Everyone or one person — personal tasks stay private to that user.",
+    titleBg:
+      "Задачи: собствениците задават Всички или един човек — личните задачи вижда само той.",
+    href: "/app/checklists",
+  },
+  {
+    key: "2026-11-tasks-period-assignee-row",
+    titleEn: "Task edit: period and assignee sit side by side.",
+    titleBg: "При задача: период и изпълнител са един до друг.",
+    href: "/app/checklists",
+  },
+  {
+    key: "2026-11-landing-tasks-customize-analytics",
+    titleEn:
+      "Landing page: Tasks, home customization, and Analytics in What you can do.",
+    titleBg:
+      "Начална страница: Задачи, кастомизация на екрана и Анализи в Какво можете.",
+    href: "/",
+  },
 ];
 
 
