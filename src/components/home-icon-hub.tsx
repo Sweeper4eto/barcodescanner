@@ -1059,6 +1059,13 @@ export function HomeIconHub({
                           }}
                         >
                           {tileContent(def)}
+                          {attention ? (
+                            <span className="home-hub-due-badge" aria-hidden>
+                              {checklistDueCount > 99
+                                ? "99+"
+                                : checklistDueCount}
+                            </span>
+                          ) : null}
                         </button>
                       </>
                     );

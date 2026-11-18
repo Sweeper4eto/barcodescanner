@@ -1459,6 +1459,28 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Чеклисти: собствениците могат да отбелязват задачите като изпълнени от екрана на задачата, както персоналът.",
     href: "/app/checklists",
   },
+  {
+    key: "2026-11-checklist-hub-count-badge",
+    titleEn:
+      "Home: Tasks icon shows a count badge when tasks are due today.",
+    titleBg:
+      "Начало: иконата Задачи показва броя задачи за днес.",
+    href: "/app",
+  },
+  {
+    key: "2026-11-checklists-live-page1",
+    titleEn:
+      "Tasks are live — the icon sits on the first home screen by default.",
+    titleBg:
+      "Задачите са активни — иконата е на първия екран на началото по подразбиране.",
+    href: "/app/checklists",
+  },
+  {
+    key: "2026-11-store-tasks-rename",
+    titleEn: "Checklists are now called Tasks on Home and in the app.",
+    titleBg: "Чеклистите вече се казват Задачи на Начало и в приложението.",
+    href: "/app/checklists",
+  },
 ];
 
 

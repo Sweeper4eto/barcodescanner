@@ -29,7 +29,7 @@ test("default page-1 layout matches product order with gaps", () => {
     "expiry",
     "team",
     "notifications",
-    null,
+    "checklists",
     null,
     null,
     "contact",
@@ -42,7 +42,7 @@ test("default page-1 layout matches product order with gaps", () => {
       HOME_LAUNCHER_SLOTS_PER_PAGE + 1,
       HOME_LAUNCHER_SLOTS_PER_PAGE + 4,
     ),
-    ["journal", "checklists", "temperature"],
+    ["journal", null, "temperature"],
   );
 });
 
@@ -57,6 +57,7 @@ test("default puts schedule at page-1 position 8; Soon stay on page 2", () => {
   assert.equal(layout.slots[0], "expiry");
   assert.equal(layout.slots[1], null);
   assert.equal(layout.slots[2], "notifications");
+  assert.equal(layout.slots[3], "checklists");
   assert.equal(layout.slots[6], "contact");
   assert.equal(layout.slots[7], "schedule");
   assert.equal(layout.slots[8], null);
@@ -66,7 +67,7 @@ test("default puts schedule at page-1 position 8; Soon stay on page 2", () => {
       HOME_LAUNCHER_SLOTS_PER_PAGE + 1,
       HOME_LAUNCHER_SLOTS_PER_PAGE + 4,
     ),
-    ["journal", "checklists", "temperature"],
+    ["journal", null, "temperature"],
   );
   assert.ok(
     !availableHomeModules({
@@ -142,7 +143,7 @@ test("reconcile with no saved layout uses defaults", () => {
     "expiry",
     "team",
     "notifications",
-    null,
+    "checklists",
     null,
     null,
     "contact",
@@ -172,13 +173,14 @@ test("reconcile keeps sparse active positions and places new in preferred slot",
   assert.equal(next.slots[6], "contact");
   assert.equal(next.slots[2], "notifications");
   assert.equal(next.slots[1], "team");
+  assert.equal(next.slots[3], "checklists");
   assert.equal(next.slots[HOME_LAUNCHER_SLOTS_PER_PAGE], "analytics");
   assert.deepEqual(
     next.slots.slice(
       HOME_LAUNCHER_SLOTS_PER_PAGE + 1,
       HOME_LAUNCHER_SLOTS_PER_PAGE + 4,
     ),
-    ["journal", "checklists", "temperature"],
+    ["journal", null, "temperature"],
   );
 });
 
@@ -202,7 +204,7 @@ test("newly enabled billing takes preferred slot 9 without packing gaps", () => 
 
   assert.equal(next.slots[8], "billing");
   assert.equal(next.slots[1], "team");
-  assert.equal(next.slots[3], null);
+  assert.equal(next.slots[3], "checklists");
   assert.equal(next.slots[4], null);
   assert.equal(next.slots[5], null);
   assert.equal(next.slots[7], null);

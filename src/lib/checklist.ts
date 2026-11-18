@@ -3,6 +3,7 @@
  */
 
 /** Kill-switch: hide hub/menu + block page/API until the feature is ready. */
+/** Ship-on: retail checklists are active in app + home hub. */
 export const CHECKLISTS_FEATURE_ENABLED = true;
 
 export const CHECKLIST_TIME_ZONE = "Europe/Sofia";

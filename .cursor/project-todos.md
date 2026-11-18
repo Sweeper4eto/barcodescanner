@@ -25,7 +25,7 @@ Keep entries short. Prefer `open` / `doing` / `done` / `dropped`.
 - [x] **Document scan name priority** — OCR name from photo wins; barcode/DB name only if OCR empty
 - [x] **Document scan lot/batch** — extract Партида/Лот/Серия/Емисия → `InventoryEntry.lot`
 - [x] **Checklists MVP** — per location; daily/weekly/monthly/once; list = working items; favourites = catalog to pull from; mark done + 6‑mo retention; home glow
-- [ ] **Checklists polish + re-enable** — doing locally (`CHECKLISTS_FEATURE_ENABLED=true`); UI refreshed; activity log + uncheck confirm; owner can mark done like staff; polish then keep on for ship
+- [x] **Checklists polish + re-enable** — `CHECKLISTS_FEATURE_ENABLED=true`; hub badge + page-1 default slot; activity/uncheck/owner mark-done
 - [ ] **33.** Daily shortlist “what to check today” (auto from expiry — after checklists)
 - [ ] **34.** Staff accountability — who checked what / when (feeds analytics #8)
 - [ ] **35.** Compliance / HACCP reports & digital journals

@@ -45,7 +45,8 @@ export type HomeLauncherLayout = {
   slots: Array<HomeModuleId | null>;
 };
 
-const STORAGE_PREFIX = "expire365.homeLauncher.v1:";
+/** Bump when default hub positions change so clients pick up the new layout. */
+const STORAGE_PREFIX = "expire365.homeLauncher.v2:";
 
 export function isHomeModuleId(value: unknown): value is HomeModuleId {
   return (
@@ -60,7 +61,7 @@ export function emptyLauncherSlots(): Array<HomeModuleId | null> {
 
 /**
  * Default page-1 positions (1-based in product copy):
- * 1 Годност, 2 Екип, 3 Известия, 4–6 empty, 7 Поддръжка, 8 График, 9 Плащания.
+ * 1 Годност, 2 Екип, 3 Известия, 4 Задачи, 5–6 empty, 7 Поддръжка, 8 График, 9 Плащания.
  */
 export const DEFAULT_HOME_SLOT_BY_MODULE: Partial<
   Record<HomeModuleId, number>
@@ -68,18 +69,18 @@ export const DEFAULT_HOME_SLOT_BY_MODULE: Partial<
   expiry: 0,
   team: 1,
   notifications: 2,
+  /** Page 1 slot 4 — retail store tasks. */
+  checklists: 3,
   contact: 6,
   schedule: 7,
   billing: 8,
   /** Page 2 slot 1 — owner analytics. */
   analytics: HOME_LAUNCHER_SLOTS_PER_PAGE,
-  /** Page 2 slot 3 — checklists (retail). */
-  checklists: HOME_LAUNCHER_SLOTS_PER_PAGE + 2,
 };
 
 /**
  * Default page-2 positions for “Soon” tiles (1-based on that page):
- * 2 Дневник, 4 °C дневник (Анализ / Checklists are active when available).
+ * 2 Дневник, 4 °C дневник (Анализ is active when available).
  */
 export const DEFAULT_LOCKED_SLOT_BY_MODULE: Partial<
   Record<HomeModuleId, number>
