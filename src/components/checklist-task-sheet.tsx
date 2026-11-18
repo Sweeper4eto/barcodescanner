@@ -464,7 +464,8 @@ export function ChecklistTaskSheet({
         </div>
 
         <div className="shrink-0 space-y-2 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-          {canMarkDone && !showOwnerSave ? (
+          {/* Owners edit tasks in this sheet — still need mark-done like staff. */}
+          {canMarkDone ? (
             <button
               type="button"
               disabled={saving}

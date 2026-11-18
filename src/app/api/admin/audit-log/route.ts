@@ -17,6 +17,7 @@ const FILTERS: AuditFilter[] = [
   "inventory_added",
   "inventory_removed",
   "inventory_write_off",
+  "checklists",
   "products",
   "admin",
 ];

@@ -1451,6 +1451,14 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Чеклисти: изпълнение и отмяна се виждат в Дейност; отмяна на отметната задача иска потвърждение.",
     href: "/app/checklists",
   },
+  {
+    key: "2026-11-checklist-owner-mark-done",
+    titleEn:
+      "Checklists: owners can mark tasks done from the task screen, same as staff.",
+    titleBg:
+      "Чеклисти: собствениците могат да отбелязват задачите като изпълнени от екрана на задачата, както персоналът.",
+    href: "/app/checklists",
+  },
 ];
 
 

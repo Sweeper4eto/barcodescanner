@@ -73,11 +73,14 @@ function shiftYmd(ymd: string, days: number): string {
   return toYmdLocal(date);
 }
 
-function formatDayMonth(ymd: string, locale: string): string {
-  return parseYmdLocal(ymd).toLocaleDateString(locale, {
-    day: "numeric",
-    month: "long",
-  });
+/** Compact week-range dates: 28.12.2026 */
+function formatYmdDot(ymd: string): string {
+  const [y, m, d] = ymd.split("-");
+  return `${d}.${m}.${y}`;
+}
+
+function formatWeekRange(startYmd: string, endYmd: string): string {
+  return `${formatYmdDot(startYmd)} – ${formatYmdDot(endYmd)}`;
 }
 
 function formatWeekdayShort(date: Date, locale: string): string {
@@ -89,6 +92,7 @@ function formatLongDate(ymd: string, locale: string): string {
     weekday: "long",
     day: "numeric",
     month: "long",
+    year: "numeric",
   });
 }
 
@@ -229,6 +233,26 @@ export default function ChecklistsPage() {
       return;
     }
     setSelectedYmd(next);
+  }
+
+  /** Keep filter chips on-screen when the list height collapses after a filter change. */
+  function setRecurrenceFilterStable(
+    next: "all" | "daily" | "weekly" | "monthly",
+    anchor: HTMLElement | null,
+  ) {
+    if (next === recurrenceFilter) return;
+    const beforeTop = anchor?.getBoundingClientRect().top;
+    setRecurrenceFilter(next);
+    if (beforeTop == null) return;
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (!anchor.isConnected) return;
+        const delta = anchor.getBoundingClientRect().top - beforeTop;
+        if (Math.abs(delta) >= 1) {
+          window.scrollBy(0, delta);
+        }
+      });
+    });
   }
 
   const dayTasks = useMemo(() => {
@@ -427,7 +451,7 @@ export default function ChecklistsPage() {
     setTasks((prev) =>
       prev.map((row) => (row.id === data.task!.id ? data.task! : row)),
     );
-    setSheet({ mode: isOwner ? "edit" : "view", task: data.task });
+    setSheet(null);
   }
 
   async function confirmRemove() {
@@ -557,7 +581,7 @@ export default function ChecklistsPage() {
               {
                 range:
                   weekStart && weekEnd
-                    ? `${formatDayMonth(weekStart, dateLocale)} – ${formatDayMonth(weekEnd, dateLocale)}`
+                    ? formatWeekRange(weekStart, weekEnd)
                     : "",
               },
             )}
@@ -621,10 +645,10 @@ export default function ChecklistsPage() {
       >
         {(
           [
-            { id: "all", label: t("checklists.filterAll") },
             { id: "daily", label: t("checklists.filterDaily") },
             { id: "weekly", label: t("checklists.filterWeekly") },
             { id: "monthly", label: t("checklists.filterMonthly") },
+            { id: "all", label: t("checklists.filterAll") },
           ] as const
         ).map((opt) => {
           const active = recurrenceFilter === opt.id;
@@ -634,7 +658,9 @@ export default function ChecklistsPage() {
               type="button"
               role="tab"
               aria-selected={active}
-              onClick={() => setRecurrenceFilter(opt.id)}
+              onClick={(event) =>
+                setRecurrenceFilterStable(opt.id, event.currentTarget)
+              }
               className={`rounded-lg px-1 py-2 text-center text-[11px] font-semibold leading-tight ${
                 active
                   ? "border border-primary text-primary"

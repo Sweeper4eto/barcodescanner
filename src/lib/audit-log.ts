@@ -55,6 +55,7 @@ export type AuditFilter =
   | "inventory_added"
   | "inventory_removed"
   | "inventory_write_off"
+  | "checklists"
   | "products"
   | "admin";
 
@@ -256,6 +257,8 @@ function eventsForFilter(filter: AuditFilter): AuditEvent[] | null {
     case "inventory_removed":
     case "inventory_write_off":
       return ["inventory_removed"];
+    case "checklists":
+      return CHECKLIST_EVENTS;
     case "products":
       return PRODUCT_EVENTS;
     case "admin":

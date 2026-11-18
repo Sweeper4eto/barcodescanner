@@ -1679,6 +1679,7 @@ export const en = {
       inventory_added: "Added stock",
       inventory_removed: "Removed stock",
       inventory_write_off: "Write-offs",
+      checklists: "Checklists",
       products: "Products",
       admin: "Admin changes",
     },

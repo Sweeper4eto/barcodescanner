@@ -76,11 +76,9 @@ const DAY_FULL_LABELS = [
 
 
 
-function formatDayMonth(date: Date, locale: string): string {
-  return date.toLocaleDateString(locale, {
-    day: "numeric",
-    month: "long",
-  });
+function formatYmdDot(ymd: string): string {
+  const [y, m, d] = ymd.split("-");
+  return `${d}.${m}.${y}`;
 }
 
 function formatWeekdayShort(date: Date, locale: string): string {
@@ -358,10 +356,9 @@ function SchedulePageInner() {
   const weekContainsToday = weekStart === currentWeekStart;
 
   const weekRangeLabel = useMemo(() => {
-    const start = parseYmd(weekStart);
-    const end = parseYmd(addDaysYmd(weekStart, 6));
-    return `${formatDayMonth(start, dateLocale)} – ${formatDayMonth(end, dateLocale)}`;
-  }, [weekStart, dateLocale]);
+    const endYmd = addDaysYmd(weekStart, 6);
+    return `${formatYmdDot(weekStart)} – ${formatYmdDot(endYmd)}`;
+  }, [weekStart]);
 
   const weekDays = useMemo(
     () =>

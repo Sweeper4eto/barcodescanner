@@ -39,6 +39,7 @@ type AuditFilter =
   | "inventory_added"
   | "inventory_removed"
   | "inventory_write_off"
+  | "checklists"
   | "products"
   | "admin";
 type AccountKind = "business" | "household";
@@ -365,6 +366,10 @@ export function AuditLogPanel() {
               {
                 value: "inventory_write_off",
                 label: t("admin.auditFilters.inventory_write_off"),
+              },
+              {
+                value: "checklists",
+                label: t("admin.auditFilters.checklists"),
               },
               { value: "products", label: t("admin.auditFilters.products") },
               { value: "admin", label: t("admin.auditFilters.admin") },
