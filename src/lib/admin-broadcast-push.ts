@@ -26,7 +26,9 @@ export type BroadcastPushResult = {
 };
 
 function audienceFilter(audience: BroadcastAudience) {
-  if (audience === "owners") return { clientRole: "OWNER" as const };
+  if (audience === "owners") {
+    return { clientRole: { in: ["OWNER", "STORE_MANAGER"] as const } };
+  }
   if (audience === "members") return { clientRole: "MEMBER" as const };
   return {};
 }

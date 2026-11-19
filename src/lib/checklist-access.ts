@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { CHECKLISTS_FEATURE_ENABLED } from "@/lib/checklist";
+import { isStoreManagerLike } from "@/lib/client-roles";
 import { db } from "@/lib/db";
 import { apiT } from "@/i18n";
 
@@ -67,6 +68,7 @@ export function checklistsDisabledResponse(request: Request) {
   );
 }
 
+/** Account owner or store manager may manage Tasks for accessible stores. */
 export async function requireRetailOwner(userId: string) {
   const user = await db.user.findUnique({
     where: { id: userId },
@@ -78,7 +80,7 @@ export async function requireRetailOwner(userId: string) {
   });
   if (
     !user?.active ||
-    user.clientRole !== "OWNER" ||
+    !isStoreManagerLike(user.clientRole) ||
     !user.client?.active ||
     user.client.homeUser
   ) {

@@ -1,0 +1,2 @@
+-- SQLite stores ClientRole as TEXT; allow STORE_MANAGER in app code.
+-- No schema rewrite required.

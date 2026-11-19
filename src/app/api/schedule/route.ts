@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireSession } from "@/lib/auth";
-import { requireClientOwner } from "@/lib/client-owner";
+import { requireStoreManagerOrOwner } from "@/lib/client-owner";
+import { isStoreManagerLike } from "@/lib/client-roles";
 import { db } from "@/lib/db";
 import { userCanAccessStore } from "@/lib/store-access";
 import { apiT } from "@/i18n";
@@ -315,7 +316,7 @@ export async function GET(request: Request) {
     where: { id: session.userId },
     select: { clientRole: true },
   });
-  const isOwner = me?.clientRole === "OWNER";
+  const isOwner = isStoreManagerLike(me?.clientRole);
   const accessDenied = scheduleAccessDenied(
     request,
     await resolveScheduleGate(storeId),
@@ -330,11 +331,11 @@ export async function GET(request: Request) {
   return NextResponse.json(serializeWeek(full, staff, isOwner, session.userId));
 }
 
-/** Owner: per-day mode, auto-run, manual shifts, finalize / reopen. */
+/** Owner / store manager: per-day mode, auto-run, manual shifts, finalize / reopen. */
 export async function PATCH(request: Request) {
   let session;
   try {
-    session = await requireClientOwner();
+    session = await requireStoreManagerOrOwner();
   } catch {
     return NextResponse.json(
       { error: apiT(request, "errors.forbidden") },
@@ -358,10 +359,8 @@ export async function PATCH(request: Request) {
     );
   }
 
-  const store = await db.store.findFirst({
-    where: { id: storeId, clientId: session.clientId, active: true },
-  });
-  if (!store) {
+  const store = await userCanAccessStore(session.userId, storeId);
+  if (!store || store.clientId !== session.clientId) {
     return NextResponse.json(
       { error: apiT(request, "errors.forbidden") },
       { status: 403 },

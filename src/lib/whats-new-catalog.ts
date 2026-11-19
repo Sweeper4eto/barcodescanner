@@ -1511,6 +1511,38 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Начална страница: Задачи, кастомизация на екрана и Анализи в Какво можете.",
     href: "/",
   },
+  {
+    key: "2026-11-store-manager-role",
+    titleEn:
+      "Team: Store manager role. Owner-like in assigned locations only, without billing.",
+    titleBg:
+      "Екип: роля Управител. Като собственик само в зададените обекти, без плащания.",
+    href: "/app/team",
+  },
+  {
+    key: "2026-11-ocr-prefer-later-date",
+    titleEn:
+      "Document scan: when an item shows two dates, the later one is kept as expiry.",
+    titleBg:
+      "Скан на документ: при две дати за артикул се запазва по-късната като годност.",
+    href: "/app/add-document",
+  },
+  {
+    key: "2026-11-ocr-lot-encoded-expiry",
+    titleEn:
+      "Document scan: if Godnost is empty but the lot looks like a date (L11122026, L2027), that date is used.",
+    titleBg:
+      "Скан на документ: ако няма годност, но лотът прилича на дата (L11122026, L2027), ползва се тя.",
+    href: "/app/add-document",
+  },
+  {
+    key: "2026-11-ocr-lot-slash-date",
+    titleEn:
+      "Document scan: dates glued to a lot after / or \\ (e.g. L123/15.06.2027) are read when Godnost is empty.",
+    titleBg:
+      "Скан на документ: дата залепена към лот след / или \\ (напр. L123/15.06.2027) се чете, ако няма годност.",
+    href: "/app/add-document",
+  },
 ];
 
 

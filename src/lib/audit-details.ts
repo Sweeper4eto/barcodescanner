@@ -163,7 +163,7 @@ export function auditUserUpdated(before: UserAssignmentLike, after: UserAssignme
     auditFieldChange("username", before.username, after.username),
     auditFieldChange("client", before.clientName, after.clientName),
     beforeStores !== afterStores ? `locations ${beforeStores} → ${afterStores}` : null,
-    auditFieldChange("owner", before.clientRole === "OWNER", after.clientRole === "OWNER"),
+    auditFieldChange("role", before.clientRole ?? "none", after.clientRole ?? "none"),
     auditFieldChange("status", before.active, after.active),
   ]);
 }

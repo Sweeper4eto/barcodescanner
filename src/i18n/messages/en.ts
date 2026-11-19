@@ -1211,6 +1211,9 @@ export const en = {
     active: "Active",
     inactive: "Inactive",
     owner: "Owner",
+    storeManager: "Store manager",
+    storeManagerHint:
+      "Manages only assigned locations. No billing. Like an owner inside those stores.",
     member: "Staff",
     columnUser: "User",
     columnRole: "Role",

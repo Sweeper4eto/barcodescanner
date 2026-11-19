@@ -58,7 +58,9 @@ export async function GET(request: Request) {
   const { client, storeLinks, ...rest } = user;
   const scheduleEnabled = client?.scheduleEnabled ?? true;
   const canRemoveExpiry =
-    rest.clientRole === "OWNER" || rest.canRemoveExpiry;
+    rest.clientRole === "OWNER" ||
+    rest.clientRole === "STORE_MANAGER" ||
+    rest.canRemoveExpiry;
 
   return NextResponse.json({
     user: {

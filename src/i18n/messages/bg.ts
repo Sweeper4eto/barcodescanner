@@ -1219,6 +1219,9 @@ export const bg = {
     active: "Активен",
     inactive: "Неактивен",
     owner: "Собственик",
+    storeManager: "Управител",
+    storeManagerHint:
+      "Управлява само зададените обекти. Без плащания. Като собственик вътре в тези обекти.",
     member: "Служител",
     columnUser: "Потребител",
     columnRole: "Роля",

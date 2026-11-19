@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireClientOwner } from "@/lib/client-owner";
+import { requireStoreManagerOrOwner } from "@/lib/client-owner";
 import { db } from "@/lib/db";
 import { apiT } from "@/i18n";
 import { hoursThisMonthByUserIds } from "@/lib/schedule-month-hours";
@@ -8,7 +8,7 @@ import { hoursThisMonthByUserIds } from "@/lib/schedule-month-hours";
 export async function GET(request: Request) {
   let owner;
   try {
-    owner = await requireClientOwner();
+    owner = await requireStoreManagerOrOwner();
   } catch (error) {
     const message = error instanceof Error ? error.message : "";
     if (message === "UNAUTHORIZED" || message === "PAYMENT_REQUIRED") {

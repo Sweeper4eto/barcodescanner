@@ -52,7 +52,8 @@ export default function OwnerAnalyticsPage() {
   const { t } = useT();
   const { user, ready: sessionReady } = useAppSession();
   const { storeId, ready: storeReady } = useAppStoreId();
-  const isOwner = user?.clientRole === "OWNER";
+  const isOwner =
+    user?.clientRole === "OWNER" || user?.clientRole === "STORE_MANAGER";
   const [report, setReport] = useState<OwnerAnalyticsReport | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);

@@ -28,6 +28,7 @@ Keep entries short. Prefer `open` / `doing` / `done` / `dropped`.
 - [x] **Checklists MVP** — per location; daily/weekly/monthly/once; list = working items; favourites = catalog to pull from; mark done + 6‑mo retention; home glow
 - [x] **Checklists polish + re-enable** — `CHECKLISTS_FEATURE_ENABLED=true`; hub badge + page-1 default slot; activity/uncheck/owner mark-done
 - [x] **Tasks assignee** — Everyone or one store user; staff see only shared + own
+- [x] **Store manager role** — owner-like in assigned stores only; no billing; HQ owner sees all
 - [x] **33.** Daily shortlist — dropped (expiry filters/list already cover it)
 - [ ] **34.** Staff accountability — who checked what / when (feeds analytics #8)
 - [ ] **35.** Compliance / HACCP reports & digital journals

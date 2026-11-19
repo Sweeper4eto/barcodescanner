@@ -46,6 +46,7 @@ export function HomeHubHome() {
   const [storeId, setStoreId] = useState("");
   const [username, setUsername] = useState("");
   const [isOwner, setIsOwner] = useState(false);
+  const [isAccountOwner, setIsAccountOwner] = useState(false);
   const [billingEnabled, setBillingEnabled] = useState(false);
   const [billingReady, setBillingReady] = useState(false);
   const [schedulePublic, setSchedulePublic] = useState(false);
@@ -90,13 +91,16 @@ export function HomeHubHome() {
 
       setSessionMissing(false);
       setUsername(data.user.username);
-      const owner = data.user.clientRole === "OWNER";
-      setIsOwner(owner);
+      const accountOwner = data.user.clientRole === "OWNER";
+      const managerLike =
+        accountOwner || data.user.clientRole === "STORE_MANAGER";
+      setIsOwner(managerLike);
+      setIsAccountOwner(accountOwner);
       setSchedulePublic(data.user.scheduleAccess === "public");
       setBillingEnabled(false);
       // Wait for billing before mounting the hub so reconcile does not
       // briefly drop Плащания and rewrite localStorage over the user’s layout.
-      setBillingReady(!owner);
+      setBillingReady(!accountOwner);
 
       const list: Store[] = data.user.stores ?? [];
       setStores(list);
@@ -115,7 +119,7 @@ export function HomeHubHome() {
 
       void refreshSession();
 
-      if (owner) {
+      if (accountOwner) {
         void (async () => {
           try {
             const billingRes = await fetch("/api/billing", {
@@ -127,7 +131,7 @@ export function HomeHubHome() {
               setBillingEnabled(Boolean(billing.enabled));
             }
           } catch {
-            /* ignore — home still works without billing tile */
+            /* ignore. home still works without billing tile */
           } finally {
             if (!cancelled) setBillingReady(true);
           }
@@ -155,11 +159,18 @@ export function HomeHubHome() {
     return {
       schedule: schedulePublic && stores.length > 0,
       team: isOwner && stores.length > 0,
-      billing: isOwner && billingEnabled,
+      billing: isAccountOwner && billingEnabled,
       analytics: isOwner && stores.length > 0,
       checklists: retail && CHECKLISTS_FEATURE_ENABLED,
     };
-  }, [schedulePublic, stores.length, isOwner, billingEnabled, homeUser]);
+  }, [
+    schedulePublic,
+    stores.length,
+    isOwner,
+    isAccountOwner,
+    billingEnabled,
+    homeUser,
+  ]);
 
   const showHub =
     bootstrapped &&
@@ -239,7 +250,7 @@ export function HomeHubHome() {
           ready={
             bootstrapped &&
             !sessionMissing &&
-            isOwner &&
+            isAccountOwner &&
             billingEnabled
           }
           allowAfterWhatsNew={whatsNewSettled}

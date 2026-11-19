@@ -1,13 +1,16 @@
 import { NextResponse } from "next/server";
-import { requireClientOwner } from "@/lib/client-owner";
+import {
+  listManagedStoreIds,
+  requireStoreManagerOrOwner,
+} from "@/lib/client-owner";
+import { isAccountOwner } from "@/lib/client-roles";
 import { buildOwnerAnalyticsReport } from "@/lib/owner-analytics-query";
-import { db } from "@/lib/db";
 import { apiT } from "@/i18n";
 
 export async function GET(request: Request) {
   let session;
   try {
-    session = await requireClientOwner();
+    session = await requireStoreManagerOrOwner();
   } catch {
     return NextResponse.json(
       { error: apiT(request, "errors.forbidden") },
@@ -16,19 +19,29 @@ export async function GET(request: Request) {
   }
 
   const url = new URL(request.url);
-  const storeId = url.searchParams.get("storeId")?.trim() || undefined;
+  let storeId = url.searchParams.get("storeId")?.trim() || undefined;
+  const managedStoreIds = await listManagedStoreIds(
+    session.userId,
+    session.clientId,
+    session.clientRole,
+  );
 
   if (storeId) {
-    const store = await db.store.findFirst({
-      where: { id: storeId, clientId: session.clientId },
-      select: { id: true },
-    });
-    if (!store) {
+    if (!managedStoreIds.includes(storeId)) {
       return NextResponse.json(
         { error: apiT(request, "errors.noStoreAccess") },
         { status: 403 },
       );
     }
+  } else if (!isAccountOwner(session.clientRole)) {
+    if (managedStoreIds.length === 0) {
+      return NextResponse.json(
+        { error: apiT(request, "errors.noStoreAccess") },
+        { status: 403 },
+      );
+    }
+    // Default to first managed store when no filter is provided.
+    storeId = managedStoreIds[0];
   }
 
   try {

@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { isOnlyClientOwner, requireClientOwner } from "@/lib/client-owner";
+import {
+  isOnlyClientOwner,
+  listManagedStoreIds,
+  requireStoreManagerOrOwner,
+} from "@/lib/client-owner";
+import { isAccountOwner, isStoreManagerLike } from "@/lib/client-roles";
 import { db } from "@/lib/db";
 import { hashPassword } from "@/lib/password";
 import {
@@ -11,9 +16,11 @@ import {
 import { normalizeUsername, validateUsername } from "@/lib/register-validation";
 import { apiT } from "@/i18n";
 
-async function ownerOrForbidden(request: Request) {
+const clientRoleSchema = z.enum(["OWNER", "STORE_MANAGER", "MEMBER"]);
+
+async function managerOrForbidden(request: Request) {
   try {
-    return await requireClientOwner();
+    return await requireStoreManagerOrOwner();
   } catch (error) {
     const message = error instanceof Error ? error.message : "";
     if (message === "UNAUTHORIZED" || message === "PAYMENT_REQUIRED") {
@@ -29,12 +36,23 @@ async function ownerOrForbidden(request: Request) {
   }
 }
 
+function normalizeDisplayName(value: string | null | undefined): string | null {
+  const trimmed = value?.trim() ?? "";
+  return trimmed.length > 0 ? trimmed.slice(0, 80) : null;
+}
+
 export async function GET(request: Request) {
-  const owner = await ownerOrForbidden(request);
-  if (owner instanceof NextResponse) return owner;
+  const actor = await managerOrForbidden(request);
+  if (actor instanceof NextResponse) return actor;
+
+  const managedStoreIds = await listManagedStoreIds(
+    actor.userId,
+    actor.clientId,
+    actor.clientRole,
+  );
 
   const users = await db.user.findMany({
-    where: { clientId: owner.clientId, role: "USER" },
+    where: { clientId: actor.clientId, role: "USER" },
     orderBy: { createdAt: "asc" },
     select: {
       id: true,
@@ -52,14 +70,25 @@ export async function GET(request: Request) {
     },
   });
 
+  const managedSet = new Set(managedStoreIds);
+  const visibleUsers = isAccountOwner(actor.clientRole)
+    ? users
+    : users.filter((user) => {
+        if (user.id === actor.userId) return true;
+        return user.storeLinks.some((link) => managedSet.has(link.store.id));
+      });
+
   const stores = await db.store.findMany({
-    where: { clientId: owner.clientId },
+    where: isAccountOwner(actor.clientRole)
+      ? { clientId: actor.clientId }
+      : { clientId: actor.clientId, id: { in: managedStoreIds } },
     orderBy: { name: "asc" },
     select: { id: true, name: true, active: true },
   });
 
   return NextResponse.json({
-    users: users.map((user) => ({
+    actorClientRole: actor.clientRole,
+    users: visibleUsers.map((user) => ({
       id: user.id,
       username: user.username,
       displayName: user.displayName,
@@ -73,23 +102,18 @@ export async function GET(request: Request) {
   });
 }
 
-function normalizeDisplayName(value: string | null | undefined): string | null {
-  const trimmed = value?.trim() ?? "";
-  return trimmed.length > 0 ? trimmed.slice(0, 80) : null;
-}
-
 const createSchema = z.object({
   username: z.string().min(1),
   displayName: z.string().max(80).optional().nullable(),
   password: z.string().min(1),
   storeIds: z.array(z.string().min(1)).default([]),
-  clientRole: z.enum(["OWNER", "MEMBER"]).optional(),
+  clientRole: clientRoleSchema.optional(),
   canRemoveExpiry: z.boolean().optional(),
 });
 
 export async function POST(request: Request) {
-  const owner = await ownerOrForbidden(request);
-  if (owner instanceof NextResponse) return owner;
+  const actor = await managerOrForbidden(request);
+  if (actor instanceof NextResponse) return actor;
 
   const json = await request.json().catch(() => null);
   const parsed = createSchema.safeParse(json);
@@ -129,18 +153,34 @@ export async function POST(request: Request) {
     );
   }
 
-  const clientStores = await db.store.findMany({
-    where: { clientId: owner.clientId, active: true },
-    select: { id: true },
-  });
-  const allowed = new Set(clientStores.map((store) => store.id));
-  const storeIds = parsed.data.storeIds.filter((id) => allowed.has(id));
-  if (storeIds.length === 0 && clientStores[0]) {
-    storeIds.push(clientStores[0].id);
+  const requestedRole = parsed.data.clientRole ?? "MEMBER";
+  if (!isAccountOwner(actor.clientRole)) {
+    if (requestedRole !== "MEMBER") {
+      return NextResponse.json(
+        { error: apiT(request, "errors.forbidden") },
+        { status: 403 },
+      );
+    }
   }
 
-  const clientRole =
-    parsed.data.clientRole === "OWNER" ? "OWNER" : "MEMBER";
+  const managedStoreIds = await listManagedStoreIds(
+    actor.userId,
+    actor.clientId,
+    actor.clientRole,
+  );
+  const allowed = new Set(managedStoreIds);
+  const storeIds = parsed.data.storeIds.filter((id) => allowed.has(id));
+  if (storeIds.length === 0 && managedStoreIds[0]) {
+    storeIds.push(managedStoreIds[0]);
+  }
+  if (storeIds.length === 0) {
+    return NextResponse.json(
+      { error: apiT(request, "errors.invalidData") },
+      { status: 400 },
+    );
+  }
+
+  const clientRole = requestedRole;
   const user = await db.user.create({
     data: {
       username,
@@ -149,11 +189,10 @@ export async function POST(request: Request) {
       mustChangePassword: true,
       role: "USER",
       clientRole,
-      canRemoveExpiry:
-        clientRole === "OWNER"
-          ? true
-          : (parsed.data.canRemoveExpiry ?? true),
-      clientId: owner.clientId,
+      canRemoveExpiry: isStoreManagerLike(clientRole)
+        ? true
+        : (parsed.data.canRemoveExpiry ?? true),
+      clientId: actor.clientId,
       storeLinks: {
         create: storeIds.map((storeId) => ({ storeId })),
       },
@@ -192,13 +231,13 @@ const patchSchema = z.object({
   confirmPassword: z.string().optional(),
   active: z.boolean().optional(),
   storeIds: z.array(z.string().min(1)).optional(),
-  clientRole: z.enum(["OWNER", "MEMBER"]).optional(),
+  clientRole: clientRoleSchema.optional(),
   canRemoveExpiry: z.boolean().optional(),
 });
 
 export async function PATCH(request: Request) {
-  const owner = await ownerOrForbidden(request);
-  if (owner instanceof NextResponse) return owner;
+  const actor = await managerOrForbidden(request);
+  if (actor instanceof NextResponse) return actor;
 
   const json = await request.json().catch(() => null);
   const parsed = patchSchema.safeParse(json);
@@ -212,10 +251,15 @@ export async function PATCH(request: Request) {
   const target = await db.user.findFirst({
     where: {
       id: parsed.data.userId,
-      clientId: owner.clientId,
+      clientId: actor.clientId,
       role: "USER",
     },
-    select: { id: true, clientRole: true, username: true },
+    select: {
+      id: true,
+      clientRole: true,
+      username: true,
+      storeLinks: { select: { storeId: true } },
+    },
   });
   if (!target) {
     return NextResponse.json(
@@ -224,7 +268,41 @@ export async function PATCH(request: Request) {
     );
   }
 
-  if (target.id === owner.userId && parsed.data.active === false) {
+  const managedStoreIds = await listManagedStoreIds(
+    actor.userId,
+    actor.clientId,
+    actor.clientRole,
+  );
+  const managedSet = new Set(managedStoreIds);
+
+  if (!isAccountOwner(actor.clientRole)) {
+    const overlaps =
+      target.id === actor.userId ||
+      target.storeLinks.some((link) => managedSet.has(link.storeId));
+    if (!overlaps) {
+      return NextResponse.json(
+        { error: apiT(request, "errors.userNotFound") },
+        { status: 404 },
+      );
+    }
+    if (isStoreManagerLike(target.clientRole) && target.id !== actor.userId) {
+      return NextResponse.json(
+        { error: apiT(request, "errors.forbidden") },
+        { status: 403 },
+      );
+    }
+    if (
+      parsed.data.clientRole !== undefined &&
+      parsed.data.clientRole !== "MEMBER"
+    ) {
+      return NextResponse.json(
+        { error: apiT(request, "errors.forbidden") },
+        { status: 403 },
+      );
+    }
+  }
+
+  if (target.id === actor.userId && parsed.data.active === false) {
     return NextResponse.json(
       { error: apiT(request, "errors.cannotDeactivateSelf") },
       { status: 400 },
@@ -232,9 +310,10 @@ export async function PATCH(request: Request) {
   }
 
   if (
-    parsed.data.clientRole === "MEMBER" &&
+    parsed.data.clientRole !== undefined &&
+    parsed.data.clientRole !== "OWNER" &&
     target.clientRole === "OWNER" &&
-    (await isOnlyClientOwner(target.id, owner.clientId))
+    (await isOnlyClientOwner(target.id, actor.clientId))
   ) {
     return NextResponse.json(
       { error: apiT(request, "errors.cannotRemoveLastOwner") },
@@ -245,7 +324,7 @@ export async function PATCH(request: Request) {
   if (
     target.clientRole === "OWNER" &&
     parsed.data.active === false &&
-    (await isOnlyClientOwner(target.id, owner.clientId))
+    (await isOnlyClientOwner(target.id, actor.clientId))
   ) {
     return NextResponse.json(
       { error: apiT(request, "errors.cannotDeactivateLastOwner") },
@@ -301,19 +380,27 @@ export async function PATCH(request: Request) {
   }
 
   if (parsed.data.storeIds) {
-    const clientStores = await db.store.findMany({
-      where: { clientId: owner.clientId },
-      select: { id: true },
-    });
-    const allowed = new Set(clientStores.map((store) => store.id));
-    const storeIds = parsed.data.storeIds.filter((id) => allowed.has(id));
-
-    await db.$transaction([
-      db.userStore.deleteMany({ where: { userId: target.id } }),
-      db.userStore.createMany({
-        data: storeIds.map((storeId) => ({ userId: target.id, storeId })),
-      }),
-    ]);
+    const storeIds = parsed.data.storeIds.filter((id) => managedSet.has(id));
+    if (!isAccountOwner(actor.clientRole)) {
+      // Keep links outside manager scope; replace only managed stores.
+      const keepOutside = target.storeLinks
+        .map((l) => l.storeId)
+        .filter((id) => !managedSet.has(id));
+      const nextIds = [...new Set([...keepOutside, ...storeIds])];
+      await db.$transaction([
+        db.userStore.deleteMany({ where: { userId: target.id } }),
+        db.userStore.createMany({
+          data: nextIds.map((storeId) => ({ userId: target.id, storeId })),
+        }),
+      ]);
+    } else {
+      await db.$transaction([
+        db.userStore.deleteMany({ where: { userId: target.id } }),
+        db.userStore.createMany({
+          data: storeIds.map((storeId) => ({ userId: target.id, storeId })),
+        }),
+      ]);
+    }
   }
 
   const updateData: {
@@ -322,7 +409,7 @@ export async function PATCH(request: Request) {
     passwordHash?: string;
     mustChangePassword?: boolean;
     active?: boolean;
-    clientRole?: "OWNER" | "MEMBER";
+    clientRole?: "OWNER" | "STORE_MANAGER" | "MEMBER";
     canRemoveExpiry?: boolean;
   } = {};
   if (nextUsername !== undefined) updateData.username = nextUsername;
@@ -338,7 +425,7 @@ export async function PATCH(request: Request) {
   if (parsed.data.clientRole !== undefined) {
     updateData.clientRole = parsed.data.clientRole;
   }
-  if (nextRole === "OWNER") {
+  if (isStoreManagerLike(nextRole)) {
     updateData.canRemoveExpiry = true;
   } else if (parsed.data.canRemoveExpiry !== undefined) {
     updateData.canRemoveExpiry = parsed.data.canRemoveExpiry;
@@ -391,8 +478,8 @@ const deleteSchema = z.object({
 });
 
 export async function DELETE(request: Request) {
-  const owner = await ownerOrForbidden(request);
-  if (owner instanceof NextResponse) return owner;
+  const actor = await managerOrForbidden(request);
+  if (actor instanceof NextResponse) return actor;
 
   const json = await request.json().catch(() => null);
   const parsed = deleteSchema.safeParse(json);
@@ -406,10 +493,14 @@ export async function DELETE(request: Request) {
   const target = await db.user.findFirst({
     where: {
       id: parsed.data.userId,
-      clientId: owner.clientId,
+      clientId: actor.clientId,
       role: "USER",
     },
-    select: { id: true, clientRole: true },
+    select: {
+      id: true,
+      clientRole: true,
+      storeLinks: { select: { storeId: true } },
+    },
   });
   if (!target) {
     return NextResponse.json(
@@ -418,16 +509,34 @@ export async function DELETE(request: Request) {
     );
   }
 
-  if (target.id === owner.userId) {
+  if (target.id === actor.userId) {
     return NextResponse.json(
       { error: apiT(request, "errors.cannotDeleteSelf") },
       { status: 400 },
     );
   }
 
+  if (!isAccountOwner(actor.clientRole)) {
+    const managedStoreIds = await listManagedStoreIds(
+      actor.userId,
+      actor.clientId,
+      actor.clientRole,
+    );
+    const managedSet = new Set(managedStoreIds);
+    const overlaps = target.storeLinks.some((link) =>
+      managedSet.has(link.storeId),
+    );
+    if (!overlaps || isStoreManagerLike(target.clientRole)) {
+      return NextResponse.json(
+        { error: apiT(request, "errors.forbidden") },
+        { status: 403 },
+      );
+    }
+  }
+
   if (
     target.clientRole === "OWNER" &&
-    (await isOnlyClientOwner(target.id, owner.clientId))
+    (await isOnlyClientOwner(target.id, actor.clientId))
   ) {
     return NextResponse.json(
       { error: apiT(request, "errors.cannotDeleteLastOwner") },

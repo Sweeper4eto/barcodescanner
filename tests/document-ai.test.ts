@@ -187,14 +187,51 @@ describe("parseDocumentExpiry", () => {
     assert.equal(parseDocumentExpiry("23.06.2027 L11122026"), "2027-06-23");
   });
 
-  it("never treats L-prefixed lot codes as expiry dates", () => {
-    // L11122026 encodes 11.12.2026 as a batch code — not Godnost.
+  it("does not treat bare L-codes as normal printed expiry text", () => {
     assert.equal(parseDocumentExpiry("L11122026"), null);
     assert.equal(parseDocumentExpiry("L11.12.2026"), null);
     assert.equal(parsePrintedExpiry("L11122026"), null);
     assert.equal(parsePrintedExpiry("л11122026"), null);
-    assert.equal(resolveDocumentExpiry(null, "L11122026"), null);
-    assert.equal(resolveDocumentExpiry("2026-12-11", "L11122026"), "2026-12-11");
+  });
+
+  it("derives expiry from lot code only when Godnost is missing", async () => {
+    const { parseExpiryEncodedInLotCode, parseExpiryAfterLotSlash } =
+      await import("../src/lib/expiry-parse");
+    // Exceptions: compact lot encoding (not first-line Godnost parsing).
+    assert.equal(parseExpiryEncodedInLotCode("L11122026"), "2026-12-11");
+    assert.equal(parseExpiryEncodedInLotCode("L11.12.2026"), "2026-12-11");
+    assert.equal(parseExpiryEncodedInLotCode("L2027"), "2027-12-31");
+    assert.equal(parseExpiryEncodedInLotCode("L202712"), "2027-12-31");
+    assert.equal(parseExpiryEncodedInLotCode("L268623"), null);
+    assert.equal(parseExpiryEncodedInLotCode("LOT99/15062027"), "2027-06-15");
+    assert.equal(
+      parseExpiryAfterLotSlash("L268623/15.06.2027"),
+      "2027-06-15",
+    );
+    // Visible calendar date after / is normal path, not exception-first.
+    assert.equal(
+      parsePrintedExpiry("L268623/15.06.2027"),
+      "2027-06-15",
+    );
+    assert.equal(
+      parsePrintedExpiry("268623\\01.12.2026"),
+      "2026-12-01",
+    );
+    // Real printed Godnost wins over lot exception.
+    assert.equal(
+      resolveDocumentExpiry(null, "23.06.2027", "L11122026"),
+      "2027-06-23",
+    );
+    assert.equal(resolveDocumentExpiry(null, "L11122026"), "2026-12-11");
+    assert.equal(resolveDocumentExpiry(null, null, "L2027"), "2027-12-31");
+    assert.equal(
+      resolveDocumentExpiry("2026-12-11", "L11122026"),
+      "2026-12-11",
+    );
+    assert.equal(
+      resolveDocumentExpiry(null, null, "ABC123/12.2027"),
+      "2027-12-31",
+    );
   });
 
   it("rejects impossible calendar dates", () => {
@@ -273,6 +310,32 @@ describe("resolveDocumentExpiry", () => {
   it("uses ISO from printed when expiryDate is missing", () => {
     assert.equal(resolveDocumentExpiry(null, "2027-02-11"), "2027-02-11");
     assert.equal(resolveDocumentExpiry("", "2027-07-30"), "2027-07-30");
+  });
+
+  it("when two dates are printed, keeps the later one (expiry over manufacture)", () => {
+    assert.equal(
+      parseDocumentExpiry("01.03.2025 15.06.2027"),
+      "2027-06-15",
+    );
+    assert.equal(
+      parseDocumentExpiry("произв. 01.03.2025 годен до 15.06.2027"),
+      "2027-06-15",
+    );
+    assert.equal(
+      resolveDocumentExpiry(null, "05.01.2026 05.01.2028"),
+      "2028-01-05",
+    );
+    assert.equal(
+      resolveDocumentExpiry(null, "15.06.2027 01.03.2025"),
+      "2027-06-15",
+    );
+  });
+
+  it("still ignores lot-looking dates after a real expiry", () => {
+    assert.equal(
+      parseDocumentExpiry("23.06.2027 L11.12.2026"),
+      "2027-06-23",
+    );
   });
 });
 

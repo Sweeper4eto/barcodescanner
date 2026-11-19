@@ -18,7 +18,7 @@ type UserRow = {
   role: "ADMIN" | "USER";
   active: boolean;
   clientId: string | null;
-  clientRole: "OWNER" | "MEMBER" | null;
+  clientRole: "OWNER" | "STORE_MANAGER" | "MEMBER" | null;
   createdAt: string;
   stores: { id: string; name: string }[];
 };
@@ -37,7 +37,9 @@ export function AccountPeopleSection({ clientId, stores, onChanged }: Props) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [username, setUsername] = useState("");
   const [storeIds, setStoreIds] = useState<string[]>([]);
-  const [clientRole, setClientRole] = useState<"OWNER" | "MEMBER">("MEMBER");
+  const [clientRole, setClientRole] = useState<
+    "OWNER" | "STORE_MANAGER" | "MEMBER"
+  >("MEMBER");
   const [active, setActive] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -95,7 +97,13 @@ export function AccountPeopleSection({ clientId, stores, onChanged }: Props) {
     setSelectedId(user.id);
     setUsername(user.username);
     setStoreIds(user.stores.map((store) => store.id));
-    setClientRole(user.clientRole === "OWNER" ? "OWNER" : "MEMBER");
+    setClientRole(
+      user.clientRole === "OWNER"
+        ? "OWNER"
+        : user.clientRole === "STORE_MANAGER"
+          ? "STORE_MANAGER"
+          : "MEMBER",
+    );
     setActive(user.active);
     setMessage("");
   }
@@ -205,7 +213,9 @@ export function AccountPeopleSection({ clientId, stores, onChanged }: Props) {
                   <span className="text-xs text-muted">
                     {user.clientRole === "OWNER"
                       ? t("admin.ownerBadge")
-                      : t("team.member")}
+                      : user.clientRole === "STORE_MANAGER"
+                        ? t("team.storeManager")
+                        : t("team.member")}
                     {" · "}
                     {user.stores.length > 0
                       ? user.stores.map((store) => store.name).join(", ")
@@ -240,9 +250,14 @@ export function AccountPeopleSection({ clientId, stores, onChanged }: Props) {
               value={clientRole}
               options={[
                 { value: "OWNER", label: t("admin.ownerBadge") },
+                { value: "STORE_MANAGER", label: t("team.storeManager") },
                 { value: "MEMBER", label: t("team.member") },
               ]}
-              onChange={(value) => setClientRole(value as "OWNER" | "MEMBER")}
+              onChange={(value) =>
+                setClientRole(
+                  value as "OWNER" | "STORE_MANAGER" | "MEMBER",
+                )
+              }
             />
           </AdminField>
           <div>

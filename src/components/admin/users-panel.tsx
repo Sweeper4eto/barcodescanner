@@ -20,7 +20,7 @@ type UserRow = {
   role: "ADMIN" | "USER";
   active: boolean;
   clientId: string | null;
-  clientRole: "OWNER" | "MEMBER" | null;
+  clientRole: "OWNER" | "STORE_MANAGER" | "MEMBER" | null;
   createdAt: string;
   client: { id: string; name: string } | null;
   stores: { id: string; name: string; clientId: string }[];
@@ -33,7 +33,7 @@ type AssignmentState = {
   clientId: string;
   storeIds: string[];
   active: boolean;
-  clientRole: "OWNER" | "MEMBER" | null;
+  clientRole: "OWNER" | "STORE_MANAGER" | "MEMBER" | null;
   email: string;
 };
 
@@ -78,7 +78,9 @@ export function UsersPanel({ clients, onRefresh }: Props) {
   const [clientId, setClientId] = useState("");
   const [storeIds, setStoreIds] = useState<string[]>([]);
   const [active, setActive] = useState(true);
-  const [clientRole, setClientRole] = useState<"OWNER" | "MEMBER" | null>(null);
+  const [clientRole, setClientRole] = useState<
+    "OWNER" | "STORE_MANAGER" | "MEMBER" | null
+  >(null);
   const [email, setEmail] = useState("");
   const [clientStores, setClientStores] = useState<Store[]>([]);
   const [savedAssignment, setSavedAssignment] = useState<AssignmentState | null>(null);
@@ -328,6 +330,10 @@ export function UsersPanel({ clients, onRefresh }: Props) {
                       <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-primary">
                         {t("admin.ownerBadge")}
                       </span>
+                    ) : user.clientRole === "STORE_MANAGER" ? (
+                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-primary">
+                        {t("team.storeManager")}
+                      </span>
                     ) : null}
                     <span
                       className="ml-auto shrink-0 text-xs text-muted"
@@ -442,22 +448,31 @@ export function UsersPanel({ clients, onRefresh }: Props) {
               {t("admin.activeUser")}
             </label>
             {selectedUser.role !== "ADMIN" && clientId ? (
-              <label className="flex items-start gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  className="mt-0.5"
-                  checked={clientRole === "OWNER"}
-                  onChange={(event) =>
-                    setClientRole(event.target.checked ? "OWNER" : "MEMBER")
+              <div>
+                <p className="text-sm font-medium">{t("team.role")}</p>
+                <MenuSelect
+                  label={t("team.role")}
+                  value={clientRole ?? "MEMBER"}
+                  options={[
+                    { value: "OWNER", label: t("admin.ownerBadge") },
+                    {
+                      value: "STORE_MANAGER",
+                      label: t("team.storeManager"),
+                    },
+                    { value: "MEMBER", label: t("team.member") },
+                  ]}
+                  onChange={(value) =>
+                    setClientRole(
+                      value as "OWNER" | "STORE_MANAGER" | "MEMBER",
+                    )
                   }
                 />
-                <span>
-                  <span className="font-medium">{t("admin.clientOwner")}</span>
-                  <span className="mt-0.5 block text-xs text-muted">
-                    {t("admin.clientOwnerHint")}
-                  </span>
-                </span>
-              </label>
+                <p className="mt-1 text-xs text-muted">
+                  {clientRole === "STORE_MANAGER"
+                    ? t("team.storeManagerHint")
+                    : t("admin.clientOwnerHint")}
+                </p>
+              </div>
             ) : null}
             <div>
               <p className="text-sm font-medium">{t("admin.storesLabel")}</p>

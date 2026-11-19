@@ -32,8 +32,8 @@ type TeamUser = {
   displayName?: string | null;
   email: string | null;
   active: boolean;
-  clientRole: "OWNER" | "MEMBER" | null;
-  /** Staff may remove expiry items; owners always can regardless. */
+  clientRole: "OWNER" | "STORE_MANAGER" | "MEMBER" | null;
+  /** Staff may remove expiry items; owners/managers always can. */
   canRemoveExpiry: boolean;
   stores: Store[];
   /** Scheduled minutes from the 1st of this month through yesterday. */
@@ -226,7 +226,12 @@ export default function TeamPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [role, setRole] = useState<"OWNER" | "MEMBER">("MEMBER");
+  const [role, setRole] = useState<"OWNER" | "STORE_MANAGER" | "MEMBER">(
+    "MEMBER",
+  );
+  const [actorClientRole, setActorClientRole] = useState<
+    "OWNER" | "STORE_MANAGER" | "MEMBER" | null
+  >(null);
   const [storeIds, setStoreIds] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
 
@@ -264,8 +269,21 @@ export default function TeamPage() {
       ]);
       const meData = await meResponse.json().catch(() => null);
       if (meData?.user?.id) setCurrentUserId(meData.user.id);
+      if (
+        meData?.user?.clientRole === "OWNER" ||
+        meData?.user?.clientRole === "STORE_MANAGER" ||
+        meData?.user?.clientRole === "MEMBER"
+      ) {
+        setActorClientRole(meData.user.clientRole);
+      }
 
       const data = await response.json().catch(() => null);
+      if (
+        data?.actorClientRole === "OWNER" ||
+        data?.actorClientRole === "STORE_MANAGER"
+      ) {
+        setActorClientRole(data.actorClientRole);
+      }
       if (!response.ok) {
         if (response.status === 401) {
           setError(data?.error ?? t("errors.unauthorized"));
@@ -350,7 +368,7 @@ export default function TeamPage() {
     setUsername("");
     setPassword("");
     setShowPassword(false);
-    setRole("MEMBER");
+    setRole(actorClientRole === "STORE_MANAGER" ? "MEMBER" : "MEMBER");
     setCanRemoveExpiry(true);
     setStoreIds(
       defaults?.storeIds?.length
@@ -377,9 +395,17 @@ export default function TeamPage() {
     setUsername(user.username);
     setPassword("");
     setShowPassword(false);
-    setRole(user.clientRole === "OWNER" ? "OWNER" : "MEMBER");
+    setRole(
+      user.clientRole === "OWNER"
+        ? "OWNER"
+        : user.clientRole === "STORE_MANAGER"
+          ? "STORE_MANAGER"
+          : "MEMBER",
+    );
     setCanRemoveExpiry(
-      user.clientRole === "OWNER" ? true : user.canRemoveExpiry !== false,
+      user.clientRole === "OWNER" || user.clientRole === "STORE_MANAGER"
+        ? true
+        : user.canRemoveExpiry !== false,
     );
     setStoreIds(user.stores.map((store) => store.id));
     setEditingHoursMin(0);
@@ -592,6 +618,7 @@ export default function TeamPage() {
           {users.map((user) => {
             const isSelf = user.id === currentUserId;
             const isOwner = user.clientRole === "OWNER";
+            const isStoreManager = user.clientRole === "STORE_MANAGER";
             const interactive = !isSelf;
 
             const cardInner = (
@@ -645,15 +672,19 @@ export default function TeamPage() {
                 </div>
                 <span
                   className={`inline-flex shrink-0 items-center gap-1 text-xs font-medium ${
-                    isOwner ? "text-primary" : "text-muted"
+                    isOwner || isStoreManager ? "text-primary" : "text-muted"
                   }`}
                 >
-                  {isOwner ? (
+                  {isOwner || isStoreManager ? (
                     <OwnerRoleIcon className="size-3.5" />
                   ) : (
                     <StaffRoleIcon className="size-3.5" />
                   )}
-                  {isOwner ? t("team.owner") : t("team.member")}
+                  {isOwner
+                    ? t("team.owner")
+                    : isStoreManager
+                      ? t("team.storeManager")
+                      : t("team.member")}
                 </span>
                 {interactive ? (
                   <ChevronIcon className="size-3.5 shrink-0 text-muted" />
@@ -694,7 +725,7 @@ export default function TeamPage() {
             {t("team.settings")}
           </p>
           <div className="overflow-hidden rounded-xl border border-card-border bg-transparent">
-            {scheduleEnabled ? (
+            {scheduleEnabled && actorClientRole === "OWNER" ? (
               <>
                 <div className="flex items-center justify-between gap-3 px-3 py-2.5">
                   <div className="min-w-0">
@@ -836,22 +867,45 @@ export default function TeamPage() {
 
               <div className="mt-2.5">
                 <p className="mb-1 text-sm font-medium text-foreground">{t("team.role")}</p>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setRole("OWNER");
-                      setCanRemoveExpiry(true);
-                    }}
-                    className={`inline-flex items-center justify-center gap-1.5 rounded-xl border px-2 py-2 text-sm font-semibold transition-colors ${
-                      role === "OWNER"
-                        ? "border-primary bg-selected/50 text-primary"
-                        : "border-card-border text-foreground"
-                    }`}
-                  >
-                    <OwnerRoleIcon className="size-4 shrink-0" />
-                    {t("team.owner")}
-                  </button>
+                <div
+                  className={`grid gap-2 ${
+                    actorClientRole === "OWNER" ? "grid-cols-3" : "grid-cols-1"
+                  }`}
+                >
+                  {actorClientRole === "OWNER" ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setRole("OWNER");
+                          setCanRemoveExpiry(true);
+                        }}
+                        className={`inline-flex items-center justify-center gap-1.5 rounded-xl border px-2 py-2 text-sm font-semibold transition-colors ${
+                          role === "OWNER"
+                            ? "border-primary bg-selected/50 text-primary"
+                            : "border-card-border text-foreground"
+                        }`}
+                      >
+                        <OwnerRoleIcon className="size-4 shrink-0" />
+                        {t("team.owner")}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setRole("STORE_MANAGER");
+                          setCanRemoveExpiry(true);
+                        }}
+                        className={`inline-flex items-center justify-center gap-1.5 rounded-xl border px-1.5 py-2 text-sm font-semibold transition-colors ${
+                          role === "STORE_MANAGER"
+                            ? "border-primary bg-selected/50 text-primary"
+                            : "border-card-border text-foreground"
+                        }`}
+                      >
+                        <OwnerRoleIcon className="size-4 shrink-0" />
+                        {t("team.storeManager")}
+                      </button>
+                    </>
+                  ) : null}
                   <button
                     type="button"
                     onClick={() => setRole("MEMBER")}
@@ -865,6 +919,11 @@ export default function TeamPage() {
                     {t("team.member")}
                   </button>
                 </div>
+                {role === "STORE_MANAGER" ? (
+                  <p className="mt-1.5 text-xs text-muted">
+                    {t("team.storeManagerHint")}
+                  </p>
+                ) : null}
               </div>
 
               {role === "MEMBER" ? (

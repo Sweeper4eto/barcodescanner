@@ -108,7 +108,7 @@ const assignSchema = z.object({
   clientId: z.string().nullable(),
   storeIds: z.array(z.string()).optional(),
   active: z.boolean().optional(),
-  clientRole: z.enum(["OWNER", "MEMBER"]).nullable().optional(),
+  clientRole: z.enum(["OWNER", "STORE_MANAGER", "MEMBER"]).nullable().optional(),
   email: z.string().nullable().optional(),
   username: z.string().optional(),
 });
@@ -206,7 +206,8 @@ export async function PATCH(request: Request) {
 
   const nextClientId = parsed.data.clientId ?? user.clientId;
   if (
-    parsed.data.clientRole === "MEMBER" &&
+    parsed.data.clientRole !== undefined &&
+    parsed.data.clientRole !== "OWNER" &&
     user.clientRole === "OWNER" &&
     nextClientId &&
     (await isOnlyClientOwner(user.id, nextClientId))
@@ -217,7 +218,11 @@ export async function PATCH(request: Request) {
     );
   }
 
-  if (parsed.data.clientRole === "OWNER" && !nextClientId) {
+  if (
+    (parsed.data.clientRole === "OWNER" ||
+      parsed.data.clientRole === "STORE_MANAGER") &&
+    !nextClientId
+  ) {
     return NextResponse.json(
       { error: apiT(request, "errors.ownerNeedsClient") },
       { status: 400 },

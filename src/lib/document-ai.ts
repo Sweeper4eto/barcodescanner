@@ -202,9 +202,11 @@ function toRows(payload: unknown): DocumentOcrRow[] {
       if (!lot && printed && looksLikeLotCodeNotExpiry(printed)) {
         lot = printed;
       }
+      // Normal path = Godnost/printed date. Lot→date and lot/date slash are exceptions only.
       const expiryYmd = resolveDocumentExpiry(
         item.expiryDate,
-        printed && looksLikeLotCodeNotExpiry(printed) ? null : item.expiryPrinted,
+        item.expiryPrinted,
+        lot,
       );
       const quantity = normalizeQuantity(item.quantity);
       return { name, barcode, articul, lot, expiryYmd, quantity };
@@ -316,9 +318,10 @@ DUPLICATE NAMES (normal on warehouse lists — do NOT "fix"):
 - Never merge those into one item. Never copy the second row's date onto the first (or vice versa). Never invent a phantom third copy.
 - Same name + blank Godnost on row A and a real date on row B is valid — output both as printed.
 
-DATES:
+DATES (NORMAL PATH — always prefer this):
 - Godnost is usually DD.MM.YYYY (day first). Copy expiryPrinted exactly as printed (lot text after the date is OK).
 - Month+year only is also valid (MM.YYYY, MM.YY, MM/YY — e.g. 12.2026 or 12.26). Copy as printed; do not invent a day (server uses end of that month).
+- If ONE item shows TWO dates (e.g. manufacture/production + expiry/best-before), put BOTH in expiryPrinted separated by a space. The server keeps the later date (expiry). Prefer labeling when clear, but always include both calendar dates when both are printed on that item.
 - expiryDate must always be null (server converts).
 - Never invent a date. Never swap day/month. Never borrow a date across rows.
 - Same Godnost on two neighboring products is allowed ONLY when both cells really show that date on the photo.
@@ -332,7 +335,8 @@ OTHER:
 - articul = SKU; barcode = EAN only; never swap them.
 - lot = batch / партия value when printed (headers or inline labels like Партида, Пар., Лот, Серия, Емисия, Lot, Batch, Serie). Copy the value only — not the label word. If absent → null.
 - If lot text is printed after the Godnost date in the same cell (e.g. "23.06.2027 L268623"), put the date in expiryPrinted and the lot code in lot when clearly separable; otherwise keep full text in expiryPrinted and lot null.
-- Lot codes often LOOK like dates (e.g. L11122026 encodes 11.12.2026). A leading L / Л / Lot / Партида / … means LOT — put the full code in lot. NEVER invent expiryPrinted / Godnost from those digits. Only a real Godnost column date (usually DD.MM.YYYY) goes in expiryPrinted.
+- Lot codes often LOOK like dates (e.g. L11122026 encodes 11.12.2026). A leading L / Л / Lot / Партида / … means LOT — put the full code in lot (and expiryPrinted null when there is no separate Godnost date). Only a real Godnost column date goes in expiryPrinted.
+- EXCEPTIONS (server-side only, never invent in JSON): if Godnost is empty, the server MAY derive a date from the lot (L11122026, L2027) or from lot/date glued with / or \\ (date usually after the slash). Do not replace a real Godnost date with these.
 - quantity = pieces if printed, else 1.
 - Ignore headers, addresses, totals, signatures.
 - Page-edge cut-off crumbs (1–2 words with no columns): omit; do not attach a neighbor's qty/date.

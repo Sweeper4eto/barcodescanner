@@ -214,6 +214,7 @@ export function HomeClassicMenu() {
   const [stores, setStores] = useState<Store[]>([]);
   const [username, setUsername] = useState("");
   const [isOwner, setIsOwner] = useState(false);
+  const [isAccountOwner, setIsAccountOwner] = useState(false);
   const [billingEnabled, setBillingEnabled] = useState(false);
   const [schedulePublic, setSchedulePublic] = useState(false);
   const [bootstrapped, setBootstrapped] = useState(false);
@@ -257,12 +258,15 @@ export function HomeClassicMenu() {
 
       setSessionMissing(false);
       setUsername(data.user.username);
-      const owner = data.user.clientRole === "OWNER";
-      setIsOwner(owner);
+      const accountOwner = data.user.clientRole === "OWNER";
+      const managerLike =
+        accountOwner || data.user.clientRole === "STORE_MANAGER";
+      setIsOwner(managerLike);
+      setIsAccountOwner(accountOwner);
       setSchedulePublic(data.user.scheduleAccess === "public");
       setBillingEnabled(false);
 
-      // Paint home immediately from /me — never block on billing or session refresh
+      // Paint home immediately from /me. Never block on billing or session refresh
       // (slow/hanging LAN fetches left owners on spinner + Contact only).
       const list: Store[] = data.user.stores ?? [];
       setStores(list);
@@ -279,7 +283,7 @@ export function HomeClassicMenu() {
 
       void refreshSession();
 
-      if (owner) {
+      if (accountOwner) {
         void (async () => {
           try {
             const billingRes = await fetch("/api/billing", {
@@ -291,7 +295,7 @@ export function HomeClassicMenu() {
               setBillingEnabled(Boolean(billing.enabled));
             }
           } catch {
-            /* ignore — home still works without billing card */
+            /* ignore. home still works without billing card */
           }
         })();
       }
@@ -399,7 +403,7 @@ export function HomeClassicMenu() {
           />
         ) : null}
 
-        {bootstrapped && isOwner && billingEnabled && !sessionMissing ? (
+        {bootstrapped && isAccountOwner && billingEnabled && !sessionMissing ? (
           <HomeLinkCard
             href="/app/billing"
             title={t("app.billing")}
@@ -424,7 +428,7 @@ export function HomeClassicMenu() {
           ready={
             bootstrapped &&
             !sessionMissing &&
-            isOwner &&
+            isAccountOwner &&
             billingEnabled
           }
           allowAfterWhatsNew={whatsNewSettled}

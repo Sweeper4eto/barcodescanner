@@ -1,8 +1,9 @@
+import { isStoreManagerLike } from "@/lib/client-roles";
 import { db } from "@/lib/db";
 
 /**
  * Whether this user may remove (soft/hard-delete) expiry-list inventory rows.
- * Owners always can. Members follow User.canRemoveExpiry (default true).
+ * Owners and store managers always can. Members follow User.canRemoveExpiry.
  */
 export async function userCanRemoveExpiry(userId: string): Promise<boolean> {
   const user = await db.user.findUnique({
@@ -13,6 +14,6 @@ export async function userCanRemoveExpiry(userId: string): Promise<boolean> {
     },
   });
   if (!user) return false;
-  if (user.clientRole === "OWNER") return true;
+  if (isStoreManagerLike(user.clientRole)) return true;
   return user.canRemoveExpiry;
 }

@@ -24,8 +24,8 @@ export type AppSessionStore = { id: string; name: string; active: boolean };
 type AppSessionUser = {
   username: string;
   homeUser: boolean;
-  /** Account owner vs staff — drives bulk-remove selection caps. */
-  clientRole: "OWNER" | "MEMBER" | null;
+  /** Account owner / store manager / staff — drives caps and home tiles. */
+  clientRole: "OWNER" | "STORE_MANAGER" | "MEMBER" | null;
   /** Owners always true; members follow the Team expiry-remove setting. */
   canRemoveExpiry: boolean;
   /** True when a prior billed month is unpaid (soft lock). */
@@ -108,7 +108,11 @@ export function AppSessionProvider({ children }: { children: ReactNode }) {
       const newUiEnabled = Boolean(data.user.newUiEnabled);
       const rawRole = data.user.clientRole;
       const clientRole: AppSessionUser["clientRole"] =
-        rawRole === "OWNER" || rawRole === "MEMBER" ? rawRole : null;
+        rawRole === "OWNER" ||
+        rawRole === "STORE_MANAGER" ||
+        rawRole === "MEMBER"
+          ? rawRole
+          : null;
       const canRemoveExpiry =
         data.user.canRemoveExpiry === undefined
           ? true

@@ -575,49 +575,104 @@ export function looksLikeLotCodeNotExpiry(
   return false;
 }
 
-/** Parse common EU/BG date strings into YYYY-MM-DD. */
-export function parseDocumentExpiry(
-  value: string | null | undefined,
+/** Lexicographic max on YYYY-MM-DD = furthest calendar day. */
+export function pickLatestExpiryYmd(
+  ymds: Array<string | null | undefined>,
 ): string | null {
-  if (!value) return null;
-  const raw = value.trim();
-  if (!raw) return null;
-  // Never treat lot codes as dates, even when digits look like DDMMYYYY.
-  if (looksLikeLotCodeNotExpiry(raw)) return null;
-
-  const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
-  if (iso) {
-    return formatYmd(Number(iso[1]), Number(iso[2]), Number(iso[3]));
+  let best: string | null = null;
+  for (const ymd of ymds) {
+    if (!ymd || !/^\d{4}-\d{2}-\d{2}$/.test(ymd)) continue;
+    if (!best || ymd > best) best = ymd;
   }
+  return best;
+}
 
-  // Bulgarian / EU documents use day.month.year (not US month/day).
-  // Allow trailing lot/batch text, e.g. "23.06.2027 L268623".
-  const dmy = /^(\d{1,2})[./\-](\d{1,2})[./\-](\d{2,4})(?:\s+.*)?$/.exec(raw);
-  if (dmy) {
-    return formatYmd(Number(dmy[3]), Number(dmy[2]), Number(dmy[1]));
-  }
+/** True when a date match at `index` looks attached to a lot/batch prefix. */
+function hasLotPrefixBefore(raw: string, index: number): boolean {
+  const before = raw.slice(Math.max(0, index - 16), index);
+  return /(?:^|[^A-Za-zА-Яа-яЁё])(?:L|Л|LOT|ЛОТ|BATCH|ПАР(?:Т(?:ИДА)?)?|СЕР(?:ИЯ)?)\s*$/i.test(
+    before,
+  );
+}
 
-  // ISO date with optional trailing lot text.
-  const isoLoose = /^(\d{4})-(\d{2})-(\d{2})(?:\s+.*)?$/.exec(raw);
-  if (isoLoose) {
-    return formatYmd(
-      Number(isoLoose[1]),
-      Number(isoLoose[2]),
-      Number(isoLoose[3]),
-    );
-  }
+function hasDigitBefore(raw: string, index: number): boolean {
+  return index > 0 && /\d/.test(raw.charAt(index - 1));
+}
 
-  // Month+year only → last day of that month (12.26 → 2026-12-31).
-  const monthYear = parseMonthYearExpiry(raw);
-  if (monthYear) return monthYear;
-
-  // Spoken BG/EN ("трети май 2030 година").
-  return parseSpokenExpiry(raw);
+/** Pure numeric date-like blob (no words). Do not fall back to spoken parsing. */
+function looksLikeNumericDateBlob(raw: string): boolean {
+  return /^\d{1,4}[./\-]\d{1,2}(?:[./\-]\d{1,4})?$/.test(raw.trim());
 }
 
 /**
- * Parse printed Godnost: day.month.year, or month.year → end of month.
- * Never treat as US month/day.
+ * NORMAL PATH: find every visible calendar date in a string
+ * (DD.MM.YYYY, ISO, month.year, spoken). Lot-prefixed digit runs are skipped
+ * so "L11122026" is not read here (that is an exception fallback).
+ * Dates after / or \ (e.g. L123/15.06.2027) are normal calendar matches.
+ */
+export function extractDocumentExpiryYmds(
+  value: string | null | undefined,
+): string[] {
+  if (!value) return [];
+  const raw = value.trim();
+  if (!raw) return [];
+
+  const found = new Set<string>();
+
+  // Prefer ISO first so we can skip overlapping false DMY hits inside ISO values.
+  const isoSpans: Array<{ start: number; end: number }> = [];
+  const isoRe = /(\d{4})-(\d{2})-(\d{2})/g;
+  for (const match of raw.matchAll(isoRe)) {
+    const index = match.index ?? 0;
+    if (hasLotPrefixBefore(raw, index)) continue;
+    const ymd = formatYmd(Number(match[1]), Number(match[2]), Number(match[3]));
+    if (!ymd) continue;
+    found.add(ymd);
+    isoSpans.push({ start: index, end: index + match[0].length });
+  }
+
+  // Same separator twice so "268623/15.06.2027" does not match as 23/15.06.
+  const dmyRe = /(\d{1,2})([./\-])(\d{1,2})\2(\d{2,4})/g;
+  for (const match of raw.matchAll(dmyRe)) {
+    const index = match.index ?? 0;
+    const end = index + match[0].length;
+    if (hasLotPrefixBefore(raw, index)) continue;
+    // Avoid "27-07-30" inside "2027-07-30".
+    if (hasDigitBefore(raw, index)) continue;
+    if (isoSpans.some((span) => index < span.end && end > span.start)) continue;
+    const ymd = formatYmd(Number(match[4]), Number(match[3]), Number(match[1]));
+    if (ymd) found.add(ymd);
+  }
+
+  if (found.size > 0) return [...found];
+
+  // Whole-string month/year / spoken: not for pure lot codes (L2027 etc.).
+  if (looksLikeLotCodeNotExpiry(raw)) return [];
+
+  // Month+year only → last day of that month (12.26 → 2026-12-31).
+  const monthYear = parseMonthYearExpiry(raw);
+  if (monthYear) return [monthYear];
+
+  // Numeric blobs that failed calendar checks are not spoken dates.
+  if (looksLikeNumericDateBlob(raw)) return [];
+
+  // Spoken BG/EN ("трети май 2030 година").
+  const spoken = parseSpokenExpiry(raw);
+  if (spoken) return [spoken];
+  return [];
+}
+
+/** Parse common EU/BG date strings into YYYY-MM-DD (latest if several). */
+export function parseDocumentExpiry(
+  value: string | null | undefined,
+): string | null {
+  return pickLatestExpiryYmd(extractDocumentExpiryYmds(value));
+}
+
+/**
+ * NORMAL PATH: printed Godnost cell.
+ * Never treat as US month/day. If several dates appear, keep the furthest future.
+ * Pure lot codes with no visible calendar date return null (exception path may run later).
  */
 export function parsePrintedExpiry(
   value: string | null | undefined,
@@ -625,37 +680,181 @@ export function parsePrintedExpiry(
   if (!value) return null;
   const raw = value.trim();
   if (!raw) return null;
-  if (looksLikeLotCodeNotExpiry(raw)) return null;
 
-  // Reject full ISO day values in the printed field — those belong in expiryDate.
+  // Reject ISO-only printed cells — those belong in expiryDate (day/month swap guard).
   if (/^\d{4}-\d{2}-\d{2}/.test(raw)) return null;
 
-  const dmy = /^(\d{1,2})[.\/\-](\d{1,2})[.\/\-](\d{2,4})(?:\s+.*)?$/.exec(raw);
-  if (dmy) {
-    return formatYmd(Number(dmy[3]), Number(dmy[2]), Number(dmy[1]));
-  }
-
-  const monthYear = parseMonthYearExpiry(raw);
-  if (monthYear) return monthYear;
-
-  return parseSpokenExpiry(raw);
+  return pickLatestExpiryYmd(extractDocumentExpiryYmds(raw));
 }
 
 /**
- * Prefer the printed DD.MM.YYYY cell (source of truth) over model ISO,
- * which often swaps day/month (01.12 -> 2027-01-12 instead of 2027-12-01).
+ * Strip a leading lot/batch label (L, Lot, Партида, …). Returns null if no label.
+ */
+export function stripLotLabelPrefix(
+  value: string | null | undefined,
+): string | null {
+  if (!value) return null;
+  const raw = value.trim();
+  if (!raw) return null;
+  const match =
+    /^(?:L|Л|LOT|ЛОТ|BATCH|ПАР(?:Т(?:ИДА)?)?|СЕР(?:ИЯ)?|SER(?:IE)?)[\s.\-_]*(.*)$/iu.exec(
+      raw,
+    );
+  if (!match) return null;
+  const rest = match[1]!.trim();
+  return rest.length > 0 ? rest : null;
+}
+
+/**
+ * Compact digits after a lot prefix → calendar day when the digits clearly encode a date.
+ * DDMMYYYY (BG common), YYYYMMDD, YYYYMM, or YYYY only.
+ */
+function parseCompactLotDateDigits(digits: string): string | null {
+  if (!/^\d+$/.test(digits)) return null;
+
+  if (digits.length === 8) {
+    const dmy = formatYmd(
+      Number(digits.slice(4, 8)),
+      Number(digits.slice(2, 4)),
+      Number(digits.slice(0, 2)),
+    );
+    const ymd = formatYmd(
+      Number(digits.slice(0, 4)),
+      Number(digits.slice(4, 6)),
+      Number(digits.slice(6, 8)),
+    );
+    const yearPrefixed = Number(digits.slice(0, 4));
+    // Prefer YYYYMMDD when the first four digits are a plausible year.
+    if (yearPrefixed >= 2000 && yearPrefixed <= 2100) {
+      return ymd ?? dmy;
+    }
+    return dmy ?? ymd;
+  }
+
+  if (digits.length === 6) {
+    // YYYYMM → end of month
+    const year = Number(digits.slice(0, 4));
+    const month = Number(digits.slice(4, 6));
+    if (year >= 2000 && year <= 2100) {
+      return endOfMonthYmd(year, month);
+    }
+    // MMYYYY
+    return endOfMonthYmd(Number(digits.slice(2, 6)), Number(digits.slice(0, 2)));
+  }
+
+  if (digits.length === 4) {
+    // L2027 → 2027-12-31
+    const year = Number(digits);
+    if (year >= 2000 && year <= 2100) return endOfMonthYmd(year, 12);
+  }
+
+  return null;
+}
+
+/** Parse one fragment that may be a date (with dots or compact digits). */
+function parseLotDateFragment(fragment: string): string | null {
+  const trimmed = fragment.trim();
+  if (!trimmed) return null;
+  const separated = pickLatestExpiryYmd(extractDocumentExpiryYmds(trimmed));
+  if (separated) return separated;
+  const monthYear = parseMonthYearExpiry(trimmed);
+  if (monthYear) return monthYear;
+  const digits = trimmed.replace(/\D/g, "");
+  if (digits.length === 4 || digits.length === 6 || digits.length === 8) {
+    return parseCompactLotDateDigits(digits);
+  }
+  return null;
+}
+
+/**
+ * EXCEPTION ONLY (not normal Godnost parsing).
+ * Lot glued to a date with / or \ (date is usually AFTER the slash).
+ * Examples: L268623/15.06.2027, 12345\01.12.2026, LOT99/15062027
+ * Call only after the normal printed/ISO path returned null.
+ */
+export function parseExpiryAfterLotSlash(
+  value: string | null | undefined,
+): string | null {
+  if (!value) return null;
+  const raw = value.trim();
+  if (!raw || !/[/\\]/.test(raw)) return null;
+
+  const parts = raw
+    .split(/[/\\]/)
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0);
+  if (parts.length < 2) return null;
+
+  // Prefer segments after the first slash (rightmost first).
+  for (let i = parts.length - 1; i >= 1; i -= 1) {
+    const ymd = parseLotDateFragment(parts[i]!);
+    if (ymd) return ymd;
+  }
+  return null;
+}
+
+/**
+ * EXCEPTION ONLY (not normal Godnost parsing).
+ * When Godnost is empty: derive a date from a lot/batch code
+ * (L11122026, L2027, or lot/date with / or \).
+ * Never call this to override a real printed expiry.
+ */
+export function parseExpiryEncodedInLotCode(
+  value: string | null | undefined,
+): string | null {
+  if (!value) return null;
+
+  // lot/date or lot\date — works with or without a leading L.
+  const fromSlash = parseExpiryAfterLotSlash(value);
+  if (fromSlash) return fromSlash;
+
+  if (!looksLikeLotCodeNotExpiry(value)) return null;
+  const rest = stripLotLabelPrefix(value);
+  if (!rest) return null;
+
+  // Slash may remain after stripping the label (L268623/15.06.2027).
+  const fromSlashRest = parseExpiryAfterLotSlash(rest);
+  if (fromSlashRest) return fromSlashRest;
+
+  // Separators already look like a normal date (L11.12.2026).
+  const separated = parseLotDateFragment(rest);
+  if (separated) return separated;
+
+  return null;
+}
+
+/**
+ * Resolve expiry for one OCR item.
+ *
+ * NORMAL PATH (always first, never skipped for exceptions):
+ * 1. Visible calendar dates in the printed Godnost cell (incl. two dates → later;
+ *    incl. a date standing after / or \ next to a lot code).
+ * 2. Model ISO expiryDate when printed has no calendar date.
+ *
+ * EXCEPTIONS (last resort only when normal path found nothing):
+ * - Compact lot-encoded digits (L11122026, L2027)
+ * - Compact digits after / or \ (LOT99/15062027)
+ *
+ * Exceptions must never run first and must never replace a real Godnost date.
  */
 export function resolveDocumentExpiry(
   expiryDate: string | null | undefined,
   expiryPrinted?: string | null | undefined,
+  lot?: string | null | undefined,
 ): string | null {
-  // Lot-only "Godnost" cell (e.g. L11122026): ignore printed; do not invent a date
-  // from the lot digits. Still allow a separate real expiryDate if the model sent one.
-  const printedIsLot = looksLikeLotCodeNotExpiry(expiryPrinted);
-  const fromPrinted = printedIsLot ? null : parsePrintedExpiry(expiryPrinted);
+  // --- NORMAL PATH (first) ---
+  const fromPrinted = parsePrintedExpiry(expiryPrinted);
   if (fromPrinted) return fromPrinted;
+
   const fromExpiryDate = parseDocumentExpiry(expiryDate);
   if (fromExpiryDate) return fromExpiryDate;
-  if (printedIsLot) return null;
-  return parseDocumentExpiry(expiryPrinted);
+
+  const fromPrintedLoose = parseDocumentExpiry(expiryPrinted);
+  if (fromPrintedLoose) return fromPrintedLoose;
+
+  // --- EXCEPTIONS ONLY (after normal path found nothing) ---
+  return (
+    parseExpiryEncodedInLotCode(lot) ??
+    parseExpiryEncodedInLotCode(expiryPrinted)
+  );
 }

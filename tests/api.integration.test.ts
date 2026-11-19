@@ -41,6 +41,7 @@ let meGet: (request: Request) => Promise<Response>;
 let buyListGet: (request: Request) => Promise<Response>;
 let buyListPost: (request: Request) => Promise<Response>;
 let buyListPatch: (request: Request) => Promise<Response>;
+let teamGet: (request: Request) => Promise<Response>;
 let teamPatch: (request: Request) => Promise<Response>;
 let activityGet: (request: Request) => Promise<Response>;
 let activityRevertPost: (request: Request) => Promise<Response>;
@@ -84,7 +85,9 @@ test.before(async () => {
   ({ GET: buyListGet, POST: buyListPost, PATCH: buyListPatch } = await import(
     "../src/app/api/buy-list/route"
   ));
-  ({ PATCH: teamPatch } = await import("../src/app/api/team/users/route"));
+  ({ GET: teamGet, PATCH: teamPatch } = await import(
+    "../src/app/api/team/users/route"
+  ));
   ({ GET: activityGet } = await import("../src/app/api/team/activity-log/route"));
   ({ POST: activityRevertPost } = await import(
     "../src/app/api/team/activity-log/revert/route"
@@ -1682,6 +1685,87 @@ test("owner can bulk-revert soft inventory removes from activity log", async () 
   const restoredB = await db.inventoryEntry.findUnique({ where: { id: entryB.id } });
   assert.equal(restoredA?.removedAt, null);
   assert.equal(restoredB?.removedAt, null);
+});
+
+test("store manager sees Team for assigned store only and cannot open billing", async () => {
+  const client = await seedClientWithStore(db);
+  const storeA = client.stores[0]!;
+  const storeB = await db.store.create({
+    data: { clientId: client.id, name: "Store B", monthlyFee: 20 },
+  });
+  const owner = await seedUserWithAccess(db, client.id, storeA.id, "hq_owner");
+  await db.userStore.create({
+    data: { userId: owner.id, storeId: storeB.id },
+  });
+  await db.user.update({
+    where: { id: owner.id },
+    data: { clientRole: "OWNER" },
+  });
+
+  const manager = await seedUserWithAccess(
+    db,
+    client.id,
+    storeA.id,
+    "store_mgr",
+  );
+  await db.user.update({
+    where: { id: manager.id },
+    data: { clientRole: "STORE_MANAGER", canRemoveExpiry: true },
+  });
+
+  const otherStaff = await seedUserWithAccess(
+    db,
+    client.id,
+    storeB.id,
+    "other_staff",
+  );
+  await db.user.update({
+    where: { id: otherStaff.id },
+    data: { clientRole: "MEMBER" },
+  });
+
+  const login = await loginUser("store_mgr", "password123");
+  assert.equal(login.ok, true);
+  if (!login.ok) return;
+  await setMockSession(login.token);
+
+  const me = await jsonRequest(meGet, { url: "http://localhost/api/auth/me" });
+  assert.equal(me.response.status, 200);
+  assert.equal(me.data.user.clientRole, "STORE_MANAGER");
+  assert.equal(me.data.user.canRemoveExpiry, true);
+  assert.deepEqual(
+    me.data.user.stores.map((s: { id: string }) => s.id).sort(),
+    [storeA.id],
+  );
+
+  const team = await jsonRequest(teamGet, {
+    url: "http://localhost/api/team/users",
+  });
+  assert.equal(team.response.status, 200, JSON.stringify(team.data));
+  assert.equal(team.data.actorClientRole, "STORE_MANAGER");
+  const teamUserIds = (team.data.users as { id: string }[]).map((u) => u.id);
+  assert.ok(teamUserIds.includes(manager.id));
+  assert.ok(!teamUserIds.includes(otherStaff.id));
+  assert.deepEqual(
+    (team.data.stores as { id: string }[]).map((s) => s.id),
+    [storeA.id],
+  );
+
+  const promote = await jsonRequest(teamPatch, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      userId: manager.id,
+      clientRole: "OWNER",
+    }),
+  });
+  assert.equal(promote.response.status, 403);
+
+  const { GET: billingGet } = await import("../src/app/api/billing/route");
+  const billing = await jsonRequest(billingGet, {
+    url: "http://localhost/api/billing",
+  });
+  assert.equal(billing.response.status, 403);
 });
 
 test.after(async () => {

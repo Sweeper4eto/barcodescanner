@@ -89,7 +89,7 @@ export async function GET(request: Request) {
     where: { id: session.userId },
     select: { clientRole: true },
   });
-  const isOwner = user?.clientRole === "OWNER";
+  const isOwner = user?.clientRole === "OWNER" || user?.clientRole === "STORE_MANAGER";
   const [rows, favouriteRows, assignees] = await Promise.all([
     db.checklistTask.findMany({
       where: {
