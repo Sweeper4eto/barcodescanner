@@ -558,6 +558,7 @@ export function parseSpokenExpiry(
 /**
  * Lot / batch codes often encode a calendar date (e.g. L11122026 → 11.12.2026),
  * but a leading L/Л (or Lot / Партида / …) means batch — never Godnost.
+ * Also "L 23232323" / "L  11122026" (space after L) are lots.
  */
 export function looksLikeLotCodeNotExpiry(
   value: string | null | undefined,
@@ -565,8 +566,8 @@ export function looksLikeLotCodeNotExpiry(
   if (!value) return false;
   const raw = value.trim();
   if (!raw) return false;
-  // L11122026 / л 11.12.2026 / L-268623
-  if (/^[LЛlл][\s.\-_]?[\dA-Za-zА-Яа-я]/.test(raw)) return true;
+  // L11122026 / L 23232323 / л 11.12.2026 / L-268623
+  if (/^[LЛlл][\s.\-_]*[\dA-Za-zА-Яа-я]/.test(raw)) return true;
   if (
     /^(LOT|BATCH|SER(?:IE)?|ПАР(?:Т(?:ИДА)?)?|ЛОТ|СЕР(?:ИЯ)?)\b/i.test(raw)
   ) {
@@ -794,9 +795,9 @@ export function parseExpiryAfterLotSlash(
 }
 
 /**
- * EXCEPTION ONLY (not normal Godnost parsing).
+ * EXCEPTION / LAST RESORT only (not normal Godnost parsing).
  * When Godnost is empty: derive a date from a lot/batch code
- * (L11122026, L2027, or lot/date with / or \).
+ * (L11122026, L 11122026, L2027, or lot/date with / or \).
  * Never call this to override a real printed expiry.
  */
 export function parseExpiryEncodedInLotCode(
@@ -816,7 +817,7 @@ export function parseExpiryEncodedInLotCode(
   const fromSlashRest = parseExpiryAfterLotSlash(rest);
   if (fromSlashRest) return fromSlashRest;
 
-  // Separators already look like a normal date (L11.12.2026).
+  // Digits / dotted date after L or "L " (L11.12.2026, L 11122026).
   const separated = parseLotDateFragment(rest);
   if (separated) return separated;
 
@@ -832,7 +833,7 @@ export function parseExpiryEncodedInLotCode(
  * 2. Model ISO expiryDate when printed has no calendar date.
  *
  * EXCEPTIONS (last resort only when normal path found nothing):
- * - Compact lot-encoded digits (L11122026, L2027)
+ * - Compact lot-encoded digits (L11122026, L 11122026, L2027)
  * - Compact digits after / or \ (LOT99/15062027)
  *
  * Exceptions must never run first and must never replace a real Godnost date.

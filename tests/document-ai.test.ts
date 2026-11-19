@@ -195,14 +195,31 @@ describe("parseDocumentExpiry", () => {
   });
 
   it("derives expiry from lot code only when Godnost is missing", async () => {
-    const { parseExpiryEncodedInLotCode, parseExpiryAfterLotSlash } =
-      await import("../src/lib/expiry-parse");
+    const {
+      parseExpiryEncodedInLotCode,
+      parseExpiryAfterLotSlash,
+      looksLikeLotCodeNotExpiry,
+    } = await import("../src/lib/expiry-parse");
     // Exceptions: compact lot encoding (not first-line Godnost parsing).
     assert.equal(parseExpiryEncodedInLotCode("L11122026"), "2026-12-11");
+    assert.equal(parseExpiryEncodedInLotCode("L 11122026"), "2026-12-11");
+    assert.equal(parseExpiryEncodedInLotCode("L  2027"), "2027-12-31");
     assert.equal(parseExpiryEncodedInLotCode("L11.12.2026"), "2026-12-11");
     assert.equal(parseExpiryEncodedInLotCode("L2027"), "2027-12-31");
     assert.equal(parseExpiryEncodedInLotCode("L202712"), "2027-12-31");
     assert.equal(parseExpiryEncodedInLotCode("L268623"), null);
+    assert.equal(parseExpiryEncodedInLotCode("L 268623"), null);
+    assert.equal(looksLikeLotCodeNotExpiry("L 23232323"), true);
+    assert.equal(parseDocumentExpiry("L 23232323"), null);
+    // Space-after-L date digits: last resort only when Godnost missing.
+    assert.equal(
+      resolveDocumentExpiry(null, null, "L 11122026"),
+      "2026-12-11",
+    );
+    assert.equal(
+      resolveDocumentExpiry(null, "23.06.2027", "L 11122026"),
+      "2027-06-23",
+    );
     assert.equal(parseExpiryEncodedInLotCode("LOT99/15062027"), "2027-06-15");
     assert.equal(
       parseExpiryAfterLotSlash("L268623/15.06.2027"),
