@@ -654,6 +654,13 @@ export function extractDocumentExpiryYmds(
   const monthYear = parseMonthYearExpiry(raw);
   if (monthYear) return [monthYear];
 
+  // Compact digits with no separators (170827 → 17.08.2027, 15062027 → 15.06.2027).
+  const digitsOnly = raw.replace(/\s+/g, "");
+  if (/^\d{6}$/.test(digitsOnly) || /^\d{8}$/.test(digitsOnly)) {
+    const compact = parseCompactDigitExpiry(digitsOnly);
+    if (compact) return [compact];
+  }
+
   // Numeric blobs that failed calendar checks are not spoken dates.
   if (looksLikeNumericDateBlob(raw)) return [];
 
@@ -707,10 +714,11 @@ export function stripLotLabelPrefix(
 }
 
 /**
- * Compact digits after a lot prefix → calendar day when the digits clearly encode a date.
- * DDMMYYYY (BG common), YYYYMMDD, YYYYMM, or YYYY only.
+ * Compact digit blob → calendar day when the digits clearly encode a date.
+ * Used for printed Godnost without separators (170827 → 17.08.2027) and lot fallbacks.
+ * 8: DDMMYYYY / YYYYMMDD; 6: YYYYMM, DDMMYY, MMYYYY; 4: YYYY → end of year.
  */
-function parseCompactLotDateDigits(digits: string): string | null {
+export function parseCompactDigitExpiry(digits: string): string | null {
   if (!/^\d+$/.test(digits)) return null;
 
   if (digits.length === 8) {
@@ -733,12 +741,19 @@ function parseCompactLotDateDigits(digits: string): string | null {
   }
 
   if (digits.length === 6) {
-    // YYYYMM → end of month
+    // YYYYMM → end of month (e.g. 202712)
     const year = Number(digits.slice(0, 4));
     const month = Number(digits.slice(4, 6));
     if (year >= 2000 && year <= 2100) {
       return endOfMonthYmd(year, month);
     }
+    // DDMMYY (BG delivery lists often print 170827 for 17.08.2027)
+    const dmyy = formatYmd(
+      Number(digits.slice(4, 6)),
+      Number(digits.slice(2, 4)),
+      Number(digits.slice(0, 2)),
+    );
+    if (dmyy) return dmyy;
     // MMYYYY
     return endOfMonthYmd(Number(digits.slice(2, 6)), Number(digits.slice(0, 2)));
   }
@@ -750,6 +765,11 @@ function parseCompactLotDateDigits(digits: string): string | null {
   }
 
   return null;
+}
+
+/** @deprecated Prefer parseCompactDigitExpiry; kept as lot-path alias. */
+function parseCompactLotDateDigits(digits: string): string | null {
+  return parseCompactDigitExpiry(digits);
 }
 
 /** Parse one fragment that may be a date (with dots or compact digits). */

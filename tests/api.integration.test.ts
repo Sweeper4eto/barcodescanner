@@ -1723,6 +1723,16 @@ test("store manager sees Team for assigned store only and cannot open billing", 
     where: { id: otherStaff.id },
     data: { clientRole: "MEMBER" },
   });
+  const localStaff = await seedUserWithAccess(
+    db,
+    client.id,
+    storeA.id,
+    "local_staff",
+  );
+  await db.user.update({
+    where: { id: localStaff.id },
+    data: { clientRole: "MEMBER" },
+  });
 
   const login = await loginUser("store_mgr", "password123");
   assert.equal(login.ok, true);
@@ -1745,6 +1755,11 @@ test("store manager sees Team for assigned store only and cannot open billing", 
   assert.equal(team.data.actorClientRole, "STORE_MANAGER");
   const teamUserIds = (team.data.users as { id: string }[]).map((u) => u.id);
   assert.ok(teamUserIds.includes(manager.id));
+  assert.ok(teamUserIds.includes(localStaff.id));
+  assert.ok(
+    teamUserIds.includes(owner.id),
+    "store manager sees account owner when they share a store",
+  );
   assert.ok(!teamUserIds.includes(otherStaff.id));
   assert.deepEqual(
     (team.data.stores as { id: string }[]).map((s) => s.id),

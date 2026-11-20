@@ -1543,6 +1543,22 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Скан на документ: дата залепена към лот след / или \\ (напр. L123/15.06.2027) се чете, ако няма годност.",
     href: "/app/add-document",
   },
+  {
+    key: "2026-11-camera-permission-pwa-hint",
+    titleEn:
+      "Scan: clearer help when camera was blocked, including Android installed-app steps.",
+    titleBg:
+      "Скан: по-ясна помощ при блокирана камера, включително стъпки за Android приложение.",
+    href: "/app/scan",
+  },
+  {
+    key: "2026-11-ocr-compact-ddmmyy",
+    titleEn:
+      "Document scan: compact dates without dots (170827 or 17082027) are read as day/month/year.",
+    titleBg:
+      "Скан на документ: компактни дати без точки (170827 или 17082027) се четат като ден/месец/година.",
+    href: "/app/add-document",
+  },
 ];
 
 

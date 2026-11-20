@@ -176,6 +176,23 @@ describe("parseDocumentExpiry", () => {
     assert.equal(parseDocumentExpiry("5/1/26"), "2026-01-05");
   });
 
+  it("parses compact DDMMYY and DDMMYYYY Godnost without separators", () => {
+    assert.equal(parseDocumentExpiry("170827"), "2027-08-17");
+    assert.equal(parseDocumentExpiry("190827"), "2027-08-19");
+    assert.equal(parseDocumentExpiry("160827"), "2027-08-16");
+    assert.equal(parseDocumentExpiry("300927"), "2027-09-30");
+    assert.equal(parsePrintedExpiry("170827"), "2027-08-17");
+    assert.equal(resolveDocumentExpiry(null, "170827"), "2027-08-17");
+    // DDMMYYYY (full year)
+    assert.equal(parseDocumentExpiry("17082027"), "2027-08-17");
+    assert.equal(parseDocumentExpiry("30092027"), "2027-09-30");
+    assert.equal(parsePrintedExpiry("15062027"), "2027-06-15");
+    assert.equal(resolveDocumentExpiry(null, "11122026"), "2026-12-11");
+    // Ambiguous / non-date digit runs stay null.
+    assert.equal(parseDocumentExpiry("268623"), null);
+    assert.equal(parsePrintedExpiry("268623"), null);
+  });
+
   it("returns null for empty or invalid", () => {
     assert.equal(parseDocumentExpiry(""), null);
     assert.equal(parseDocumentExpiry("n/a"), null);
