@@ -654,12 +654,7 @@ export function extractDocumentExpiryYmds(
   const monthYear = parseMonthYearExpiry(raw);
   if (monthYear) return [monthYear];
 
-  // Compact digits with no separators (170827 → 17.08.2027, 15062027 → 15.06.2027).
-  const digitsOnly = raw.replace(/\s+/g, "");
-  if (/^\d{6}$/.test(digitsOnly) || /^\d{8}$/.test(digitsOnly)) {
-    const compact = parseCompactDigitExpiry(digitsOnly);
-    if (compact) return [compact];
-  }
+  // Compact DDMMYY / DDMMYYYY (170827) is NOT here — last-resort in resolveDocumentExpiry.
 
   // Numeric blobs that failed calendar checks are not spoken dates.
   if (looksLikeNumericDateBlob(raw)) return [];
@@ -714,8 +709,20 @@ export function stripLotLabelPrefix(
 }
 
 /**
+ * EXCEPTION / LAST RESORT: whole-cell compact digits with no separators
+ * (170827 → 17.08.2027, 15062027 → 15.06.2027). Not used in the normal path.
+ */
+export function parseCompactExpiryFallback(
+  value: string | null | undefined,
+): string | null {
+  if (!value) return null;
+  const digitsOnly = value.trim().replace(/\s+/g, "");
+  if (!/^\d{6}$/.test(digitsOnly) && !/^\d{8}$/.test(digitsOnly)) return null;
+  return parseCompactDigitExpiry(digitsOnly);
+}
+
+/**
  * Compact digit blob → calendar day when the digits clearly encode a date.
- * Used for printed Godnost without separators (170827 → 17.08.2027) and lot fallbacks.
  * 8: DDMMYYYY / YYYYMMDD; 6: YYYYMM, DDMMYY, MMYYYY; 4: YYYY → end of year.
  */
 export function parseCompactDigitExpiry(digits: string): string | null {
@@ -853,6 +860,7 @@ export function parseExpiryEncodedInLotCode(
  * 2. Model ISO expiryDate when printed has no calendar date.
  *
  * EXCEPTIONS (last resort only when normal path found nothing):
+ * - Compact DDMMYY / DDMMYYYY without separators (170827, 15062027)
  * - Compact lot-encoded digits (L11122026, L 11122026, L2027)
  * - Compact digits after / or \ (LOT99/15062027)
  *
@@ -875,7 +883,9 @@ export function resolveDocumentExpiry(
 
   // --- EXCEPTIONS ONLY (after normal path found nothing) ---
   return (
+    parseCompactExpiryFallback(expiryPrinted) ??
     parseExpiryEncodedInLotCode(lot) ??
-    parseExpiryEncodedInLotCode(expiryPrinted)
+    parseExpiryEncodedInLotCode(expiryPrinted) ??
+    parseCompactExpiryFallback(lot)
   );
 }

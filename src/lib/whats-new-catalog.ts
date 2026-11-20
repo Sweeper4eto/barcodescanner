@@ -1554,9 +1554,9 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
   {
     key: "2026-11-ocr-compact-ddmmyy",
     titleEn:
-      "Document scan: compact dates without dots (170827 or 17082027) are read as day/month/year.",
+      "Document scan: if Godnost has no dotted date, compact digits (170827 or 17082027) are used as a last resort.",
     titleBg:
-      "Скан на документ: компактни дати без точки (170827 или 17082027) се четат като ден/месец/година.",
+      "Скан на документ: ако няма дата с точки, компактни цифри (170827 или 17082027) се ползват само като последен вариант.",
     href: "/app/add-document",
   },
 ];
