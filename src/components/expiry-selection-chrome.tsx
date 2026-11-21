@@ -12,6 +12,9 @@ import {
 } from "@/lib/app-ui";
 import type { ExpiryExportFormat } from "@/lib/expiry-selection-export";
 
+/** Height of the Cancel/Remove bar above the bottom nav (for ActionFlash lift). */
+export const EXPIRY_SELECTION_FOOTER_LIFT = "4rem";
+
 export function ExpirySelectionFooter({
   selectedCount,
   busy,

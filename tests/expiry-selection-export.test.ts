@@ -5,6 +5,7 @@ import {
   buildExpirySelectionSheetRows,
   downloadExpirySelectionJpg,
   downloadExpirySelectionXlsx,
+  expiryExcelColumnWidths,
   expiryExportDecision,
   type ExpiryExportLabels,
 } from "../src/lib/expiry-selection-export";
@@ -95,6 +96,19 @@ test("expiry excel sheet rows include header and selected item fields", () => {
   assert.equal(rows[1]![3], "2");
   assert.match(rows[1]![4]!, /\d/);
   assert.match(rows[1]![6]!, /^-?\d+$/);
+});
+
+test("expiry excel column widths grow with the longest cell in each column", () => {
+  const widths = expiryExcelColumnWidths([
+    ["Име", "Артикул", "Кол"],
+    ["Бяла и мръсна сол йодирана", "900005177", "12"],
+    ["Мляко", "1", "8"],
+  ]);
+  assert.equal(widths.length, 3);
+  assert.ok(widths[0]!.wch >= "Бяла и мръсна сол йодирана".length);
+  assert.ok(widths[1]!.wch >= "900005177".length);
+  assert.ok(widths[2]!.wch >= 6);
+  assert.ok(widths[0]!.wch <= 48);
 });
 
 test("expiry excel download fails outside the browser", async () => {

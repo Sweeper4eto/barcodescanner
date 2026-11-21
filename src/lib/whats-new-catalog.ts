@@ -1591,6 +1591,14 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Скан на баркод на iPhone ползва същия преглед на камерата като скан на документ (оправя черен екран след Allow).",
     href: "/app/scan",
   },
+  {
+    key: "2026-11-expiry-excel-columns-flash",
+    titleEn:
+      "Expiry Excel export widens columns to fit text, and the save confirmation stays visible above Cancel/Remove.",
+    titleBg:
+      "Excel експорт от Годност разширява колоните по текста, а съобщението за запис остава видимо над Отказ/Премахни.",
+    href: "/app/expiry",
+  },
 ];
 
 

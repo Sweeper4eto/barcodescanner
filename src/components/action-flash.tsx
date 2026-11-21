@@ -8,6 +8,11 @@ type Props = {
   tone?: "success" | "error";
   onClear: () => void;
   durationMs?: number;
+  /**
+   * Extra lift above the bottom nav (CSS length). Use when a selection footer
+   * (Cancel / Remove) sits on top of the nav so the flash is not hidden.
+   */
+  bottomExtra?: string;
 };
 
 /**
@@ -19,6 +24,7 @@ export function ActionFlash({
   tone = "success",
   onClear,
   durationMs = 2500,
+  bottomExtra = "0px",
 }: Props) {
   useEffect(() => {
     if (!message) return;
@@ -36,10 +42,9 @@ export function ActionFlash({
   return (
     <p
       role={tone === "error" ? "alert" : "status"}
-      className={`pointer-events-none fixed inset-x-0 z-50 mx-auto w-[calc(100%-1.5rem)] ${appContentMaxW} rounded-xl border px-3 py-2.5 text-center text-sm font-medium backdrop-blur-sm ${toneClass}`}
+      className={`pointer-events-none fixed inset-x-0 z-[55] mx-auto w-[calc(100%-1.5rem)] ${appContentMaxW} rounded-xl border px-3 py-2.5 text-center text-sm font-medium backdrop-blur-sm ${toneClass}`}
       style={{
-        bottom:
-          "calc(var(--app-bottom-nav-height) + env(safe-area-inset-bottom, 0px) + 0.5rem)",
+        bottom: `calc(var(--app-bottom-nav-height) + env(safe-area-inset-bottom, 0px) + 0.5rem + ${bottomExtra})`,
       }}
     >
       {message}

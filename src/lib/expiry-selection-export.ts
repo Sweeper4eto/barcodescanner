@@ -603,6 +603,30 @@ export function buildExpirySelectionSheetRows(
   return rows;
 }
 
+const EXCEL_COL_MIN_WCH = 6;
+const EXCEL_COL_MAX_WCH = 48;
+const EXCEL_COL_PAD_WCH = 2;
+
+/** SheetJS `!cols` widths from cell text (approx character width). */
+export function expiryExcelColumnWidths(
+  rows: string[][],
+): Array<{ wch: number }> {
+  if (rows.length === 0) return [];
+  const colCount = Math.max(...rows.map((row) => row.length));
+  const widths = Array.from({ length: colCount }, () => EXCEL_COL_MIN_WCH);
+  for (const row of rows) {
+    for (let index = 0; index < colCount; index += 1) {
+      const value = row[index] ?? "";
+      const len = Array.from(String(value)).length;
+      widths[index] = Math.max(
+        widths[index]!,
+        Math.min(EXCEL_COL_MAX_WCH, len + EXCEL_COL_PAD_WCH),
+      );
+    }
+  }
+  return widths.map((wch) => ({ wch }));
+}
+
 function xlsxFilename(when: Date): string {
   const pad = (value: number) => String(value).padStart(2, "0");
   const stamp = [
@@ -647,6 +671,7 @@ export async function downloadExpirySelectionXlsx(input: {
       input.locale,
     );
     const sheet = XLSX.utils.aoa_to_sheet(aoa);
+    sheet["!cols"] = expiryExcelColumnWidths(aoa);
     const book = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(
       book,

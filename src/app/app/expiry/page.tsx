@@ -7,6 +7,7 @@ import { ExpiryListCard } from "@/components/expiry-list-card";
 import {
   ExpiryExportFormatDialog,
   ExpiryExportPreview,
+  EXPIRY_SELECTION_FOOTER_LIFT,
   ExpirySelectionFooter,
 } from "@/components/expiry-selection-chrome";
 import {
@@ -814,6 +815,7 @@ function ExpiryList() {
           message={flashMessage}
           tone={flashTone}
           onClear={clearFlash}
+          bottomExtra={selectionMode ? EXPIRY_SELECTION_FOOTER_LIFT : "0px"}
         />
 
         <ExpiryPeriodFilter value={period} onChange={onPeriodChange} />
