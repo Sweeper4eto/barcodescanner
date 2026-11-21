@@ -24,6 +24,14 @@ import {
   pickPreferredCameraId,
 } from "@/lib/camera-select";
 import {
+  deviceIdCameraConstraints,
+  facingCameraConstraints,
+  isIosLikeUserAgent,
+  planMaximizeTrackQuality,
+  shouldApplySingleShotFocus,
+  shouldRepickCameraAfterOpen,
+} from "@/lib/document-camera";
+import {
   DOCUMENT_FILE_ACCEPT,
   DOCUMENT_IMAGE_ACCEPT,
   ensureDataUrlMime,
@@ -154,13 +162,10 @@ const MAX_UPLOAD_BYTES = 12 * 1024 * 1024; // keep in sync with MAX_UPLOAD_FILE_
 
 function isIosLike(): boolean {
   if (typeof navigator === "undefined") return false;
-  const ua = navigator.userAgent || "";
-  if (/iPad|iPhone|iPod/.test(ua)) return true;
-  // iPadOS 13+ may report as Mac with touch
-  return (
-    navigator.platform === "MacIntel" &&
-    typeof navigator.maxTouchPoints === "number" &&
-    navigator.maxTouchPoints > 1
+  return isIosLikeUserAgent(
+    navigator.userAgent || "",
+    navigator.platform || "",
+    typeof navigator.maxTouchPoints === "number" ? navigator.maxTouchPoints : 0,
   );
 }
 
@@ -216,12 +221,13 @@ function stopMediaStream(stream: MediaStream): void {
 
 async function openStreamWithConstraints(
   constraints: MediaStreamConstraints[],
+  phase: "preview" | "capture" = "preview",
 ): Promise<MediaStream> {
   let lastError: unknown;
   for (const constraint of constraints) {
     try {
       const stream = await navigator.mediaDevices.getUserMedia(constraint);
-      await maximizeTrackQuality(stream);
+      await maximizeTrackQuality(stream, phase);
       return stream;
     } catch (error) {
       lastError = error;
@@ -230,86 +236,25 @@ async function openStreamWithConstraints(
   throw lastError ?? new Error("CAMERA_UNAVAILABLE");
 }
 
-/** High-res rear first; fall back so A53 / older WebViews still open. */
-const FACING_CAMERA_CONSTRAINTS: MediaStreamConstraints[] = [
-  {
-    video: {
-      facingMode: { exact: "environment" },
-      width: { ideal: 4032 },
-      height: { ideal: 3024 },
-      frameRate: { ideal: 30 },
-    },
-    audio: false,
-  },
-  {
-    video: {
-      facingMode: { ideal: "environment" },
-      width: { ideal: 4032 },
-      height: { ideal: 3024 },
-    },
-    audio: false,
-  },
-  {
-    video: {
-      facingMode: { ideal: "environment" },
-      width: { ideal: 3840 },
-      height: { ideal: 2160 },
-    },
-    audio: false,
-  },
-  {
-    video: {
-      facingMode: { ideal: "environment" },
-      width: { ideal: 1920 },
-      height: { ideal: 1080 },
-    },
-    audio: false,
-  },
-  { video: { facingMode: { ideal: "environment" } }, audio: false },
-  {
-    video: {
-      facingMode: { ideal: "user" },
-      width: { ideal: 1920 },
-      height: { ideal: 1080 },
-    },
-    audio: false,
-  },
-  { video: { facingMode: { ideal: "user" } }, audio: false },
-  { video: true, audio: false },
-];
-
-function deviceIdConstraints(deviceId: string): MediaStreamConstraints[] {
-  return [
-    {
-      video: {
-        deviceId: { exact: deviceId },
-        width: { ideal: 4032 },
-        height: { ideal: 3024 },
-      },
-      audio: false,
-    },
-    {
-      video: {
-        deviceId: { ideal: deviceId },
-        width: { ideal: 1920 },
-        height: { ideal: 1080 },
-      },
-      audio: false,
-    },
-    { video: { deviceId: { ideal: deviceId } }, audio: false },
-  ];
-}
-
 /**
  * Open the live document camera. After permission, re-pick the main rear lens
- * when Chrome handed us ultrawide/macro (common on Galaxy A53).
+ * when Chrome handed us ultrawide/macro (common on Galaxy A53). Skip that
+ * switch on iOS: stop/restart after Allow commonly blacks Safari preview.
  */
 async function openCameraStream(): Promise<MediaStream> {
   if (!navigator.mediaDevices?.getUserMedia) {
     throw new Error("NO_MEDIA_DEVICES");
   }
 
-  let stream = await openStreamWithConstraints(FACING_CAMERA_CONSTRAINTS);
+  const ios = isIosLike();
+  let stream = await openStreamWithConstraints(
+    facingCameraConstraints(ios),
+    "preview",
+  );
+
+  if (!shouldRepickCameraAfterOpen(ios)) {
+    return stream;
+  }
 
   try {
     const devices = (await navigator.mediaDevices.enumerateDevices()).filter(
@@ -339,7 +284,8 @@ async function openCameraStream(): Promise<MediaStream> {
 
     if (shouldSwitch && preferredId) {
       const next = await openStreamWithConstraints(
-        deviceIdConstraints(preferredId),
+        deviceIdCameraConstraints(preferredId, ios),
+        "preview",
       );
       stopMediaStream(stream);
       stream = next;
@@ -358,7 +304,10 @@ function capabilityMax(
 }
 
 /** Max resolution + continuous focus/exposure when the browser exposes them. */
-async function maximizeTrackQuality(stream: MediaStream): Promise<void> {
+async function maximizeTrackQuality(
+  stream: MediaStream,
+  phase: "preview" | "capture" = "preview",
+): Promise<void> {
   const track = stream.getVideoTracks()[0];
   if (!track?.applyConstraints) return;
 
@@ -367,35 +316,30 @@ async function maximizeTrackQuality(stream: MediaStream): Promise<void> {
       ? track.getCapabilities()
       : ({} as MediaTrackCapabilities);
 
-  const widthMax = capabilityMax(capabilities.width);
-  const heightMax = capabilityMax(capabilities.height);
+  const plan = planMaximizeTrackQuality({
+    ios: isIosLike(),
+    phase,
+    widthMax: capabilityMax(capabilities.width),
+    heightMax: capabilityMax(capabilities.height),
+    focusModes: (capabilities as { focusMode?: string[] }).focusMode,
+    exposureModes: (capabilities as { exposureMode?: string[] }).exposureMode,
+    whiteBalanceModes: (capabilities as { whiteBalanceMode?: string[] })
+      .whiteBalanceMode,
+  });
 
-  const advanced: Record<string, string>[] = [];
-  const focusModes = (capabilities as { focusMode?: string[] }).focusMode;
-  if (Array.isArray(focusModes)) {
-    if (focusModes.includes("continuous")) advanced.push({ focusMode: "continuous" });
-    else if (focusModes.includes("single-shot")) advanced.push({ focusMode: "single-shot" });
-  }
-  const exposureModes = (capabilities as { exposureMode?: string[] }).exposureMode;
-  if (Array.isArray(exposureModes) && exposureModes.includes("continuous")) {
-    advanced.push({ exposureMode: "continuous" });
-  }
-  const whiteBalanceModes = (capabilities as { whiteBalanceMode?: string[] }).whiteBalanceMode;
-  if (Array.isArray(whiteBalanceModes) && whiteBalanceModes.includes("continuous")) {
-    advanced.push({ whiteBalanceMode: "continuous" });
-  }
+  if (plan.mode === "skip") return;
 
   try {
     await track.applyConstraints({
-      width: { ideal: widthMax ?? 4032 },
-      height: { ideal: heightMax ?? 3024 },
-      ...(advanced.length > 0 ? { advanced } : {}),
+      width: { ideal: plan.widthIdeal },
+      height: { ideal: plan.heightIdeal },
+      ...(plan.advanced.length > 0 ? { advanced: plan.advanced } : {}),
     } as MediaTrackConstraints);
   } catch {
     try {
       await track.applyConstraints({
-        width: { ideal: widthMax ?? 1920 },
-        height: { ideal: heightMax ?? 1080 },
+        width: { ideal: Math.min(plan.widthIdeal, 1920) },
+        height: { ideal: Math.min(plan.heightIdeal, 1080) },
       });
     } catch {
       // Keep whatever resolution getUserMedia already gave us.
@@ -443,6 +387,11 @@ async function settleAutofocus(track: MediaStreamTrack | undefined): Promise<voi
     await wait(ios ? 400 : 200);
     return;
   }
+  // iOS: waiting only. Applying single-shot focus often blanks the live preview.
+  if (!shouldApplySingleShotFocus(ios)) {
+    await wait(ios ? 500 : 280);
+    return;
+  }
   try {
     const caps =
       typeof track.getCapabilities === "function"
@@ -453,13 +402,13 @@ async function settleAutofocus(track: MediaStreamTrack | undefined): Promise<voi
       await track.applyConstraints({
         advanced: [{ focusMode: "single-shot" }],
       } as unknown as MediaTrackConstraints);
-      await wait(ios ? 700 : 450);
+      await wait(450);
       return;
     }
   } catch {
     // ignore
   }
-  await wait(ios ? 500 : 280);
+  await wait(280);
 }
 
 async function captureWithImageCapture(
@@ -550,8 +499,9 @@ async function captureHighQualityStill(
 ): Promise<string> {
   const track = stream.getVideoTracks()[0];
   // Re-bump resolution right before capture (Safari often starts lower).
+  // On iOS this stays gentle / no focusMode. Hard maximize blacks the preview.
   if (track) {
-    await maximizeTrackQuality(stream);
+    await maximizeTrackQuality(stream, "capture");
     await settleAutofocus(track);
   } else {
     await settleAutofocus(undefined);
