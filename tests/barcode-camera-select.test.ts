@@ -4,6 +4,8 @@ import {
   barcodeCameraScore,
   isLikelyBadBarcodeCamera,
   orderBarcodeCameras,
+  prepareScannerVideoElement,
+  shouldSkipBarcodeFocusConstraints,
 } from "../src/lib/barcode-camera";
 
 test("barcodeCameraScore prefers main rear over Samsung ultrawide/macro", () => {
@@ -34,4 +36,54 @@ test("orderBarcodeCameras puts main rear first on A53-like lists", () => {
   ]);
   assert.equal(ordered[0]?.id, "main");
   assert.ok(ordered.findIndex((c) => c.id === "front") > 0);
+});
+
+test("shouldSkipBarcodeFocusConstraints is true on iPhone / iPadOS", () => {
+  assert.equal(
+    shouldSkipBarcodeFocusConstraints({
+      userAgent:
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15",
+    }),
+    true,
+  );
+  assert.equal(
+    shouldSkipBarcodeFocusConstraints({
+      userAgent:
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15",
+      platform: "MacIntel",
+      maxTouchPoints: 5,
+    }),
+    true,
+  );
+  assert.equal(
+    shouldSkipBarcodeFocusConstraints({
+      userAgent:
+        "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 Chrome/120.0.0.0",
+      platform: "Linux armv8l",
+      maxTouchPoints: 5,
+    }),
+    false,
+  );
+});
+
+test("prepareScannerVideoElement forces muted inline attributes for iOS", () => {
+  const video = {
+    muted: false,
+    defaultMuted: false,
+    playsInline: false,
+    autoplay: false,
+    attrs: {} as Record<string, string>,
+    setAttribute(name: string, value: string) {
+      this.attrs[name] = value;
+    },
+    play() {
+      return Promise.resolve();
+    },
+  };
+  prepareScannerVideoElement(video as unknown as HTMLVideoElement);
+  assert.equal(video.muted, true);
+  assert.equal(video.playsInline, true);
+  assert.equal(video.attrs.playsinline, "");
+  assert.equal(video.attrs["webkit-playsinline"], "");
+  assert.equal(video.attrs.muted, "");
 });

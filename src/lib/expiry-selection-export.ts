@@ -8,11 +8,16 @@ import { pictureSaveStatus, readIosSaveTarget } from "@/lib/picture-save";
 /** One JPG stays readable in chat apps past this many rows. */
 export const EXPIRY_EXPORT_MAX_ITEMS = 20;
 
+export type ExpiryExportFormat = "picture" | "excel";
+
 export type ExpiryExportDecision = "empty" | "too-many" | "ok";
 
-export function expiryExportDecision(count: number): ExpiryExportDecision {
+export function expiryExportDecision(
+  count: number,
+  maxItems: number = EXPIRY_EXPORT_MAX_ITEMS,
+): ExpiryExportDecision {
   if (count <= 0) return "empty";
-  if (count > EXPIRY_EXPORT_MAX_ITEMS) return "too-many";
+  if (count > maxItems) return "too-many";
   return "ok";
 }
 
@@ -21,6 +26,8 @@ export type ExpiryExportItem = {
   enteredAt: string;
   expiryDate: string;
   quantity: number;
+  articul?: string | null;
+  lot?: string | null;
 };
 
 export type ExpiryExportLabels = {
@@ -549,6 +556,111 @@ export function downloadExpirySelectionJpg(input: {
     );
     const blob = canvasToJpegBlobSync(canvas);
     return deliverJpegBlob(blob, jpgFilename(exportedAt));
+  } catch {
+    return { status: "failed" };
+  }
+}
+
+export type ExpiryExcelColumnLabels = {
+  name: string;
+  articul: string;
+  lot: string;
+  quantity: string;
+  expiry: string;
+  added: string;
+  daysLeft: string;
+};
+
+/** Pure sheet rows for tests and Excel export (header + data). */
+export function buildExpirySelectionSheetRows(
+  items: ExpiryExportItem[],
+  columns: ExpiryExcelColumnLabels,
+  locale: string,
+): string[][] {
+  const rows: string[][] = [
+    [
+      columns.name,
+      columns.articul,
+      columns.lot,
+      columns.quantity,
+      columns.expiry,
+      columns.added,
+      columns.daysLeft,
+    ],
+  ];
+  for (const item of items) {
+    const days = daysUntilExpiry(new Date(item.expiryDate));
+    rows.push([
+      item.name,
+      item.articul?.trim() || "",
+      item.lot?.trim() || "",
+      String(item.quantity),
+      formatLocaleDay(item.expiryDate, locale),
+      formatLocaleDay(item.enteredAt, locale),
+      String(days),
+    ]);
+  }
+  return rows;
+}
+
+function xlsxFilename(when: Date): string {
+  const pad = (value: number) => String(value).padStart(2, "0");
+  const stamp = [
+    when.getFullYear(),
+    pad(when.getMonth() + 1),
+    pad(when.getDate()),
+    pad(when.getHours()),
+    pad(when.getMinutes()),
+    pad(when.getSeconds()),
+  ].join("");
+  return `expiry-${stamp}.xlsx`;
+}
+
+function deliverFileBlob(blob: Blob, filename: string): ExpiryExportResult {
+  const started = triggerDownload(blob, filename);
+  return started ? { status: "saved" } : { status: "failed" };
+}
+
+/**
+ * Build an .xlsx workbook for the selected expiry rows and download it.
+ * Uses dynamic import so the expiry page does not always load SheetJS.
+ */
+export async function downloadExpirySelectionXlsx(input: {
+  items: ExpiryExportItem[];
+  columns: ExpiryExcelColumnLabels;
+  locale: string;
+  sheetName?: string;
+  exportedAt?: Date;
+  maxItems?: number;
+}): Promise<ExpiryExportResult> {
+  if (typeof document === "undefined") return { status: "failed" };
+  const maxItems = input.maxItems ?? Number.POSITIVE_INFINITY;
+  if (expiryExportDecision(input.items.length, maxItems) !== "ok") {
+    return { status: "failed" };
+  }
+  try {
+    const XLSX = await import("xlsx");
+    const exportedAt = input.exportedAt ?? new Date();
+    const aoa = buildExpirySelectionSheetRows(
+      input.items,
+      input.columns,
+      input.locale,
+    );
+    const sheet = XLSX.utils.aoa_to_sheet(aoa);
+    const book = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(
+      book,
+      sheet,
+      (input.sheetName ?? "Expiry").slice(0, 31),
+    );
+    const buffer = XLSX.write(book, {
+      bookType: "xlsx",
+      type: "array",
+    }) as ArrayBuffer;
+    const blob = new Blob([buffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    return deliverFileBlob(blob, xlsxFilename(exportedAt));
   } catch {
     return { status: "failed" };
   }

@@ -87,7 +87,7 @@ Legend: ✅ have · 🔴 missing · ⚪ not worth it now
 24. ⚪ Hold / quarantine
 25. ✅ FEFO (via expiry list)
 26. 🔴 Excel / CSV import
-27. ⚪ Excel / CSV export (have JPG; CSV mainly for migration)
+27. ✅ Excel / CSV export (selected expiry: JPG or Excel; full CSV migration later)
 28. ✅ Push notifications before expiry
 29. ⚪ Email alerts / daily digest (needs email provider)
 30. ⚪ WhatsApp alerts (bot possible, QR session awkward)

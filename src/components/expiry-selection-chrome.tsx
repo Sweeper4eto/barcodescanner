@@ -1,13 +1,16 @@
 "use client";
 
 import { useT } from "@/components/i18n-provider";
+import { useViewportInsets } from "@/hooks/use-viewport-insets";
 import {
   appButtonDangerFull,
   appButtonNeutral,
+  appButtonNeutralFull,
   appButtonPrimaryFull,
   appContentMaxW,
   appFooterButtonGrid,
 } from "@/lib/app-ui";
+import type { ExpiryExportFormat } from "@/lib/expiry-selection-export";
 
 export function ExpirySelectionFooter({
   selectedCount,
@@ -84,6 +87,69 @@ export function ExpiryExportPreview({
         >
           {t("expiry.exportSavePhotos")}
         </a>
+      </div>
+    </div>
+  );
+}
+
+export function ExpiryExportFormatDialog({
+  open,
+  onCancel,
+  onChoose,
+}: {
+  open: boolean;
+  onCancel: () => void;
+  onChoose: (format: ExpiryExportFormat) => void;
+}) {
+  const { t } = useT();
+  const { offsetTop, keyboardInset } = useViewportInsets();
+  if (!open) return null;
+
+  return (
+    <div
+      className="fixed inset-x-0 z-[70] flex items-center justify-center bg-black/60 px-5"
+      style={{ top: offsetTop, bottom: keyboardInset }}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="expiry-export-format-title"
+      onClick={onCancel}
+    >
+      <div
+        className="w-full max-w-[22rem] rounded-2xl border border-card-border bg-background px-5 py-5 shadow-[0_20px_50px_rgba(0,0,0,0.5)]"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <h2
+          id="expiry-export-format-title"
+          className="text-center text-lg font-semibold text-foreground"
+        >
+          {t("expiry.exportFormatTitle")}
+        </h2>
+        <p className="mt-2 text-center text-sm text-muted">
+          {t("expiry.exportFormatHint")}
+        </p>
+        <div className="mt-4 space-y-2">
+          <button
+            type="button"
+            className={appButtonPrimaryFull}
+            onClick={() => onChoose("picture")}
+          >
+            {t("expiry.exportAsPicture")}
+          </button>
+          <button
+            type="button"
+            className={appButtonNeutralFull}
+            onClick={() => onChoose("excel")}
+          >
+            {t("expiry.exportAsExcel")}
+          </button>
+          <button
+            type="button"
+            className={appButtonNeutralFull}
+            onClick={onCancel}
+          >
+            {t("expiry.confirmCancel")}
+          </button>
+        </div>
       </div>
     </div>
   );

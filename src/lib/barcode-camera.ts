@@ -323,6 +323,68 @@ function findScannerVideo(containerId: string): HTMLVideoElement | null {
   return container?.querySelector("video") ?? null;
 }
 
+/** True on iPhone/iPad where applyConstraints / focus nudges often black out preview. */
+export function shouldSkipBarcodeFocusConstraints(input: {
+  userAgent: string;
+  platform?: string;
+  maxTouchPoints?: number;
+}): boolean {
+  if (/iPhone|iPad|iPod/i.test(input.userAgent)) return true;
+  // iPadOS desktop UA
+  if (
+    input.platform === "MacIntel" &&
+    (input.maxTouchPoints ?? 0) > 1
+  ) {
+    return true;
+  }
+  return false;
+}
+
+function isIosBarcodeHost(): boolean {
+  if (typeof navigator === "undefined") return false;
+  return shouldSkipBarcodeFocusConstraints({
+    userAgent: navigator.userAgent,
+    platform: navigator.platform,
+    maxTouchPoints: navigator.maxTouchPoints,
+  });
+}
+
+/**
+ * Force inline muted playback so iOS Safari does not treat the scanner video
+ * as a fullscreen / black media surface.
+ */
+export function prepareScannerVideoElement(video: HTMLVideoElement): void {
+  video.muted = true;
+  video.defaultMuted = true;
+  video.playsInline = true;
+  video.autoplay = true;
+  video.setAttribute("muted", "");
+  video.setAttribute("playsinline", "");
+  video.setAttribute("webkit-playsinline", "");
+  video.setAttribute("autoplay", "");
+  void video.play().catch(() => undefined);
+}
+
+/** Patch the live html5-qrcode <video> (retries: element appears after start). */
+export function ensureScannerInlinePlayback(containerId: string): () => void {
+  const tryPatch = () => {
+    const video = findScannerVideo(containerId);
+    if (!video) return false;
+    prepareScannerVideoElement(video);
+    return true;
+  };
+
+  tryPatch();
+  const timers = [50, 150, 400, 900].map((ms) =>
+    window.setTimeout(() => {
+      tryPatch();
+    }, ms),
+  );
+  return () => {
+    for (const id of timers) window.clearTimeout(id);
+  };
+}
+
 /** Snapshot the live barcode preview as a JPEG data URL (for double-tap direct picture). */
 export function captureScannerPreview(containerId: string): string | null {
   const video = findScannerVideo(containerId);
@@ -383,6 +445,8 @@ function renderVideoFrame(
 }
 
 export async function refocusBarcodeCamera(scanner: Html5Qrcode): Promise<void> {
+  // iPhone: single-shot / continuous applyConstraints often blacks the preview.
+  if (isIosBarcodeHost()) return;
   try {
     await scanner.applyVideoConstraints({
       advanced: [{ focusMode: "single-shot" }],
@@ -400,6 +464,8 @@ export async function refocusBarcodeCamera(scanner: Html5Qrcode): Promise<void> 
 export async function applyBarcodeCameraConstraints(
   scanner: Html5Qrcode,
 ): Promise<void> {
+  if (isIosBarcodeHost()) return;
+
   try {
     await scanner.applyVideoConstraints({
       width: { ideal: 1280 },

@@ -22,6 +22,7 @@ import {
   applyBarcodeCameraConstraints,
   startAutoRefocus,
   captureScannerPreview,
+  ensureScannerInlinePlayback,
   isLikelyBadBarcodeCamera,
   orderBarcodeCameras,
 } from "@/lib/barcode-camera";
@@ -208,14 +209,21 @@ async function startScanner(
   };
 
   const afterCameraStart = () => {
+    // iOS: force playsInline/muted on the html5-qrcode <video> (retries while it mounts).
+    const stopInlinePatch = ensureScannerInlinePlayback(containerId);
     restartEnhancedScan();
-    window.setTimeout(() => {
+    const constraintTimer = window.setTimeout(() => {
       if (!scanner.isScanning) return;
       void applyBarcodeCameraConstraints(scanner).catch(() => undefined);
       stopRefocus();
       stopRefocus = startAutoRefocus(scanner);
     }, 400);
-    return makeCleanup();
+    const baseCleanup = makeCleanup();
+    return () => {
+      window.clearTimeout(constraintTimer);
+      stopInlinePatch();
+      baseCleanup();
+    };
   };
 
   const deliver = (accepted: string) => {

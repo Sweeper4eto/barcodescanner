@@ -5,6 +5,7 @@ import { BarcodeScanner } from "@/components/barcode-scanner";
 import { SaveDiskIcon, ScanNavIcon } from "@/components/app-nav-icons";
 import { ExpiryListCard } from "@/components/expiry-list-card";
 import {
+  ExpiryExportFormatDialog,
   ExpiryExportPreview,
   ExpirySelectionFooter,
 } from "@/components/expiry-selection-chrome";
@@ -56,8 +57,10 @@ import { bulkRemoveMaxForClientRole } from "@/lib/expiry-bulk-remove";
 import {
   EXPIRY_EXPORT_MAX_ITEMS,
   downloadExpirySelectionJpg,
+  downloadExpirySelectionXlsx,
   expiryExportDecision,
   preloadExpiryExportLogo,
+  type ExpiryExportFormat,
 } from "@/lib/expiry-selection-export";
 
 const PAGE_SIZE = 40;
@@ -130,6 +133,7 @@ function ExpiryList() {
     url: string;
     filename: string;
   } | null>(null);
+  const [exportFormatOpen, setExportFormatOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState<ExpiryPeriod>(DEFAULT_EXPIRY_PERIOD);
   const loadMoreRef = useRef<HTMLDivElement>(null);
@@ -187,7 +191,13 @@ function ExpiryList() {
         setSelectionMode(false);
         setSelectedIds({});
         setBulkConfirmOpen(false);
+        setExportFormatOpen(false);
       },
+    },
+    {
+      id: "export-format",
+      open: exportFormatOpen,
+      close: () => setExportFormatOpen(false),
     },
     {
       id: "export-preview",
@@ -407,6 +417,7 @@ function ExpiryList() {
     setSelectionMode(false);
     setSelectedIds({});
     setBulkConfirmOpen(false);
+    setExportFormatOpen(false);
   }
 
   function enterSelectionWith(entryId: string) {
@@ -417,15 +428,21 @@ function ExpiryList() {
     setSelectedIds({ [entryId]: true });
   }
 
-  function exportSelected() {
+  function openExportFormatChooser() {
+    if (Object.keys(selectedIds).length === 0) return;
+    setExportFormatOpen(true);
+  }
+
+  async function exportSelected(format: ExpiryExportFormat) {
+    setExportFormatOpen(false);
     const count = Object.keys(selectedIds).length;
-    const decision = expiryExportDecision(count);
+    const maxItems =
+      format === "picture" ? EXPIRY_EXPORT_MAX_ITEMS : selectionLimit;
+    const decision = expiryExportDecision(count, maxItems);
     if (decision === "empty") return;
     if (decision === "too-many") {
       setFlashTone("success");
-      setFlashMessage(
-        t("expiry.exportMax", { max: EXPIRY_EXPORT_MAX_ITEMS }),
-      );
+      setFlashMessage(t("expiry.exportMax", { max: maxItems }));
       return;
     }
 
@@ -436,8 +453,36 @@ function ExpiryList() {
         enteredAt: entry.enteredAt,
         expiryDate: entry.expiryDate,
         quantity: entry.quantity,
+        articul: entry.articul,
+        lot: entry.lot,
       }));
     if (items.length === 0) return;
+
+    if (format === "excel") {
+      const result = await downloadExpirySelectionXlsx({
+        items,
+        locale: dateLocale,
+        maxItems: selectionLimit,
+        sheetName: homeUser === true ? t("expiry.title") : t("expiry.storeTitle"),
+        columns: {
+          name: t("expiry.exportColName"),
+          articul: t("expiry.exportColArticul"),
+          lot: t("expiry.exportColLot"),
+          quantity: t("expiry.exportColQuantity"),
+          expiry: t("expiry.exportColExpiry"),
+          added: t("expiry.exportColAdded"),
+          daysLeft: t("expiry.exportColDaysLeft"),
+        },
+      });
+      if (result.status === "failed") {
+        setFlashTone("error");
+        setFlashMessage(t("expiry.exportFailed"));
+        return;
+      }
+      setFlashTone("success");
+      setFlashMessage(t("expiry.exportExcelSaved"));
+      return;
+    }
 
     const storeName =
       user?.stores.find((store) => store.id === storeId)?.name.trim() ?? "";
@@ -785,7 +830,7 @@ function ExpiryList() {
           {selectionMode ? (
             <button
               type="button"
-              onClick={() => void exportSelected()}
+              onClick={openExportFormatChooser}
               disabled={selectedCount === 0}
               className={appButtonToolbar}
             >
@@ -977,6 +1022,12 @@ function ExpiryList() {
           }}
         />
       ) : null}
+
+      <ExpiryExportFormatDialog
+        open={exportFormatOpen}
+        onCancel={() => setExportFormatOpen(false)}
+        onChoose={(format) => void exportSelected(format)}
+      />
 
       <ExpiryExportPreview
         preview={exportPreview}

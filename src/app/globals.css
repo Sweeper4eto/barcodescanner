@@ -128,14 +128,31 @@ body {
   /* Cover fills the horizontal scan strip (no side letterboxing on phones). */
   object-fit: cover !important;
   object-position: center center;
-  background: #000;
   /* Let double-tap / click hit the parent wrapper, not the video element. */
   pointer-events: none;
+}
+
+/*
+ * iPhone / html5-qrcode: an internal canvas often sits above <video>.
+ * A black canvas background (or shaded region) makes the preview look dead
+ * while frames still decode / double-tap capture still works.
+ */
+.barcode-scanner-view video {
+  position: relative;
+  z-index: 1;
+  background: #000;
+}
+.barcode-scanner-view canvas,
+.barcode-scanner-view img {
+  position: relative;
+  z-index: 0;
+  background: transparent !important;
 }
 
 /* Hide html5-qrcode's default white border shaders; we draw green corners. */
 .barcode-scanner-view #qr-shaded-region {
   border: none !important;
+  background: transparent !important;
 }
 .barcode-scanner-view #qr-shaded-region > div {
   background: transparent !important;

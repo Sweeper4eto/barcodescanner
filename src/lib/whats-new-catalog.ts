@@ -1559,6 +1559,22 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Скан на документ: ако няма дата с точки, компактни цифри (170827 или 17082027) се ползват само като последен вариант.",
     href: "/app/add-document",
   },
+  {
+    key: "2026-11-expiry-export-picture-or-excel",
+    titleEn:
+      "Expiry export: choose Picture or Excel table for the selected items.",
+    titleBg:
+      "Експорт от Годност: изберете Снимка или Excel таблица за избраните артикули.",
+    href: "/app/expiry",
+  },
+  {
+    key: "2026-11-iphone-barcode-preview-fix",
+    titleEn:
+      "Barcode scan on iPhone: live camera preview should show instead of a black screen.",
+    titleBg:
+      "Скан на баркод на iPhone: прегледът на камерата трябва да се вижда вместо черен екран.",
+    href: "/app/scan",
+  },
 ];
 
 
