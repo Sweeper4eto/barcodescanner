@@ -22,10 +22,18 @@ import {
   applyBarcodeCameraConstraints,
   startAutoRefocus,
   captureScannerPreview,
+  IOS_NATIVE_ACTIVE_CLASS,
+  IOS_NATIVE_VIDEO_CLASS,
+  bindStreamToScannerVideo,
   ensureScannerInlinePlayback,
-  startIosScannerPreviewMirror,
   isLikelyBadBarcodeCamera,
+  mediaStreamTorchSupported,
+  openIosBarcodeMediaStream,
   orderBarcodeCameras,
+  shouldSkipBarcodeFocusConstraints,
+  startIosScannerPreviewMirror,
+  stopMediaStream,
+  toggleMediaStreamTorch,
 } from "@/lib/barcode-camera";
 import { prepareBarcodeDecoders } from "@/lib/barcode-decode";
 import { CrossDecoderBarcodeConsensus, isPlausibleBarcode, normalizeBarcode } from "@/lib/barcode";
@@ -152,13 +160,18 @@ async function safeStopScanner(scanner: Html5Qrcode | null | undefined): Promise
 /** Stop live camera tracks immediately so a following mic getUserMedia can prompt. */
 function releaseScannerMediaTracks(containerId: string): void {
   const root = document.getElementById(containerId);
-  root?.querySelectorAll("video").forEach((video) => {
+  const host =
+    (root?.closest(".barcode-scanner-view") as HTMLElement | null) ??
+    root?.parentElement ??
+    root;
+  host?.querySelectorAll("video").forEach((video) => {
     const stream = video.srcObject;
     if (stream instanceof MediaStream) {
       stream.getTracks().forEach((track) => track.stop());
     }
     video.srcObject = null;
   });
+  host?.classList.remove(IOS_NATIVE_ACTIVE_CLASS);
 }
 
 async function resetScanner(scanner: Html5Qrcode): Promise<void> {
@@ -183,13 +196,29 @@ async function waitForScannerLayout(containerId: string): Promise<void> {
   }
 }
 
+type StartScannerResult = {
+  cleanup: () => void;
+  /** Set when iOS uses our getUserMedia preview (not html5-qrcode). */
+  iosStream: MediaStream | null;
+};
+
+function isIosScannerHost(): boolean {
+  if (typeof navigator === "undefined") return false;
+  return shouldSkipBarcodeFocusConstraints({
+    userAgent: navigator.userAgent,
+    platform: navigator.platform,
+    maxTouchPoints: navigator.maxTouchPoints,
+  });
+}
+
 async function startScanner(
-  scanner: Html5Qrcode,
+  scanner: Html5Qrcode | null,
   fileDecoder: Html5Qrcode,
   containerId: string,
   onDecoded: (value: string) => void | Promise<void>,
   isContinuous: () => boolean,
-): Promise<() => void> {
+  iosPreviewVideo: HTMLVideoElement | null,
+): Promise<StartScannerResult> {
   let lastError: unknown;
   const consensus = new CrossDecoderBarcodeConsensus();
   let stopEnhanced: () => void = () => {};
@@ -209,23 +238,26 @@ async function startScanner(
     stopFast = startFastVideoScan(fileDecoder, containerId, consider);
   };
 
-  const afterCameraStart = () => {
-    // iOS: force playsInline/muted + canvas mirror (Safari often keeps <video> black after Allow).
+  const afterCameraStart = (): StartScannerResult => {
+    // Legacy iOS help if html5-qrcode path is used; native path skips this.
     const stopInlinePatch = ensureScannerInlinePlayback(containerId);
     const stopIosMirror = startIosScannerPreviewMirror(containerId);
     restartEnhancedScan();
     const constraintTimer = window.setTimeout(() => {
-      if (!scanner.isScanning) return;
+      if (!scanner?.isScanning) return;
       void applyBarcodeCameraConstraints(scanner).catch(() => undefined);
       stopRefocus();
       stopRefocus = startAutoRefocus(scanner);
     }, 400);
     const baseCleanup = makeCleanup();
-    return () => {
-      window.clearTimeout(constraintTimer);
-      stopIosMirror();
-      stopInlinePatch();
-      baseCleanup();
+    return {
+      iosStream: null,
+      cleanup: () => {
+        window.clearTimeout(constraintTimer);
+        stopIosMirror();
+        stopInlinePatch();
+        baseCleanup();
+      },
     };
   };
 
@@ -248,7 +280,7 @@ async function startScanner(
         }
         consensus.reset();
         try {
-          if (scanner.isScanning) {
+          if (scanner?.isScanning || iosPreviewVideo?.srcObject) {
             restartEnhancedScan();
           }
         } catch {
@@ -257,7 +289,7 @@ async function startScanner(
       } catch {
         consensus.reset();
         try {
-          scanner.resume();
+          scanner?.resume();
         } catch {
           // ignore resume failures during camera startup
         }
@@ -291,6 +323,39 @@ async function startScanner(
   const onScanSuccess = (decoded: string) => consider(decoded, "live");
 
   await waitForScannerLayout(containerId);
+
+  // iPhone/iPad: skip html5-qrcode camera (black <video>). Own getUserMedia + <video>,
+  // same path as document scan, then decode frames ourselves.
+  if (isIosScannerHost() && iosPreviewVideo) {
+    const host =
+      (iosPreviewVideo.closest(".barcode-scanner-view") as HTMLElement | null) ??
+      document.getElementById(containerId)?.closest(".barcode-scanner-view") ??
+      null;
+    const stream = await openIosBarcodeMediaStream();
+    host?.classList.add(IOS_NATIVE_ACTIVE_CLASS);
+    try {
+      await bindStreamToScannerVideo(iosPreviewVideo, stream);
+    } catch (error) {
+      host?.classList.remove(IOS_NATIVE_ACTIVE_CLASS);
+      stopMediaStream(stream);
+      iosPreviewVideo.srcObject = null;
+      throw error;
+    }
+    restartEnhancedScan();
+    return {
+      iosStream: stream,
+      cleanup: () => {
+        makeCleanup()();
+        stopMediaStream(stream);
+        iosPreviewVideo.srcObject = null;
+        host?.classList.remove(IOS_NATIVE_ACTIVE_CLASS);
+      },
+    };
+  }
+
+  if (!scanner) {
+    throw new Error("CAMERA_UNAVAILABLE");
+  }
 
   const clearCameraCache = () => {
     try {
@@ -443,6 +508,8 @@ export function BarcodeScanner({
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const fileDecoderRef = useRef<Html5Qrcode | null>(null);
   const scanCleanupRef = useRef<(() => void) | null>(null);
+  const iosVideoRef = useRef<HTMLVideoElement | null>(null);
+  const iosStreamRef = useRef<MediaStream | null>(null);
   const onScanRef = useRef(onScan);
   const onDetectRef = useRef(onDetect);
   const submitOnScanRef = useRef(submitOnScan);
@@ -484,6 +551,11 @@ export function BarcodeScanner({
       abortedRef.current = true;
       scanCleanupRef.current?.();
       scanCleanupRef.current = null;
+      stopMediaStream(iosStreamRef.current);
+      iosStreamRef.current = null;
+      if (iosVideoRef.current) {
+        iosVideoRef.current.srcObject = null;
+      }
       const scanner = scannerRef.current;
       void safeStopScanner(scanner).finally(() => {
         if (scannerRef.current === scanner) {
@@ -554,8 +626,11 @@ export function BarcodeScanner({
     setError("");
     setScanning(true);
     setTorchOn(false);
+    setTorchAvailable(false);
     scanCleanupRef.current?.();
     scanCleanupRef.current = null;
+    stopMediaStream(iosStreamRef.current);
+    iosStreamRef.current = null;
 
     try {
       if (scannerRef.current) {
@@ -581,25 +656,48 @@ export function BarcodeScanner({
         return;
       }
 
-      const scanner = new Html5Qrcode(elementId, SCANNER_OPTIONS);
+      const useIosNative = isIosScannerHost();
+      // Wait for React to mount the owned <video> after scanning=true.
+      if (useIosNative) {
+        for (let attempt = 0; attempt < 24 && !iosVideoRef.current; attempt += 1) {
+          await new Promise<void>((resolve) => {
+            requestAnimationFrame(() => resolve());
+          });
+        }
+        if (!iosVideoRef.current) {
+          throw new Error("CAMERA_UNAVAILABLE");
+        }
+      }
+
+      // iOS: do not mount html5-qrcode on the visible container (black preview).
+      const scanner = useIosNative
+        ? null
+        : new Html5Qrcode(elementId, SCANNER_OPTIONS);
       const fileDecoder = new Html5Qrcode(fileDecoderId, SCANNER_OPTIONS);
       scannerRef.current = scanner;
       fileDecoderRef.current = fileDecoder;
 
-      scanCleanupRef.current = await startScanner(
+      const started = await startScanner(
         scanner,
         fileDecoder,
         elementId,
         deliverBarcode,
         () => continuousFillRef.current,
+        iosVideoRef.current,
       );
+      scanCleanupRef.current = started.cleanup;
+      iosStreamRef.current = started.iosStream;
 
       if (abortedRef.current) {
         scanCleanupRef.current?.();
         scanCleanupRef.current = null;
-        await resetScanner(scanner);
-        if (scannerRef.current === scanner) {
-          scannerRef.current = null;
+        stopMediaStream(iosStreamRef.current);
+        iosStreamRef.current = null;
+        if (scanner) {
+          await resetScanner(scanner);
+          if (scannerRef.current === scanner) {
+            scannerRef.current = null;
+          }
         }
         fileDecoder.clear();
         if (fileDecoderRef.current === fileDecoder) {
@@ -610,11 +708,15 @@ export function BarcodeScanner({
         return;
       }
 
-      try {
-        const torch = scanner.getRunningTrackCameraCapabilities().torchFeature();
-        setTorchAvailable(torch.isSupported());
-      } catch {
-        setTorchAvailable(false);
+      if (started.iosStream) {
+        setTorchAvailable(mediaStreamTorchSupported(started.iosStream));
+      } else if (scanner) {
+        try {
+          const torch = scanner.getRunningTrackCameraCapabilities().torchFeature();
+          setTorchAvailable(torch.isSupported());
+        } catch {
+          setTorchAvailable(false);
+        }
       }
     } catch (caught) {
       if (!abortedRef.current) {
@@ -634,8 +736,13 @@ export function BarcodeScanner({
   }, [autoStart]);
 
   const onTorchToggle = useCallback(async () => {
-    if (!scannerRef.current) return;
     const next = !torchOn;
+    if (iosStreamRef.current) {
+      const applied = await toggleMediaStreamTorch(iosStreamRef.current, next);
+      if (applied) setTorchOn(next);
+      return;
+    }
+    if (!scannerRef.current) return;
     const applied = await toggleBarcodeTorch(scannerRef.current, next);
     if (applied) setTorchOn(next);
   }, [torchOn]);
@@ -679,6 +786,16 @@ export function BarcodeScanner({
         }}
       >
         <div id={elementId} className="w-full max-w-full" />
+        {scanning || starting ? (
+          <video
+            ref={iosVideoRef}
+            className={IOS_NATIVE_VIDEO_CLASS}
+            playsInline
+            muted
+            autoPlay
+            aria-hidden
+          />
+        ) : null}
         {scanning || starting ? <ScannerViewfinderOverlay /> : null}
         {scanning && torchAvailable ? (
           <button
@@ -727,6 +844,8 @@ export function BarcodeScanner({
                 abortedRef.current = true;
                 scanCleanupRef.current?.();
                 scanCleanupRef.current = null;
+                stopMediaStream(iosStreamRef.current);
+                iosStreamRef.current = null;
                 releaseScannerMediaTracks(elementId);
                 const scanner = scannerRef.current;
                 void safeStopScanner(scanner).finally(() => {

@@ -318,9 +318,106 @@ function applyEnhancement(
   context.putImageData(imageData, 0, 0);
 }
 
+/** Owned <video> for iOS native getUserMedia preview (not html5-qrcode). */
+export const IOS_NATIVE_VIDEO_CLASS = "barcode-scanner-ios-native-video";
+export const IOS_NATIVE_ACTIVE_CLASS = "barcode-scanner-ios-native-active";
+
 function findScannerVideo(containerId: string): HTMLVideoElement | null {
   const container = document.getElementById(containerId);
+  const host =
+    (container?.closest(".barcode-scanner-view") as HTMLElement | null) ??
+    container?.parentElement ??
+    null;
+  const native = host?.querySelector(
+    `video.${IOS_NATIVE_VIDEO_CLASS}`,
+  ) as HTMLVideoElement | null;
+  // Prefer owned iOS preview only when it is actually the live stream.
+  if (
+    native &&
+    (host?.classList.contains(IOS_NATIVE_ACTIVE_CLASS) ||
+      native.srcObject instanceof MediaStream)
+  ) {
+    return native;
+  }
   return container?.querySelector("video") ?? null;
+}
+
+/** Constraints for the iOS-owned barcode camera (same WebKit path as document scan). */
+export const IOS_BARCODE_CAMERA_CONSTRAINTS: MediaStreamConstraints[] = [
+  {
+    audio: false,
+    video: {
+      facingMode: { ideal: "environment" },
+      width: { ideal: 1280 },
+      height: { ideal: 720 },
+    },
+  },
+  {
+    audio: false,
+    video: { facingMode: { ideal: "environment" } },
+  },
+  { audio: false, video: true },
+];
+
+export async function openIosBarcodeMediaStream(
+  attempts: MediaStreamConstraints[] = IOS_BARCODE_CAMERA_CONSTRAINTS,
+): Promise<MediaStream> {
+  if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+    throw new Error("CAMERA_UNAVAILABLE");
+  }
+  let lastError: unknown;
+  for (const constraints of attempts) {
+    try {
+      return await navigator.mediaDevices.getUserMedia(constraints);
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError ?? new Error("CAMERA_UNAVAILABLE");
+}
+
+export async function bindStreamToScannerVideo(
+  video: HTMLVideoElement,
+  stream: MediaStream,
+): Promise<void> {
+  prepareScannerVideoElement(video);
+  video.srcObject = stream;
+  try {
+    await video.play();
+  } catch {
+    // Autoplay can race; prepareScannerVideoElement already kicked play().
+  }
+}
+
+export function mediaStreamTorchSupported(stream: MediaStream): boolean {
+  const track = stream.getVideoTracks()[0];
+  if (!track || typeof track.getCapabilities !== "function") return false;
+  const caps = track.getCapabilities() as MediaTrackCapabilities & {
+    torch?: boolean;
+  };
+  return Boolean(caps.torch);
+}
+
+export async function toggleMediaStreamTorch(
+  stream: MediaStream,
+  enabled: boolean,
+): Promise<boolean> {
+  const track = stream.getVideoTracks()[0];
+  if (!track) return false;
+  try {
+    await track.applyConstraints({
+      // torch is a non-standard advanced constraint on supporting mobiles
+      advanced: [{ torch: enabled } as MediaTrackConstraintSet],
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function stopMediaStream(stream: MediaStream | null | undefined): void {
+  if (!stream) return;
+  stream.getTracks().forEach((track) => track.stop());
 }
 
 /** True on iPhone/iPad where applyConstraints / focus nudges often black out preview. */

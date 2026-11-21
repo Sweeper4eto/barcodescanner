@@ -177,6 +177,32 @@ body {
   pointer-events: none;
 }
 
+/*
+ * iOS native barcode preview: owned <video> + getUserMedia (not html5-qrcode).
+ * Hidden until active so Android/desktop keep the existing scanner path only.
+ */
+.barcode-scanner-view video.barcode-scanner-ios-native-video {
+  display: none;
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 1 !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+  object-fit: cover !important;
+  background: #000;
+  pointer-events: none;
+}
+.barcode-scanner-view.barcode-scanner-ios-native-active
+  video.barcode-scanner-ios-native-video {
+  display: block;
+}
+.barcode-scanner-view.barcode-scanner-ios-native-active > div:first-child {
+  opacity: 0 !important;
+  pointer-events: none;
+}
+
 .scanner-overlay {
   position: absolute;
   inset: 0;

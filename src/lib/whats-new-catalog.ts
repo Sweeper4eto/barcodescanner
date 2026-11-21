@@ -1583,6 +1583,14 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Скан на баркод на iPhone: след Allow камерата се показва дори когато Safari оставя video черен.",
     href: "/app/scan",
   },
+  {
+    key: "2026-11-iphone-barcode-native-preview",
+    titleEn:
+      "Barcode scan on iPhone uses the same live camera preview path as document scan (fixes black screen after Allow).",
+    titleBg:
+      "Скан на баркод на iPhone ползва същия преглед на камерата като скан на документ (оправя черен екран след Allow).",
+    href: "/app/scan",
+  },
 ];
 
 

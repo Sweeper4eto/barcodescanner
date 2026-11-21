@@ -96,3 +96,18 @@ test("startIosScannerPreviewMirror is a no-op outside the browser", async () => 
   assert.equal(typeof stop, "function");
   stop();
 });
+
+test("iOS native barcode preview helpers are exported", async () => {
+  const {
+    IOS_NATIVE_ACTIVE_CLASS,
+    IOS_NATIVE_VIDEO_CLASS,
+    IOS_BARCODE_CAMERA_CONSTRAINTS,
+    mediaStreamTorchSupported,
+    stopMediaStream,
+  } = await import("../src/lib/barcode-camera");
+  assert.equal(IOS_NATIVE_VIDEO_CLASS, "barcode-scanner-ios-native-video");
+  assert.equal(IOS_NATIVE_ACTIVE_CLASS, "barcode-scanner-ios-native-active");
+  assert.ok(IOS_BARCODE_CAMERA_CONSTRAINTS.length >= 2);
+  assert.equal(mediaStreamTorchSupported({ getVideoTracks: () => [] } as MediaStream), false);
+  stopMediaStream(null);
+});
