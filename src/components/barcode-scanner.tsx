@@ -23,6 +23,7 @@ import {
   startAutoRefocus,
   captureScannerPreview,
   ensureScannerInlinePlayback,
+  startIosScannerPreviewMirror,
   isLikelyBadBarcodeCamera,
   orderBarcodeCameras,
 } from "@/lib/barcode-camera";
@@ -209,8 +210,9 @@ async function startScanner(
   };
 
   const afterCameraStart = () => {
-    // iOS: force playsInline/muted on the html5-qrcode <video> (retries while it mounts).
+    // iOS: force playsInline/muted + canvas mirror (Safari often keeps <video> black after Allow).
     const stopInlinePatch = ensureScannerInlinePlayback(containerId);
+    const stopIosMirror = startIosScannerPreviewMirror(containerId);
     restartEnhancedScan();
     const constraintTimer = window.setTimeout(() => {
       if (!scanner.isScanning) return;
@@ -221,6 +223,7 @@ async function startScanner(
     const baseCleanup = makeCleanup();
     return () => {
       window.clearTimeout(constraintTimer);
+      stopIosMirror();
       stopInlinePatch();
       baseCleanup();
     };

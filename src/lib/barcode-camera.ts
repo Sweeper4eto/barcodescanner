@@ -385,6 +385,112 @@ export function ensureScannerInlinePlayback(containerId: string): () => void {
   };
 }
 
+const IOS_MIRROR_CLASS = "barcode-scanner-ios-mirror";
+const IOS_MIRROR_ACTIVE = "barcode-scanner-ios-mirror-active";
+
+/**
+ * iPhone Safari often shows a black <video> after Allow (html5-qrcode / inline
+ * media), while frames still decode and double-tap capture works.
+ * Mirror the stream onto our own canvas so the user sees the live preview.
+ */
+export function startIosScannerPreviewMirror(containerId: string): () => void {
+  if (typeof document === "undefined" || !isIosBarcodeHost()) {
+    return () => undefined;
+  }
+
+  const host = document.getElementById(containerId)?.closest(
+    ".barcode-scanner-view",
+  ) as HTMLElement | null;
+  const container = document.getElementById(containerId);
+  if (!host || !container) return () => undefined;
+
+  host.classList.add(IOS_MIRROR_ACTIVE);
+
+  let canvas = host.querySelector(
+    `canvas.${IOS_MIRROR_CLASS}`,
+  ) as HTMLCanvasElement | null;
+  if (!canvas) {
+    canvas = document.createElement("canvas");
+    canvas.className = IOS_MIRROR_CLASS;
+    canvas.setAttribute("aria-hidden", "true");
+    host.appendChild(canvas);
+  }
+
+  const context = canvas.getContext("2d");
+  if (!context) {
+    host.classList.remove(IOS_MIRROR_ACTIVE);
+    return () => undefined;
+  }
+
+  let frameId = 0;
+  let lastW = 0;
+  let lastH = 0;
+  let lastVw = 0;
+  let lastVh = 0;
+  let stopped = false;
+
+  const paint = () => {
+    if (stopped) return;
+    frameId = requestAnimationFrame(paint);
+    const video = findScannerVideo(containerId);
+    if (!video || video.videoWidth < 8 || video.videoHeight < 8) return;
+
+    prepareScannerVideoElement(video);
+
+    const cssW = Math.max(1, Math.floor(host.clientWidth));
+    const cssH = Math.max(1, Math.floor(host.clientHeight));
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const pixelW = Math.max(1, Math.floor(cssW * dpr));
+    const pixelH = Math.max(1, Math.floor(cssH * dpr));
+
+    if (
+      canvas!.width !== pixelW ||
+      canvas!.height !== pixelH ||
+      lastW !== cssW ||
+      lastH !== cssH
+    ) {
+      canvas!.width = pixelW;
+      canvas!.height = pixelH;
+      lastW = cssW;
+      lastH = cssH;
+    }
+
+    const vw = video.videoWidth;
+    const vh = video.videoHeight;
+    if (vw !== lastVw || vh !== lastVh) {
+      lastVw = vw;
+      lastVh = vh;
+    }
+
+    // object-fit: cover
+    const scale = Math.max(pixelW / vw, pixelH / vh);
+    const dw = vw * scale;
+    const dh = vh * scale;
+    const dx = (pixelW - dw) / 2;
+    const dy = (pixelH - dh) / 2;
+    context.drawImage(video, dx, dy, dw, dh);
+  };
+
+  frameId = requestAnimationFrame(paint);
+
+  // Video node may appear a beat after start.
+  const bootTimers = [80, 250, 700].map((ms) =>
+    window.setTimeout(() => {
+      if (stopped) return;
+      const video = findScannerVideo(containerId);
+      if (video) prepareScannerVideoElement(video);
+    }, ms),
+  );
+
+  return () => {
+    stopped = true;
+    cancelAnimationFrame(frameId);
+    for (const id of bootTimers) window.clearTimeout(id);
+    host.classList.remove(IOS_MIRROR_ACTIVE);
+    canvas?.remove();
+  };
+}
+
 /** Snapshot the live barcode preview as a JPEG data URL (for double-tap direct picture). */
 export function captureScannerPreview(containerId: string): string | null {
   const video = findScannerVideo(containerId);

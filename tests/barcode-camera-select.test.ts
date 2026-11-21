@@ -87,3 +87,12 @@ test("prepareScannerVideoElement forces muted inline attributes for iOS", () => 
   assert.equal(video.attrs["webkit-playsinline"], "");
   assert.equal(video.attrs.muted, "");
 });
+
+test("startIosScannerPreviewMirror is a no-op outside the browser", async () => {
+  const { startIosScannerPreviewMirror } = await import(
+    "../src/lib/barcode-camera"
+  );
+  const stop = startIosScannerPreviewMirror("missing-scanner");
+  assert.equal(typeof stop, "function");
+  stop();
+});

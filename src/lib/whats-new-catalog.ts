@@ -1575,6 +1575,14 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Скан на баркод на iPhone: прегледът на камерата трябва да се вижда вместо черен екран.",
     href: "/app/scan",
   },
+  {
+    key: "2026-11-iphone-barcode-canvas-mirror",
+    titleEn:
+      "Barcode scan on iPhone: after Allow Camera, the live preview is drawn even when Safari leaves the video black.",
+    titleBg:
+      "Скан на баркод на iPhone: след Allow камерата се показва дори когато Safari оставя video черен.",
+    href: "/app/scan",
+  },
 ];
 
 

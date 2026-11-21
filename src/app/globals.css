@@ -158,6 +158,25 @@ body {
   background: transparent !important;
 }
 
+/* iOS mirror: hide black native video/canvas; show our canvas blit instead. */
+.barcode-scanner-view.barcode-scanner-ios-mirror-active > div:first-child video,
+.barcode-scanner-view.barcode-scanner-ios-mirror-active > div:first-child canvas,
+.barcode-scanner-view.barcode-scanner-ios-mirror-active #qr-shaded-region {
+  opacity: 0 !important;
+}
+.barcode-scanner-view canvas.barcode-scanner-ios-mirror {
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 1 !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+  object-fit: unset !important;
+  background: #000 !important;
+  pointer-events: none;
+}
+
 .scanner-overlay {
   position: absolute;
   inset: 0;
