@@ -20,6 +20,11 @@ import {
   MINIMART_STATUS_COLORS,
   type MinimartVisitStatus,
 } from "@/lib/minimart-locator";
+import {
+  MINIMART_MAP_MAX_ZOOM,
+  MINIMART_MAP_TILE_ATTRIBUTION,
+  MINIMART_MAP_TILE_URL,
+} from "@/lib/minimart-map-tiles";
 
 const adminActionButtonClass =
   "rounded-xl border border-primary bg-transparent px-4 py-2 text-sm font-medium text-primary disabled:opacity-50";
@@ -121,6 +126,7 @@ export function MinimartLocatorPanel() {
   const storesByIdRef = useRef<Map<string, MinimartStoreRow>>(new Map());
   const fittedRef = useRef(false);
   const placeModeRef = useRef(placeMode);
+  const placePinAtRef = useRef<(lat: number, lng: number) => void>(() => undefined);
   const detailsRef = useRef<HTMLDivElement>(null);
 
   const selected = useMemo(
@@ -251,13 +257,42 @@ export function MinimartLocatorPanel() {
     setDraft(draftFromStore(selected));
   }, [selected, isNewPin]);
 
+  const placePinAt = useCallback(
+    (lat: number, lng: number) => {
+      setIsNewPin(true);
+      setSelectedId(null);
+      setDraft({
+        title: "Minimart",
+        street: "",
+        city: "",
+        status: "NOT_VISITED",
+        comment: "",
+        clientId: null,
+        lat,
+        lng,
+      });
+      setPlaceMode(false);
+      setMessage(t("admin.minimartPinPlaced"));
+      queueMicrotask(() => {
+        detailsRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      });
+    },
+    [t],
+  );
+
+  useEffect(() => {
+    placePinAtRef.current = placePinAt;
+  }, [placePinAt]);
+
   useEffect(() => {
     let cancelled = false;
 
     async function ensureMap() {
       if (!mapRef.current || mapInstance.current) return;
       const L = await import("leaflet");
-      await import("leaflet/dist/leaflet.css");
       if (cancelled || !mapRef.current) return;
       leafletRef.current = L;
 
@@ -271,49 +306,30 @@ export function MinimartLocatorPanel() {
           "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
       });
 
-      if (!document.getElementById("minimart-marker-css")) {
-        const style = document.createElement("style");
-        style.id = "minimart-marker-css";
-        style.textContent =
-          ".minimart-status-marker{background:transparent!important;border:none!important}";
-        document.head.appendChild(style);
-      }
-
       const map = L.map(mapRef.current, {
         center: [42.7, 25.4],
         zoom: 7,
         preferCanvas: true,
       });
       canvasRendererRef.current = L.canvas({ padding: 0.5 });
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: "&copy; OpenStreetMap",
-        maxZoom: 19,
+      L.tileLayer(MINIMART_MAP_TILE_URL, {
+        attribution: MINIMART_MAP_TILE_ATTRIBUTION,
+        maxZoom: MINIMART_MAP_MAX_ZOOM,
+        subdomains: "abcd",
       }).addTo(map);
 
       map.on("click", (event) => {
         if (!placeModeRef.current) return;
-        const { lat, lng } = event.latlng;
-        setIsNewPin(true);
-        setSelectedId(null);
-        setDraft({
-          title: "Minimart",
-          street: "",
-          city: "",
-          status: "NOT_VISITED",
-          comment: "",
-          clientId: null,
-          lat,
-          lng,
-        });
-        setPlaceMode(false);
-        setMessage(t("admin.minimartPinPlaced"));
-        queueMicrotask(() => {
-          detailsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-        });
+        placePinAtRef.current(event.latlng.lat, event.latlng.lng);
       });
 
       mapInstance.current = map;
       setMapReady(true);
+      // Layout can settle after admin chrome mounts; refresh size twice.
+      window.requestAnimationFrame(() => {
+        map.invalidateSize();
+        window.setTimeout(() => map.invalidateSize(), 120);
+      });
     }
 
     void ensureMap();
@@ -329,7 +345,7 @@ export function MinimartLocatorPanel() {
       canvasRendererRef.current = null;
       leafletRef.current = null;
     };
-  }, [t]);
+  }, []);
 
   useEffect(() => {
     const map = mapInstance.current;
@@ -362,7 +378,12 @@ export function MinimartLocatorPanel() {
           fillOpacity: 0.92,
         });
         marker.addTo(map);
-        marker.on("click", () => {
+        marker.on("click", (event) => {
+          // Dense pins swallow map clicks — place mode must win here too.
+          if (placeModeRef.current) {
+            placePinAtRef.current(event.latlng.lat, event.latlng.lng);
+            return;
+          }
           setIsNewPin(false);
           setSelectedId(store.id);
           queueMicrotask(() => {
@@ -724,20 +745,6 @@ export function MinimartLocatorPanel() {
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
-                className={`${adminGhostButtonClass} ${
-                  placeMode ? "border-primary text-primary" : ""
-                }`}
-                onClick={() => {
-                  setPlaceMode((value) => !value);
-                  setMessage(placeMode ? "" : t("admin.minimartPlaceHint"));
-                }}
-              >
-                {placeMode
-                  ? t("admin.minimartPlaceCancel")
-                  : t("admin.minimartPlacePin")}
-              </button>
-              <button
-                type="button"
                 className={adminGhostButtonClass}
                 onClick={() => void load()}
                 disabled={loading}
@@ -772,6 +779,26 @@ export function MinimartLocatorPanel() {
         {error ? <p className="mt-2 text-sm text-danger">{error}</p> : null}
       </AdminSection>
 
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          className={`${adminGhostButtonClass} ${
+            placeMode ? "border-primary text-primary" : ""
+          }`}
+          onClick={() => {
+            setPlaceMode((value) => !value);
+            setMessage(placeMode ? "" : t("admin.minimartPlaceHint"));
+          }}
+        >
+          {placeMode
+            ? t("admin.minimartPlaceCancel")
+            : t("admin.minimartPlacePin")}
+        </button>
+        {placeMode ? (
+          <p className="text-sm text-primary">{t("admin.minimartPlaceHint")}</p>
+        ) : null}
+      </div>
+
       <div
         className={`overflow-hidden rounded-2xl border border-card-border ${
           placeMode
@@ -781,7 +808,7 @@ export function MinimartLocatorPanel() {
       >
         <div
           ref={mapRef}
-          className={`h-[min(55vh,22rem)] w-full bg-card-border/20 sm:h-[28rem] lg:h-[32rem] ${
+          className={`minimart-leaflet-map h-[min(55vh,22rem)] w-full bg-[#0a0a0b] sm:h-[28rem] lg:h-[32rem] ${
             placeMode ? "cursor-crosshair" : ""
           }`}
         />

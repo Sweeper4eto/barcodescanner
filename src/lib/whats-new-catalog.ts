@@ -1599,6 +1599,14 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Excel експорт от Годност разширява колоните по текста, а съобщението за запис остава видимо над Отказ/Премахни.",
     href: "/app/expiry",
   },
+  {
+    key: "2026-11-ocr-useby-before-lot",
+    titleEn:
+      "Document scan: Use by / Use before compact dates (DDMMYY) are preferred over lot codes when reading expiry.",
+    titleBg:
+      "Скан на документ: компактните дати след Използвай до / преди (ДДММГГ) имат приоритет пред партидата за годност.",
+    href: "/app/add-document",
+  },
 ];
 
 

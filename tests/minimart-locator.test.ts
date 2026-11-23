@@ -8,6 +8,11 @@ import {
   MINIMART_STATUSES,
   normalizeLocatorText,
 } from "../src/lib/minimart-locator";
+import {
+  MINIMART_MAP_MAX_ZOOM,
+  MINIMART_MAP_TILE_ATTRIBUTION,
+  MINIMART_MAP_TILE_URL,
+} from "../src/lib/minimart-map-tiles";
 
 test("mapAslStoreToUpsert maps ASL payload fields", () => {
   const parsed = aslStoreSchema.parse({
@@ -87,4 +92,11 @@ test("minimart status colors cover all statuses", () => {
   }
   assert.equal(isMinimartVisitStatus("ACCEPTED"), true);
   assert.equal(isMinimartVisitStatus("marked"), false);
+});
+
+test("minimart map uses a dark Carto basemap with attribution", () => {
+  assert.match(MINIMART_MAP_TILE_URL, /basemaps\.cartocdn\.com\/dark_all/);
+  assert.match(MINIMART_MAP_TILE_ATTRIBUTION, /OpenStreetMap/);
+  assert.match(MINIMART_MAP_TILE_ATTRIBUTION, /CARTO/);
+  assert.ok(MINIMART_MAP_MAX_ZOOM >= 18);
 });

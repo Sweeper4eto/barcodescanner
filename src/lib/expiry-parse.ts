@@ -566,8 +566,8 @@ export function looksLikeLotCodeNotExpiry(
   if (!value) return false;
   const raw = value.trim();
   if (!raw) return false;
-  // L11122026 / L 23232323 / л 11.12.2026 / L-268623
-  if (/^[LЛlл][\s.\-_]*[\dA-Za-zА-Яа-я]/.test(raw)) return true;
+  // L11122026 / L: 020826 / L 23232323 / л 11.12.2026 / L-268623
+  if (/^[LЛlл][\s.:\-_]*[\dA-Za-zА-Яа-я]/.test(raw)) return true;
   if (
     /^(LOT|BATCH|SER(?:IE)?|ПАР(?:Т(?:ИДА)?)?|ЛОТ|СЕР(?:ИЯ)?)\b/i.test(raw)
   ) {
@@ -591,7 +591,7 @@ export function pickLatestExpiryYmd(
 /** True when a date match at `index` looks attached to a lot/batch prefix. */
 function hasLotPrefixBefore(raw: string, index: number): boolean {
   const before = raw.slice(Math.max(0, index - 16), index);
-  return /(?:^|[^A-Za-zА-Яа-яЁё])(?:L|Л|LOT|ЛОТ|BATCH|ПАР(?:Т(?:ИДА)?)?|СЕР(?:ИЯ)?)\s*$/i.test(
+  return /(?:^|[^A-Za-zА-Яа-яЁё])(?:L|Л|LOT|ЛОТ|BATCH|ПАР(?:Т(?:ИДА)?)?|СЕР(?:ИЯ)?)\s*[:.\-_]?\s*$/i.test(
     before,
   );
 }
@@ -700,7 +700,7 @@ export function stripLotLabelPrefix(
   const raw = value.trim();
   if (!raw) return null;
   const match =
-    /^(?:L|Л|LOT|ЛОТ|BATCH|ПАР(?:Т(?:ИДА)?)?|СЕР(?:ИЯ)?|SER(?:IE)?)[\s.\-_]*(.*)$/iu.exec(
+    /^(?:L|Л|LOT|ЛОТ|BATCH|ПАР(?:Т(?:ИДА)?)?|СЕР(?:ИЯ)?|SER(?:IE)?)[\s.:\-_]*(.*)$/iu.exec(
       raw,
     );
   if (!match) return null;
@@ -708,17 +708,45 @@ export function stripLotLabelPrefix(
   return rest.length > 0 ? rest : null;
 }
 
+/** Labels that mark a compact DDMMYY / DDMMYYYY as Godnost (not a lot). */
+const COMPACT_USE_BY_LABEL_RE =
+  /(?:използвай\s*(?:до|преди)|годно(?:ст)?(?:\s*до)?|best\s*before|use\s*by|exp(?:iry)?(?:\s*date)?)\s*[:.\-]?\s*(\d{6}|\d{8})\b/iu;
+
 /**
- * EXCEPTION / LAST RESORT: whole-cell compact digits with no separators
- * (170827 → 17.08.2027, 15062027 → 15.06.2027). Not used in the normal path.
+ * EXCEPTION / LAST RESORT: compact DDMMYY / DDMMYYYY without separators
+ * (170827 → 17.08.2027, 15062027 → 15.06.2027), including after
+ * "Използвай до" / "Използвай преди". Not used in the normal path.
+ * Skips digit runs attached to an L / Lot / Партида prefix.
  */
 export function parseCompactExpiryFallback(
   value: string | null | undefined,
 ): string | null {
   if (!value) return null;
-  const digitsOnly = value.trim().replace(/\s+/g, "");
-  if (!/^\d{6}$/.test(digitsOnly) && !/^\d{8}$/.test(digitsOnly)) return null;
-  return parseCompactDigitExpiry(digitsOnly);
+  const raw = value.trim();
+  if (!raw) return null;
+
+  const labeled = COMPACT_USE_BY_LABEL_RE.exec(raw);
+  if (labeled) {
+    const fromLabel = parseCompactDigitExpiry(labeled[1]!);
+    if (fromLabel) return fromLabel;
+  }
+
+  const digitsOnly = raw.replace(/\s+/g, "");
+  if (/^\d{6}$/.test(digitsOnly) || /^\d{8}$/.test(digitsOnly)) {
+    return parseCompactDigitExpiry(digitsOnly);
+  }
+
+  // Plain compact blob in a longer cell (not after a lot label).
+  const found: string[] = [];
+  for (const match of raw.matchAll(/\d{6}(?:\d{2})?/g)) {
+    const index = match.index ?? 0;
+    const digits = match[0]!;
+    if (digits.length !== 6 && digits.length !== 8) continue;
+    if (hasLotPrefixBefore(raw, index)) continue;
+    const ymd = parseCompactDigitExpiry(digits);
+    if (ymd) found.push(ymd);
+  }
+  return pickLatestExpiryYmd(found);
 }
 
 /**
@@ -859,12 +887,13 @@ export function parseExpiryEncodedInLotCode(
  *    incl. a date standing after / or \ next to a lot code).
  * 2. Model ISO expiryDate when printed has no calendar date.
  *
- * EXCEPTIONS (last resort only when normal path found nothing):
- * - Compact DDMMYY / DDMMYYYY without separators (170827, 15062027)
- * - Compact lot-encoded digits (L11122026, L 11122026, L2027)
- * - Compact digits after / or \ (LOT99/15062027)
+ * EXCEPTIONS (only when normal path found nothing), in order:
+ * 1. Compact DDMMYY / DDMMYYYY on Godnost / "Използвай до|преди" / plain digits
+ * 2. Lot-encoded date (L11122026, L: 020826, L2027, lot/date slash) — only if
+ *    step 1 found nothing
  *
  * Exceptions must never run first and must never replace a real Godnost date.
+ * Lot is the last fallback, never preferred over a use-by compact date.
  */
 export function resolveDocumentExpiry(
   expiryDate: string | null | undefined,
@@ -881,9 +910,12 @@ export function resolveDocumentExpiry(
   const fromPrintedLoose = parseDocumentExpiry(expiryPrinted);
   if (fromPrintedLoose) return fromPrintedLoose;
 
-  // --- EXCEPTIONS ONLY (after normal path found nothing) ---
+  // --- Compact Godnost / use-by (before any lot→date) ---
+  const fromCompactPrinted = parseCompactExpiryFallback(expiryPrinted);
+  if (fromCompactPrinted) return fromCompactPrinted;
+
+  // --- Lot only when nothing above produced a date ---
   return (
-    parseCompactExpiryFallback(expiryPrinted) ??
     parseExpiryEncodedInLotCode(lot) ??
     parseExpiryEncodedInLotCode(expiryPrinted) ??
     parseCompactExpiryFallback(lot)

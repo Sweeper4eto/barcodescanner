@@ -200,6 +200,34 @@ describe("parseDocumentExpiry", () => {
     assert.equal(parsePrintedExpiry("268623"), null);
   });
 
+  it("prefers Използвай до/преди compact date over lot digits", async () => {
+    const { parseCompactExpiryFallback, looksLikeLotCodeNotExpiry } =
+      await import("../src/lib/expiry-parse");
+    assert.equal(
+      parseCompactExpiryFallback("Използвай до: 271226"),
+      "2026-12-27",
+    );
+    assert.equal(
+      parseCompactExpiryFallback("Използвай преди: 271226"),
+      "2026-12-27",
+    );
+    assert.equal(looksLikeLotCodeNotExpiry("L: 020826"), true);
+    // Real use-by wins; lot must not become 02.08.2026.
+    assert.equal(
+      resolveDocumentExpiry(null, "Използвай до: 271226", "L: 020826"),
+      "2026-12-27",
+    );
+    assert.equal(
+      resolveDocumentExpiry(null, "Използвай преди:271226", "L: 020826"),
+      "2026-12-27",
+    );
+    // Lot→date only when Godnost / use-by compact is missing.
+    assert.equal(
+      resolveDocumentExpiry(null, null, "L: 020826"),
+      "2026-08-02",
+    );
+  });
+
   it("returns null for empty or invalid", () => {
     assert.equal(parseDocumentExpiry(""), null);
     assert.equal(parseDocumentExpiry("n/a"), null);
