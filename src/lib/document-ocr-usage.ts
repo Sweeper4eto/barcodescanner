@@ -22,6 +22,27 @@ export async function recordDocumentOcrScan(input: {
   }
 }
 
+/** Log a successful paid Gemini last-resort OCR (GEMINI_API_KEY_PAID). */
+export async function recordDocumentOcrPaidUse(input: {
+  userId?: string | null;
+  username?: string | null;
+  storeId?: string | null;
+  model?: string;
+}): Promise<void> {
+  try {
+    await db.documentOcrPaidUse.create({
+      data: {
+        userId: input.userId ?? null,
+        username: input.username ?? null,
+        storeId: input.storeId ?? null,
+        model: input.model?.trim() || "gemini-3.8-flash",
+      },
+    });
+  } catch (error) {
+    console.error("document OCR paid-use log failed", error);
+  }
+}
+
 export function documentOcrUsageDayKey(
   date: Date,
   timeZone: string = DOCUMENT_OCR_USAGE_TIMEZONE,
@@ -102,6 +123,15 @@ function startOfUsageDay(daysAgo: number): Date {
   return zonedLocalToUtc(documentOcrUsageDayKey(noon), 0, 0, 0, 0);
 }
 
+/** First instant of the calendar month containing “today” in the usage TZ. */
+export function startOfUsageMonth(
+  now: Date = new Date(),
+  timeZone: string = DOCUMENT_OCR_USAGE_TIMEZONE,
+): Date {
+  const todayYmd = documentOcrUsageDayKey(now, timeZone);
+  return zonedLocalToUtc(`${todayYmd.slice(0, 7)}-01`, 0, 0, 0, 0, timeZone);
+}
+
 function eachDayInclusive(from: Date, to: Date): string[] {
   const days: string[] = [];
   let ymd = documentOcrUsageDayKey(from);
@@ -150,6 +180,13 @@ export type DocumentOcrPeriodSummaries = {
   days30: number;
 };
 
+export type DocumentOcrPaidSummaries = {
+  /** Paid gemini-3.8-flash uses since local midnight (Sofia). */
+  today: number;
+  /** Paid uses since the 1st of the current calendar month (Sofia). */
+  month: number;
+};
+
 export async function queryDocumentOcrUsage(input: {
   dateFrom?: string;
   dateTo?: string;
@@ -159,15 +196,21 @@ export async function queryDocumentOcrUsage(input: {
   daily: DocumentOcrDailyRow[];
   totalScans: number;
   summaries: DocumentOcrPeriodSummaries;
+  paid: DocumentOcrPaidSummaries;
 }> {
   const from = parseDayBound(input.dateFrom, false) ?? startOfUsageDay(6);
   const to = parseDayBound(input.dateTo, true) ?? new Date();
   if (to.getTime() < from.getTime()) {
+    const [summaries, paid] = await Promise.all([
+      loadPeriodSummaries(),
+      loadPaidSummaries(),
+    ]);
     return {
       rows: [],
       daily: [],
       totalScans: 0,
-      summaries: await loadPeriodSummaries(),
+      summaries,
+      paid,
     };
   }
 
@@ -178,13 +221,14 @@ export async function queryDocumentOcrUsage(input: {
     },
   };
 
-  const [scans, summaries] = await Promise.all([
+  const [scans, summaries, paid] = await Promise.all([
     db.documentOcrScan.findMany({
       where,
       select: { userId: true, createdAt: true },
       orderBy: { createdAt: "asc" },
     }),
     loadPeriodSummaries(),
+    loadPaidSummaries(),
   ]);
 
   if (scans.length === 0) {
@@ -193,6 +237,7 @@ export async function queryDocumentOcrUsage(input: {
       daily: eachDayInclusive(from, to).map((day) => ({ day, count: 0 })),
       totalScans: 0,
       summaries,
+      paid,
     };
   }
 
@@ -266,7 +311,7 @@ export async function queryDocumentOcrUsage(input: {
     ([day, count]) => ({ day, count }),
   );
 
-  return { rows, daily, totalScans, summaries };
+  return { rows, daily, totalScans, summaries, paid };
 }
 
 async function loadPeriodSummaries(): Promise<DocumentOcrPeriodSummaries> {
@@ -283,4 +328,17 @@ async function loadPeriodSummaries(): Promise<DocumentOcrPeriodSummaries> {
     }),
   ]);
   return { days7, days14, days30 };
+}
+
+async function loadPaidSummaries(): Promise<DocumentOcrPaidSummaries> {
+  const now = new Date();
+  const [today, month] = await Promise.all([
+    db.documentOcrPaidUse.count({
+      where: { createdAt: { gte: startOfUsageDay(0), lte: now } },
+    }),
+    db.documentOcrPaidUse.count({
+      where: { createdAt: { gte: startOfUsageMonth(now), lte: now } },
+    }),
+  ]);
+  return { today, month };
 }

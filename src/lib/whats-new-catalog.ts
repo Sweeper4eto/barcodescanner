@@ -1615,6 +1615,14 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Скан на документ: ако безплатните Gemini модели са претоварени, автоматично се ползва платен резерв (gemini-3.8-flash).",
     href: "/app/add-document",
   },
+  {
+    key: "2026-11-temperature-journal",
+    titleEn:
+      "Temp. log on Home: daily fridge/freezer checks like Tasks, with day navigation and optional °C.",
+    titleBg:
+      "°C дневник на Начало: дневни проверки на хладилници/фризери като Задачи, с навигация по дни и по желание °C.",
+    href: "/app/temperature",
+  },
 ];
 
 

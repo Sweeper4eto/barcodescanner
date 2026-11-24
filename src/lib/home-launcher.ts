@@ -23,7 +23,6 @@ export type HomeModuleId = (typeof HOME_MODULE_IDS)[number];
 /** Placeholder tiles — visible but not openable yet. */
 export const HOME_LOCKED_MODULE_IDS = [
   "journal",
-  "temperature",
 ] as const;
 
 export function isHomeModuleLocked(id: HomeModuleId): boolean {
@@ -38,6 +37,8 @@ export type HomeLauncherAvailability = {
   analytics: boolean;
   /** Retail locations only — per-store checklists. */
   checklists: boolean;
+  /** Retail locations only — temperature journal. */
+  temperature: boolean;
 };
 
 export type HomeLauncherLayout = {
@@ -76,17 +77,18 @@ export const DEFAULT_HOME_SLOT_BY_MODULE: Partial<
   billing: 8,
   /** Page 2 slot 1 — owner analytics. */
   analytics: HOME_LAUNCHER_SLOTS_PER_PAGE,
+  /** Page 2 slot 4 — retail temperature journal. */
+  temperature: HOME_LAUNCHER_SLOTS_PER_PAGE + 3,
 };
 
 /**
  * Default page-2 positions for “Soon” tiles (1-based on that page):
- * 2 Дневник, 4 °C дневник (Анализ is active when available).
+ * 2 Дневник (Анализ / °C дневник are active when available).
  */
 export const DEFAULT_LOCKED_SLOT_BY_MODULE: Partial<
   Record<HomeModuleId, number>
 > = {
   journal: HOME_LAUNCHER_SLOTS_PER_PAGE + 1,
-  temperature: HOME_LAUNCHER_SLOTS_PER_PAGE + 3,
 };
 
 /** Modules visible for this account / flags. */
@@ -101,7 +103,8 @@ export function availableHomeModules(
   modules.push("notifications");
   if (availability.analytics) modules.push("analytics");
   if (availability.checklists) modules.push("checklists");
-  modules.push("journal", "temperature");
+  if (availability.temperature) modules.push("temperature");
+  modules.push("journal");
   return modules;
 }
 

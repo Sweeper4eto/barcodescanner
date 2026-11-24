@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   compareOcrUsageRows,
   documentOcrUsageDayKey,
+  startOfUsageMonth,
   zonedLocalToUtc,
 } from "../src/lib/document-ocr-usage";
 
@@ -48,4 +49,13 @@ test("night scan falls inside Monday Sofia day bounds", () => {
   const to = zonedLocalToUtc("2026-10-05", 23, 59, 59, 999, TZ);
   const nightScan = new Date("2026-10-04T23:25:00.000Z");
   assert.ok(nightScan >= from && nightScan <= to);
+});
+
+test("startOfUsageMonth is the 1st of the Sofia calendar month", () => {
+  // 15 Jan 2026 12:00 Sofia = 10:00 UTC (EET, UTC+2)
+  const midMonth = new Date("2026-01-15T10:00:00.000Z");
+  const start = startOfUsageMonth(midMonth, TZ);
+  // 1 Jan 2026 00:00 Sofia = 31 Dec 2025 22:00 UTC
+  assert.equal(start.toISOString(), "2025-12-31T22:00:00.000Z");
+  assert.ok(midMonth >= start);
 });

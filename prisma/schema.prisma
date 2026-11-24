@@ -53,6 +53,8 @@ model User {
   checklistTasksCreated  ChecklistTask[] @relation("ChecklistTaskCreatedBy")
   checklistTasksAssigned ChecklistTask[] @relation("ChecklistTaskAssignee")
   checklistCompletions   ChecklistCompletion[] @relation("ChecklistCompletedBy")
+  temperaturePointsCreated TemperaturePoint[] @relation("TemperaturePointCreatedBy")
+  temperatureReadings      TemperatureReading[] @relation("TemperatureReadingBy")
   /** Expiry push notification preferences (phases 1–3). */
   expiryNotifyEarlyEnabled     Boolean @default(true)
   expiryNotifyEarlyDays        Int     @default(14)
@@ -153,6 +155,7 @@ model Store {
   favourites     FavouriteProduct[]
   checklistTasks ChecklistTask[]
   checklistFavourites ChecklistFavourite[]
+  temperaturePoints TemperaturePoint[]
   supportRequests SupportRequest[]
   scheduleWeeks  StoreScheduleWeek[]
   createdAt      DateTime         @default(now())
@@ -237,6 +240,50 @@ model ChecklistCompletion {
 
   @@unique([taskId, dueDate])
   @@index([dueDate])
+  @@index([completedByUserId])
+}
+
+/**
+ * Always-daily temperature check points per retail location (fridge/freezer).
+ * No recurrence periods or assignees — store-wide cards.
+ */
+model TemperaturePoint {
+  id               String   @id @default(cuid())
+  storeId          String
+  store            Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  title            String
+  /** Owner instructions (e.g. where the probe is). */
+  note             String?
+  /** Optional expected range for HACCP display. */
+  minCelsius       Float?
+  maxCelsius       Float?
+  comment          String?
+  commentImagePath String?
+  active           Boolean  @default(true)
+  createdByUserId  String?
+  createdByUser    User?    @relation("TemperaturePointCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  readings         TemperatureReading[]
+
+  @@index([storeId, active])
+  @@index([createdAt])
+}
+
+/** One reading / done mark per point per calendar day (YYYY-MM-DD, Sofia). */
+model TemperatureReading {
+  id                String           @id @default(cuid())
+  pointId           String
+  point             TemperaturePoint @relation(fields: [pointId], references: [id], onDelete: Cascade)
+  logDate           String
+  /** Optional measured value when marking done. */
+  celsius           Float?
+  completedAt       DateTime         @default(now())
+  completedByUserId String?
+  completedByUser   User?            @relation("TemperatureReadingBy", fields: [completedByUserId], references: [id], onDelete: SetNull)
+
+  @@unique([pointId, logDate])
+  @@index([logDate])
   @@index([completedByUserId])
 }
 
@@ -506,6 +553,18 @@ model DocumentOcrScan {
   @@index([createdAt])
   @@index([userId, createdAt])
   @@index([storeId, createdAt])
+}
+
+/** One row per successful paid Gemini last-resort OCR (GEMINI_API_KEY_PAID). */
+model DocumentOcrPaidUse {
+  id        String   @id @default(cuid())
+  userId    String?
+  username  String?
+  storeId   String?
+  model     String   @default("gemini-3.8-flash")
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
 }
 
 model SupportRequest {

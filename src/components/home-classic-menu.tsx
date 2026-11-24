@@ -11,6 +11,8 @@ import { WhatsNewDialog } from "@/components/whats-new-dialog";
 import { useT } from "@/components/i18n-provider";
 import { useAppSession } from "@/components/app-session-provider";
 import { CHECKLISTS_FEATURE_ENABLED } from "@/lib/checklist";
+import { TEMPERATURE_FEATURE_ENABLED } from "@/lib/temperature";
+import { HubTemperatureIcon } from "@/components/home-hub-icons";
 import { logoutSession } from "@/lib/client-session";
 import { getStoredStoreId, setStoredStoreId, clearStoredStoreId } from "@/lib/store-selection";
 
@@ -389,6 +391,18 @@ export function HomeClassicMenu() {
             href="/app/checklists"
             title={t("app.hubChecklists")}
             icon={<ChecklistHomeIcon className="size-5" />}
+          />
+        ) : null}
+
+        {TEMPERATURE_FEATURE_ENABLED &&
+        bootstrapped &&
+        homeUser === false &&
+        !sessionMissing &&
+        stores.length > 0 ? (
+          <HomeLinkCard
+            href="/app/temperature"
+            title={t("app.hubTemperature")}
+            icon={<HubTemperatureIcon className="size-5" />}
           />
         ) : null}
 

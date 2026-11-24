@@ -788,12 +788,17 @@ function isInvalidArgumentError(message: string): boolean {
   );
 }
 
+export type GeminiExtractResult = {
+  text: string;
+  usedPaidFallback: boolean;
+};
+
 async function extractWithGemini(
   apiKey: string,
   preferredModel: string,
   mime: string,
   base64: string,
-): Promise<string> {
+): Promise<GeminiExtractResult> {
   const models = geminiModelsToTry(preferredModel);
   let lastError: Error | null = null;
   let hangTimeouts = 0;
@@ -855,7 +860,7 @@ async function extractWithGemini(
           `document AI: preferred model "${preferredModel}" failed; used "${model}"`,
         );
       }
-      return text;
+      return { text, usedPaidFallback: false };
     } catch (error) {
       documentAiLog(
         "warn",
@@ -885,7 +890,7 @@ async function extractWithGemini(
           const paidText = await tryPaidFallback(
             `high demand on ${GEMINI_PAID_FALLBACK_TRIGGER_MODEL}`,
           );
-          if (paidText) return paidText;
+          if (paidText) return { text: paidText, usedPaidFallback: true };
         }
         continue;
       }
@@ -917,7 +922,7 @@ async function extractWithGemini(
   }
 
   const paidText = await tryPaidFallback("free cascade exhausted");
-  if (paidText) return paidText;
+  if (paidText) return { text: paidText, usedPaidFallback: true };
 
   documentAiLog(
     "warn",
@@ -1009,18 +1014,35 @@ async function extractWithOpenAI(
   return text;
 }
 
+export type DocumentOcrExtractResult = {
+  rows: DocumentOcrRow[];
+  usedPaidFallback: boolean;
+};
+
 async function extractDocumentRowsOnce(
   config: { provider: "gemini" | "openai"; apiKey: string; model: string },
   mime: string,
   base64: string,
-): Promise<DocumentOcrRow[]> {
-  const text =
-    config.provider === "gemini"
-      ? await extractWithGemini(config.apiKey, config.model, mime, base64)
-      : await withProviderRetries(`openai:${config.model}`, () =>
-          extractWithOpenAI(config.apiKey, config.model, mime, base64),
-        );
-  return toRows(extractJsonObject(text));
+): Promise<DocumentOcrExtractResult> {
+  if (config.provider === "gemini") {
+    const result = await extractWithGemini(
+      config.apiKey,
+      config.model,
+      mime,
+      base64,
+    );
+    return {
+      rows: toRows(extractJsonObject(result.text)),
+      usedPaidFallback: result.usedPaidFallback,
+    };
+  }
+  const text = await withProviderRetries(`openai:${config.model}`, () =>
+    extractWithOpenAI(config.apiKey, config.model, mime, base64),
+  );
+  return {
+    rows: toRows(extractJsonObject(text)),
+    usedPaidFallback: false,
+  };
 }
 
 async function prepareMimeAndBase64ForOcr(
@@ -1050,7 +1072,7 @@ async function prepareMimeAndBase64ForOcr(
 
 export async function extractDocumentRows(
   dataUrl: string,
-): Promise<DocumentOcrRow[]> {
+): Promise<DocumentOcrExtractResult> {
   const config = documentAiConfigured();
   if (!config) {
     throw new Error("OCR_NOT_CONFIGURED");
@@ -1092,7 +1114,7 @@ function documentAiConfiguredPreferGemini(): {
 
 export async function extractDocumentRowsFromPath(
   imagePath: string,
-): Promise<DocumentOcrRow[]> {
+): Promise<DocumentOcrExtractResult> {
   const filePath = await resolveLocalUploadPath(imagePath);
   if (!filePath) {
     throw new Error("INVALID_IMAGE");

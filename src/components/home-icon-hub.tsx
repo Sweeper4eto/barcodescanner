@@ -122,9 +122,8 @@ function moduleDefs(storeQuery: string): Record<HomeModuleId, ModuleDef> {
     temperature: {
       id: "temperature",
       labelKey: "app.hubTemperature",
-      href: () => "/app",
+      href: () => `/app/temperature${storeQuery}`,
       icon: <HubTemperatureIcon />,
-      locked: true,
     },
   };
 }
@@ -165,6 +164,7 @@ export function HomeIconHub({
     ),
   );
   const [checklistDueCount, setChecklistDueCount] = useState(0);
+  const [temperatureDueCount, setTemperatureDueCount] = useState(0);
   const [page, setPage] = useState(0);
   const [rearranging, setRearranging] = useState(false);
   const [draggingSlot, setDraggingSlot] = useState<number | null>(null);
@@ -611,6 +611,7 @@ export function HomeIconHub({
     availability.billing,
     availability.analytics,
     availability.checklists,
+    availability.temperature,
   ]);
 
   useEffect(() => {
@@ -638,6 +639,32 @@ export function HomeIconHub({
       cancelled = true;
     };
   }, [availability.checklists, storeId]);
+
+  useEffect(() => {
+    if (!availability.temperature || !storeId) {
+      setTemperatureDueCount(0);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch(
+          `/api/temperature/badge?storeId=${encodeURIComponent(storeId)}`,
+          { credentials: "same-origin", cache: "no-store" },
+        );
+        if (!res.ok || cancelled) return;
+        const data = (await res.json()) as { dueIncomplete?: number };
+        if (!cancelled) {
+          setTemperatureDueCount(Math.max(0, Number(data.dueIncomplete) || 0));
+        }
+      } catch {
+        if (!cancelled) setTemperatureDueCount(0);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [availability.temperature, storeId]);
 
   useEffect(() => {
     setPortalReady(true);
@@ -990,9 +1017,21 @@ export function HomeIconHub({
                   (() => {
                     const def = defs[moduleId];
                     const locked = Boolean(def.locked) || isHomeModuleLocked(moduleId);
+                    const dueCount =
+                      moduleId === "checklists"
+                        ? checklistDueCount
+                        : moduleId === "temperature"
+                          ? temperatureDueCount
+                          : 0;
+                    const dueAriaKey =
+                      moduleId === "checklists"
+                        ? "checklists.hubDueAria"
+                        : moduleId === "temperature"
+                          ? "temperature.hubDueAria"
+                          : null;
                     const attention =
-                      moduleId === "checklists" &&
-                      checklistDueCount > 0 &&
+                      dueCount > 0 &&
+                      dueAriaKey != null &&
                       !locked &&
                       !rearranging;
                     const tileClass = `home-hub-tile${
@@ -1018,19 +1057,15 @@ export function HomeIconHub({
                           className={tileClass}
                           aria-disabled={locked || undefined}
                           aria-label={
-                            attention
-                              ? t("checklists.hubDueAria", {
-                                  count: checklistDueCount,
-                                })
+                            attention && dueAriaKey
+                              ? t(dueAriaKey, { count: dueCount })
                               : undefined
                           }
                           title={
                             locked
                               ? t("app.hubComingSoon")
-                              : attention
-                                ? t("checklists.hubDueAria", {
-                                    count: checklistDueCount,
-                                  })
+                              : attention && dueAriaKey
+                                ? t(dueAriaKey, { count: dueCount })
                                 : undefined
                           }
                           onPointerDown={(e) =>
@@ -1061,9 +1096,7 @@ export function HomeIconHub({
                           {tileContent(def)}
                           {attention ? (
                             <span className="home-hub-due-badge" aria-hidden>
-                              {checklistDueCount > 99
-                                ? "99+"
-                                : checklistDueCount}
+                              {dueCount > 99 ? "99+" : dueCount}
                             </span>
                           ) : null}
                         </button>

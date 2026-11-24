@@ -36,8 +36,10 @@ async function main() {
   console.log("Calling extractDocumentRows...");
 
   try {
-    const rows = await extractDocumentRows(dataUrl);
-    console.log(`OK: ${rows.length} rows`);
+    const { rows, usedPaidFallback } = await extractDocumentRows(dataUrl);
+    console.log(
+      `OK: ${rows.length} rows${usedPaidFallback ? " (paid fallback)" : ""}`,
+    );
     console.log(JSON.stringify(rows.slice(0, 5), null, 2));
     if (rows.length > 5) console.log(`... and ${rows.length - 5} more`);
   } catch (error) {

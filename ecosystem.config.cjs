@@ -11,11 +11,14 @@ module.exports = {
     {
       name: "magazin",
       time: true,
+      // Local wall clock (Europe/Sofia via OS TZ / env.TZ)
+      log_date_format: "YYYY-MM-DDTHH:mm:ssZ",
       cwd: __dirname,
       script: "npm",
       args: "start",
       env: {
         NODE_ENV: "production",
+        TZ: "Europe/Sofia",
       },
     },
   ],

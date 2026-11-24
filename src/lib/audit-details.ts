@@ -465,6 +465,63 @@ export function auditChecklistUncompleted(input: {
   ]);
 }
 
+export function auditTemperatureCreated(input: {
+  title: string;
+  storeName: string;
+}): string {
+  return auditJoin([
+    `temperature point "${input.title}"`,
+    `store "${input.storeName}"`,
+  ]);
+}
+
+export function auditTemperatureUpdated(input: {
+  title: string;
+  storeName: string;
+  changes?: Array<string | null>;
+}): string {
+  return auditSubjectWithChanges(`temperature point "${input.title}"`, [
+    `store "${input.storeName}"`,
+    ...(input.changes ?? []),
+  ]);
+}
+
+export function auditTemperatureRemoved(input: {
+  title: string;
+  storeName: string;
+}): string {
+  return auditJoin([
+    `removed temperature point "${input.title}"`,
+    `store "${input.storeName}"`,
+  ]);
+}
+
+export function auditTemperatureCompleted(input: {
+  title: string;
+  storeName: string;
+  logDate: string;
+  celsius?: number | null;
+}): string {
+  return auditJoin([
+    `logged temperature "${input.title}"`,
+    `date ${input.logDate}`,
+    input.celsius != null ? `${input.celsius} C` : null,
+    `store "${input.storeName}"`,
+  ]);
+}
+
+export function auditTemperatureUncompleted(input: {
+  title: string;
+  storeName: string;
+  logDate: string;
+}): string {
+  return auditJoin([
+    `cleared temperature "${input.title}"`,
+    `date ${input.logDate}`,
+    `store "${input.storeName}"`,
+  ]);
+}
+
 export function auditBuyListUpdated(input: {
   productName: string;
   barcode: string;

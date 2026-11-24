@@ -43,7 +43,7 @@ Keep entries short. Prefer `open` / `doing` / `done` / `dropped`.
 - [ ] **63.** Label printer integration
 - [ ] **42.** Electronic price tags (ESL sync)
 - [ ] **74.** Share list via QR
-- [ ] Temperature monitoring logs
+- [x] **Temperature monitoring logs** — checklist-like °C дневник (always-daily, no periods/assignees); local only (not pushed)
 - [ ] Hygiene checklists (templates / multi-row — after MVP)
 - [ ] DDD protocols archive
 - [ ] BABH / inspector read-only access

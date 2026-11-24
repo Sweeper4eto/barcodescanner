@@ -46,6 +46,11 @@ export type AuditEvent =
   | "checklist_removed"
   | "checklist_completed"
   | "checklist_uncompleted"
+  | "temperature_created"
+  | "temperature_updated"
+  | "temperature_removed"
+  | "temperature_completed"
+  | "temperature_uncompleted"
   | "activity_reverted";
 
 export type AuditFilter =
@@ -76,6 +81,14 @@ const CHECKLIST_EVENTS: AuditEvent[] = [
   "checklist_uncompleted",
 ];
 
+const TEMPERATURE_EVENTS: AuditEvent[] = [
+  "temperature_created",
+  "temperature_updated",
+  "temperature_removed",
+  "temperature_completed",
+  "temperature_uncompleted",
+];
+
 const INVENTORY_EVENTS: AuditEvent[] = [
   "inventory_added",
   "inventory_merged",
@@ -88,6 +101,7 @@ const INVENTORY_EVENTS: AuditEvent[] = [
   "buy_list_removed",
   "buy_list_updated",
   ...CHECKLIST_EVENTS,
+  ...TEMPERATURE_EVENTS,
   "activity_reverted",
 ];
 const PRODUCT_EVENTS: AuditEvent[] = [

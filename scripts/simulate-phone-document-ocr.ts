@@ -51,7 +51,7 @@ async function main() {
     const resolved = await resolveLocalUploadPath(uploadedPath);
     console.log(`resolved to ${resolved}`);
     if (!resolved) throw new Error("resolveLocalUploadPath returned null");
-    const rowsA = await extractDocumentRowsFromPath(uploadedPath);
+    const { rows: rowsA } = await extractDocumentRowsFromPath(uploadedPath);
     console.log(`OK A: ${rowsA.length} rows`);
   } catch (error) {
     console.error(
@@ -68,7 +68,7 @@ async function main() {
   // --- Path B: new phone flow (dataUrl in parse body) ---
   console.log("\n=== B) Phone memory path (parse dataUrl) ===");
   try {
-    const rowsB = await extractDocumentRows(dataUrl);
+    const { rows: rowsB } = await extractDocumentRows(dataUrl);
     console.log(`OK B: ${rowsB.length} rows`);
     console.log(JSON.stringify(rowsB.slice(0, 3), null, 2));
   } catch (error) {

@@ -31,6 +31,11 @@ type PeriodSummaries = {
   days30: number;
 };
 
+type PaidSummaries = {
+  today: number;
+  month: number;
+};
+
 type PeriodPreset = "7" | "14" | "30" | "custom";
 
 function ymdLocal(date: Date): string {
@@ -61,6 +66,7 @@ export function DocumentOcrUsagePanel() {
     days14: 0,
     days30: 0,
   });
+  const [paid, setPaid] = useState<PaidSummaries>({ today: 0, month: 0 });
   const [totalScans, setTotalScans] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -96,6 +102,7 @@ export function DocumentOcrUsagePanel() {
         setRows([]);
         setDaily([]);
         setTotalScans(0);
+        setPaid({ today: 0, month: 0 });
         return;
       }
       setRows((data?.rows ?? []) as UsageRow[]);
@@ -106,11 +113,16 @@ export function DocumentOcrUsagePanel() {
         days14: Number(data?.summaries?.days14 ?? 0),
         days30: Number(data?.summaries?.days30 ?? 0),
       });
+      setPaid({
+        today: Number(data?.paid?.today ?? 0),
+        month: Number(data?.paid?.month ?? 0),
+      });
     } catch {
       setError(t("errors.networkError"));
       setRows([]);
       setDaily([]);
       setTotalScans(0);
+      setPaid({ today: 0, month: 0 });
     } finally {
       setLoading(false);
     }
@@ -179,6 +191,31 @@ export function DocumentOcrUsagePanel() {
         <p className="mt-1 text-sm text-muted">
           {t("admin.documentOcrUsageHint")}
         </p>
+      </div>
+
+      <div className="grid gap-2 sm:grid-cols-2">
+        <div className="rounded-xl border border-card-border px-3 py-2 text-left">
+          <span className="block text-xs font-medium text-muted">
+            {t("admin.documentOcrPaidToday")}
+          </span>
+          <span className="mt-0.5 block text-xl tabular-nums text-foreground">
+            {paid.today}
+          </span>
+          <span className="mt-0.5 block text-[11px] text-muted">
+            {t("admin.documentOcrPaidHint")}
+          </span>
+        </div>
+        <div className="rounded-xl border border-card-border px-3 py-2 text-left">
+          <span className="block text-xs font-medium text-muted">
+            {t("admin.documentOcrPaidMonth")}
+          </span>
+          <span className="mt-0.5 block text-xl tabular-nums text-foreground">
+            {paid.month}
+          </span>
+          <span className="mt-0.5 block text-[11px] text-muted">
+            {t("admin.documentOcrPaidHint")}
+          </span>
+        </div>
       </div>
 
       <div className="grid gap-2 sm:grid-cols-3">

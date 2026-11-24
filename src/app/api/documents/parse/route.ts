@@ -7,6 +7,7 @@ import { userCanAccessRetailStore } from "@/lib/store-access";
 import {
   extractDocumentRows,
   extractDocumentRowsFromPath,
+  GEMINI_PAID_FALLBACK_MODEL,
   getDocumentAiStatus,
   isDocumentAiConfigured,
 } from "@/lib/document-ai";
@@ -16,7 +17,10 @@ import {
   shouldMockDocumentOcr,
 } from "@/lib/document-ocr-mock";
 import { takeDocumentOcrSlot } from "@/lib/document-ocr-rate-limit";
-import { recordDocumentOcrScan } from "@/lib/document-ocr-usage";
+import {
+  recordDocumentOcrPaidUse,
+  recordDocumentOcrScan,
+} from "@/lib/document-ocr-usage";
 import { notifyAdminsDocumentAiFailure } from "@/lib/document-ai-admin-alert";
 import {
   createDocumentExpiryAlert,
@@ -162,9 +166,21 @@ export async function POST(request: Request) {
           await deleteLocalUpload(parsed.data.imagePath);
         }
       } else {
-        rows = parsed.data.imagePath
+        const extracted = parsed.data.imagePath
           ? await extractDocumentRowsFromPath(parsed.data.imagePath)
           : await extractDocumentRows(parsed.data.dataUrl!);
+        rows = extracted.rows;
+        if (extracted.usedPaidFallback) {
+          void recordDocumentOcrPaidUse({
+            userId: session.userId,
+            username: session.username,
+            storeId: parsed.data.storeId,
+            model: GEMINI_PAID_FALLBACK_MODEL,
+          });
+          console.log(
+            `document parse: paid last resort used model=${GEMINI_PAID_FALLBACK_MODEL} user=${session.username}`,
+          );
+        }
         if (findLongExpiredDocumentRows(rows).length > 0) {
           const image = await readDocumentAlertImage(parsed.data);
           await createDocumentExpiryAlert({

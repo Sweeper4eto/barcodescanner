@@ -12,6 +12,7 @@ import { useT } from "@/components/i18n-provider";
 import { useAppSession } from "@/components/app-session-provider";
 import { logoutSession } from "@/lib/client-session";
 import { CHECKLISTS_FEATURE_ENABLED } from "@/lib/checklist";
+import { TEMPERATURE_FEATURE_ENABLED } from "@/lib/temperature";
 import { appContentMaxW } from "@/lib/app-ui";
 import type { HomeLauncherAvailability } from "@/lib/home-launcher";
 import { getStoredStoreId, setStoredStoreId, clearStoredStoreId } from "@/lib/store-selection";
@@ -162,6 +163,7 @@ export function HomeHubHome() {
       billing: isAccountOwner && billingEnabled,
       analytics: isOwner && stores.length > 0,
       checklists: retail && CHECKLISTS_FEATURE_ENABLED,
+      temperature: retail && TEMPERATURE_FEATURE_ENABLED,
     };
   }, [
     schedulePublic,
