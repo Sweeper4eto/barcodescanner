@@ -12,7 +12,7 @@ import {
 } from "@/lib/checklist";
 
 /** Kill-switch: hide hub/menu + block page/API until ready. */
-export const TEMPERATURE_FEATURE_ENABLED = true;
+export const TEMPERATURE_FEATURE_ENABLED = false;
 
 export const TEMPERATURE_TIME_ZONE = CHECKLIST_TIME_ZONE;
 export const TEMPERATURE_RETENTION_MONTHS = CHECKLIST_RETENTION_MONTHS;
