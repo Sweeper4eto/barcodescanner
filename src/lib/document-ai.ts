@@ -368,8 +368,39 @@ export const GEMINI_COOLDOWN_EXEMPT_MODELS = [
 /** Always keep this model last in the cascade. */
 export const GEMINI_CASCADE_LAST_MODEL = "gemini-3.1-flash-lite";
 
+/**
+ * Free cascade: when this model returns high demand, try the paid key once
+ * with {@link GEMINI_PAID_FALLBACK_MODEL} before continuing / exhausting.
+ */
+export const GEMINI_PAID_FALLBACK_TRIGGER_MODEL = "gemini-3-flash-preview";
+
+/** Paid last-resort model (uses GEMINI_API_KEY_PAID). */
+export const GEMINI_PAID_FALLBACK_MODEL = "gemini-3.8-flash";
+
 export function isGeminiCooldownExempt(model: string): boolean {
   return (GEMINI_COOLDOWN_EXEMPT_MODELS as readonly string[]).includes(model);
+}
+
+/** Optional paid Gemini key for last-resort OCR after free cascade pressure. */
+export function getGeminiPaidApiKey(): string | null {
+  const key = process.env.GEMINI_API_KEY_PAID?.trim();
+  return key || null;
+}
+
+/**
+ * True when free cascade should fire the paid last resort:
+ * high demand on gemini-3-flash-preview, or cascade already exhausted.
+ */
+export function shouldTryGeminiPaidFallback(input: {
+  triggerModel?: string | null;
+  errorMessage?: string | null;
+  cascadeExhausted?: boolean;
+}): boolean {
+  if (input.cascadeExhausted) return true;
+  const model = input.triggerModel?.trim() ?? "";
+  const message = input.errorMessage ?? "";
+  if (!model || model !== GEMINI_PAID_FALLBACK_TRIGGER_MODEL) return false;
+  return isProviderHighDemandError(message);
 }
 
 function resolveModel(
@@ -766,6 +797,37 @@ async function extractWithGemini(
   const models = geminiModelsToTry(preferredModel);
   let lastError: Error | null = null;
   let hangTimeouts = 0;
+  let paidFallbackTried = false;
+  const paidKey = getGeminiPaidApiKey();
+
+  async function tryPaidFallback(reason: string): Promise<string | null> {
+    if (paidFallbackTried || !paidKey) return null;
+    paidFallbackTried = true;
+    const model = GEMINI_PAID_FALLBACK_MODEL;
+    const startedAt = Date.now();
+    documentAiLog(
+      "warn",
+      `document AI: paid last resort "${model}" (${reason})`,
+    );
+    try {
+      const text = await withProviderRetries(`gemini-paid:${model}`, () =>
+        extractWithGeminiOnce(paidKey, model, mime, base64),
+      );
+      documentAiLog(
+        "log",
+        `document AI: paid model "${model}" ok in ${Date.now() - startedAt}ms`,
+      );
+      return text;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      lastError = error instanceof Error ? error : new Error(message);
+      documentAiLog(
+        "warn",
+        `document AI: paid model "${model}" failed in ${Date.now() - startedAt}ms (${message})`,
+      );
+      return null;
+    }
+  }
 
   for (const model of models) {
     const cooldownReason = isGeminiModelCoolingDown(model);
@@ -814,6 +876,17 @@ async function extractWithGemini(
           "warn",
           `document AI: model "${model}" high demand/503, trying next immediately`,
         );
+        if (
+          shouldTryGeminiPaidFallback({
+            triggerModel: model,
+            errorMessage: message,
+          })
+        ) {
+          const paidText = await tryPaidFallback(
+            `high demand on ${GEMINI_PAID_FALLBACK_TRIGGER_MODEL}`,
+          );
+          if (paidText) return paidText;
+        }
         continue;
       }
       if (isProviderHangTimeoutError(message)) {
@@ -842,6 +915,9 @@ async function extractWithGemini(
       throw lastError;
     }
   }
+
+  const paidText = await tryPaidFallback("free cascade exhausted");
+  if (paidText) return paidText;
 
   documentAiLog(
     "warn",

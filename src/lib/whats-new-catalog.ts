@@ -1607,6 +1607,14 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Скан на документ: компактните дати след Използвай до / преди (ДДММГГ) имат приоритет пред партидата за годност.",
     href: "/app/add-document",
   },
+  {
+    key: "2026-11-ocr-paid-last-resort",
+    titleEn:
+      "Document scan: if Gemini is overloaded on free models, a paid backup (gemini-3.8-flash) retries automatically.",
+    titleBg:
+      "Скан на документ: ако безплатните Gemini модели са претоварени, автоматично се ползва платен резерв (gemini-3.8-flash).",
+    href: "/app/add-document",
+  },
 ];
 
 

@@ -4,8 +4,11 @@ import {
   DEFAULT_DOCUMENT_AI_FETCH_TIMEOUT_MS,
   GEMINI_FREE_TIER_COOLDOWN_MS,
   GEMINI_HANG_TIMEOUT_COOLDOWN_MS,
+  GEMINI_PAID_FALLBACK_MODEL,
+  GEMINI_PAID_FALLBACK_TRIGGER_MODEL,
   clearGeminiFreeTierCooldownsForTests,
   documentAiFetchTimeoutMs,
+  getGeminiPaidApiKey,
   isGeminiFreeTierQuotaError,
   isGeminiModelCoolingDown,
   isProviderHangTimeoutError,
@@ -17,6 +20,7 @@ import {
   parsePrintedExpiry,
   repairTruncatedItemsJson,
   resolveDocumentExpiry,
+  shouldTryGeminiPaidFallback,
 } from "../src/lib/document-ai";
 
 describe("isGeminiFreeTierQuotaError", () => {
@@ -122,6 +126,51 @@ describe("isProviderHighDemandError", () => {
       isProviderHighDemandError("OCR_PROVIDER:504:Request timed out after 40000ms"),
       false,
     );
+  });
+});
+
+describe("shouldTryGeminiPaidFallback", () => {
+  it("fires on high demand for gemini-3-flash-preview", () => {
+    assert.equal(GEMINI_PAID_FALLBACK_TRIGGER_MODEL, "gemini-3-flash-preview");
+    assert.equal(GEMINI_PAID_FALLBACK_MODEL, "gemini-3.8-flash");
+    assert.equal(
+      shouldTryGeminiPaidFallback({
+        triggerModel: GEMINI_PAID_FALLBACK_TRIGGER_MODEL,
+        errorMessage:
+          "OCR_PROVIDER:503:This model is currently experiencing high demand.",
+      }),
+      true,
+    );
+  });
+
+  it("does not fire on high demand for other free-cascade models", () => {
+    assert.equal(
+      shouldTryGeminiPaidFallback({
+        triggerModel: "gemini-3.5-flash-lite",
+        errorMessage: "OCR_PROVIDER:503:high demand",
+      }),
+      false,
+    );
+  });
+
+  it("fires when free cascade is exhausted", () => {
+    assert.equal(
+      shouldTryGeminiPaidFallback({ cascadeExhausted: true }),
+      true,
+    );
+  });
+
+  it("reads GEMINI_API_KEY_PAID from env", () => {
+    const prev = process.env.GEMINI_API_KEY_PAID;
+    try {
+      delete process.env.GEMINI_API_KEY_PAID;
+      assert.equal(getGeminiPaidApiKey(), null);
+      process.env.GEMINI_API_KEY_PAID = "  paid-test-key  ";
+      assert.equal(getGeminiPaidApiKey(), "paid-test-key");
+    } finally {
+      if (prev === undefined) delete process.env.GEMINI_API_KEY_PAID;
+      else process.env.GEMINI_API_KEY_PAID = prev;
+    }
   });
 });
 
