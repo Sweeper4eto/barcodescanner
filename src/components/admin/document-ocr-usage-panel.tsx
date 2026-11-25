@@ -19,6 +19,7 @@ type UsageRow = {
   clientId: string | null;
   clientName: string | null;
   homeUser: boolean;
+  day: string;
   scanCount: number;
   lastScanAt: string;
 };
@@ -67,7 +68,13 @@ export function DocumentOcrUsagePanel() {
     days30: 0,
   });
   const [paid, setPaid] = useState<PaidSummaries>({ today: 0, month: 0 });
+  const [failed, setFailed] = useState<PeriodSummaries>({
+    days7: 0,
+    days14: 0,
+    days30: 0,
+  });
   const [totalScans, setTotalScans] = useState(0);
+  const [totalFailed, setTotalFailed] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [preset, setPreset] = useState<PeriodPreset>("7");
@@ -102,16 +109,24 @@ export function DocumentOcrUsagePanel() {
         setRows([]);
         setDaily([]);
         setTotalScans(0);
+        setTotalFailed(0);
         setPaid({ today: 0, month: 0 });
+        setFailed({ days7: 0, days14: 0, days30: 0 });
         return;
       }
       setRows((data?.rows ?? []) as UsageRow[]);
       setDaily((data?.daily ?? []) as DailyRow[]);
       setTotalScans(Number(data?.totalScans ?? 0));
+      setTotalFailed(Number(data?.totalFailed ?? 0));
       setSummaries({
         days7: Number(data?.summaries?.days7 ?? 0),
         days14: Number(data?.summaries?.days14 ?? 0),
         days30: Number(data?.summaries?.days30 ?? 0),
+      });
+      setFailed({
+        days7: Number(data?.failed?.days7 ?? 0),
+        days14: Number(data?.failed?.days14 ?? 0),
+        days30: Number(data?.failed?.days30 ?? 0),
       });
       setPaid({
         today: Number(data?.paid?.today ?? 0),
@@ -122,7 +137,9 @@ export function DocumentOcrUsagePanel() {
       setRows([]);
       setDaily([]);
       setTotalScans(0);
+      setTotalFailed(0);
       setPaid({ today: 0, month: 0 });
+      setFailed({ days7: 0, days14: 0, days30: 0 });
     } finally {
       setLoading(false);
     }
@@ -257,6 +274,36 @@ export function DocumentOcrUsagePanel() {
         </button>
       </div>
 
+      <div className="grid gap-2 sm:grid-cols-3">
+        <div className="rounded-xl border border-card-border px-3 py-2 text-left">
+          <span className="block text-xs font-medium text-muted">
+            {t("admin.documentOcrUsageFailedPeriod7")}
+          </span>
+          <span className="mt-0.5 block text-xl tabular-nums text-foreground">
+            {failed.days7}
+          </span>
+        </div>
+        <div className="rounded-xl border border-card-border px-3 py-2 text-left">
+          <span className="block text-xs font-medium text-muted">
+            {t("admin.documentOcrUsageFailedPeriod14")}
+          </span>
+          <span className="mt-0.5 block text-xl tabular-nums text-foreground">
+            {failed.days14}
+          </span>
+        </div>
+        <div className="rounded-xl border border-card-border px-3 py-2 text-left">
+          <span className="block text-xs font-medium text-muted">
+            {t("admin.documentOcrUsageFailedPeriod30")}
+          </span>
+          <span className="mt-0.5 block text-xl tabular-nums text-foreground">
+            {failed.days30}
+          </span>
+          <span className="mt-0.5 block text-[11px] text-muted">
+            {t("admin.documentOcrUsageFailedHint")}
+          </span>
+        </div>
+      </div>
+
       <div className="flex flex-wrap items-end gap-3 rounded-xl border border-card-border bg-card p-3">
         <AdminField label={t("admin.dateFrom")}>
           <input
@@ -299,6 +346,10 @@ export function DocumentOcrUsagePanel() {
 
       <p className="text-sm text-muted">
         {t("admin.documentOcrUsageTotal", { count: String(totalScans) })}
+        {" · "}
+        {t("admin.documentOcrUsageFailedTotal", {
+          count: String(totalFailed),
+        })}
       </p>
 
       {error ? (
@@ -379,6 +430,9 @@ export function DocumentOcrUsagePanel() {
                   <thead className="border-b border-card-border bg-selected/30 text-xs font-semibold uppercase tracking-wide text-muted">
                     <tr>
                       <th className="px-3 py-2">
+                        {t("admin.documentOcrUsageDay")}
+                      </th>
+                      <th className="px-3 py-2">
                         {t("admin.documentOcrUsageUser")}
                       </th>
                       <th className="px-3 py-2">
@@ -395,9 +449,12 @@ export function DocumentOcrUsagePanel() {
                   <tbody>
                     {rows.map((row) => (
                       <tr
-                        key={row.userId}
+                        key={`${row.userId}-${row.day}`}
                         className="border-b border-card-border last:border-0"
                       >
+                        <td className="px-3 py-2 font-medium text-foreground">
+                          {formatDay(row.day)}
+                        </td>
                         <td className="px-3 py-2 font-medium text-foreground">
                           {row.username}
                         </td>
@@ -408,7 +465,7 @@ export function DocumentOcrUsagePanel() {
                                   ? ` (${t("admin.householdNav")})`
                                   : ""
                               }`
-                            : "—"}
+                            : "-"}
                         </td>
                         <td className="px-3 py-2 text-right font-semibold tabular-nums text-foreground">
                           {row.scanCount}

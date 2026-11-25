@@ -32,15 +32,27 @@ test("zonedLocalToUtc uses winter offset (EET, UTC+2)", () => {
   assert.equal(documentOcrUsageDayKey(nightScan, TZ), "2026-01-15");
 });
 
-test("OCR user rows are newest scan first, then username", () => {
+test("OCR user rows are newest day first, then scan time, then username", () => {
   const rows = [
-    { username: "zoe", lastScanAt: "2026-10-18T08:00:00.000Z" },
-    { username: "adam", lastScanAt: "2026-10-18T10:00:00.000Z" },
-    { username: "mia", lastScanAt: "2026-10-18T08:00:00.000Z" },
+    {
+      username: "zoe",
+      day: "2026-10-18",
+      lastScanAt: "2026-10-18T08:00:00.000Z",
+    },
+    {
+      username: "adam",
+      day: "2026-10-18",
+      lastScanAt: "2026-10-18T10:00:00.000Z",
+    },
+    {
+      username: "mia",
+      day: "2026-10-17",
+      lastScanAt: "2026-10-17T22:00:00.000Z",
+    },
   ].sort(compareOcrUsageRows);
   assert.deepEqual(
     rows.map((row) => row.username),
-    ["adam", "mia", "zoe"],
+    ["adam", "zoe", "mia"],
   );
 });
 

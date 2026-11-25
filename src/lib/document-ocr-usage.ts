@@ -8,6 +8,8 @@ export async function recordDocumentOcrScan(input: {
   userId: string;
   username: string;
   storeId: string;
+  /** Default true. Pass false for provider/cascade failures only. */
+  success?: boolean;
 }): Promise<void> {
   try {
     await db.documentOcrScan.create({
@@ -15,6 +17,7 @@ export async function recordDocumentOcrScan(input: {
         userId: input.userId,
         username: input.username,
         storeId: input.storeId,
+        success: input.success !== false,
       },
     });
   } catch (error) {
@@ -146,11 +149,15 @@ function eachDayInclusive(from: Date, to: Date): string[] {
   return days;
 }
 
-/** Newest scan first. Equal times fall back to username. */
+/** Newest day first, then newest scan on that day, then username. */
 export function compareOcrUsageRows(
-  a: { lastScanAt: string; username: string },
-  b: { lastScanAt: string; username: string },
+  a: { day?: string; lastScanAt: string; username: string },
+  b: { day?: string; lastScanAt: string; username: string },
 ): number {
+  if (a.day && b.day) {
+    const byDay = b.day.localeCompare(a.day);
+    if (byDay !== 0) return byDay;
+  }
   const byScan = b.lastScanAt.localeCompare(a.lastScanAt);
   if (byScan !== 0) return byScan;
   return a.username.localeCompare(b.username, undefined, {
@@ -165,6 +172,8 @@ export type DocumentOcrUsageRow = {
   clientId: string | null;
   clientName: string | null;
   homeUser: boolean;
+  /** Sofia calendar day this row’s scanCount belongs to. */
+  day: string;
   scanCount: number;
   lastScanAt: string;
 };
@@ -195,39 +204,48 @@ export async function queryDocumentOcrUsage(input: {
   rows: DocumentOcrUsageRow[];
   daily: DocumentOcrDailyRow[];
   totalScans: number;
+  totalFailed: number;
   summaries: DocumentOcrPeriodSummaries;
+  failed: DocumentOcrPeriodSummaries;
   paid: DocumentOcrPaidSummaries;
 }> {
   const from = parseDayBound(input.dateFrom, false) ?? startOfUsageDay(6);
   const to = parseDayBound(input.dateTo, true) ?? new Date();
   if (to.getTime() < from.getTime()) {
-    const [summaries, paid] = await Promise.all([
-      loadPeriodSummaries(),
+    const [summaries, failed, paid] = await Promise.all([
+      loadPeriodSummaries(true),
+      loadPeriodSummaries(false),
       loadPaidSummaries(),
     ]);
     return {
       rows: [],
       daily: [],
       totalScans: 0,
+      totalFailed: 0,
       summaries,
+      failed,
       paid,
     };
   }
 
-  const where = {
+  const range = {
     createdAt: {
       gte: from,
       lte: to,
     },
   };
 
-  const [scans, summaries, paid] = await Promise.all([
+  const [scans, totalFailed, summaries, failed, paid] = await Promise.all([
     db.documentOcrScan.findMany({
-      where,
+      where: { ...range, success: true },
       select: { userId: true, createdAt: true },
       orderBy: { createdAt: "asc" },
     }),
-    loadPeriodSummaries(),
+    db.documentOcrScan.count({
+      where: { ...range, success: false },
+    }),
+    loadPeriodSummaries(true),
+    loadPeriodSummaries(false),
     loadPaidSummaries(),
   ]);
 
@@ -236,7 +254,9 @@ export async function queryDocumentOcrUsage(input: {
       rows: [],
       daily: eachDayInclusive(from, to).map((day) => ({ day, count: 0 })),
       totalScans: 0,
+      totalFailed,
       summaries,
+      failed,
       paid,
     };
   }
@@ -268,9 +288,9 @@ export async function queryDocumentOcrUsage(input: {
     }
   }
 
-  const perUser = new Map<
+  const perUserDay = new Map<
     string,
-    { count: number; lastScanAt: Date }
+    { userId: string; day: string; count: number; lastScanAt: Date }
   >();
   const perDay = new Map<string, number>();
   for (const day of eachDayInclusive(from, to)) {
@@ -283,24 +303,31 @@ export async function queryDocumentOcrUsage(input: {
     totalScans += 1;
     const day = documentOcrUsageDayKey(scan.createdAt);
     perDay.set(day, (perDay.get(day) ?? 0) + 1);
-    const prev = perUser.get(scan.userId);
+    const key = `${scan.userId}\0${day}`;
+    const prev = perUserDay.get(key);
     if (!prev) {
-      perUser.set(scan.userId, { count: 1, lastScanAt: scan.createdAt });
+      perUserDay.set(key, {
+        userId: scan.userId,
+        day,
+        count: 1,
+        lastScanAt: scan.createdAt,
+      });
     } else {
       prev.count += 1;
       if (scan.createdAt > prev.lastScanAt) prev.lastScanAt = scan.createdAt;
     }
   }
 
-  const rows: DocumentOcrUsageRow[] = [...perUser.entries()]
-    .map(([userId, stats]) => {
-      const user = userById.get(userId);
+  const rows: DocumentOcrUsageRow[] = [...perUserDay.values()]
+    .map((stats) => {
+      const user = userById.get(stats.userId);
       return {
-        userId,
-        username: user?.username ?? userId,
+        userId: stats.userId,
+        username: user?.username ?? stats.userId,
         clientId: user?.clientId ?? null,
         clientName: user?.client?.name ?? null,
         homeUser: user?.client?.homeUser ?? false,
+        day: stats.day,
         scanCount: stats.count,
         lastScanAt: stats.lastScanAt.toISOString(),
       };
@@ -311,20 +338,31 @@ export async function queryDocumentOcrUsage(input: {
     ([day, count]) => ({ day, count }),
   );
 
-  return { rows, daily, totalScans, summaries, paid };
+  return { rows, daily, totalScans, totalFailed, summaries, failed, paid };
 }
 
-async function loadPeriodSummaries(): Promise<DocumentOcrPeriodSummaries> {
+async function loadPeriodSummaries(
+  success: boolean,
+): Promise<DocumentOcrPeriodSummaries> {
   const now = new Date();
   const [days7, days14, days30] = await Promise.all([
     db.documentOcrScan.count({
-      where: { createdAt: { gte: startOfUsageDay(6), lte: now } },
+      where: {
+        success,
+        createdAt: { gte: startOfUsageDay(6), lte: now },
+      },
     }),
     db.documentOcrScan.count({
-      where: { createdAt: { gte: startOfUsageDay(13), lte: now } },
+      where: {
+        success,
+        createdAt: { gte: startOfUsageDay(13), lte: now },
+      },
     }),
     db.documentOcrScan.count({
-      where: { createdAt: { gte: startOfUsageDay(29), lte: now } },
+      where: {
+        success,
+        createdAt: { gte: startOfUsageDay(29), lte: now },
+      },
     }),
   ]);
   return { days7, days14, days30 };

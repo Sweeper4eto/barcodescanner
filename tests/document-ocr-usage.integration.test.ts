@@ -46,6 +46,7 @@ async function seedScan(input: {
   username: string;
   storeId: string;
   createdAt: Date;
+  success?: boolean;
 }) {
   await db.documentOcrScan.create({
     data: {
@@ -53,6 +54,7 @@ async function seedScan(input: {
       username: input.username,
       storeId: input.storeId,
       createdAt: input.createdAt,
+      success: input.success !== false,
     },
   });
 }
@@ -157,4 +159,82 @@ test("an inverted OCR date range returns no rows", async () => {
   });
   assert.deepEqual(result.rows, []);
   assert.equal(result.totalScans, 0);
+  assert.equal(result.totalFailed, 0);
+});
+
+test("OCR usage totals exclude failed attempts and report them separately", async () => {
+  const client = await seedClientWithStore(db);
+  const store = client.stores[0]!;
+  const user = await seedUserWithAccess(db, client.id, store.id, "ocr_mix");
+  const day = new Date("2026-10-18T10:00:00.000Z");
+  await seedScan({
+    userId: user.id,
+    username: user.username,
+    storeId: store.id,
+    createdAt: day,
+    success: true,
+  });
+  await seedScan({
+    userId: user.id,
+    username: user.username,
+    storeId: store.id,
+    createdAt: new Date("2026-10-18T11:00:00.000Z"),
+    success: true,
+  });
+  await seedScan({
+    userId: user.id,
+    username: user.username,
+    storeId: store.id,
+    createdAt: new Date("2026-10-18T12:00:00.000Z"),
+    success: false,
+  });
+
+  const today = sofiaDay(day);
+  const result = await queryDocumentOcrUsage({
+    dateFrom: today,
+    dateTo: today,
+  });
+  assert.equal(result.totalScans, 2);
+  assert.equal(result.totalFailed, 1);
+  assert.equal(result.rows.length, 1);
+  assert.equal(result.rows[0]?.scanCount, 2);
+  assert.equal(result.rows[0]?.day, today);
+});
+
+test("OCR usage by-user rows are per Sofia day, not range totals", async () => {
+  const client = await seedClientWithStore(db);
+  const store = client.stores[0]!;
+  const user = await seedUserWithAccess(db, client.id, store.id, "ocr_days");
+  await seedScan({
+    userId: user.id,
+    username: user.username,
+    storeId: store.id,
+    createdAt: new Date("2026-10-17T12:00:00.000Z"),
+  });
+  await seedScan({
+    userId: user.id,
+    username: user.username,
+    storeId: store.id,
+    createdAt: new Date("2026-10-18T08:00:00.000Z"),
+  });
+  await seedScan({
+    userId: user.id,
+    username: user.username,
+    storeId: store.id,
+    createdAt: new Date("2026-10-18T09:00:00.000Z"),
+  });
+
+  const result = await queryDocumentOcrUsage({
+    dateFrom: "2026-10-17",
+    dateTo: "2026-10-18",
+  });
+  assert.equal(result.totalScans, 3);
+  assert.equal(result.rows.length, 2);
+  assert.deepEqual(
+    result.rows.map((row) => ({ day: row.day, count: row.scanCount })),
+    [
+      { day: "2026-10-18", count: 2 },
+      { day: "2026-10-17", count: 1 },
+    ],
+  );
 });

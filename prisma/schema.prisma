@@ -548,11 +548,14 @@ model DocumentOcrScan {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   storeId   String
   username  String
+  /** false = OCR attempt failed (provider/cascade); admin totals exclude these. */
+  success   Boolean  @default(true)
   createdAt DateTime @default(now())
 
   @@index([createdAt])
   @@index([userId, createdAt])
   @@index([storeId, createdAt])
+  @@index([success, createdAt])
 }
 
 /** One row per successful paid Gemini last-resort OCR (GEMINI_API_KEY_PAID). */

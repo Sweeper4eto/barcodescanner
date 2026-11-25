@@ -140,17 +140,17 @@ export async function POST(request: Request) {
       );
     }
 
-    void recordDocumentOcrScan({
-      userId: session.userId,
-      username: session.username,
-      storeId: parsed.data.storeId,
-    });
-
     // Log as soon as the photo arrives — if this is missing while the phone
     // spins, the delay is still on-device (prep/upload), not Gemini.
     console.log(
       `document parse: request received store=${parsed.data.storeId} user=${session.username}`,
     );
+
+    const scanMeta = {
+      userId: session.userId,
+      username: session.username,
+      storeId: parsed.data.storeId,
+    };
 
     try {
       const extractStart = Date.now();
@@ -199,6 +199,9 @@ export async function POST(request: Request) {
       }
       const extractMs = Date.now() - extractStart;
 
+      // Count only after OCR finished (empty draft still counts as success).
+      void recordDocumentOcrScan({ ...scanMeta, success: true });
+
       if (rows.length === 0) {
         return NextResponse.json(
           { error: apiT(request, "errors.documentNoItems") },
@@ -219,6 +222,7 @@ export async function POST(request: Request) {
           { status: 400 },
         );
       }
+      void recordDocumentOcrScan({ ...scanMeta, success: false });
       const status = getDocumentAiStatus();
       console.error("document parse failed", {
         message,
