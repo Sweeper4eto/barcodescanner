@@ -325,14 +325,28 @@ export function MinimartLocatorPanel() {
 
       mapInstance.current = map;
       setMapReady(true);
-      // Layout can settle after admin chrome mounts; refresh size twice.
+      const refreshSize = () => {
+        map.invalidateSize({ animate: false });
+      };
+      // Layout can settle after admin chrome mounts; refresh size a few times.
       window.requestAnimationFrame(() => {
-        map.invalidateSize();
-        window.setTimeout(() => map.invalidateSize(), 120);
+        refreshSize();
+        window.setTimeout(refreshSize, 120);
+        window.setTimeout(refreshSize, 400);
       });
+      // Parent height can appear after first paint (tab switch / fonts).
+      const ro =
+        typeof ResizeObserver !== "undefined"
+          ? new ResizeObserver(() => refreshSize())
+          : null;
+      if (mapRef.current && ro) ro.observe(mapRef.current);
+      (map as unknown as { __minimartRo?: ResizeObserver | null }).__minimartRo =
+        ro;
     }
 
-    void ensureMap();
+    void ensureMap().catch((error) => {
+      console.error("minimart map init failed", error);
+    });
     return () => {
       cancelled = true;
       setMapReady(false);
@@ -340,7 +354,13 @@ export function MinimartLocatorPanel() {
       selectedMarkerRef.current = null;
       for (const marker of markersRef.current.values()) marker.remove();
       markersRef.current.clear();
-      mapInstance.current?.remove();
+      const map = mapInstance.current as
+        | (import("leaflet").Map & {
+            __minimartRo?: ResizeObserver | null;
+          })
+        | null;
+      map?.__minimartRo?.disconnect();
+      map?.remove();
       mapInstance.current = null;
       canvasRendererRef.current = null;
       leafletRef.current = null;
@@ -808,7 +828,7 @@ export function MinimartLocatorPanel() {
       >
         <div
           ref={mapRef}
-          className={`minimart-leaflet-map h-[min(55vh,22rem)] w-full bg-[#0a0a0b] sm:h-[28rem] lg:h-[32rem] ${
+          className={`minimart-leaflet-map h-[min(55vh,22rem)] min-h-[16rem] w-full bg-[#0a0a0b] sm:h-[28rem] lg:h-[32rem] ${
             placeMode ? "cursor-crosshair" : ""
           }`}
         />
