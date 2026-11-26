@@ -205,10 +205,21 @@ describe("payment overdue lock", () => {
     );
   });
 
-  test("overdue on the 1st of the following month if previous unpaid", () => {
+  test("not overdue after one past unpaid month", () => {
     assert.equal(
       hasOverdueUnpaidMonths({
         billingStart: { year: 2026, month: 10 },
+        current: { year: 2026, month: 11 },
+        paidKeys: new Set(),
+      }),
+      false,
+    );
+  });
+
+  test("overdue when two past billed months are unpaid", () => {
+    assert.equal(
+      hasOverdueUnpaidMonths({
+        billingStart: { year: 2026, month: 9 },
         current: { year: 2026, month: 11 },
         paidKeys: new Set(),
       }),
@@ -216,12 +227,12 @@ describe("payment overdue lock", () => {
     );
   });
 
-  test("no overdue next month once previous month is paid", () => {
+  test("no overdue once only one past month remains unpaid", () => {
     assert.equal(
       hasOverdueUnpaidMonths({
-        billingStart: { year: 2026, month: 10 },
+        billingStart: { year: 2026, month: 9 },
         current: { year: 2026, month: 11 },
-        paidKeys: new Set([periodKey(2026, 10)]),
+        paidKeys: new Set([periodKey(2026, 9)]),
       }),
       false,
     );
@@ -241,13 +252,27 @@ describe("payment overdue lock", () => {
     );
   });
 
-  test("access blocks when a past billed month is unpaid", () => {
+  test("access stays open with one past unpaid month", () => {
     assert.equal(
       isPaymentAccessBlocked({
         homeUser: false,
         paymentsRequired: true,
         expectedAmount: 40,
         billingStart: { year: 2026, month: 10 },
+        current: { year: 2026, month: 11 },
+        paidKeys: new Set(),
+      }),
+      false,
+    );
+  });
+
+  test("access blocks when two past billed months are unpaid", () => {
+    assert.equal(
+      isPaymentAccessBlocked({
+        homeUser: false,
+        paymentsRequired: true,
+        expectedAmount: 40,
+        billingStart: { year: 2026, month: 9 },
         current: { year: 2026, month: 11 },
         paidKeys: new Set(),
       }),

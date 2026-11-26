@@ -13,7 +13,19 @@ test("isPathAllowedWhenPaymentLocked allows billing and contact only", () => {
   assert.equal(isPathAllowedWhenPaymentLocked("/app/team"), false);
 });
 
-test("isPaymentAccessBlocked after one fully unpaid prior month", () => {
+test("isPaymentAccessBlocked after two fully unpaid prior months", () => {
+  assert.equal(
+    isPaymentAccessBlocked({
+      homeUser: false,
+      paymentsRequired: true,
+      expectedAmount: 20,
+      billingStart: { year: 2026, month: 8 },
+      current: { year: 2026, month: 10 },
+      paidKeys: new Set(),
+    }),
+    true,
+  );
+
   assert.equal(
     isPaymentAccessBlocked({
       homeUser: false,
@@ -23,7 +35,7 @@ test("isPaymentAccessBlocked after one fully unpaid prior month", () => {
       current: { year: 2026, month: 10 },
       paidKeys: new Set(),
     }),
-    true,
+    false,
   );
 
   assert.equal(
@@ -43,9 +55,9 @@ test("isPaymentAccessBlocked after one fully unpaid prior month", () => {
       homeUser: false,
       paymentsRequired: true,
       expectedAmount: 20,
-      billingStart: { year: 2026, month: 9 },
+      billingStart: { year: 2026, month: 8 },
       current: { year: 2026, month: 10 },
-      paidKeys: new Set(["2026-9"]),
+      paidKeys: new Set(["2026-8"]),
     }),
     false,
   );

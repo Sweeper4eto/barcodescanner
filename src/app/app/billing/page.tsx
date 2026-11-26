@@ -132,9 +132,9 @@ export default function BillingPage() {
           : "border-primary/45 text-primary";
 
   const statusTitle =
-    standing === "behind2plus" || standing === "behind1"
+    standing === "behind2plus"
       ? t("billing.statusOverdue")
-      : standing === "due"
+      : standing === "behind1" || standing === "due"
         ? t("billing.statusDue")
         : t("billing.statusUpToDate");
 

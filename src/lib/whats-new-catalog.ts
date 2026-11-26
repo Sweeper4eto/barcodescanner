@@ -1623,6 +1623,14 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "°C дневник на Начало: дневни проверки на хладилници/фризери като Задачи, с навигация по дни и по желание °C.",
     href: "/app/temperature",
   },
+  {
+    key: "2026-11-payment-lock-after-two-months",
+    titleEn:
+      "Billing: the app stays open after one unpaid past month; access locks only after two unpaid past months.",
+    titleBg:
+      "Плащания: приложението остава отворено след един неплатен минал месец; достъпът се заключва едва след два неплатени минали месеца.",
+    href: "/app/billing",
+  },
 ];
 
 

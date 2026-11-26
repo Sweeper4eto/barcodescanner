@@ -9,7 +9,7 @@ export const BILLING_TIME_ZONE = "Europe/Sofia";
 /**
  * - current: this month paid, no past unpaid
  * - due: this month still open (not overdue / not locked)
- * - behind1: 1 past billed month unpaid (locked)
+ * - behind1: 1 past billed month unpaid (warning; app stays open)
  * - behind2plus: 2+ past billed months unpaid (locked)
  * - exempt: household / payments off / nothing to collect
  */
@@ -172,16 +172,17 @@ export function countStandingUnpaidMonths(options: {
 }
 
 /**
- * True when any billed month *before* the current month is still unpaid.
+ * True when 2+ billed months *before* the current month are still unpaid.
+ * One past unpaid month is a warning only; the app stays open.
  * Current month may stay unpaid without locking (pay anytime this month).
- * Example: payments on from Oct → lock starts Nov 1 if Oct is unpaid.
+ * Example: payments on from Sep → lock starts Nov 1 if Sep and Oct are unpaid.
  */
 export function hasOverdueUnpaidMonths(options: {
   billingStart: BillingPeriod;
   current: BillingPeriod;
   paidKeys: ReadonlySet<string>;
 }): boolean {
-  return countStandingUnpaidMonths(options) > 0;
+  return countStandingUnpaidMonths(options) >= 2;
 }
 
 /** Pure access gate used by clientRequiresPayment. */

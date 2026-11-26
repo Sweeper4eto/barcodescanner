@@ -516,8 +516,10 @@ export const en = {
     nextMonthHint:
       "Payment for the next month can be made at any time.",
     dueHint: "This month’s subscription is still unpaid. You can pay anytime.",
-    behindOneHint: "One past billed month is still unpaid. Access may be limited.",
-    behindManyHint: "Two or more past billed months are unpaid. Access may be limited.",
+    behindOneHint:
+      "One past billed month is still unpaid. You can keep working; please pay soon.",
+    behindManyHint:
+      "Two or more past billed months are unpaid. Access is limited until you catch up.",
     thisMonth: "This month",
     locationsFee: "{count} locations · {breakdown}",
     referralDiscount:
@@ -1466,7 +1468,7 @@ export const en = {
     referralsEmpty: "No referred clients yet.",
     paymentsRequired: "Require monthly payments",
     paymentsRequiredHint:
-      "Off by default. When on, billing starts this month. Access locks only if a previous billed month is still unpaid. The current month can be paid anytime.",
+      "Off by default. When on, billing starts this month. Access locks only after two unpaid past billed months. One unpaid past month stays open. The current month can be paid anytime.",
     paymentsRequiredOff: "Payments off",
     scheduleEnabled: "Staff schedule",
     scheduleEnabledHint:
@@ -1572,7 +1574,7 @@ export const en = {
     unpayMonth: "Unpay",
     noPaymentsYet: "No payments recorded yet.",
     paymentStandingHint:
-      "Each row is one client (all locations). Turn on payments per client. Green = this month paid. Neutral = this month still due (allowed). Amber/red = past month(s) unpaid (access locked). Households never pay.",
+      "Each row is one client (all locations). Turn on payments per client. Green = this month paid. Neutral = this month still due (allowed). Amber = 1 past month unpaid (still open). Red = 2+ past months unpaid (access locked). Households never pay.",
     paymentStandingCurrent: "Paid up to date",
     paymentStandingDue: "Payment due",
     paymentStandingBehind1: "1 month overdue",
