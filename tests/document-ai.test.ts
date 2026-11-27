@@ -455,6 +455,40 @@ describe("resolveDocumentExpiry", () => {
       "2027-06-23",
     );
   });
+
+  it("prefers calendar date beside lot over model ISO copied from lot digits", () => {
+    // Barska-style: lot L260326 (=26.03.2026) with real Godnost next to it.
+    assert.equal(
+      resolveDocumentExpiry("2026-03-26", null, "L260326/26.03.2028"),
+      "2028-03-26",
+    );
+    assert.equal(
+      resolveDocumentExpiry("2026-03-26", null, "L260326 26.03.2028"),
+      "2028-03-26",
+    );
+    assert.equal(
+      resolveDocumentExpiry("2026-03-26", null, "L260326 03.2029"),
+      "2029-03-31",
+    );
+    assert.equal(
+      resolveDocumentExpiry(null, "26.03.2026", "L260326/26.03.2028"),
+      "2028-03-26",
+    );
+    // Lot-echo printed must not block a real model/ISO date.
+    assert.equal(
+      resolveDocumentExpiry("2028-03-26", "26.03.2026", "L260326"),
+      "2028-03-26",
+    );
+    // Lot-only echo still allowed as last resort when no other date exists.
+    assert.equal(
+      resolveDocumentExpiry("2026-03-26", null, "L260326"),
+      "2026-03-26",
+    );
+    assert.equal(
+      resolveDocumentExpiry(null, "26.03.2026", "L260326"),
+      "2026-03-26",
+    );
+  });
 });
 
 describe("parsePrintedExpiry", () => {

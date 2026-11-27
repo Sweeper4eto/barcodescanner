@@ -600,6 +600,53 @@ function hasDigitBefore(raw: string, index: number): boolean {
   return index > 0 && /\d/.test(raw.charAt(index - 1));
 }
 
+/**
+ * True when `MM.YYYY` at `index` is the tail of `DD.MM.YYYY`
+ * (e.g. skip "12.2026" inside "11.12.2026").
+ */
+function isMonthYearTailOfDmy(
+  raw: string,
+  index: number,
+  sep: string,
+): boolean {
+  if (index <= 0) return false;
+  const before = raw.slice(0, index);
+  const escaped = sep.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`\\d{1,2}${escaped}$`).test(before);
+}
+
+/**
+ * Embedded month+year dates in a longer cell (incl. next to a lot code).
+ * Examples: "L260326 03.2029", "BB 12.2027", "03.2029".
+ */
+function extractEmbeddedMonthYearYmds(raw: string): string[] {
+  const found: string[] = [];
+  const myRe = /(\d{1,2})([./\-])(\d{2}|\d{4})(?![0-9./\-])/g;
+  for (const match of raw.matchAll(myRe)) {
+    const index = match.index ?? 0;
+    const sep = match[2]!;
+    if (hasLotPrefixBefore(raw, index)) continue;
+    if (hasDigitBefore(raw, index)) continue;
+    if (isMonthYearTailOfDmy(raw, index, sep)) continue;
+    const ymd = endOfMonthYmd(Number(match[3]), Number(match[1]));
+    if (ymd) found.push(ymd);
+  }
+  return found;
+}
+
+/**
+ * Visible calendar dates standing in/beside a lot cell (not compact L+digits alone).
+ * Used so a real Godnost next to the batch code wins over a model ISO copied from the lot.
+ */
+export function extractLotAdjacentExpiryYmds(
+  value: string | null | undefined,
+): string[] {
+  if (!value) return [];
+  const raw = value.trim();
+  if (!raw) return [];
+  return extractDocumentExpiryYmds(raw);
+}
+
 /** Pure numeric date-like blob (no words). Do not fall back to spoken parsing. */
 function looksLikeNumericDateBlob(raw: string): boolean {
   return /^\d{1,4}[./\-]\d{1,2}(?:[./\-]\d{1,4})?$/.test(raw.trim());
@@ -646,6 +693,10 @@ export function extractDocumentExpiryYmds(
   }
 
   if (found.size > 0) return [...found];
+
+  // Month+year beside a lot / label (L260326 03.2029) before rejecting pure lot codes.
+  const embeddedMonthYear = extractEmbeddedMonthYearYmds(raw);
+  if (embeddedMonthYear.length > 0) return embeddedMonthYear;
 
   // Whole-string month/year / spoken: not for pure lot codes (L2027 etc.).
   if (looksLikeLotCodeNotExpiry(raw)) return [];
@@ -850,6 +901,41 @@ export function parseExpiryAfterLotSlash(
 }
 
 /**
+ * Date encoded only in the lot HEAD digits (before any / or \ date).
+ * L260326 → 2026-03-26; L260326/26.03.2028 → still 2026-03-26 (echo of batch).
+ * Never returns the calendar date after the slash — that is real Godnost.
+ */
+export function parseLotCodeDigitEcho(
+  value: string | null | undefined,
+): string | null {
+  if (!value) return null;
+  const head = value.trim().split(/[/\\]/)[0]?.trim() ?? "";
+  if (!head) return null;
+
+  if (looksLikeLotCodeNotExpiry(head)) {
+    const rest = stripLotLabelPrefix(head);
+    if (!rest) return null;
+    // Only the batch token itself (compact or a single dotted date), not text after.
+    const compact = /^(\d{6}|\d{8})\b/.exec(rest);
+    if (compact) return parseCompactDigitExpiry(compact[1]!);
+    if (/^\d{1,2}[./\-]\d{1,2}[./\-]\d{2,4}$/.test(rest)) {
+      return parseDocumentExpiry(rest);
+    }
+    if (/^\d{4}$/.test(rest) || /^\d{6}$/.test(rest.replace(/\s+/g, ""))) {
+      return parseLotDateFragment(rest);
+    }
+    return null;
+  }
+
+  // Bare lot field with only compact digits (no L label).
+  const digits = head.replace(/\s+/g, "");
+  if (/^\d{6}$/.test(digits) || /^\d{8}$/.test(digits)) {
+    return parseCompactDigitExpiry(digits);
+  }
+  return null;
+}
+
+/**
  * EXCEPTION / LAST RESORT only (not normal Godnost parsing).
  * When Godnost is empty: derive a date from a lot/batch code
  * (L11122026, L 11122026, L2027, or lot/date with / or \).
@@ -882,39 +968,58 @@ export function parseExpiryEncodedInLotCode(
 /**
  * Resolve expiry for one OCR item.
  *
- * NORMAL PATH (always first, never skipped for exceptions):
- * 1. Visible calendar dates in the printed Godnost cell (incl. two dates → later;
- *    incl. a date standing after / or \ next to a lot code).
- * 2. Model ISO expiryDate when printed has no calendar date.
+ * Rule: if any real calendar / Godnost date exists, always use it.
+ * Lot-derived dates are last resort only (never preferred over a real date).
  *
- * EXCEPTIONS (only when normal path found nothing), in order:
- * 1. Compact DDMMYY / DDMMYYYY on Godnost / "Използвай до|преди" / plain digits
- * 2. Lot-encoded date (L11122026, L: 020826, L2027, lot/date slash) — only if
- *    step 1 found nothing
+ * NORMAL PATH (lot never wins here):
+ * 1. Visible Godnost in expiryPrinted (DD.MM.YYYY, month.year, …)
+ * 2. Visible calendar date standing beside the lot (slash, space, month.year)
+ * 3. Model ISO expiryDate
+ * 4. Compact Godnost / "Използвай до|преди" digits on the printed cell
  *
- * Exceptions must never run first and must never replace a real Godnost date.
- * Lot is the last fallback, never preferred over a use-by compact date.
+ * Values that merely restate compact digits from the lot (L260326 → 26.03.2026)
+ * are lot echoes, not Godnost — ignored until the last-resort step.
+ *
+ * LAST RESORT only when nothing above produced a date:
+ * lot-encoded digits (L11122026, L: 020826, L2027) or compact digits on lot.
  */
 export function resolveDocumentExpiry(
   expiryDate: string | null | undefined,
   expiryPrinted?: string | null | undefined,
   lot?: string | null | undefined,
 ): string | null {
-  // --- NORMAL PATH (first) ---
+  // Echo = batch digits only. Bare compact on expiryPrinted is Godnost, not a lot.
+  const lotDigitEcho =
+    parseLotCodeDigitEcho(lot) ??
+    (looksLikeLotCodeNotExpiry(expiryPrinted)
+      ? parseLotCodeDigitEcho(expiryPrinted)
+      : null);
+
+  const isLotEcho = (ymd: string | null | undefined): boolean =>
+    Boolean(ymd && lotDigitEcho && ymd === lotDigitEcho);
+
+  // --- Real dates only (never lot-digit echoes) ---
+  // ISO-only printed cells stay on the expiryDate swap-guard path.
   const fromPrinted = parsePrintedExpiry(expiryPrinted);
-  if (fromPrinted) return fromPrinted;
+  const visible = pickLatestExpiryYmd([
+    isLotEcho(fromPrinted) ? null : fromPrinted,
+    // Calendar date beside the lot is real Godnost (not the batch digits).
+    ...extractLotAdjacentExpiryYmds(lot),
+  ]);
+  if (visible) return visible;
 
   const fromExpiryDate = parseDocumentExpiry(expiryDate);
-  if (fromExpiryDate) return fromExpiryDate;
+  if (fromExpiryDate && !isLotEcho(fromExpiryDate)) return fromExpiryDate;
 
   const fromPrintedLoose = parseDocumentExpiry(expiryPrinted);
-  if (fromPrintedLoose) return fromPrintedLoose;
+  if (fromPrintedLoose && !isLotEcho(fromPrintedLoose)) return fromPrintedLoose;
 
-  // --- Compact Godnost / use-by (before any lot→date) ---
   const fromCompactPrinted = parseCompactExpiryFallback(expiryPrinted);
-  if (fromCompactPrinted) return fromCompactPrinted;
+  if (fromCompactPrinted && !isLotEcho(fromCompactPrinted)) {
+    return fromCompactPrinted;
+  }
 
-  // --- Lot only when nothing above produced a date ---
+  // --- Lot last resort (only when no real date exists) ---
   return (
     parseExpiryEncodedInLotCode(lot) ??
     parseExpiryEncodedInLotCode(expiryPrinted) ??

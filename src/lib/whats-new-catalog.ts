@@ -1631,6 +1631,14 @@ export const WHATS_NEW_CATALOG: readonly WhatsNewCatalogEntry[] = [
       "Плащания: приложението остава отворено след един неплатен минал месец; достъпът се заключва едва след два неплатени минали месеца.",
     href: "/app/billing",
   },
+  {
+    key: "2026-11-doc-lot-beside-expiry",
+    titleEn:
+      "Document scan: when a lot code sits next to a real use-by date, the calendar date is kept (lot digits are not treated as expiry).",
+    titleBg:
+      "Скан на документ: когато партидата е до реална дата на годност, се запазва календарната дата (цифрите от партидата не стават срок).",
+    href: "/app/add-document",
+  },
 ];
 
 

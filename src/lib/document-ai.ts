@@ -336,6 +336,7 @@ OTHER:
 - lot = batch / партия value when printed (headers or inline labels like Партида, Пар., Лот, Серия, Емисия, Lot, Batch, Serie). Copy the value only — not the label word. If absent → null.
 - If lot text is printed after the Godnost date in the same cell (e.g. "23.06.2027 L268623"), put the date in expiryPrinted and the lot code in lot when clearly separable; otherwise keep full text in expiryPrinted and lot null.
 - Lot codes often LOOK like dates (e.g. L11122026 encodes 11.12.2026). A leading L / Л / Lot / Партида / … means LOT — put the full code in lot (and expiryPrinted null when there is no separate Godnost date). Only a real Godnost column date goes in expiryPrinted.
+- When LOT and Godnost are printed next to each other (L260326 / 26.03.2028, or L260326 03.2029), put the batch in lot and the calendar date in expiryPrinted. NEVER copy the lot digits into expiryPrinted or invent expiryDate from the lot.
 - EXCEPTIONS (server-side only, never invent in JSON): if Godnost is empty, the server MAY derive a date from the lot (L11122026, L2027) or from lot/date glued with / or \\ (date usually after the slash). Do not replace a real Godnost date with these.
 - quantity = pieces if printed, else 1.
 - Ignore headers, addresses, totals, signatures.
