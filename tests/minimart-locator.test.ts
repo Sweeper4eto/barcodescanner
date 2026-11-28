@@ -94,9 +94,17 @@ test("minimart status colors cover all statuses", () => {
   assert.equal(isMinimartVisitStatus("marked"), false);
 });
 
-test("minimart map uses a dark Carto basemap with attribution", () => {
-  assert.match(MINIMART_MAP_TILE_URL, /basemaps\.cartocdn\.com\/dark_all/);
-  assert.match(MINIMART_MAP_TILE_ATTRIBUTION, /OpenStreetMap/);
-  assert.match(MINIMART_MAP_TILE_ATTRIBUTION, /CARTO/);
-  assert.ok(MINIMART_MAP_MAX_ZOOM >= 18);
+test("minimart map uses a dark basemap without requiring a Carto key by default", () => {
+  // Without NEXT_PUBLIC_CARTO_BASEMAPS_API_KEY, fall back to Esri dark-gray
+  // (CARTO CDN watermarks every tile with "API KEY REQUIRED" since Sep 2026).
+  if ((process.env.NEXT_PUBLIC_CARTO_BASEMAPS_API_KEY ?? "").trim()) {
+    assert.match(MINIMART_MAP_TILE_URL, /basemaps\.cartocdn\.com\/dark_all/);
+    assert.match(MINIMART_MAP_TILE_URL, /[?&]key=/);
+    assert.match(MINIMART_MAP_TILE_ATTRIBUTION, /CARTO/);
+    assert.ok(MINIMART_MAP_MAX_ZOOM >= 18);
+  } else {
+    assert.match(MINIMART_MAP_TILE_URL, /arcgisonline\.com\/.*World_Dark_Gray_Base/);
+    assert.match(MINIMART_MAP_TILE_ATTRIBUTION, /Esri/);
+    assert.ok(MINIMART_MAP_MAX_ZOOM >= 16);
+  }
 });
